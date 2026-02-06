@@ -1942,18 +1942,28 @@ const syncTemplatesMutation = useMutation({
                             )}
 
                             {/* Normal chat input */}
-                            {!showTranslation && (
-                              <WhatsAppChatInput
-                                accountId={selectedAccount!.id}
-                                accountName={selectedAccount!.verified_name || selectedAccount!.display_phone_number}
-                                conversationPhone={selectedConversation.customer_phone}
-                                userId={user?.id}
-                                onMessageSent={() => {
-                                  queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
-                                  queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
-                                }}
-                              />
-                            )}
+                            {!showTranslation && (() => {
+                              const matchedLead = findLeadByPhone(selectedConversation.customer_phone);
+                              return (
+                                <WhatsAppChatInput
+                                  accountId={selectedAccount!.id}
+                                  accountName={selectedAccount!.verified_name || selectedAccount!.display_phone_number}
+                                  conversationPhone={selectedConversation.customer_phone}
+                                  userId={user?.id}
+                                  leadData={matchedLead ? {
+                                    name: matchedLead.contact_name || undefined,
+                                    company: (matchedLead as any).company || undefined,
+                                    email: matchedLead.email || undefined,
+                                    phone: matchedLead.phone || undefined,
+                                    country: matchedLead.country || undefined
+                                  } : undefined}
+                                  onMessageSent={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                  }}
+                                />
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

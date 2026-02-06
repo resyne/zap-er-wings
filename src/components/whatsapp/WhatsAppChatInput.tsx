@@ -23,6 +23,14 @@ import { toast } from "sonner";
 import { StandardMessagesDialog } from "@/components/whatsapp/WhatsAppStandardMessages";
 import { BusinessFilesDialog } from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 
+interface LeadData {
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+}
+
 interface WhatsAppChatInputProps {
   accountId: string;
   accountName?: string;
@@ -30,6 +38,7 @@ interface WhatsAppChatInputProps {
   onMessageSent: () => void;
   disabled?: boolean;
   userId?: string;
+  leadData?: LeadData;
 }
 
 type MediaType = "image" | "document" | "audio" | "video";
@@ -46,7 +55,8 @@ export function WhatsAppChatInput({
   conversationPhone, 
   onMessageSent, 
   disabled = false,
-  userId
+  userId,
+  leadData
 }: WhatsAppChatInputProps) {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -525,6 +535,7 @@ export function WhatsAppChatInput({
         <StandardMessagesDialog
           accountId={accountId}
           accountName={accountName}
+          leadData={leadData}
           onSelectMessage={(msg, attachment) => {
             setMessage(msg);
             // If the standard message has an attachment, set it
