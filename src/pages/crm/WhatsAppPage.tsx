@@ -223,7 +223,11 @@ export default function WhatsAppPage() {
   const [showTranslation, setShowTranslation] = useState(false);
   const [translationTargetLang, setTranslationTargetLang] = useState<string>("en");
   const [translationInput, setTranslationInput] = useState("");
+  const [isSendingTranslation, setIsSendingTranslation] = useState(false);
   const { translateOutbound, outboundTranslation, clearOutboundTranslation, isTranslatingOutbound } = useChatTranslation();
+  
+  // Guard ref per impedire doppio invio
+  const sendTranslationInProgressRef = useRef(false);
   
   // Ref for chat scroll area
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -2275,7 +2279,13 @@ const syncTemplatesMutation = useMutation({
                                     </div>
                                     <Button
                                       size="sm"
+                                      disabled={isSendingTranslation}
                                       onClick={async () => {
+                                        // Guard sincrono per doppio click
+                                        if (sendTranslationInProgressRef.current || isSendingTranslation) return;
+                                        sendTranslationInProgressRef.current = true;
+                                        setIsSendingTranslation(true);
+                                        
                                         // Send the translated message
                                         try {
                                           const response = await supabase.functions.invoke("whatsapp-send", {
@@ -2298,13 +2308,23 @@ const syncTemplatesMutation = useMutation({
                                           setShowTranslation(false);
                                           queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
                                           queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                          
+                                          // Delay per evitare doppio invio rapido
+                                          await new Promise(resolve => setTimeout(resolve, 2000));
                                         } catch (err: any) {
                                           toast.error(err.message || "Errore durante l'invio");
+                                        } finally {
+                                          setIsSendingTranslation(false);
+                                          sendTranslationInProgressRef.current = false;
                                         }
                                       }}
                                       className="w-full gap-2"
                                     >
-                                      <Send className="h-4 w-4" />
+                                      {isSendingTranslation ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Send className="h-4 w-4" />
+                                      )}
                                       Invia traduzione
                                     </Button>
                                   </div>
