@@ -3,17 +3,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Languages, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useChatTranslation, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TranslatedMessageBubbleProps {
   messageId: string;
   originalText: string;
   isInbound: boolean; // Only translate inbound (customer) messages
+  // Pre-loaded translation from DB (if available)
+  savedTranslation?: string | null;
+  savedSourceLanguage?: string | null;
 }
 
 export function TranslatedMessageBubble({ 
   messageId, 
   originalText,
-  isInbound
+  isInbound,
+  savedTranslation,
+  savedSourceLanguage
 }: TranslatedMessageBubbleProps) {
   const [showTranslation, setShowTranslation] = useState(true);
   const [translation, setTranslation] = useState<{
@@ -24,8 +30,19 @@ export function TranslatedMessageBubble({
   } | null>(null);
   const { translateIncoming, isMessageTranslating, getCachedTranslation } = useChatTranslation();
 
-  // Trigger translation on mount for inbound non-Italian messages
+  // Use saved translation from DB if available
   useEffect(() => {
+    if (savedTranslation && savedSourceLanguage) {
+      // Already have translation from DB
+      const isSame = savedSourceLanguage === 'it';
+      setTranslation({
+        translatedText: savedTranslation,
+        sourceLanguage: savedSourceLanguage,
+        sameLanguage: isSame
+      });
+      return;
+    }
+
     if (!isInbound || !originalText) return;
 
     const cached = getCachedTranslation(messageId);
@@ -50,7 +67,7 @@ export function TranslatedMessageBubble({
       return;
     }
 
-    translateIncoming(messageId, originalText).then(result => {
+    translateIncoming(messageId, originalText).then(async (result) => {
       if (result && !result.same_language) {
         setTranslation({
           translatedText: result.translation,
@@ -58,15 +75,40 @@ export function TranslatedMessageBubble({
           sourceLanguageName: result.source_language_name,
           sameLanguage: result.same_language
         });
+        
+        // Save translation to database for future use
+        try {
+          await (supabase as any)
+            .from('whatsapp_messages')
+            .update({
+              translation_it: result.translation,
+              source_language: result.source_language
+            })
+            .eq('id', messageId);
+        } catch (err) {
+          console.error('Failed to save translation:', err);
+        }
       } else if (result?.same_language) {
         setTranslation({
           translatedText: originalText,
           sourceLanguage: result.source_language,
           sameLanguage: true
         });
+        
+        // Mark as Italian in DB so we don't re-translate
+        try {
+          await (supabase as any)
+            .from('whatsapp_messages')
+            .update({
+              source_language: 'it'
+            })
+            .eq('id', messageId);
+        } catch (err) {
+          console.error('Failed to save source language:', err);
+        }
       }
     });
-  }, [messageId, originalText, isInbound, translateIncoming, getCachedTranslation]);
+  }, [messageId, originalText, isInbound, savedTranslation, savedSourceLanguage, translateIncoming, getCachedTranslation]);
 
   const isTranslating = isMessageTranslating(messageId);
 
