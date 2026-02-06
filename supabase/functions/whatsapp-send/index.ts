@@ -235,10 +235,20 @@ serve(async (req) => {
 
     // Save message to database
     if (conversation) {
-      let messageContent = type === "template" ? `[Template: ${template_name}]` : content;
-      if (header_document_url) {
-        messageContent += ` [+Documento]`;
+      // Determine message content based on type
+      let messageContent: string | undefined;
+      if (type === "template") {
+        messageContent = `[Template: ${template_name}]`;
+        if (header_document_url) {
+          messageContent += ` [+Documento]`;
+        }
+      } else if (type === "text") {
+        messageContent = content;
+      } else if (["image", "document", "video"].includes(type)) {
+        // For media messages, save the caption as content
+        messageContent = media_caption || undefined;
       }
+      // audio type has no caption
       
       await supabase.from("whatsapp_messages").insert({
         conversation_id: conversation.id,
@@ -247,7 +257,7 @@ serve(async (req) => {
         message_type: type,
         content: messageContent,
         template_name: template_name,
-        template_language: template_language || null, // Save the language used
+        template_language: template_language || null,
         template_params: template_params,
         media_url: header_document_url || media_url,
         status: "sent",
@@ -259,7 +269,7 @@ serve(async (req) => {
         .from("whatsapp_conversations")
         .update({
           last_message_at: new Date().toISOString(),
-          last_message_preview: messageContent?.substring(0, 100),
+          last_message_preview: messageContent?.substring(0, 100) || (media_url ? `[${type}]` : ''),
         })
         .eq("id", conversation.id);
     }
