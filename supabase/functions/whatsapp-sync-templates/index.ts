@@ -54,9 +54,19 @@ serve(async (req) => {
     
     console.log("Fetching templates from:", templatesUrl);
 
+    // Sanitize access token - remove non-printable ASCII characters
+    const sanitizedToken = account.access_token.replace(/[^\x20-\x7E]/g, '').trim();
+    
+    if (sanitizedToken.length < 50) {
+      return new Response(
+        JSON.stringify({ error: "Access token appears invalid or corrupted" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const response = await fetch(templatesUrl, {
       headers: {
-        Authorization: `Bearer ${account.access_token}`,
+        Authorization: `Bearer ${sanitizedToken}`,
       },
     });
 
