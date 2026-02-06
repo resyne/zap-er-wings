@@ -37,6 +37,7 @@ import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndic
 import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -127,10 +128,12 @@ interface CreditTransaction {
 
 export default function WhatsAppPage() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   // Rimossa sezione crediti - Meta fattura direttamente
@@ -1046,10 +1049,19 @@ const syncTemplatesMutation = useMutation({
   // Handler per selezionare una conversazione e marcarla come letta
   const handleSelectConversation = (conv: WhatsAppConversation) => {
     setSelectedConversation(conv);
+    // Su mobile, mostra la chat
+    if (isMobile) {
+      setMobileShowChat(true);
+    }
     // Marca come letta se ha messaggi non letti
     if (conv.unread_count > 0) {
       markAsReadMutation.mutate(conv.id);
     }
+  };
+
+  // Handler per tornare alla lista su mobile
+  const handleBackToList = () => {
+    setMobileShowChat(false);
   };
 
   // Helper per normalizzare numero di telefono (ultimi 8 digit)
@@ -1218,63 +1230,74 @@ const syncTemplatesMutation = useMutation({
 
   // Vista dettaglio BU
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className={`container mx-auto space-y-4 ${isMobile ? 'p-3' : 'p-6 space-y-6'}`}>
       {/* Header con back */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={() => { setSelectedBU(null); setSelectedAccount(null); }}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Torna alle attività
+          {isMobile ? 'Indietro' : 'Torna alle attività'}
         </Button>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <MessageCircle className="h-8 w-8 text-green-600" />
-            WhatsApp - {selectedBU.name}
+        <div className="min-w-0 flex-1">
+          <h1 className={`font-bold flex items-center gap-2 ${isMobile ? 'text-xl' : 'text-3xl gap-3'}`}>
+            <MessageCircle className={`text-green-600 shrink-0 ${isMobile ? 'h-6 w-6' : 'h-8 w-8'}`} />
+            <span className="truncate">WhatsApp - {selectedBU.name}</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Gestisci numeri, template, chat e crediti
-          </p>
+          {!isMobile && (
+            <p className="text-muted-foreground mt-1">
+              Gestisci numeri, template, chat e crediti
+            </p>
+          )}
         </div>
-        <Button onClick={() => setIsAccountDialogOpen(true)}>
+        <Button onClick={() => setIsAccountDialogOpen(true)} size={isMobile ? "sm" : "default"}>
           <Plus className="h-4 w-4 mr-2" />
-          Aggiungi Numero
+          {isMobile ? 'Numero' : 'Aggiungi Numero'}
         </Button>
       </div>
 
       {/* Account selector */}
       {accounts && accounts.length > 0 && (
-        <div className="flex gap-2 flex-wrap items-center">
+        <div className={`flex gap-2 flex-wrap items-center ${isMobile ? 'overflow-x-auto pb-2 -mx-2 px-2' : ''}`}>
           {accounts.map(account => (
-            <div key={account.id} className="relative group">
+            <div key={account.id} className="relative group shrink-0">
               <Button
                 variant={selectedAccount?.id === account.id ? "default" : "outline"}
                 onClick={() => setSelectedAccount(account)}
-                className="flex items-center gap-2 pr-8"
+                size={isMobile ? "sm" : "default"}
+                className={`flex items-center gap-2 ${isMobile ? '' : 'pr-8'}`}
               >
                 <Phone className="h-4 w-4" />
-                {account.display_phone_number}
-                {account.verified_name && <span className="text-xs opacity-70">({account.verified_name})</span>}
+                {isMobile ? (
+                  <span className="max-w-[120px] truncate">{account.verified_name || account.display_phone_number}</span>
+                ) : (
+                  <>
+                    {account.display_phone_number}
+                    {account.verified_name && <span className="text-xs opacity-70">({account.verified_name})</span>}
+                  </>
+                )}
                 {account.pipeline && (
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {account.pipeline}
                   </Badge>
                 )}
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-full opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(`Sei sicuro di voler eliminare il numero ${account.display_phone_number}?`)) {
-                    deleteAccountMutation.mutate(account.id);
-                  }
-                }}
-              >
-                <Trash2 className="h-3 w-3 text-destructive" />
-              </Button>
+              {!isMobile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Sei sicuro di voler eliminare il numero ${account.display_phone_number}?`)) {
+                      deleteAccountMutation.mutate(account.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -1283,31 +1306,31 @@ const syncTemplatesMutation = useMutation({
       {/* Account Details */}
       {selectedAccount && (
         <Tabs defaultValue="chats" className="w-full">
-          <TabsList>
-            <TabsTrigger value="chats" className="flex items-center gap-2">
+          <TabsList className={isMobile ? 'w-full grid grid-cols-4' : ''}>
+            <TabsTrigger value="chats" className="flex items-center gap-1 sm:gap-2">
               <MessageSquare className="h-4 w-4" />
-              Chat
+              <span className={isMobile ? 'hidden' : ''}>Chat</span>
             </TabsTrigger>
-            <TabsTrigger value="templates" className="flex items-center gap-2">
+            <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2">
               <FileText className="h-4 w-4" />
-              Template
+              <span className={isMobile ? 'hidden' : ''}>Template</span>
             </TabsTrigger>
-            <TabsTrigger value="costs" className="flex items-center gap-2">
+            <TabsTrigger value="costs" className="flex items-center gap-1 sm:gap-2">
               <CreditCard className="h-4 w-4" />
-              Costi
+              <span className={isMobile ? 'hidden' : ''}>Costi</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
+            <TabsTrigger value="settings" className="flex items-center gap-1 sm:gap-2">
               <Settings className="h-4 w-4" />
-              Impostazioni
+              <span className={isMobile ? 'hidden' : ''}>Impostazioni</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Chats Tab */}
           <TabsContent value="chats" className="mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
-              {/* Conversations List */}
-              <Card className="lg:col-span-1">
-                <CardHeader className="pb-2">
+            <div className={`grid gap-4 ${isMobile ? 'h-[calc(100vh-280px)]' : 'h-[600px] grid-cols-1 lg:grid-cols-3'}`}>
+              {/* Conversations List - Hidden on mobile when chat is open */}
+              <Card className={`lg:col-span-1 flex flex-col ${isMobile && mobileShowChat ? 'hidden' : ''} ${isMobile ? 'h-full' : ''}`}>
+                <CardHeader className="pb-2 shrink-0">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Conversazioni</CardTitle>
                     <div className="flex items-center gap-1">
@@ -1350,8 +1373,8 @@ const syncTemplatesMutation = useMutation({
                     </Select>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[480px]">
+                <CardContent className="p-0 flex-1 overflow-hidden">
+                  <ScrollArea className={isMobile ? 'h-full' : 'h-[480px]'}>
                     {filteredConversations?.map(conv => {
                       const matchedLead = findLeadByPhone(conv.customer_phone);
                       const displayName = matchedLead?.contact_name || conv.customer_name || conv.customer_phone;
@@ -1545,26 +1568,37 @@ const syncTemplatesMutation = useMutation({
                 </CardContent>
               </Card>
 
-              {/* Chat Window */}
-              <Card className="lg:col-span-2">
+              {/* Chat Window - Hidden on mobile when list is shown */}
+              <Card className={`lg:col-span-2 flex flex-col ${isMobile && !mobileShowChat ? 'hidden' : ''} ${isMobile ? 'h-full' : ''}`}>
                 {selectedConversation ? (
                   <>
-                    <CardHeader className="pb-2 border-b">
+                    <CardHeader className="pb-2 border-b shrink-0">
                       <div className="flex items-center gap-3">
-                        <Avatar>
+                        {/* Back button on mobile */}
+                        {isMobile && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleBackToList}
+                            className="shrink-0 -ml-2"
+                          >
+                            <ArrowLeft className="h-5 w-5" />
+                          </Button>
+                        )}
+                        <Avatar className="shrink-0">
                           <AvatarFallback>
                             {selectedConversation.customer_name?.charAt(0) || <User className="h-4 w-4" />}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <CardTitle className="text-lg">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-lg truncate">
                             {selectedConversation.customer_name || selectedConversation.customer_phone}
                           </CardTitle>
-                          <CardDescription>{selectedConversation.customer_phone}</CardDescription>
+                          <CardDescription className="truncate">{selectedConversation.customer_phone}</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-0 flex flex-col h-[520px]">
+                    <CardContent className={`p-0 flex flex-col flex-1 ${isMobile ? 'h-0' : 'h-[520px]'}`}>
                       <div className="relative flex-1 overflow-hidden">
                         {/* Scroll to top button */}
                         <Button
