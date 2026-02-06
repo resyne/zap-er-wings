@@ -109,14 +109,21 @@ const getAttachmentIcon = (type: string | null) => {
 
 // Helper function to replace variables with lead data
 const replaceVariables = (message: string, leadData?: LeadData): string => {
-  if (!leadData) return message;
+  console.log('[replaceVariables] Input:', { message, leadData });
+  if (!leadData) {
+    console.log('[replaceVariables] No leadData, returning original');
+    return message;
+  }
   
-  return message
+  const result = message
     .replace(/\{\{nome\}\}/gi, leadData.name || '')
     .replace(/\{\{azienda\}\}/gi, leadData.company || '')
     .replace(/\{\{email\}\}/gi, leadData.email || '')
     .replace(/\{\{telefono\}\}/gi, leadData.phone || '')
     .replace(/\{\{paese\}\}/gi, leadData.country || '');
+  
+  console.log('[replaceVariables] Result:', result);
+  return result;
 };
 
 // Map country to language code
