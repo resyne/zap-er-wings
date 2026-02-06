@@ -11,7 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   MessageCircle, Check, CheckCheck, Clock, AlertCircle, 
   Image, FileText, Video, Mic, RefreshCw, Send, Loader2,
-  Bot, Lock, Unlock, Paperclip, X, Timer, Languages, Globe, FolderOpen, Upload
+  Bot, Lock, Unlock, Paperclip, X, Timer, Languages, Globe, FolderOpen, Upload,
+  MessageSquareText
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { useChatTranslation, SUPPORTED_LANGUAGES, getLanguageFromCountry, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
 import WhatsAppAudioPlayer from "./WhatsAppAudioPlayer";
 import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
+import { StandardMessagesDialog } from "@/components/whatsapp/WhatsAppStandardMessages";
 import { BusinessFilesDialog } from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 
 interface LeadWhatsAppChatProps {
@@ -1219,6 +1221,25 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                   />
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              {/* Standard messages button - only when 24h window is open */}
+              {windowStatus.isOpen && (
+                <StandardMessagesDialog
+                  accountId={selectedAccountId}
+                  accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
+                  onSelectMessage={(msg) => setMessage(msg)}
+                  trigger={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      disabled={isSending}
+                      title="Messaggi standard"
+                    >
+                      <MessageSquareText className="h-4 w-4" />
+                    </Button>
+                  }
+                />
+              )}
               
               <Input
                 placeholder={

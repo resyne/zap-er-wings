@@ -10613,6 +10613,39 @@ export type Database = {
           },
         ]
       }
+      whatsapp_standard_messages: {
+        Row: {
+          account_id: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_templates: {
         Row: {
           account_id: string | null
