@@ -10616,6 +10616,10 @@ export type Database = {
       whatsapp_standard_messages: {
         Row: {
           account_id: string
+          attachment_file_id: string | null
+          attachment_name: string | null
+          attachment_type: string | null
+          attachment_url: string | null
           category: string | null
           created_at: string
           created_by: string | null
@@ -10626,6 +10630,10 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          attachment_file_id?: string | null
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
           category?: string | null
           created_at?: string
           created_by?: string | null
@@ -10636,6 +10644,10 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          attachment_file_id?: string | null
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
           category?: string | null
           created_at?: string
           created_by?: string | null
@@ -10644,7 +10656,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_standard_messages_attachment_file_id_fkey"
+            columns: ["attachment_file_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_business_files"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_templates: {
         Row: {
