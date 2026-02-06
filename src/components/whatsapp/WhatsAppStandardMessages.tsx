@@ -423,9 +423,30 @@ function ManageMessagesDialog({
     return acc;
   }, {} as Record<string, Record<string, StandardMessage[]>>);
 
+  // Helper to translate text
+  const translateText = async (text: string, targetLang: string, sourceLang: string): Promise<string> => {
+    try {
+      const response = await supabase.functions.invoke('translate-chat-message', {
+        body: {
+          text,
+          target_language: targetLang,
+          source_language: sourceLang
+        }
+      });
+      if (response.error) throw response.error;
+      return response.data?.translation || text;
+    } catch (err) {
+      console.error(`Translation to ${targetLang} failed:`, err);
+      return text;
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
+      const baseLanguage = formLanguage;
+      
+      // Insert base message
       const { error } = await supabase
         .from('whatsapp_standard_messages')
         .insert({
@@ -433,7 +454,7 @@ function ManageMessagesDialog({
           name: formName.trim(),
           message: formMessage.trim(),
           category: formCategory.trim() || null,
-          language: formLanguage,
+          language: baseLanguage,
           attachment_file_id: formAttachment?.fileId || null,
           attachment_url: formAttachment?.url || null,
           attachment_name: formAttachment?.name || null,
@@ -441,10 +462,40 @@ function ManageMessagesDialog({
           created_by: userData.user?.id
         });
       if (error) throw error;
+
+      // Auto-translate to all other languages
+      const otherLanguages = LANGUAGES.filter(l => l.code !== baseLanguage);
+      toast.info(`Traduzione automatica in ${otherLanguages.length} lingue...`);
+
+      for (const lang of otherLanguages) {
+        try {
+          const [translatedName, translatedMessage] = await Promise.all([
+            translateText(formName.trim(), lang.code, baseLanguage),
+            translateText(formMessage.trim(), lang.code, baseLanguage)
+          ]);
+
+          await supabase
+            .from('whatsapp_standard_messages')
+            .insert({
+              account_id: accountId,
+              name: translatedName,
+              message: translatedMessage,
+              category: formCategory.trim() || null,
+              language: lang.code,
+              attachment_file_id: formAttachment?.fileId || null,
+              attachment_url: formAttachment?.url || null,
+              attachment_name: formAttachment?.name || null,
+              attachment_type: formAttachment?.type || null,
+              created_by: userData.user?.id
+            });
+        } catch (langError) {
+          console.error(`Failed to create ${lang.code} version:`, langError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-standard-messages', accountId] });
-      toast.success("Messaggio creato");
+      toast.success(`Messaggio creato in ${LANGUAGES.length} lingue!`);
       resetForm();
     },
     onError: (err: Error) => {
