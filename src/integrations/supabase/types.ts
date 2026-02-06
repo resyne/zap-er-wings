@@ -10391,6 +10391,7 @@ export type Database = {
           customer_name: string | null
           customer_phone: string
           expires_at: string | null
+          has_customer_reply: boolean | null
           id: string
           last_message_at: string | null
           last_message_preview: string | null
@@ -10408,6 +10409,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone: string
           expires_at?: string | null
+          has_customer_reply?: boolean | null
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
@@ -10425,6 +10427,7 @@ export type Database = {
           customer_name?: string | null
           customer_phone?: string
           expires_at?: string | null
+          has_customer_reply?: boolean | null
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
