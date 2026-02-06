@@ -40,7 +40,7 @@ import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettin
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useLeadDataForPhone } from "@/hooks/useLeadDataForPhone";
+import { useLeadDataForPhone, LeadData } from "@/hooks/useLeadDataForPhone";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -988,6 +988,76 @@ const syncTemplatesMutation = useMutation({
     });
   };
 
+  // Smart pre-fill template params based on variable context and lead data
+  const prefillTemplateParams = (template: WhatsAppTemplate, leadData: LeadData | null | undefined): string[] => {
+    const bodyText = getTemplateBodyText(template);
+    const paramCount = getTemplateParamCount(template);
+    const params: string[] = Array(paramCount).fill('');
+    
+    if (!bodyText || paramCount === 0) return params;
+    
+    // Find each {{n}} variable and analyze surrounding context
+    const varRegex = /\{\{(\d+)\}\}/g;
+    let match;
+    
+    while ((match = varRegex.exec(bodyText)) !== null) {
+      const varNum = parseInt(match[1], 10);
+      const idx = varNum - 1;
+      if (idx < 0 || idx >= paramCount) continue;
+      
+      // Get surrounding text (50 chars before and after)
+      const start = Math.max(0, match.index - 50);
+      const end = Math.min(bodyText.length, match.index + match[0].length + 50);
+      const context = bodyText.substring(start, end).toLowerCase();
+      
+      // Smart matching based on context keywords
+      if (/(?:name|nome|nombre|nom\b|vorname|nachname|cliente|customer|dear|caro|estimado|cher)/i.test(context)) {
+        // Name context
+        const customerName = leadData?.name || selectedConversation?.customer_name;
+        if (customerName) {
+          params[idx] = customerName;
+        }
+      } else if (/(?:email|e-mail|correo|courriel|posta)/i.test(context)) {
+        // Email context
+        if (leadData?.email) {
+          params[idx] = leadData.email;
+        }
+      } else if (/(?:phone|telefono|teléfono|téléphone|telefon|cellulare|mobile)/i.test(context)) {
+        // Phone context
+        const phone = leadData?.phone || selectedConversation?.customer_phone;
+        if (phone) {
+          params[idx] = phone;
+        }
+      } else if (/(?:company|azienda|empresa|entreprise|firma|società|ditta)/i.test(context)) {
+        // Company context
+        if (leadData?.company) {
+          params[idx] = leadData.company;
+        }
+      } else if (/(?:country|paese|país|pays|land|nazione)/i.test(context)) {
+        // Country context
+        if (leadData?.country) {
+          params[idx] = leadData.country;
+        }
+      } else if (/(?:link|url|enlace|configurator|configuratore)/i.test(context)) {
+        // Link context - leave empty, user should provide
+        params[idx] = '';
+      } else if (/(?:date|data|fecha|datum)/i.test(context)) {
+        // Date context - provide today's date
+        params[idx] = format(new Date(), 'dd/MM/yyyy');
+      } else {
+        // Default: if this is the first variable and we have a name, use it
+        if (idx === 0 && !params[idx]) {
+          const customerName = leadData?.name || selectedConversation?.customer_name;
+          if (customerName) {
+            params[idx] = customerName;
+          }
+        }
+      }
+    }
+    
+    return params;
+  };
+
   const getMessageDisplayText = (msg: WhatsAppMessage): string | null => {
     if (msg.message_type === 'template' && msg.template_name) {
       // Use the saved template_language if available, otherwise search globally
@@ -1877,8 +1947,9 @@ const syncTemplatesMutation = useMutation({
                                 const template = approvedTemplates?.find(t => t.id === value);
                                 setChatSelectedTemplate(template || null);
                                 if (template) {
-                                  const paramCount = getTemplateParamCount(template);
-                                  setChatTemplateParams(Array(paramCount).fill(''));
+                                  // Pre-fill params with lead data using smart matching
+                                  const prefilledParams = prefillTemplateParams(template, activeConversationLeadData);
+                                  setChatTemplateParams(prefilledParams);
                                 }
                               }}
                             >
