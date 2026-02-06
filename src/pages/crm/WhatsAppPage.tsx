@@ -213,9 +213,11 @@ export default function WhatsAppPage() {
   const [isAISettingsDialogOpen, setIsAISettingsDialogOpen] = useState(false);
   const [isAIChatActive, setIsAIChatActive] = useState(false);
   const [aiSuggestedMessage, setAiSuggestedMessage] = useState<string | null>(null);
+  const [aiSuggestedTranslation, setAiSuggestedTranslation] = useState<string | null>(null);
   const [aiDelayMinutes, setAiDelayMinutes] = useState<number>(5);
   const [aiReasoning, setAiReasoning] = useState<string>("");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isTranslatingAISuggestion, setIsTranslatingAISuggestion] = useState(false);
 
   // Translation state
   const [showTranslation, setShowTranslation] = useState(false);
@@ -1969,10 +1971,12 @@ const syncTemplatesMutation = useMutation({
                                     if (isAIChatActive) {
                                       setIsAIChatActive(false);
                                       setAiSuggestedMessage(null);
+                                      setAiSuggestedTranslation(null);
                                       return;
                                     }
                                     
                                     setIsGeneratingAI(true);
+                                    setAiSuggestedTranslation(null);
                                     try {
                                       const { data, error } = await supabase.functions.invoke('whatsapp-ai-chat', {
                                         body: {
@@ -1990,6 +1994,26 @@ const syncTemplatesMutation = useMutation({
                                       setAiDelayMinutes(data.delay_minutes);
                                       setAiReasoning(data.reasoning);
                                       setIsAIChatActive(true);
+                                      
+                                      // Translate the suggested message to Italian for operator review
+                                      if (data.suggested_message) {
+                                        setIsTranslatingAISuggestion(true);
+                                        try {
+                                          const { data: transData } = await supabase.functions.invoke('translate-chat-message', {
+                                            body: {
+                                              text: data.suggested_message,
+                                              target_language: 'it'
+                                            }
+                                          });
+                                          if (transData?.success && !transData.same_language) {
+                                            setAiSuggestedTranslation(transData.translation);
+                                          }
+                                        } catch (transErr) {
+                                          console.error('Translation error:', transErr);
+                                        } finally {
+                                          setIsTranslatingAISuggestion(false);
+                                        }
+                                      }
                                     } catch (err: any) {
                                       toast.error(err.message || 'Errore AI');
                                     } finally {
@@ -2012,13 +2036,31 @@ const syncTemplatesMutation = useMutation({
                               <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/30 space-y-3">
                                 <div className="flex items-start gap-2">
                                   <Sparkles className="h-4 w-4 text-primary mt-0.5" />
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium mb-1">Messaggio suggerito:</p>
+                                  <div className="flex-1 space-y-2">
+                                    <p className="text-sm font-medium">Messaggio suggerito:</p>
                                     <Textarea
                                       value={aiSuggestedMessage}
                                       onChange={(e) => setAiSuggestedMessage(e.target.value)}
                                       className="min-h-[60px] text-sm"
                                     />
+                                    
+                                    {/* Italian Translation */}
+                                    {(aiSuggestedTranslation || isTranslatingAISuggestion) && (
+                                      <div className="bg-muted/50 rounded-md p-2 border border-border">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <span className="text-xs">🇮🇹</span>
+                                          <span className="text-xs text-muted-foreground font-medium">Traduzione italiana:</span>
+                                        </div>
+                                        {isTranslatingAISuggestion ? (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            Traduzione in corso...
+                                          </div>
+                                        ) : (
+                                          <p className="text-sm text-muted-foreground">{aiSuggestedTranslation}</p>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 
@@ -2040,6 +2082,7 @@ const syncTemplatesMutation = useMutation({
                                       onClick={() => {
                                         setIsAIChatActive(false);
                                         setAiSuggestedMessage(null);
+                                        setAiSuggestedTranslation(null);
                                       }}
                                     >
                                       Annulla
@@ -2052,6 +2095,7 @@ const syncTemplatesMutation = useMutation({
                                           sendMessageMutation.mutate(aiSuggestedMessage);
                                           setIsAIChatActive(false);
                                           setAiSuggestedMessage(null);
+                                          setAiSuggestedTranslation(null);
                                         }
                                       }}
                                     >
