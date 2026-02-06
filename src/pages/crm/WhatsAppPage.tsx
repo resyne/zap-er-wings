@@ -21,7 +21,7 @@ import {
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
   Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star,
-  ChevronsUp, FolderOpen, Bell
+  ChevronsUp, FolderOpen, Bell, Bot, Sparkles, Wand2
 } from "lucide-react";
 import WhatsAppBusinessFilesLibrary from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 import {
@@ -36,6 +36,7 @@ import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp
 import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
 import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNotificationSettings";
+import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettingsDialog";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -66,6 +67,12 @@ interface WhatsAppAccount {
   is_active: boolean;
   created_at: string;
   pipeline: string | null;
+  // AI Chat settings
+  ai_chat_enabled?: boolean;
+  ai_system_prompt?: string;
+  ai_auto_mode?: boolean;
+  ai_min_delay_minutes?: number;
+  ai_max_delay_minutes?: number;
 }
 
 interface WhatsAppTemplate {
@@ -200,6 +207,14 @@ export default function WhatsAppPage() {
     waba_id: '',
     verified_name: ''
   });
+
+  // AI Chat state
+  const [isAISettingsDialogOpen, setIsAISettingsDialogOpen] = useState(false);
+  const [isAIChatActive, setIsAIChatActive] = useState(false);
+  const [aiSuggestedMessage, setAiSuggestedMessage] = useState<string | null>(null);
+  const [aiDelayMinutes, setAiDelayMinutes] = useState<number>(5);
+  const [aiReasoning, setAiReasoning] = useState<string>("");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Translation state
   const [showTranslation, setShowTranslation] = useState(false);
@@ -1887,6 +1902,126 @@ const syncTemplatesMutation = useMutation({
                             )}
                           </div>
                         )}
+
+                        {/* AI Chat Section */}
+                        {selectedAccount?.ai_chat_enabled && isWithin24hWindow() && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-2 bg-primary/5 rounded-lg border border-primary/20">
+                              <div className="flex items-center gap-2">
+                                <Bot className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-medium">AI Assistant</span>
+                                {selectedAccount.ai_auto_mode && (
+                                  <Badge variant="outline" className="text-xs">Auto</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant={isAIChatActive ? "default" : "outline"}
+                                  size="sm"
+                                  disabled={isGeneratingAI}
+                                  onClick={async () => {
+                                    if (isAIChatActive) {
+                                      setIsAIChatActive(false);
+                                      setAiSuggestedMessage(null);
+                                      return;
+                                    }
+                                    
+                                    setIsGeneratingAI(true);
+                                    try {
+                                      const { data, error } = await supabase.functions.invoke('whatsapp-ai-chat', {
+                                        body: {
+                                          conversation_id: selectedConversation!.id,
+                                          account_id: selectedAccount!.id,
+                                          action: 'suggest'
+                                        }
+                                      });
+                                      
+                                      if (error || !data?.success) {
+                                        throw new Error(data?.error || 'Errore generazione AI');
+                                      }
+                                      
+                                      setAiSuggestedMessage(data.suggested_message);
+                                      setAiDelayMinutes(data.delay_minutes);
+                                      setAiReasoning(data.reasoning);
+                                      setIsAIChatActive(true);
+                                    } catch (err: any) {
+                                      toast.error(err.message || 'Errore AI');
+                                    } finally {
+                                      setIsGeneratingAI(false);
+                                    }
+                                  }}
+                                >
+                                  {isGeneratingAI ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                  ) : (
+                                    <Wand2 className="h-4 w-4 mr-1" />
+                                  )}
+                                  {isAIChatActive ? 'Disattiva' : 'Genera Risposta'}
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {/* AI Suggested Message */}
+                            {isAIChatActive && aiSuggestedMessage && (
+                              <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/30 space-y-3">
+                                <div className="flex items-start gap-2">
+                                  <Sparkles className="h-4 w-4 text-primary mt-0.5" />
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium mb-1">Messaggio suggerito:</p>
+                                    <Textarea
+                                      value={aiSuggestedMessage}
+                                      onChange={(e) => setAiSuggestedMessage(e.target.value)}
+                                      className="min-h-[60px] text-sm"
+                                    />
+                                  </div>
+                                </div>
+                                
+                                {aiReasoning && (
+                                  <p className="text-xs text-muted-foreground italic">
+                                    💡 {aiReasoning}
+                                  </p>
+                                )}
+                                
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    <span>Delay suggerito: {aiDelayMinutes} min</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setIsAIChatActive(false);
+                                        setAiSuggestedMessage(null);
+                                      }}
+                                    >
+                                      Annulla
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      disabled={sendMessageMutation.isPending}
+                                      onClick={() => {
+                                        if (aiSuggestedMessage) {
+                                          sendMessageMutation.mutate(aiSuggestedMessage);
+                                          setIsAIChatActive(false);
+                                          setAiSuggestedMessage(null);
+                                        }
+                                      }}
+                                    >
+                                      {sendMessageMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                      ) : (
+                                        <Send className="h-4 w-4 mr-1" />
+                                      )}
+                                      Invia Ora
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Translation Section */}
                         {isWithin24hWindow() && (
@@ -2546,6 +2681,36 @@ const syncTemplatesMutation = useMutation({
                       )}
                       Sincronizza da Meta
                     </Button>
+                  </div>
+                </div>
+
+                {/* AI Chat Settings */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium flex items-center gap-2">
+                        <Bot className="h-4 w-4 text-primary" />
+                        AI Chat Assistant
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Configura l'assistente AI per suggerire risposte automatiche
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedAccount.ai_chat_enabled && (
+                        <Badge variant="default" className="bg-primary/10 text-primary">
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Attivo
+                        </Badge>
+                      )}
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsAISettingsDialogOpen(true)}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Configura AI
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -3224,6 +3389,16 @@ const syncTemplatesMutation = useMutation({
           setIsTemplatePreviewOpen(false);
           setPreviewTemplate(null);
           uploadTemplateToMetaMutation.mutate(templateId);
+        }}
+      />
+
+      {/* AI Settings Dialog */}
+      <WhatsAppAISettingsDialog
+        open={isAISettingsDialogOpen}
+        onOpenChange={setIsAISettingsDialogOpen}
+        account={selectedAccount}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-accounts'] });
         }}
       />
     </div>
