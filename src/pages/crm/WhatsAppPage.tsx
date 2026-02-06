@@ -1867,6 +1867,8 @@ const syncTemplatesMutation = useMutation({
                                       messageId={msg.id}
                                       originalText={displayText}
                                       isInbound={true}
+                                      savedTranslation={(msg as any).translation_it}
+                                      savedSourceLanguage={(msg as any).source_language}
                                     />
                                   ) : displayText && (
                                     <p className="text-sm whitespace-pre-wrap">{displayText}</p>

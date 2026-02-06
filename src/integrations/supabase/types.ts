@@ -10651,6 +10651,7 @@ export type Database = {
           message_type: string
           read_at: string | null
           sent_by: string | null
+          source_language: string | null
           status: string | null
           template_language: string | null
           template_name: string | null
@@ -10658,6 +10659,7 @@ export type Database = {
           transcription: string | null
           transcription_language: string | null
           transcription_translated: string | null
+          translation_it: string | null
           wamid: string | null
         }
         Insert: {
@@ -10676,6 +10678,7 @@ export type Database = {
           message_type: string
           read_at?: string | null
           sent_by?: string | null
+          source_language?: string | null
           status?: string | null
           template_language?: string | null
           template_name?: string | null
@@ -10683,6 +10686,7 @@ export type Database = {
           transcription?: string | null
           transcription_language?: string | null
           transcription_translated?: string | null
+          translation_it?: string | null
           wamid?: string | null
         }
         Update: {
@@ -10701,6 +10705,7 @@ export type Database = {
           message_type?: string
           read_at?: string | null
           sent_by?: string | null
+          source_language?: string | null
           status?: string | null
           template_language?: string | null
           template_name?: string | null
@@ -10708,6 +10713,7 @@ export type Database = {
           transcription?: string | null
           transcription_language?: string | null
           transcription_translated?: string | null
+          translation_it?: string | null
           wamid?: string | null
         }
         Relationships: [
