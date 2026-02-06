@@ -1944,6 +1944,7 @@ const syncTemplatesMutation = useMutation({
                             {!showTranslation && (
                               <WhatsAppChatInput
                                 accountId={selectedAccount!.id}
+                                accountName={selectedAccount!.verified_name || selectedAccount!.display_phone_number}
                                 conversationPhone={selectedConversation.customer_phone}
                                 userId={user?.id}
                                 onMessageSent={() => {

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Send, Mic, Paperclip, Image, FileText, 
-  X, Loader2, Square, Play, Pause, Phone
+  X, Loader2, Square, Play, Pause, Phone, MessageSquareText
 } from "lucide-react";
 import {
   Tooltip,
@@ -18,10 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "sonner"; import { StandardMessagesDialog } from "@/components/whatsapp/WhatsAppStandardMessages";
 
 interface WhatsAppChatInputProps {
-  accountId: string;
+  accountId: string; accountName?: string;
   conversationPhone: string;
   onMessageSent: () => void;
   disabled?: boolean;
@@ -31,7 +31,7 @@ interface WhatsAppChatInputProps {
 type MediaType = "image" | "document" | "audio" | "video";
 
 export function WhatsAppChatInput({ 
-  accountId, 
+  accountId, accountName,
   conversationPhone, 
   onMessageSent, 
   disabled = false,
@@ -444,6 +444,24 @@ export function WhatsAppChatInput({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Standard messages */}
+        <StandardMessagesDialog
+          accountId={accountId}
+          accountName={accountName}
+          onSelectMessage={(msg) => setMessage(msg)}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={disabled || isRecording || isSending}
+              title="Messaggi standard"
+            >
+              <MessageSquareText className="h-5 w-5" />
+            </Button>
+          }
+        />
 
         {/* Text input */}
         <Textarea
