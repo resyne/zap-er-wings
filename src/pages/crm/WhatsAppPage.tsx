@@ -105,6 +105,7 @@ interface WhatsAppConversation {
   created_at: string;
   rating?: number | null;
   has_customer_reply?: boolean | null;
+  ai_enabled?: boolean | null;
   leads?: { pipeline: string | null } | null;
 }
 
@@ -531,6 +532,28 @@ export default function WhatsAppPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore: ${error.message}`);
+    }
+  });
+
+  // Mutation per toggle AI per singola conversazione
+  const toggleConversationAIMutation = useMutation({
+    mutationFn: async ({ conversationId, aiEnabled }: { conversationId: string; aiEnabled: boolean }) => {
+      const { error } = await supabase
+        .from('whatsapp_conversations')
+        .update({ ai_enabled: aiEnabled })
+        .eq('id', conversationId);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      // Aggiorna anche la conversazione selezionata
+      if (selectedConversation && selectedConversation.id === variables.conversationId) {
+        setSelectedConversation(prev => prev ? { ...prev, ai_enabled: variables.aiEnabled } : null);
+      }
+      toast.success(variables.aiEnabled ? 'AI Sales attivato per questa chat' : 'AI Sales disattivato per questa chat');
     },
     onError: (error: Error) => {
       toast.error(`Errore: ${error.message}`);
@@ -1650,6 +1673,29 @@ const syncTemplatesMutation = useMutation({
                           </CardTitle>
                           <CardDescription className="truncate">{selectedConversation.customer_phone}</CardDescription>
                         </div>
+                        {/* Toggle AI Sales per conversazione */}
+                        {selectedAccount?.ai_chat_enabled && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div 
+                              className="flex items-center gap-1.5 cursor-pointer"
+                              onClick={() => toggleConversationAIMutation.mutate({
+                                conversationId: selectedConversation.id,
+                                aiEnabled: !(selectedConversation.ai_enabled ?? true)
+                              })}
+                            >
+                              <Bot className={`h-4 w-4 ${(selectedConversation.ai_enabled ?? true) ? 'text-primary' : 'text-muted-foreground'}`} />
+                              <Switch
+                                checked={selectedConversation.ai_enabled ?? true}
+                                onCheckedChange={(checked) => toggleConversationAIMutation.mutate({
+                                  conversationId: selectedConversation.id,
+                                  aiEnabled: checked
+                                })}
+                                disabled={toggleConversationAIMutation.isPending}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className={`p-0 flex flex-col flex-1 ${isMobile ? 'h-0' : 'h-[520px]'}`}>
@@ -1904,7 +1950,7 @@ const syncTemplatesMutation = useMutation({
                         )}
 
                         {/* AI Chat Section */}
-                        {selectedAccount?.ai_chat_enabled && isWithin24hWindow() && (
+                        {selectedAccount?.ai_chat_enabled && (selectedConversation?.ai_enabled ?? true) && isWithin24hWindow() && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between p-2 bg-primary/5 rounded-lg border border-primary/20">
                               <div className="flex items-center gap-2">
