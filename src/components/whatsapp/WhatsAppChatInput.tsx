@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Send, Mic, Paperclip, Image, FileText, 
-  X, Loader2, Square, Play, Pause, Phone, MessageSquareText
+  X, Loader2, Square, Play, Pause, Phone, MessageSquareText, FolderOpen
 } from "lucide-react";
 import {
   Tooltip,
@@ -16,12 +16,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner"; import { StandardMessagesDialog } from "@/components/whatsapp/WhatsAppStandardMessages";
+import { toast } from "sonner";
+import { StandardMessagesDialog } from "@/components/whatsapp/WhatsAppStandardMessages";
+import { BusinessFilesDialog } from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 
 interface WhatsAppChatInputProps {
-  accountId: string; accountName?: string;
+  accountId: string;
+  accountName?: string;
   conversationPhone: string;
   onMessageSent: () => void;
   disabled?: boolean;
@@ -30,8 +34,15 @@ interface WhatsAppChatInputProps {
 
 type MediaType = "image" | "document" | "audio" | "video";
 
+interface LibraryFile {
+  url: string;
+  name: string;
+  type: MediaType;
+}
+
 export function WhatsAppChatInput({ 
-  accountId, accountName,
+  accountId,
+  accountName,
   conversationPhone, 
   onMessageSent, 
   disabled = false,
@@ -40,6 +51,7 @@ export function WhatsAppChatInput({
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [libraryFile, setLibraryFile] = useState<LibraryFile | null>(null);
   const [mediaType, setMediaType] = useState<MediaType | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -113,6 +125,7 @@ export function WhatsAppChatInput({
 
   const clearFile = () => {
     setSelectedFile(null);
+    setLibraryFile(null);
     setMediaType(null);
   };
 
@@ -235,7 +248,7 @@ export function WhatsAppChatInput({
         return;
       }
 
-      // Handle file attachment
+      // Handle file attachment (from computer)
       if (selectedFile && mediaType) {
         setIsUploading(true);
         const mediaUrl = await uploadFile(selectedFile);
@@ -261,6 +274,31 @@ export function WhatsAppChatInput({
         setMessage("");
         onMessageSent();
         toast.success(`${mediaType === "image" ? "Immagine" : mediaType === "document" ? "Documento" : "Media"} inviato`);
+        return;
+      }
+
+      // Handle library file attachment (already uploaded)
+      if (libraryFile) {
+        const response = await supabase.functions.invoke("whatsapp-send", {
+          body: {
+            account_id: accountId,
+            to: conversationPhone,
+            type: libraryFile.type,
+            media_url: libraryFile.url,
+            media_caption: message.trim() || undefined,
+            media_filename: libraryFile.type === 'document' ? libraryFile.name : undefined,
+            sent_by: userId
+          }
+        });
+        
+        if (response.error || !response.data?.success) {
+          throw new Error(response.data?.error || "Errore invio file");
+        }
+        
+        clearFile();
+        setMessage("");
+        onMessageSent();
+        toast.success(`${libraryFile.type === "image" ? "Immagine" : libraryFile.type === "document" ? "Documento" : "Media"} inviato`);
         return;
       }
 
@@ -295,7 +333,7 @@ export function WhatsAppChatInput({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Block multiple sends while isSending is true
-    if (e.key === "Enter" && !e.shiftKey && (message.trim() || selectedFile || audioBlob)) {
+    if (e.key === "Enter" && !e.shiftKey && (message.trim() || selectedFile || libraryFile || audioBlob)) {
       e.preventDefault();
       if (!isSending && !disabled) {
         sendMessage();
@@ -326,7 +364,7 @@ export function WhatsAppChatInput({
         </div>
       )}
 
-      {/* File preview */}
+      {/* File preview (from computer) */}
       {selectedFile && (
         <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
           {mediaType === "image" ? (
@@ -338,6 +376,24 @@ export function WhatsAppChatInput({
           <span className="text-xs text-muted-foreground">
             {(selectedFile.size / 1024).toFixed(0)} KB
           </span>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearFile}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* Library file preview */}
+      {libraryFile && !selectedFile && (
+        <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+          {libraryFile.type === "image" ? (
+            <Image className="h-4 w-4 text-blue-600" />
+          ) : libraryFile.type === "video" ? (
+            <FileText className="h-4 w-4 text-purple-600" />
+          ) : (
+            <FileText className="h-4 w-4 text-orange-600" />
+          )}
+          <FolderOpen className="h-3 w-3 text-muted-foreground" />
+          <span className="text-sm truncate flex-1">{libraryFile.name}</span>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearFile}>
             <X className="h-3 w-3" />
           </Button>
@@ -436,12 +492,32 @@ export function WhatsAppChatInput({
           <DropdownMenuContent align="start">
             <DropdownMenuItem onClick={() => openFilePicker("image")}>
               <Image className="h-4 w-4 mr-2 text-blue-600" />
-              Immagine
+              Carica immagine
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openFilePicker("document")}>
               <FileText className="h-4 w-4 mr-2 text-orange-600" />
-              Documento / PDF
+              Carica documento
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <BusinessFilesDialog
+              accountId={accountId}
+              accountName={accountName}
+              onSelectFile={(file) => {
+                setLibraryFile({
+                  url: file.file_url,
+                  name: file.name,
+                  type: file.file_type as MediaType
+                });
+                setSelectedFile(null);
+                setMediaType(null);
+              }}
+              trigger={
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <FolderOpen className="h-4 w-4 mr-2 text-primary" />
+                  Seleziona da libreria
+                </DropdownMenuItem>
+              }
+            />
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -465,7 +541,7 @@ export function WhatsAppChatInput({
 
         {/* Text input */}
         <Textarea
-          placeholder={selectedFile ? "Aggiungi una didascalia..." : "Scrivi un messaggio..."}
+          placeholder={selectedFile || libraryFile ? "Aggiungi una didascalia..." : "Scrivi un messaggio..."}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -475,7 +551,7 @@ export function WhatsAppChatInput({
         />
 
         {/* Mic / Send button */}
-        {!message.trim() && !selectedFile && !audioUrl ? (
+        {!message.trim() && !selectedFile && !libraryFile && !audioUrl ? (
           <Button
             variant={isRecording ? "destructive" : "ghost"}
             size="icon"
