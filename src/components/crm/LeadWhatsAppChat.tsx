@@ -378,19 +378,27 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     }
   };
 
-  // Send template message
+  // Send template message - works with or without existing conversation
   const sendTemplateMessage = async () => {
-    if (!selectedTemplateId || !conversation || !selectedAccountId) return;
+    if (!selectedTemplateId || !selectedAccountId) return;
     
     const template = templates?.find(t => t.id === selectedTemplateId);
     if (!template) return;
+    
+    // Get the destination phone number - from conversation if exists, otherwise normalize lead phone
+    const destinationPhone = conversation?.customer_phone || leadPhone.replace(/[^\d]/g, "");
+    
+    if (!destinationPhone) {
+      toast.error("Nessun numero di telefono disponibile");
+      return;
+    }
     
     setIsSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-send', {
         body: {
           account_id: selectedAccountId,
-          to: conversation.customer_phone,
+          to: destinationPhone,
           type: 'template',
           template_name: template.name,
           template_language: template.language,
@@ -406,7 +414,13 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       
       setSelectedTemplateId('');
       setTemplateParams([]);
-      refetchMessages();
+      
+      // Refetch conversation (it may have been created by the webhook or edge function)
+      setTimeout(() => {
+        refetchConversation();
+        refetchMessages();
+      }, 1000);
+      
       toast.success('Template inviato');
     } catch (err: any) {
       toast.error(err.message || 'Errore invio');
@@ -940,297 +954,300 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
         </CardContent>
       </Card>
 
-      {/* Input area - changes based on window status */}
-      {conversation && (
-        <div className="space-y-3">
-          {/* Template selector (always visible, highlighted when window is closed) */}
-          <div className={`space-y-2 p-3 rounded-lg border ${!windowStatus.isOpen ? 'bg-accent/50 border-primary/30' : 'bg-muted/30'}`}>
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Bot className="h-4 w-4" />
-              {!windowStatus.isOpen ? 'Invia Template (richiesto)' : 'Invia Template'}
-            </div>
-            
-            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona un template approvato" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates?.map(template => (
+      {/* Template selector - ALWAYS visible, even without conversation (to initiate first contact) */}
+      <div className="space-y-3">
+        <div className={`space-y-2 p-3 rounded-lg border ${!conversation || !windowStatus.isOpen ? 'bg-accent/50 border-primary/30' : 'bg-muted/30'}`}>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Bot className="h-4 w-4" />
+            {!conversation ? 'Invia Template per iniziare' : !windowStatus.isOpen ? 'Invia Template (richiesto)' : 'Invia Template'}
+          </div>
+          
+          <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona un template approvato" />
+            </SelectTrigger>
+            <SelectContent>
+              {templates && templates.length > 0 ? (
+                templates.map(template => (
                   <SelectItem key={template.id} value={template.id}>
                     {template.name} ({template.language.toUpperCase()}) - {template.category}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            {/* Template parameters */}
-            {selectedTemplateId && templateParams.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Parametri template:</p>
-                {templateParams.map((param, idx) => (
-                  <Input
-                    key={idx}
-                    placeholder={`Parametro {{${idx + 1}}}`}
-                    value={param}
-                    onChange={(e) => {
-                      const newParams = [...templateParams];
-                      newParams[idx] = e.target.value;
-                      setTemplateParams(newParams);
-                    }}
-                    className="h-8 text-sm"
-                  />
-                ))}
-              </div>
-            )}
-            
-            {/* Template preview */}
-            {selectedTemplateId && (
-              <div className="bg-muted/50 rounded p-2 text-sm">
-                <p className="text-xs text-muted-foreground mb-1">Anteprima:</p>
-                <p className="whitespace-pre-wrap">{getSelectedTemplatePreview()}</p>
-              </div>
-            )}
-            
-            {selectedTemplateId && (
-              <Button 
-                onClick={sendTemplateMessage} 
-                disabled={isSending}
-                className="w-full"
-              >
-                {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Invia Template
-              </Button>
-            )}
-          </div>
-
-          {/* Free-form text input (only when window is open) */}
-          {windowStatus.isOpen && (
-            <div className="space-y-2">
-              {/* Translation mode toggle and selector */}
-              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                <Button
-                  variant={showTranslationMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setShowTranslationMode(!showTranslationMode);
-                    clearOutboundTranslation();
-                  }}
-                  className="h-7"
-                >
-                  <Languages className="h-3.5 w-3.5 mr-1" />
-                  Traduci
-                </Button>
-                
-                {showTranslationMode && (
-                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                    <SelectTrigger className="w-[140px] h-7 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUPPORTED_LANGUAGES.filter(l => l.code !== 'it').map(lang => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          {lang.flag} {lang.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                
-                <div className="flex-1 text-right text-xs text-muted-foreground">
-                  {showTranslationMode ? (
-                    <>Scrivi in italiano → traduci in {getLanguageName(targetLanguage)}</>
-                  ) : (
-                    <>Modalità diretta</>
-                  )}
-                </div>
-              </div>
-
-              {/* Outbound translation preview */}
-              {outboundTranslation && showTranslationMode && (
-                <div className="p-2 bg-accent/50 rounded-lg border border-accent space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-medium">Anteprima traduzione</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={clearOutboundTranslation}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">🇮🇹 Originale:</span>
-                      <p className="text-xs opacity-70">{outboundTranslation.original}</p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">{getLanguageFlag(outboundTranslation.targetLang)} {getLanguageName(outboundTranslation.targetLang)}:</span>
-                      <p className="text-sm font-medium">{outboundTranslation.translated}</p>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={async () => {
-                      // Send the translated message
-                      setIsSending(true);
-                      try {
-                        const { data, error } = await supabase.functions.invoke('whatsapp-send', {
-                          body: {
-                            account_id: selectedAccountId,
-                            to: conversation!.customer_phone,
-                            type: 'text',
-                            content: outboundTranslation.translated,
-                            sent_by: currentUserId,
-                            lead_id: leadId
-                          }
-                        });
-                        
-                        if (error || !data?.success) {
-                          throw new Error(data?.error || 'Errore invio messaggio');
-                        }
-                        
-                        setMessage('');
-                        clearOutboundTranslation();
-                        refetchMessages();
-                        toast.success('Messaggio tradotto inviato');
-                      } catch (err: any) {
-                        toast.error(err.message || 'Errore invio');
-                      } finally {
-                        setIsSending(false);
-                      }
-                    }}
-                    disabled={isSending}
-                  >
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                    Invia traduzione
-                  </Button>
-                </div>
+                ))
+              ) : (
+                <SelectItem value="_no_templates" disabled>
+                  Nessun template approvato
+                </SelectItem>
               )}
+            </SelectContent>
+          </Select>
+          
+          {/* Template parameters */}
+          {selectedTemplateId && templateParams.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Parametri template:</p>
+              {templateParams.map((param, idx) => (
+                <Input
+                  key={idx}
+                  placeholder={`Parametro {{${idx + 1}}}`}
+                  value={param}
+                  onChange={(e) => {
+                    const newParams = [...templateParams];
+                    newParams[idx] = e.target.value;
+                    setTemplateParams(newParams);
+                  }}
+                  className="h-8 text-sm"
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Template preview */}
+          {selectedTemplateId && (
+            <div className="bg-muted/50 rounded p-2 text-sm">
+              <p className="text-xs text-muted-foreground mb-1">Anteprima:</p>
+              <p className="whitespace-pre-wrap">{getSelectedTemplatePreview()}</p>
+            </div>
+          )}
+          
+          {selectedTemplateId && (
+            <Button 
+              onClick={sendTemplateMessage} 
+              disabled={isSending || !selectedAccountId}
+              className="w-full"
+            >
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Invia Template
+            </Button>
+          )}
+        </div>
 
-              {/* Attached file preview */}
-              {attachedFile && (
-                <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                  {attachedFile.type === 'image' ? (
-                    <Image className="h-4 w-4 text-primary" />
-                  ) : attachedFile.type === 'video' ? (
-                    <Video className="h-4 w-4 text-primary" />
-                  ) : attachedFile.type === 'audio' ? (
-                    <Mic className="h-4 w-4 text-primary" />
-                  ) : (
-                    <FileText className="h-4 w-4 text-primary" />
-                  )}
-                  <span className="text-sm truncate flex-1">{attachedFile.name}</span>
+        {/* Free-form text input (only when window is open AND conversation exists) */}
+        {conversation && windowStatus.isOpen && (
+          <div className="space-y-2">
+            {/* Translation mode toggle and selector */}
+            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+              <Button
+                variant={showTranslationMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setShowTranslationMode(!showTranslationMode);
+                  clearOutboundTranslation();
+                }}
+                className="h-7"
+              >
+                <Languages className="h-3.5 w-3.5 mr-1" />
+                Traduci
+              </Button>
+              
+              {showTranslationMode && (
+                <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                  <SelectTrigger className="w-[140px] h-7 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.filter(l => l.code !== 'it').map(lang => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              
+              <div className="flex-1 text-right text-xs text-muted-foreground">
+                {showTranslationMode ? (
+                  <>Scrivi in italiano → traduci in {getLanguageName(targetLanguage)}</>
+                ) : (
+                  <>Modalità diretta</>
+                )}
+              </div>
+            </div>
+
+            {/* Outbound translation preview */}
+            {outboundTranslation && showTranslationMode && (
+              <div className="p-2 bg-accent/50 rounded-lg border border-accent space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium">Anteprima traduzione</span>
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
-                    onClick={() => setAttachedFile(null)}
+                    className="h-5 w-5"
+                    onClick={clearOutboundTranslation}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
-              )}
-              
-              <div className="flex gap-2">
-                {/* Hidden file input */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileUpload(file);
-                    }
-                    e.target.value = '';
-                  }}
-                />
                 
-                {/* Attach button */}
+                <div className="space-y-1.5">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">🇮🇹 Originale:</span>
+                    <p className="text-xs opacity-70">{outboundTranslation.original}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">{getLanguageFlag(outboundTranslation.targetLang)} {getLanguageName(outboundTranslation.targetLang)}:</span>
+                    <p className="text-sm font-medium">{outboundTranslation.translated}</p>
+                  </div>
+                </div>
+                
                 <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingFile || isSending}
-                  title="Allega file"
-                >
-                  {isUploadingFile ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Paperclip className="h-4 w-4" />
-                  )}
-                </Button>
-                
-                <Input
-                  placeholder={
-                    attachedFile 
-                      ? "Aggiungi una didascalia..." 
-                      : showTranslationMode 
-                        ? "Scrivi in italiano..." 
-                        : "Scrivi un messaggio..."
-                  }
-                  value={message}
-                  onChange={(e) => {
-                    setMessage(e.target.value);
-                    // Clear any previous translation when typing
-                    if (outboundTranslation) clearOutboundTranslation();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      if (attachedFile) {
-                        sendMediaMessage();
-                      } else if (message.trim()) {
-                        if (showTranslationMode && !outboundTranslation) {
-                          // Translate first
-                          translateOutbound(message, targetLanguage);
-                        } else {
-                          sendTextMessage();
+                  size="sm"
+                  className="w-full"
+                  onClick={async () => {
+                    // Send the translated message
+                    setIsSending(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('whatsapp-send', {
+                        body: {
+                          account_id: selectedAccountId,
+                          to: conversation!.customer_phone,
+                          type: 'text',
+                          content: outboundTranslation.translated,
+                          sent_by: currentUserId,
+                          lead_id: leadId
                         }
+                      });
+                      
+                      if (error || !data?.success) {
+                        throw new Error(data?.error || 'Errore invio messaggio');
+                      }
+                      
+                      setMessage('');
+                      clearOutboundTranslation();
+                      refetchMessages();
+                      toast.success('Messaggio tradotto inviato');
+                    } catch (err: any) {
+                      toast.error(err.message || 'Errore invio');
+                    } finally {
+                      setIsSending(false);
+                    }
+                  }}
+                  disabled={isSending}
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                  Invia traduzione
+                </Button>
+              </div>
+            )}
+
+            {/* Attached file preview */}
+            {attachedFile && (
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                {attachedFile.type === 'image' ? (
+                  <Image className="h-4 w-4 text-primary" />
+                ) : attachedFile.type === 'video' ? (
+                  <Video className="h-4 w-4 text-primary" />
+                ) : attachedFile.type === 'audio' ? (
+                  <Mic className="h-4 w-4 text-primary" />
+                ) : (
+                  <FileText className="h-4 w-4 text-primary" />
+                )}
+                <span className="text-sm truncate flex-1">{attachedFile.name}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setAttachedFile(null)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(file);
+                  }
+                  e.target.value = '';
+                }}
+              />
+              
+              {/* Attach button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingFile || isSending}
+                title="Allega file"
+              >
+                {isUploadingFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
+              
+              <Input
+                placeholder={
+                  attachedFile 
+                    ? "Aggiungi una didascalia..." 
+                    : showTranslationMode 
+                      ? "Scrivi in italiano..." 
+                      : "Scrivi un messaggio..."
+                }
+                value={message}
+                onChange={(e) => {
+                  setMessage(e.target.value);
+                  // Clear any previous translation when typing
+                  if (outboundTranslation) clearOutboundTranslation();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (attachedFile) {
+                      sendMediaMessage();
+                    } else if (message.trim()) {
+                      if (showTranslationMode && !outboundTranslation) {
+                        // Translate first
+                        translateOutbound(message, targetLanguage);
+                      } else {
+                        sendTextMessage();
                       }
                     }
-                  }}
-                  disabled={isSending || isTranslatingOutbound}
-                  className="flex-1"
-                />
-                
-                {/* Translate / Send button */}
-                {showTranslationMode && !outboundTranslation ? (
-                  <Button 
-                    onClick={() => translateOutbound(message, targetLanguage)}
-                    disabled={isSending || isTranslatingOutbound || !message.trim()}
-                    size="icon"
-                    variant="secondary"
-                    title="Traduci messaggio"
-                  >
-                    {isTranslatingOutbound ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Languages className="h-4 w-4" />
-                    )}
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={attachedFile ? sendMediaMessage : sendTextMessage}
-                    disabled={isSending || (!attachedFile && !message.trim())}
-                    size="icon"
-                  >
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                )}
-              </div>
+                  }
+                }}
+                disabled={isSending || isTranslatingOutbound}
+                className="flex-1"
+              />
+              
+              {/* Translate / Send button */}
+              {showTranslationMode && !outboundTranslation ? (
+                <Button 
+                  onClick={() => translateOutbound(message, targetLanguage)}
+                  disabled={isSending || isTranslatingOutbound || !message.trim()}
+                  size="icon"
+                  variant="secondary"
+                  title="Traduci messaggio"
+                >
+                  {isTranslatingOutbound ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Languages className="h-4 w-4" />
+                  )}
+                </Button>
+              ) : (
+                <Button 
+                  onClick={attachedFile ? sendMediaMessage : sendTextMessage}
+                  disabled={isSending || (!attachedFile && !message.trim())}
+                  size="icon"
+                >
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* Refresh button */}
       <Button
