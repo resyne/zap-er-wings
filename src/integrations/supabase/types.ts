@@ -10305,6 +10305,56 @@ export type Database = {
           },
         ]
       }
+      whatsapp_business_files: {
+        Row: {
+          account_id: string
+          created_at: string
+          description: string | null
+          file_size: number | null
+          file_type: string
+          file_url: string
+          id: string
+          mime_type: string | null
+          name: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          description?: string | null
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          name: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          description?: string | null
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          name?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_business_files_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_conversations: {
         Row: {
           account_id: string | null
