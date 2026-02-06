@@ -68,7 +68,7 @@ const statusConfig: Record<MessageStatus, {
     description: 'Messaggio visualizzato dal destinatario',
     colorClass: 'text-blue-500',
     bgClass: 'bg-blue-500/10',
-    outboundColorClass: 'text-sky-200'
+    outboundColorClass: 'text-sky-300'
   },
   failed: {
     icon: AlertCircle,
@@ -102,7 +102,7 @@ export function MessageStatusIndicator({
   const config = statusConfig[normalizedStatus] || statusConfig.pending;
   const Icon = config.icon;
   
-  const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
+  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
   
   // Use appropriate color based on whether this is on green (outbound) background
