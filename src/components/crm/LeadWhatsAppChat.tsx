@@ -1226,6 +1226,13 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
               <StandardMessagesDialog
                 accountId={selectedAccountId}
                 accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
+                leadData={{
+                  name: leadName,
+                  company: undefined, // Lead doesn't have company in props, could be extended
+                  email: undefined,
+                  phone: leadPhone,
+                  country: leadCountry
+                }}
                 onSelectMessage={(msg, attachment) => {
                   setMessage(msg);
                   // If the standard message has an attachment, set it
