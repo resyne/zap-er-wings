@@ -90,14 +90,22 @@ const getAttachmentIcon = (type: string | null) => {
 
 // Helper function to replace variables with lead data
 const replaceVariables = (message: string, leadData?: LeadData): string => {
-  if (!leadData) return message;
+  console.log('[WhatsApp Standard Messages] replaceVariables called with:', { message, leadData });
   
-  return message
+  if (!leadData) {
+    console.log('[WhatsApp Standard Messages] No leadData, returning original message');
+    return message;
+  }
+  
+  const result = message
     .replace(/\{\{nome\}\}/gi, leadData.name || '')
     .replace(/\{\{azienda\}\}/gi, leadData.company || '')
     .replace(/\{\{email\}\}/gi, leadData.email || '')
     .replace(/\{\{telefono\}\}/gi, leadData.phone || '')
     .replace(/\{\{paese\}\}/gi, leadData.country || '');
+  
+  console.log('[WhatsApp Standard Messages] Replaced message:', result);
+  return result;
 };
 
 export function StandardMessagesDialog({ 
