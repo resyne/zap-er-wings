@@ -1226,7 +1226,17 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
               <StandardMessagesDialog
                 accountId={selectedAccountId}
                 accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
-                onSelectMessage={(msg) => setMessage(msg)}
+                onSelectMessage={(msg, attachment) => {
+                  setMessage(msg);
+                  // If the standard message has an attachment, set it
+                  if (attachment) {
+                    setAttachedFile({
+                      url: attachment.url,
+                      name: attachment.name,
+                      type: attachment.type as 'image' | 'document' | 'video' | 'audio'
+                    });
+                  }
+                }}
                 trigger={
                   <Button
                     variant="outline"

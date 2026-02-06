@@ -34,9 +34,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { 
   MessageSquareText, Plus, Trash2, Pencil, MoreVertical, 
-  Loader2, FileText, Search, Settings2
+  Loader2, FileText, Search, Settings2, Paperclip, X,
+  Image, Video, Mic, FolderOpen
 } from "lucide-react";
 import { toast } from "sonner";
+import { BusinessFilesDialog } from "./WhatsAppBusinessFilesLibrary";
 
 interface StandardMessage {
   id: string;
@@ -44,15 +46,38 @@ interface StandardMessage {
   name: string;
   message: string;
   category: string | null;
+  attachment_file_id: string | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_type: string | null;
   created_at: string;
+}
+
+interface AttachmentData {
+  url: string;
+  name: string;
+  type: string;
 }
 
 interface StandardMessagesDialogProps {
   accountId: string;
   accountName?: string;
-  onSelectMessage: (message: string) => void;
+  onSelectMessage: (message: string, attachment?: AttachmentData) => void;
   trigger: React.ReactNode;
 }
+
+const getAttachmentIcon = (type: string | null) => {
+  switch (type) {
+    case "image":
+      return <Image className="h-3 w-3" />;
+    case "video":
+      return <Video className="h-3 w-3" />;
+    case "audio":
+      return <Mic className="h-3 w-3" />;
+    default:
+      return <FileText className="h-3 w-3" />;
+  }
+};
 
 export function StandardMessagesDialog({ 
   accountId, 
@@ -94,9 +119,15 @@ export function StandardMessagesDialog({
   }, {} as Record<string, StandardMessage[]>);
 
   const handleSelect = (msg: StandardMessage) => {
-    onSelectMessage(msg.message);
+    const attachment = msg.attachment_url ? {
+      url: msg.attachment_url,
+      name: msg.attachment_name || 'Allegato',
+      type: msg.attachment_type || 'document'
+    } : undefined;
+    
+    onSelectMessage(msg.message, attachment);
     setOpen(false);
-    toast.success(`Messaggio "${msg.name}" selezionato`);
+    toast.success(`Messaggio "${msg.name}" selezionato${attachment ? ' con allegato' : ''}`);
   };
 
   return (
@@ -168,10 +199,24 @@ export function StandardMessagesDialog({
                         className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted transition-colors"
                         onClick={() => handleSelect(msg)}
                       >
-                        <p className="font-medium text-sm">{msg.name}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-sm">{msg.name}</p>
+                          {msg.attachment_url && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                              {getAttachmentIcon(msg.attachment_type)}
+                              Allegato
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                           {msg.message}
                         </p>
+                        {msg.attachment_name && (
+                          <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                            <Paperclip className="h-3 w-3" />
+                            {msg.attachment_name}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -218,6 +263,12 @@ function ManageMessagesDialog({
   const [formName, setFormName] = useState("");
   const [formMessage, setFormMessage] = useState("");
   const [formCategory, setFormCategory] = useState("");
+  const [formAttachment, setFormAttachment] = useState<{
+    fileId?: string;
+    url: string;
+    name: string;
+    type: string;
+  } | null>(null);
 
   const { data: messages, isLoading } = useQuery({
     queryKey: ['whatsapp-standard-messages', accountId],
@@ -244,6 +295,10 @@ function ManageMessagesDialog({
           name: formName.trim(),
           message: formMessage.trim(),
           category: formCategory.trim() || null,
+          attachment_file_id: formAttachment?.fileId || null,
+          attachment_url: formAttachment?.url || null,
+          attachment_name: formAttachment?.name || null,
+          attachment_type: formAttachment?.type || null,
           created_by: userData.user?.id
         });
       if (error) throw error;
@@ -253,7 +308,7 @@ function ManageMessagesDialog({
       toast.success("Messaggio creato");
       resetForm();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error("Errore: " + err.message);
     }
   });
@@ -267,6 +322,10 @@ function ManageMessagesDialog({
           name: formName.trim(),
           message: formMessage.trim(),
           category: formCategory.trim() || null,
+          attachment_file_id: formAttachment?.fileId || null,
+          attachment_url: formAttachment?.url || null,
+          attachment_name: formAttachment?.name || null,
+          attachment_type: formAttachment?.type || null,
         })
         .eq('id', editingMessage.id);
       if (error) throw error;
@@ -276,7 +335,7 @@ function ManageMessagesDialog({
       toast.success("Messaggio aggiornato");
       resetForm();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error("Errore: " + err.message);
     }
   });
@@ -294,7 +353,7 @@ function ManageMessagesDialog({
       toast.success("Messaggio eliminato");
       setDeleteConfirm(null);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error("Errore: " + err.message);
     }
   });
@@ -303,6 +362,7 @@ function ManageMessagesDialog({
     setFormName("");
     setFormMessage("");
     setFormCategory("");
+    setFormAttachment(null);
     setEditingMessage(null);
     setShowCreateForm(false);
   };
@@ -312,6 +372,12 @@ function ManageMessagesDialog({
     setFormName(msg.name);
     setFormMessage(msg.message);
     setFormCategory(msg.category || "");
+    setFormAttachment(msg.attachment_url ? {
+      fileId: msg.attachment_file_id || undefined,
+      url: msg.attachment_url,
+      name: msg.attachment_name || 'Allegato',
+      type: msg.attachment_type || 'document'
+    } : null);
     setShowCreateForm(true);
   };
 
@@ -325,6 +391,15 @@ function ManageMessagesDialog({
     } else {
       createMutation.mutate();
     }
+  };
+
+  const handleSelectFile = (file: { id: string; file_url: string; name: string; file_type: string }) => {
+    setFormAttachment({
+      fileId: file.id,
+      url: file.file_url,
+      name: file.name,
+      type: file.file_type
+    });
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -375,6 +450,49 @@ function ManageMessagesDialog({
                 />
               </div>
 
+              {/* Attachment selector */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  Allegato preimpostato
+                </Label>
+                
+                {formAttachment ? (
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+                    <div className="p-1.5 bg-background rounded">
+                      {getAttachmentIcon(formAttachment.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{formAttachment.name}</p>
+                      <p className="text-xs text-muted-foreground">{formAttachment.type}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setFormAttachment(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <BusinessFilesDialog
+                    accountId={accountId}
+                    accountName={accountName}
+                    onSelectFile={handleSelectFile}
+                    trigger={
+                      <Button variant="outline" className="w-full">
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Seleziona da libreria
+                      </Button>
+                    }
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Quando selezioni questo messaggio, l'allegato verrà inserito automaticamente
+                </p>
+              </div>
+
               <DialogFooter>
                 <Button variant="outline" onClick={resetForm} disabled={isSaving}>
                   Annulla
@@ -414,7 +532,14 @@ function ManageMessagesDialog({
                         className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{msg.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{msg.name}</p>
+                            {msg.attachment_url && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
+                                {getAttachmentIcon(msg.attachment_type)}
+                              </Badge>
+                            )}
+                          </div>
                           {msg.category && (
                             <Badge variant="outline" className="text-[10px] mt-1">
                               {msg.category}
@@ -423,6 +548,12 @@ function ManageMessagesDialog({
                           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                             {msg.message}
                           </p>
+                          {msg.attachment_name && (
+                            <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                              <Paperclip className="h-3 w-3" />
+                              {msg.attachment_name}
+                            </p>
+                          )}
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

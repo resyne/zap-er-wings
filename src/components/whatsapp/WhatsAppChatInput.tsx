@@ -525,7 +525,19 @@ export function WhatsAppChatInput({
         <StandardMessagesDialog
           accountId={accountId}
           accountName={accountName}
-          onSelectMessage={(msg) => setMessage(msg)}
+          onSelectMessage={(msg, attachment) => {
+            setMessage(msg);
+            // If the standard message has an attachment, set it
+            if (attachment) {
+              setLibraryFile({
+                url: attachment.url,
+                name: attachment.name,
+                type: attachment.type as MediaType
+              });
+              setSelectedFile(null);
+              setMediaType(null);
+            }
+          }}
           trigger={
             <Button
               variant="ghost"
