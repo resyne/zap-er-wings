@@ -97,6 +97,7 @@ interface WhatsAppConversation {
   expires_at: string | null;
   created_at: string;
   rating?: number | null;
+  has_customer_reply?: boolean | null;
   leads?: { pipeline: string | null } | null;
 }
 
@@ -189,6 +190,8 @@ export default function WhatsAppPage() {
   // State per filtro lingua
   const [languageFilter, setLanguageFilter] = useState<string>("all");
   
+  // State per filtro stato risposta
+  const [replyStatusFilter, setReplyStatusFilter] = useState<string>("all");
   // State per edit account
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [editAccountData, setEditAccountData] = useState({
@@ -1157,7 +1160,13 @@ const syncTemplatesMutation = useMutation({
       if (leadLang !== languageFilter) return false;
     }
     
-    // 5) Ricerca testuale
+    // 5) Filtra per stato risposta cliente
+    if (replyStatusFilter !== 'all') {
+      if (replyStatusFilter === 'replied' && !conv.has_customer_reply) return false;
+      if (replyStatusFilter === 'waiting' && conv.has_customer_reply) return false;
+    }
+    
+    // 6) Ricerca testuale
     if (!conversationSearch) return true;
     const search = conversationSearch.toLowerCase();
     const matchedLead = findLeadByPhone(conv.customer_phone);
@@ -1380,6 +1389,16 @@ const syncTemplatesMutation = useMutation({
                         <SelectItem value="pt">🇵🇹 PT</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select value={replyStatusFilter} onValueChange={setReplyStatusFilter}>
+                      <SelectTrigger className="w-28">
+                        <SelectValue placeholder="Stato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">📊 Tutti</SelectItem>
+                        <SelectItem value="replied">💬 Risposto</SelectItem>
+                        <SelectItem value="waiting">⏳ In attesa</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 overflow-hidden">
@@ -1425,15 +1444,26 @@ const syncTemplatesMutation = useMutation({
                       const leadCountry = (matchedLead as any)?.country;
                       const countryFlag = getCountryFlag(leadCountry);
                       
+                      // Stato risposta per barra colorata
+                      const hasReply = conv.has_customer_reply;
+                      
                       return (
                         <div
                           key={conv.id}
-                          className={`group p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors ${
+                          className={`group relative border-b cursor-pointer hover:bg-muted/50 transition-colors ${
                             selectedConversation?.id === conv.id ? 'bg-muted' : ''
                           }`}
                           onClick={() => handleSelectConversation(conv)}
                         >
-                          <div className="flex items-start gap-3">
+                          {/* Barra laterale colorata - verde se risposto, arancione se in attesa */}
+                          <div 
+                            className={`absolute left-0 top-0 bottom-0 w-1 ${
+                              hasReply 
+                                ? 'bg-green-500' 
+                                : 'bg-orange-400'
+                            }`}
+                          />
+                          <div className="flex items-start gap-3 p-4 pl-5">
                             <Avatar className="h-10 w-10">
                               <AvatarFallback>
                                 {displayName?.charAt(0) || <User className="h-4 w-4" />}
