@@ -78,6 +78,9 @@ export function WhatsAppChatInput({
   const timerRef = useRef<number | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Guard to prevent double-send (synchronous check)
+  const sendInProgressRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -225,9 +228,11 @@ export function WhatsAppChatInput({
     return urlData.publicUrl;
   };
 
-  // Send message
+  // Send message with double-send protection
   const sendMessage = async () => {
-    if (isSending || disabled) return;
+    // Synchronous guard to prevent double-clicks (state updates are async)
+    if (sendInProgressRef.current || isSending || disabled) return;
+    sendInProgressRef.current = true;
     
     try {
       setIsSending(true);
@@ -255,6 +260,9 @@ export function WhatsAppChatInput({
         clearVoiceRecording();
         onMessageSent();
         toast.success("Nota vocale inviata");
+        
+        // Delay before allowing next send
+        await new Promise(resolve => setTimeout(resolve, 2000));
         return;
       }
 
@@ -284,6 +292,9 @@ export function WhatsAppChatInput({
         setMessage("");
         onMessageSent();
         toast.success(`${mediaType === "image" ? "Immagine" : mediaType === "document" ? "Documento" : "Media"} inviato`);
+        
+        // Delay before allowing next send
+        await new Promise(resolve => setTimeout(resolve, 2000));
         return;
       }
 
@@ -309,6 +320,9 @@ export function WhatsAppChatInput({
         setMessage("");
         onMessageSent();
         toast.success(`${libraryFile.type === "image" ? "Immagine" : libraryFile.type === "document" ? "Documento" : "Media"} inviato`);
+        
+        // Delay before allowing next send
+        await new Promise(resolve => setTimeout(resolve, 2000));
         return;
       }
 
@@ -331,6 +345,9 @@ export function WhatsAppChatInput({
         setMessage("");
         onMessageSent();
         toast.success("Messaggio inviato");
+        
+        // Delay before allowing next send
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (err: any) {
       toast.error(err.message || "Errore durante l'invio");
@@ -338,6 +355,7 @@ export function WhatsAppChatInput({
     } finally {
       setIsSending(false);
       setIsUploading(false);
+      sendInProgressRef.current = false;
     }
   };
 
