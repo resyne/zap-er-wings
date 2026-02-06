@@ -10504,6 +10504,7 @@ export type Database = {
       whatsapp_conversations: {
         Row: {
           account_id: string | null
+          ai_enabled: boolean | null
           conversation_type: string | null
           created_at: string
           customer_id: string | null
@@ -10522,6 +10523,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          ai_enabled?: boolean | null
           conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
@@ -10540,6 +10542,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          ai_enabled?: boolean | null
           conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
