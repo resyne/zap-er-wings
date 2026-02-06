@@ -282,9 +282,10 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       
       const { data, error } = await supabase
         .from('whatsapp_templates')
-        .select('id, name, language, category, status, components')
+        .select('id, name, language, category, status, components, is_disabled')
         .eq('account_id', selectedAccountId)
         .eq('status', 'APPROVED')
+        .or('is_disabled.is.null,is_disabled.eq.false')
         .order('name');
       
       if (error) throw error;
