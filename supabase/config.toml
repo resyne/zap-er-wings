@@ -111,6 +111,12 @@ verify_jwt = false
 [functions.translate-chat-message]
 verify_jwt = false
 
+[functions.send-whatsapp-notification-email]
+verify_jwt = false
+
+[functions.update-presence]
+verify_jwt = false
+
 [[edge_runtime.scheduled_functions]]
   name = "process-email-queue"
   cron = "*/5 * * * *"

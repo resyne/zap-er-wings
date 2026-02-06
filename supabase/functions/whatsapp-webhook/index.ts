@@ -251,6 +251,16 @@ serve(async (req) => {
                     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                   })
                   .eq("id", conversation.id);
+
+                // Send notifications to configured users
+                await sendNotifications(
+                  supabase,
+                  account,
+                  from,
+                  conversation.customer_name || contacts.find((c: any) => c.wa_id === from)?.profile?.name,
+                  content || `[${messageType}]`,
+                  messageType
+                );
                 
                 // Handle button reply triggers for automation
                 if (messageType === "button" || messageType === "interactive") {
@@ -417,5 +427,88 @@ async function handleButtonReplyTrigger(
     }
   } catch (error) {
     console.error("Error handling button reply trigger:", error);
+  }
+}
+
+// Send notifications based on user presence
+async function sendNotifications(
+  supabase: any,
+  account: any,
+  customerPhone: string,
+  customerName: string | null,
+  messageContent: string,
+  messageType: string
+) {
+  try {
+    // Get notification recipients for this account
+    const { data: recipients, error } = await supabase
+      .rpc("get_whatsapp_notification_recipients", { p_account_id: account.id });
+
+    if (error) {
+      console.error("Error getting notification recipients:", error);
+      return;
+    }
+
+    if (!recipients || recipients.length === 0) {
+      console.log("No notification recipients configured for account:", account.id);
+      return;
+    }
+
+    console.log(`Found ${recipients.length} notification recipients`);
+
+    for (const recipient of recipients) {
+      if (recipient.is_online) {
+        // User is online - create in-app notification
+        console.log(`Creating in-app notification for user ${recipient.user_id}`);
+        
+        await supabase.from("notifications").insert({
+          user_id: recipient.user_id,
+          title: `📱 Messaggio WhatsApp`,
+          message: `${customerName || customerPhone}: ${messageContent.substring(0, 100)}`,
+          type: "whatsapp_message",
+          entity_type: "whatsapp_conversation",
+          entity_id: null,
+          is_read: false,
+        });
+      } else {
+        // User is offline - check if email notification is enabled
+        const { data: setting } = await supabase
+          .from("whatsapp_notification_settings")
+          .select("email_when_offline")
+          .eq("account_id", account.id)
+          .eq("user_id", recipient.user_id)
+          .single();
+
+        if (setting?.email_when_offline) {
+          console.log(`Sending email notification to ${recipient.email}`);
+          
+          // Call the email notification edge function
+          const response = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp-notification-email`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                recipient_email: recipient.email,
+                customer_phone: customerPhone,
+                customer_name: customerName,
+                message_content: messageContent,
+                message_type: messageType,
+                account_name: account.verified_name || account.display_phone_number,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error("Error sending notification email:", await response.text());
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error sending notifications:", error);
   }
 }

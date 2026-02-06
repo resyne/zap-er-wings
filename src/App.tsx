@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PresenceTracker } from "@/components/auth/PresenceTracker";
 import { AppLayout } from "./components/layout/app-layout";
 import AuthPage from "./pages/auth/AuthPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
@@ -130,6 +131,7 @@ const App = () => (
               <Route path="/riepilogo-operativo" element={<PublicRiepilogoOperativoPage />} />
               <Route path="/*" element={
                 <ProtectedRoute>
+                  <PresenceTracker />
                   <AppLayout />
                 </ProtectedRoute>
               }>

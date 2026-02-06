@@ -9714,6 +9714,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          created_at: string
+          id: string
+          is_online: boolean
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -10568,6 +10595,41 @@ export type Database = {
           },
         ]
       }
+      whatsapp_notification_settings: {
+        Row: {
+          account_id: string
+          created_at: string
+          email_when_offline: boolean
+          id: string
+          notify_on_message: boolean
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          email_when_offline?: boolean
+          id?: string
+          notify_on_message?: boolean
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          email_when_offline?: boolean
+          id?: string
+          notify_on_message?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_notification_settings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_opt_ins: {
         Row: {
           campaign_id: string | null
@@ -11176,6 +11238,14 @@ export type Database = {
       }
       get_user_role_simple: { Args: { user_uuid?: string }; Returns: string }
       get_user_site_origin: { Args: { user_uuid: string }; Returns: string }
+      get_whatsapp_notification_recipients: {
+        Args: { p_account_id: string }
+        Returns: {
+          email: string
+          is_online: boolean
+          user_id: string
+        }[]
+      }
       has_minimum_role: {
         Args: {
           _min_role: Database["public"]["Enums"]["app_role"]
@@ -11196,6 +11266,10 @@ export type Database = {
       normalize_phone: { Args: { phone_number: string }; Returns: string }
       populate_missing_shipping_order_items: { Args: never; Returns: number }
       should_hide_amounts: { Args: never; Returns: boolean }
+      upsert_user_presence: {
+        Args: { p_is_online: boolean; p_user_id: string }
+        Returns: undefined
+      }
       user_created_quote: { Args: { quote_id: string }; Returns: boolean }
       validate_quote_code: { Args: { input_code: string }; Returns: boolean }
     }
