@@ -11,14 +11,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   MessageCircle, Check, CheckCheck, Clock, AlertCircle, 
   Image, FileText, Video, Mic, RefreshCw, Send, Loader2,
-  Bot, Lock, Unlock, Paperclip, X, Timer, Languages, Globe
+  Bot, Lock, Unlock, Paperclip, X, Timer, Languages, Globe, FolderOpen, Upload
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format, differenceInHours, differenceInMinutes } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import { useChatTranslation, SUPPORTED_LANGUAGES, getLanguageFromCountry, getLanguageFlag, getLanguageName } from "@/hooks/useChatTranslation";
 import WhatsAppAudioPlayer from "./WhatsAppAudioPlayer";
 import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
+import { BusinessFilesDialog } from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 
 interface LeadWhatsAppChatProps {
   leadId: string;
@@ -1172,20 +1179,46 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                 }}
               />
               
-              {/* Attach button */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingFile || isSending}
-                title="Allega file"
-              >
-                {isUploadingFile ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Paperclip className="h-4 w-4" />
-                )}
-              </Button>
+              {/* Attach button with dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={isUploadingFile || isSending}
+                    title="Allega file"
+                  >
+                    {isUploadingFile ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Carica nuovo file
+                  </DropdownMenuItem>
+                  <BusinessFilesDialog
+                    accountId={selectedAccountId}
+                    accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
+                    onSelectFile={(file) => {
+                      setAttachedFile({
+                        url: file.file_url,
+                        name: file.name,
+                        type: file.file_type as 'image' | 'document' | 'video' | 'audio'
+                      });
+                    }}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Seleziona da libreria
+                      </DropdownMenuItem>
+                    }
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
               
               <Input
                 placeholder={
