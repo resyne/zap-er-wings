@@ -62,37 +62,91 @@ Preserve emoji, formatting, and tone of the original message.`;
 
     console.log(`Translating: "${text.substring(0, 50)}..." to ${targetLangName}`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: text }
-        ],
-      }),
-    });
+    // Helper function with retry logic for transient errors
+    const callAIWithRetry = async (maxRetries = 3): Promise<Response> => {
+      let lastError: Error | null = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: text }
+              ],
+            }),
+          });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+          if (response.ok) {
+            return response;
+          }
+
+          // Non-retryable errors
+          if (response.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          if (response.status === 402) {
+            return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
+              status: 402,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+
+          // Retryable errors (502, 503, 504)
+          if ([502, 503, 504].includes(response.status)) {
+            const errorText = await response.text();
+            console.warn(`AI gateway error (attempt ${attempt}/${maxRetries}):`, response.status, errorText);
+            lastError = new Error(`AI gateway error: ${response.status}`);
+            
+            if (attempt < maxRetries) {
+              // Exponential backoff: 1s, 2s, 4s
+              const delay = Math.pow(2, attempt - 1) * 1000;
+              console.log(`Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          } else {
+            // Other errors - don't retry
+            const errorText = await response.text();
+            console.error("AI gateway error:", response.status, errorText);
+            throw new Error(`AI gateway error: ${response.status}`);
+          }
+        } catch (fetchError) {
+          console.error(`Fetch error (attempt ${attempt}/${maxRetries}):`, fetchError);
+          lastError = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+          
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      
+      throw lastError || new Error("AI gateway failed after retries");
+    };
+
+    const response = await callAIWithRetry();
+    
+    // Check if response is already an error response (from 429/402 handling)
+    if (response.headers.get("Content-Type")?.includes("application/json")) {
+      const cloned = response.clone();
+      try {
+        const maybeError = await cloned.json();
+        if (maybeError.error) {
+          return response;
+        }
+      } catch {
+        // Not JSON or not an error, continue normally
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
