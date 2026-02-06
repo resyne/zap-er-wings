@@ -47,28 +47,28 @@ const statusConfig: Record<MessageStatus, {
     outboundColorClass: 'text-amber-200'
   },
   sent: {
-    icon: Check,
+    icon: Check, // ✓ Una spunta grigia
     label: 'Inviato',
     description: 'Messaggio inviato al server WhatsApp',
     colorClass: 'text-gray-400',
     bgClass: 'bg-gray-400/10',
-    outboundColorClass: 'text-white/70'
+    outboundColorClass: 'text-white/60'
   },
   delivered: {
-    icon: CheckCheck,
+    icon: CheckCheck, // ✓✓ Due spunte grigie
     label: 'Consegnato',
-    description: 'Messaggio consegnato al dispositivo',
+    description: 'Messaggio ricevuto dal dispositivo del destinatario',
     colorClass: 'text-gray-400',
     bgClass: 'bg-gray-400/10',
-    outboundColorClass: 'text-white/70'
+    outboundColorClass: 'text-white/60'
   },
   read: {
-    icon: CheckCheck,
+    icon: CheckCheck, // ✓✓ Due spunte blu
     label: 'Letto',
     description: 'Messaggio visualizzato dal destinatario',
-    colorClass: 'text-blue-500',
-    bgClass: 'bg-blue-500/10',
-    outboundColorClass: 'text-sky-300'
+    colorClass: 'text-sky-500',
+    bgClass: 'bg-sky-500/10',
+    outboundColorClass: 'text-sky-400'
   },
   failed: {
     icon: AlertCircle,
