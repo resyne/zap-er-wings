@@ -38,6 +38,7 @@ import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubbl
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLeadDataForPhone } from "@/hooks/useLeadDataForPhone";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -245,6 +246,13 @@ export default function WhatsAppPage() {
       return data;
     },
     enabled: !!selectedAccount
+  });
+
+  const { data: activeConversationLeadData } = useLeadDataForPhone({
+    phone: selectedConversation?.customer_phone ?? null,
+    leadId: selectedConversation?.lead_id ?? null,
+    pipeline: selectedAccount?.pipeline ?? null,
+    enabled: !!selectedConversation,
   });
 
   // Query per profili utenti (per mostrare chi ha inviato)
@@ -1977,20 +1985,22 @@ const syncTemplatesMutation = useMutation({
 
                             {/* Normal chat input */}
                             {!showTranslation && (() => {
-                              const matchedLead = findLeadByPhone(selectedConversation.customer_phone);
+                              const leadDataForChat =
+                                activeConversationLeadData ??
+                                (selectedConversation.customer_name
+                                  ? {
+                                      name: selectedConversation.customer_name,
+                                      phone: selectedConversation.customer_phone,
+                                    }
+                                  : undefined);
+
                               return (
                                 <WhatsAppChatInput
                                   accountId={selectedAccount!.id}
                                   accountName={selectedAccount!.verified_name || selectedAccount!.display_phone_number}
                                   conversationPhone={selectedConversation.customer_phone}
                                   userId={user?.id}
-                                  leadData={matchedLead ? {
-                                    name: matchedLead.contact_name || undefined,
-                                    company: (matchedLead as any).company || undefined,
-                                    email: matchedLead.email || undefined,
-                                    phone: matchedLead.phone || undefined,
-                                    country: matchedLead.country || undefined
-                                  } : undefined}
+                                  leadData={leadDataForChat}
                                   onMessageSent={() => {
                                     queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
                                     queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
@@ -1998,6 +2008,7 @@ const syncTemplatesMutation = useMutation({
                                 />
                               );
                             })()}
+
                           </div>
                         )}
                       </div>
