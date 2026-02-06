@@ -1222,24 +1222,22 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              {/* Standard messages button - only when 24h window is open */}
-              {windowStatus.isOpen && (
-                <StandardMessagesDialog
-                  accountId={selectedAccountId}
-                  accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
-                  onSelectMessage={(msg) => setMessage(msg)}
-                  trigger={
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      disabled={isSending}
-                      title="Messaggi standard"
-                    >
-                      <MessageSquareText className="h-4 w-4" />
-                    </Button>
-                  }
-                />
-              )}
+              {/* Standard messages button - always visible */}
+              <StandardMessagesDialog
+                accountId={selectedAccountId}
+                accountName={accounts?.find(a => a.id === selectedAccountId)?.verified_name || undefined}
+                onSelectMessage={(msg) => setMessage(msg)}
+                trigger={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={isSending}
+                    title="Messaggi standard"
+                  >
+                    <MessageSquareText className="h-4 w-4" />
+                  </Button>
+                }
+              />
               
               <Input
                 placeholder={
