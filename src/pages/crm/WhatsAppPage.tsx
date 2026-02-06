@@ -21,7 +21,7 @@ import {
   DollarSign, MessageSquare, UserPlus, Search, Copy, 
   ExternalLink, Webhook, Shield, Link2, Upload, File, Loader2,
   Image as ImageIcon, Volume2, Languages, Archive, MoreVertical, Star,
-  ChevronsUp, FolderOpen
+  ChevronsUp, FolderOpen, Bell
 } from "lucide-react";
 import WhatsAppBusinessFilesLibrary from "@/components/whatsapp/WhatsAppBusinessFilesLibrary";
 import {
@@ -35,6 +35,7 @@ import { WhatsAppTemplatePreview } from "@/components/whatsapp/WhatsAppTemplateP
 import { WhatsAppTemplateCreator, TemplateFormData } from "@/components/whatsapp/WhatsAppTemplateCreator";
 import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndicator";
 import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
+import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNotificationSettings";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -2729,6 +2730,22 @@ const syncTemplatesMutation = useMutation({
                     <strong>Nota:</strong> L'access token è memorizzato in modo sicuro e utilizzato automaticamente per l'invio dei messaggi.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Notification Settings Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notifiche Messaggi
+                </CardTitle>
+                <CardDescription>
+                  Configura chi riceve notifiche quando arriva un messaggio WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WhatsAppNotificationSettings accountId={selectedAccount.id} />
               </CardContent>
             </Card>
           </TabsContent>
