@@ -14,7 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Bot, Loader2, Sparkles } from "lucide-react";
+import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
+import { WhatsAppKnowledgeBase } from "./WhatsAppKnowledgeBase";
 
 interface WhatsAppAISettingsDialogProps {
   open: boolean;
@@ -54,6 +55,7 @@ export function WhatsAppAISettingsDialog({
   const [systemPrompt, setSystemPrompt] = useState("");
   const [minDelay, setMinDelay] = useState(2);
   const [maxDelay, setMaxDelay] = useState(10);
+  const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
 
   useEffect(() => {
     if (account) {
@@ -194,6 +196,22 @@ export function WhatsAppAISettingsDialog({
                 </p>
               </div>
 
+              {/* Knowledge Base */}
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-purple-600" />
+                    Knowledge Base
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Insegna all'AI le risposte tipiche della tua azienda
+                  </p>
+                </div>
+                <Button onClick={() => setShowKnowledgeBase(true)}>
+                  Gestisci
+                </Button>
+              </div>
+
               {/* Info Box */}
               <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
                 <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">
@@ -202,6 +220,7 @@ export function WhatsAppAISettingsDialog({
                 <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
                   <li>• L'AI analizza la cronologia della conversazione</li>
                   <li>• Considera le informazioni del lead (se disponibili)</li>
+                  <li>• Consulta la Knowledge Base per risposte coerenti</li>
                   <li>• Suggerisce una risposta appropriata</li>
                   <li>• Calcola un delay intelligente basato sul contesto</li>
                   {autoMode ? (
@@ -225,6 +244,13 @@ export function WhatsAppAISettingsDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Knowledge Base Dialog */}
+      <WhatsAppKnowledgeBase
+        open={showKnowledgeBase}
+        onOpenChange={setShowKnowledgeBase}
+        accountId={account?.id}
+      />
     </Dialog>
   );
 }
