@@ -12,13 +12,23 @@ const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
 const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
 
+interface ConversationMessage {
+  direction: 'inbound' | 'outbound';
+  content: string;
+  timestamp: string;
+  message_type?: string;
+}
+
 interface SendNotificationEmailRequest {
   recipient_email: string;
   customer_phone: string;
   customer_name?: string;
+  lead_name?: string;
+  company_name?: string;
   message_content: string;
   message_type: string;
   account_name?: string;
+  recent_messages?: ConversationMessage[];
 }
 
 async function translateMessage(content: string): Promise<{ translated: string; detected_language: string } | null> {
@@ -104,12 +114,19 @@ serve(async (req) => {
       recipient_email, 
       customer_phone, 
       customer_name, 
+      lead_name,
+      company_name,
       message_content, 
       message_type,
-      account_name 
+      account_name,
+      recent_messages 
     } = body;
 
-    console.log(`Sending notification email to ${recipient_email} for message from ${customer_phone}`);
+    // Determine the best display name
+    const displayName = lead_name || customer_name || customer_phone;
+    const displayCompany = company_name ? ` (${company_name})` : '';
+
+    console.log(`Sending notification email to ${recipient_email} for message from ${displayName}`);
 
     // Try to translate the message
     const translation = await translateMessage(message_content);
@@ -128,6 +145,41 @@ serve(async (req) => {
       `
       : "";
 
+    // Build conversation history HTML
+    let conversationHtml = "";
+    if (recent_messages && recent_messages.length > 0) {
+      const messagesHtml = recent_messages.map(msg => {
+        const isInbound = msg.direction === 'inbound';
+        const bgColor = isInbound ? '#dcfce7' : '#e0e7ff';
+        const align = isInbound ? 'left' : 'right';
+        const borderColor = isInbound ? '#25D366' : '#6366f1';
+        const label = isInbound ? '👤 Cliente' : '👨‍💼 Tu';
+        const time = new Date(msg.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+        
+        return `
+          <div style="text-align: ${align}; margin-bottom: 10px;">
+            <div style="display: inline-block; max-width: 80%; background-color: ${bgColor}; padding: 10px 15px; border-radius: 12px; border-left: 3px solid ${borderColor};">
+              <p style="margin: 0 0 5px 0; font-size: 11px; color: #6b7280;">${label} · ${time}</p>
+              <p style="margin: 0; font-size: 14px; color: #1f2937;">
+                ${msg.message_type && msg.message_type !== 'text' ? `[${msg.message_type}] ` : ''}${msg.content || '[Media]'}
+              </p>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      conversationHtml = `
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 0 0 15px 0; font-size: 14px; font-weight: 600; color: #374151;">
+            💬 Ultimi messaggi della conversazione:
+          </p>
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto;">
+            ${messagesHtml}
+          </div>
+        </div>
+      `;
+    }
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -143,25 +195,26 @@ serve(async (req) => {
           </div>
           
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <p style="margin: 0 0 10px 0;">
-              <strong>👤 Cliente:</strong> ${customer_name || "Sconosciuto"}
+            <p style="margin: 0 0 10px 0; font-size: 18px;">
+              <strong>👤 ${displayName}${displayCompany}</strong>
             </p>
-            <p style="margin: 0;">
-              <strong>📞 Telefono:</strong> 
-              <a href="https://wa.me/${customer_phone}" style="color: #25D366; text-decoration: none;">${customer_phone}</a>
+            <p style="margin: 0; font-size: 14px; color: #6b7280;">
+              📞 <a href="https://wa.me/${customer_phone}" style="color: #25D366; text-decoration: none;">${customer_phone}</a>
             </p>
           </div>
 
           ${translationHtml}
 
-          <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; border-left: 4px solid #25D366;">
+          <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; border-left: 4px solid #25D366; margin-bottom: 20px;">
             <p style="margin: 0 0 5px 0; font-size: 12px; color: #065f46;">
-              <strong>Messaggio ${translation ? "(originale)" : ""}:</strong>
+              <strong>🆕 Nuovo messaggio ${translation ? "(originale)" : ""}:</strong>
             </p>
             <p style="margin: 0; font-size: 16px; color: #064e3b;">
               ${message_type !== "text" ? `[${message_type}] ` : ""}${message_content}
             </p>
           </div>
+
+          ${conversationHtml}
 
           <div style="text-align: center; margin-top: 30px;">
             <a href="https://zap-er-wings.lovable.app/crm/whatsapp" 
@@ -181,7 +234,7 @@ serve(async (req) => {
     const emailResponse = await resend.emails.send({
       from: "WhatsApp Notifications <notifications@mail.vesuvianoforni.com>",
       to: [recipient_email],
-      subject: `📱 Nuovo messaggio WhatsApp da ${customer_name || customer_phone}`,
+      subject: `📱 WhatsApp: ${displayName}${displayCompany}`,
       html: emailHtml,
     });
 

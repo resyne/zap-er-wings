@@ -259,7 +259,8 @@ serve(async (req) => {
                   from,
                   conversation.customer_name || contacts.find((c: any) => c.wa_id === from)?.profile?.name,
                   content || `[${messageType}]`,
-                  messageType
+                  messageType,
+                  conversation.id
                 );
                 
                 // Handle button reply triggers for automation
@@ -437,7 +438,8 @@ async function sendNotifications(
   customerPhone: string,
   customerName: string | null,
   messageContent: string,
-  messageType: string
+  messageType: string,
+  conversationId?: string
 ) {
   try {
     // Get notification recipients for this account
@@ -456,6 +458,48 @@ async function sendNotifications(
 
     console.log(`Found ${recipients.length} notification recipients`);
 
+    // Fetch lead data and recent messages for email context
+    let leadData: any = null;
+    let recentMessages: any[] = [];
+
+    if (conversationId) {
+      // Get conversation with lead info
+      const { data: conversation } = await supabase
+        .from("whatsapp_conversations")
+        .select("lead_id, customer_name")
+        .eq("id", conversationId)
+        .single();
+
+      if (conversation?.lead_id) {
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("id, contact_name, company_name, email, phone, country")
+          .eq("id", conversation.lead_id)
+          .single();
+        
+        if (lead) {
+          leadData = lead;
+        }
+      }
+
+      // Get recent messages for context (last 5 messages)
+      const { data: messages } = await supabase
+        .from("whatsapp_messages")
+        .select("direction, content, created_at, message_type")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (messages && messages.length > 0) {
+        recentMessages = messages.reverse().map((m: any) => ({
+          direction: m.direction,
+          content: m.content || "[Media]",
+          timestamp: m.created_at,
+          message_type: m.message_type
+        }));
+      }
+    }
+
     for (const recipient of recipients) {
       if (recipient.is_online) {
         // User is online - create in-app notification
@@ -464,10 +508,10 @@ async function sendNotifications(
         await supabase.from("notifications").insert({
           user_id: recipient.user_id,
           title: `📱 Messaggio WhatsApp`,
-          message: `${customerName || customerPhone}: ${messageContent.substring(0, 100)}`,
+          message: `${leadData?.contact_name || customerName || customerPhone}: ${messageContent.substring(0, 100)}`,
           type: "whatsapp_message",
           entity_type: "whatsapp_conversation",
-          entity_id: null,
+          entity_id: conversationId || null,
           is_read: false,
         });
       } else {
@@ -480,9 +524,9 @@ async function sendNotifications(
           .single();
 
         if (setting?.email_when_offline) {
-          console.log(`Sending email notification to ${recipient.email}`);
+          console.log(`Sending email notification to ${recipient.email} with lead context`);
           
-          // Call the email notification edge function
+          // Call the email notification edge function with enriched data
           const response = await fetch(
             `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp-notification-email`,
             {
@@ -495,9 +539,12 @@ async function sendNotifications(
                 recipient_email: recipient.email,
                 customer_phone: customerPhone,
                 customer_name: customerName,
+                lead_name: leadData?.contact_name,
+                company_name: leadData?.company_name,
                 message_content: messageContent,
                 message_type: messageType,
                 account_name: account.verified_name || account.display_phone_number,
+                recent_messages: recentMessages,
               }),
             }
           );
