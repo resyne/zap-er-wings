@@ -10070,6 +10070,11 @@ export type Database = {
       whatsapp_accounts: {
         Row: {
           access_token: string | null
+          ai_auto_mode: boolean | null
+          ai_chat_enabled: boolean | null
+          ai_max_delay_minutes: number | null
+          ai_min_delay_minutes: number | null
+          ai_system_prompt: string | null
           business_unit_id: string | null
           created_at: string
           credits_balance: number | null
@@ -10087,6 +10092,11 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          ai_auto_mode?: boolean | null
+          ai_chat_enabled?: boolean | null
+          ai_max_delay_minutes?: number | null
+          ai_min_delay_minutes?: number | null
+          ai_system_prompt?: string | null
           business_unit_id?: string | null
           created_at?: string
           credits_balance?: number | null
@@ -10104,6 +10114,11 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          ai_auto_mode?: boolean | null
+          ai_chat_enabled?: boolean | null
+          ai_max_delay_minutes?: number | null
+          ai_min_delay_minutes?: number | null
+          ai_system_prompt?: string | null
           business_unit_id?: string | null
           created_at?: string
           credits_balance?: number | null
@@ -10125,6 +10140,60 @@ export type Database = {
             columns: ["business_unit_id"]
             isOneToOne: false
             referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_ai_queue: {
+        Row: {
+          account_id: string
+          ai_reasoning: string | null
+          conversation_id: string
+          created_at: string
+          delay_minutes: number | null
+          id: string
+          processed_at: string | null
+          scheduled_at: string
+          status: string
+          suggested_message: string | null
+        }
+        Insert: {
+          account_id: string
+          ai_reasoning?: string | null
+          conversation_id: string
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          processed_at?: string | null
+          scheduled_at: string
+          status?: string
+          suggested_message?: string | null
+        }
+        Update: {
+          account_id?: string
+          ai_reasoning?: string | null
+          conversation_id?: string
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          processed_at?: string | null
+          scheduled_at?: string
+          status?: string
+          suggested_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_queue_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_queue_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
             referencedColumns: ["id"]
           },
         ]
