@@ -6,7 +6,8 @@ import {
   Users, Building2, DollarSign, FileText, Settings, Phone, MessageCircle,
   ShoppingCart, Truck, Package, Database, Clock, ShieldCheck, Ticket,
   Package2, Boxes, ClipboardCheck, ShoppingBag, BarChart3, Shield,
-  UtensilsCrossed, Store, BookOpen, Mail, Palette, Zap, PieChart
+  UtensilsCrossed, Store, BookOpen, Mail, Palette, Zap, PieChart,
+  Bot, Brain, Languages, Mic, ScanSearch, Sparkles, FileSearch, Globe, Send
 } from "lucide-react";
 import React from "react";
 
@@ -22,6 +23,34 @@ interface SectionDoc {
   color: string;
   pages: PageDoc[];
 }
+
+interface AIFeatureDoc {
+  title: string;
+  icon: React.ComponentType<any>;
+  model: string;
+  description: string;
+  edgeFunction: string;
+}
+
+const aiFeatures: AIFeatureDoc[] = [
+  { title: "JESSY – Assistente CRM AI", icon: Bot, model: "GPT-4o (OpenAI)", edgeFunction: "crm-ai-assistant", description: "Chatbot conversazionale con tool-calling per gestire lead, clienti, offerte e preventivi tramite linguaggio naturale." },
+  { title: "Analisi Priorità Lead", icon: Brain, model: "Gemini 3 Flash", edgeFunction: "analyze-leads-priority", description: "Analisi automatica dei lead con scoring di urgenza (1-10) basato su attività configuratore, messaggi non letti e stallo trattative." },
+  { title: "WhatsApp AI Sales Assistant", icon: MessageCircle, model: "Gemini 3 Flash", edgeFunction: "whatsapp-ai-chat", description: "Assistente vendita AI integrato in WhatsApp con risposte automatiche, Knowledge Base e ritardi intelligenti configurabili." },
+  { title: "Traduzione Chat WhatsApp", icon: Languages, model: "Gemini 2.5 Flash", edgeFunction: "translate-chat-message", description: "Traduzione automatica bidirezionale dei messaggi WhatsApp con rilevamento lingua e supporto multilingua." },
+  { title: "Traduzione Template WhatsApp", icon: Globe, model: "Gemini 2.5 Flash", edgeFunction: "translate-whatsapp-template", description: "Traduzione automatica dei template WhatsApp Business per campagne marketing multilingua." },
+  { title: "Traduzione Offerte Commerciali", icon: FileText, model: "Gemini 2.5 Flash", edgeFunction: "translate-offer", description: "Traduzione professionale di offerte commerciali mantenendo formattazione, struttura e tono professionale." },
+  { title: "Traduzione Email", icon: Mail, model: "Gemini 2.5 Flash", edgeFunction: "translate-email-content", description: "Traduzione contenuti email per comunicazioni internazionali con clienti e partner." },
+  { title: "Analisi Fatture (OCR)", icon: ScanSearch, model: "Gemini 2.5 Flash / GPT-5 Mini", edgeFunction: "analyze-invoice", description: "Estrazione automatica dati da fatture PDF e immagini: fornitore, importi, IVA, date e coordinate bancarie." },
+  { title: "Analisi DDT", icon: FileSearch, model: "Gemini 2.5 Flash", edgeFunction: "analyze-ddt", description: "Analisi intelligente dei Documenti di Trasporto con estrazione dati e verifica automatica." },
+  { title: "Analisi Documenti", icon: FileSearch, model: "Gemini 2.5 Flash", edgeFunction: "analyze-document", description: "Analisi generica documenti con OCR ed estrazione strutturata di informazioni chiave." },
+  { title: "Trascrizione Audio Chiamate", icon: Mic, model: "Whisper (OpenAI)", edgeFunction: "transcribe-call-audio", description: "Trascrizione automatica delle registrazioni telefoniche del centralino con rilevamento lingua." },
+  { title: "Analisi Chiamate", icon: Phone, model: "Gemini 2.5 Flash", edgeFunction: "analyze-call-record", description: "Analisi AI del sentiment e generazione riassunto automatico delle chiamate trascritte." },
+  { title: "Trascrizione Audio WhatsApp", icon: Mic, model: "Whisper (OpenAI)", edgeFunction: "transcribe-whatsapp-audio", description: "Trascrizione automatica dei messaggi vocali WhatsApp ricevuti dai clienti." },
+  { title: "Classificazione Contabile AI", icon: Database, model: "Gemini 3 Flash", edgeFunction: "classify-accounting-entry", description: "Classificazione automatica delle registrazioni contabili con suggerimento conto, centro di costo e competenza." },
+  { title: "Strategy Wise Oracle", icon: Sparkles, model: "Gemini 2.5 Flash", edgeFunction: "strategy-wise-oracle", description: "Assistente AI strategico per analisi SWOT, pianificazione obiettivi e suggerimenti di governance aziendale." },
+  { title: "Estrazione Dati Lead Webhook", icon: Globe, model: "Gemini 3 Flash", edgeFunction: "external-lead-webhook", description: "Estrazione intelligente dei campi lead da payload webhook esterni con normalizzazione automatica dei dati." },
+  { title: "Automazioni Email Lead", icon: Send, model: "Gemini 2.5 Flash", edgeFunction: "send-lead-automation-emails", description: "Generazione contenuti email personalizzati per sequenze di automazione marketing basate su AI." },
+];
 
 const erpSections: SectionDoc[] = [
   {
@@ -215,13 +244,56 @@ export function ERPDocumentationMap() {
         <div>
           <h2 className="text-xl font-bold">Mappa Completa ERP ZAPPER</h2>
           <p className="text-sm text-muted-foreground">
-            {erpSections.length} sezioni · {totalPages} pagine
+            {erpSections.length} sezioni · {totalPages} pagine · {aiFeatures.length} funzioni AI
           </p>
         </div>
         <Badge variant="outline" className="text-xs">
-          v1.0 · Aggiornato Feb 2026
+          v1.1 · Aggiornato Feb 2026
         </Badge>
       </div>
+
+      {/* AI Features Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Badge className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white border-0 font-medium">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Funzionalità AI Integrate
+            </Badge>
+            <span className="text-xs text-muted-foreground font-normal">
+              {aiFeatures.length} funzioni
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            {aiFeatures.map((feature, idx) => (
+              <React.Fragment key={feature.edgeFunction}>
+                {idx > 0 && <Separator className="my-2" />}
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-md bg-violet-100 dark:bg-violet-900/30 p-1.5">
+                    <feature.icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{feature.title}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                        {feature.model}
+                      </Badge>
+                      <code className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded hidden sm:inline">
+                        {feature.edgeFunction}
+                      </code>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {erpSections.map((section) => (
         <Card key={section.section}>
