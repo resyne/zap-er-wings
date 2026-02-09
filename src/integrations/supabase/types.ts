@@ -10459,6 +10459,7 @@ export type Database = {
           file_size: number | null
           file_type: string
           file_url: string
+          folder_id: string | null
           id: string
           mime_type: string | null
           name: string
@@ -10472,6 +10473,7 @@ export type Database = {
           file_size?: number | null
           file_type: string
           file_url: string
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           name: string
@@ -10485,6 +10487,7 @@ export type Database = {
           file_size?: number | null
           file_type?: string
           file_url?: string
+          folder_id?: string | null
           id?: string
           mime_type?: string | null
           name?: string
@@ -10497,6 +10500,58 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_business_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_business_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_business_folders: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_business_folders_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_business_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_business_folders"
             referencedColumns: ["id"]
           },
         ]
