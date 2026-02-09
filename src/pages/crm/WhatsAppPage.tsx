@@ -820,8 +820,9 @@ const syncTemplatesMutation = useMutation({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+      // Force immediate refetch with specific query key
+      queryClient.refetchQueries({ queryKey: ['whatsapp-messages', selectedConversation?.id] });
+      queryClient.refetchQueries({ queryKey: ['whatsapp-conversations', selectedAccount?.id] });
       setNewMessage('');
       toast.success('Messaggio inviato');
     },
@@ -913,8 +914,9 @@ const syncTemplatesMutation = useMutation({
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
+      // Force immediate refetch with specific query keys
+      queryClient.refetchQueries({ queryKey: ['whatsapp-conversations', selectedAccount?.id] });
+      queryClient.refetchQueries({ queryKey: ['whatsapp-messages', selectedConversation?.id] });
       toast.success('Template inviato con successo');
       setIsSendTemplateDialogOpen(false);
       setSelectedTemplate(null);
@@ -2306,8 +2308,9 @@ const syncTemplatesMutation = useMutation({
                                           clearOutboundTranslation();
                                           setTranslationInput("");
                                           setShowTranslation(false);
-                                          queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
-                                          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                          // Force immediate refetch with specific query keys
+                                          queryClient.refetchQueries({ queryKey: ['whatsapp-messages', selectedConversation.id] });
+                                          queryClient.refetchQueries({ queryKey: ['whatsapp-conversations', selectedAccount!.id] });
                                           
                                           // Delay per evitare doppio invio rapido
                                           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -2351,8 +2354,9 @@ const syncTemplatesMutation = useMutation({
                                   userId={user?.id}
                                   leadData={leadDataForChat}
                                   onMessageSent={() => {
-                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
-                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                    // Force immediate refetch with specific query keys
+                                    queryClient.refetchQueries({ queryKey: ['whatsapp-messages', selectedConversation.id] });
+                                    queryClient.refetchQueries({ queryKey: ['whatsapp-conversations', selectedAccount!.id] });
                                   }}
                                 />
                               );
