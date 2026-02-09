@@ -8,9 +8,10 @@ import { SystemSettings } from "@/components/settings/SystemSettings";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { PasswordChange } from "@/components/settings/PasswordChange";
 import { ProfileEdit } from "@/components/settings/ProfileEdit";
+import { ERPDocumentationMap } from "@/components/settings/ERPDocumentationMap";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Users, Shield, Settings, AlertCircle, Lock, Zap } from "lucide-react";
+import { Users, Shield, Settings, AlertCircle, Lock, Zap, BookOpen } from "lucide-react";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -44,7 +45,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Profilo</span>
@@ -64,6 +65,10 @@ export function SettingsPage() {
           <TabsTrigger value="system" className="flex items-center gap-2" disabled={!isAdmin}>
             <Settings className="h-4 w-4" />
             <span className="hidden sm:inline">Sistema</span>
+          </TabsTrigger>
+          <TabsTrigger value="docs" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            <span className="hidden sm:inline">Mappa ERP</span>
           </TabsTrigger>
         </TabsList>
 
@@ -160,6 +165,10 @@ export function SettingsPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="docs" className="space-y-4">
+          <ERPDocumentationMap />
         </TabsContent>
       </Tabs>
     </div>
