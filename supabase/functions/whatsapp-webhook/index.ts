@@ -149,12 +149,45 @@ serve(async (req) => {
                   const contact = contacts.find((c: any) => c.wa_id === from);
                   const customerName = contact?.profile?.name || null;
 
+                  // Try to find a matching lead by phone number (last 9 digits)
+                  let matchedLeadId: string | null = null;
+                  try {
+                    const phoneDigits = from.replace(/\D/g, '');
+                    const searchPattern = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits.slice(-8);
+                    if (searchPattern) {
+                      const { data: candidates } = await supabase.rpc(
+                        'find_lead_by_normalized_phone',
+                        { search_pattern: searchPattern }
+                      );
+                      if (candidates && candidates.length > 0) {
+                        // Filter by pipeline if account has one
+                        const pipeline = account.pipeline;
+                        if (pipeline) {
+                          const { data: pipelineLeads } = await supabase
+                            .from('leads')
+                            .select('id')
+                            .in('id', candidates.map((c: any) => c.id))
+                            .eq('pipeline', pipeline)
+                            .limit(1);
+                          if (pipelineLeads && pipelineLeads.length > 0) {
+                            matchedLeadId = pipelineLeads[0].id;
+                          }
+                        } else {
+                          matchedLeadId = candidates[0].id;
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Error matching lead by phone:", e);
+                  }
+
                   const { data: newConv, error: convError } = await supabase
                     .from("whatsapp_conversations")
                     .insert({
                       account_id: account.id,
                       customer_phone: from,
                       customer_name: customerName,
+                      lead_id: matchedLeadId,
                       conversation_type: "user_initiated",
                       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                     })
@@ -166,6 +199,9 @@ serve(async (req) => {
                     continue;
                   }
                   conversation = newConv;
+                  if (matchedLeadId) {
+                    console.log(`Linked conversation to lead ${matchedLeadId}`);
+                  }
                 }
 
                 // Extract message content based on type
