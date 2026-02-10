@@ -994,6 +994,13 @@ const syncTemplatesMutation = useMutation({
     });
   };
 
+  // Helper: check if a string looks like a phone number (mostly digits)
+  const looksLikePhoneNumber = (value: string | null | undefined): boolean => {
+    if (!value) return false;
+    const digitsOnly = value.replace(/[\s\-\+\(\)]/g, '');
+    return /^\d{6,}$/.test(digitsOnly);
+  };
+
   // Smart pre-fill template params based on variable context and lead data
   const prefillTemplateParams = (template: WhatsAppTemplate, leadData: LeadData | null | undefined): string[] => {
     const bodyText = getTemplateBodyText(template);
@@ -1001,6 +1008,12 @@ const syncTemplatesMutation = useMutation({
     const params: string[] = Array(paramCount).fill('');
     
     if (!bodyText || paramCount === 0) return params;
+
+    // Get a safe customer name (not a phone number)
+    const safeCustomerName = (() => {
+      const name = leadData?.name || selectedConversation?.customer_name;
+      return name && !looksLikePhoneNumber(name) ? name : '';
+    })();
     
     // Find each {{n}} variable and analyze surrounding context
     const varRegex = /\{\{(\d+)\}\}/g;
@@ -1018,10 +1031,9 @@ const syncTemplatesMutation = useMutation({
       
       // Smart matching based on context keywords
       if (/(?:name|nome|nombre|nom\b|vorname|nachname|cliente|customer|dear|caro|estimado|cher)/i.test(context)) {
-        // Name context
-        const customerName = leadData?.name || selectedConversation?.customer_name;
-        if (customerName) {
-          params[idx] = customerName;
+        // Name context - never use a phone number as name
+        if (safeCustomerName) {
+          params[idx] = safeCustomerName;
         }
       } else if (/(?:email|e-mail|correo|courriel|posta)/i.test(context)) {
         // Email context
@@ -1052,11 +1064,8 @@ const syncTemplatesMutation = useMutation({
         params[idx] = format(new Date(), 'dd/MM/yyyy');
       } else {
         // Default: if this is the first variable and we have a name, use it
-        if (idx === 0 && !params[idx]) {
-          const customerName = leadData?.name || selectedConversation?.customer_name;
-          if (customerName) {
-            params[idx] = customerName;
-          }
+        if (idx === 0 && !params[idx] && safeCustomerName) {
+          params[idx] = safeCustomerName;
         }
       }
     }
