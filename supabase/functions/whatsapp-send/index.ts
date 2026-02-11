@@ -195,7 +195,7 @@ serve(async (req) => {
     }
 
     // Send message via Meta Graph API
-    let response = await fetch(
+    const response = await fetch(
       `${GRAPH_API_URL}/${account.phone_number_id}/messages`,
       {
         method: "POST",
@@ -207,35 +207,8 @@ serve(async (req) => {
       }
     );
 
-    let result = await response.json();
+    const result = await response.json();
     console.log("Meta API response:", JSON.stringify(result, null, 2));
-
-    // If Meta rejects due to header parameters mismatch, retry without header
-    if (!response.ok && result.error?.code === 132018 && 
-        result.error?.error_data?.details?.includes("header") &&
-        messagePayload.template?.components?.some((c: any) => c.type === "header")) {
-      console.log("Retrying without header component (template on Meta may not have a header)...");
-      messagePayload.template.components = messagePayload.template.components.filter(
-        (c: any) => c.type !== "header"
-      );
-      if (messagePayload.template.components.length === 0) {
-        delete messagePayload.template.components;
-      }
-      
-      response = await fetch(
-        `${GRAPH_API_URL}/${account.phone_number_id}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${sanitizedToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(messagePayload),
-        }
-      );
-      result = await response.json();
-      console.log("Meta API retry response:", JSON.stringify(result, null, 2));
-    }
 
     if (!response.ok) {
       throw new Error(result.error?.message || "Failed to send message");
