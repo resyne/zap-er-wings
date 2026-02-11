@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ export interface TemplateFormData {
   category: string;
   headerType: "none" | "text" | "image" | "document" | "video";
   headerText: string;
+  headerFile?: File;
   body: string;
   footer: string;
   buttons: TemplateButton[];
@@ -220,7 +221,8 @@ export function WhatsAppTemplateCreator({
                   onValueChange={(v) => setFormData(prev => ({ 
                     ...prev, 
                     headerType: v as TemplateFormData["headerType"],
-                    headerText: v !== "text" ? "" : prev.headerText
+                    headerText: v !== "text" ? "" : prev.headerText,
+                    headerFile: undefined
                   }))}
                 >
                   <SelectTrigger className="mt-1">
@@ -269,20 +271,60 @@ export function WhatsAppTemplateCreator({
               )}
 
               {formData.headerType !== "none" && formData.headerType !== "text" && (
-                <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    {formData.headerType === "image" && <Image className="h-5 w-5" />}
-                    {formData.headerType === "document" && <FileText className="h-5 w-5" />}
-                    {formData.headerType === "video" && <Video className="h-5 w-5" />}
-                    <span className="font-medium">
-                      {formData.headerType === "image" && "Immagine"}
-                      {formData.headerType === "document" && "Documento"}
-                      {formData.headerType === "video" && "Video"}
-                    </span>
-                  </div>
-                  <p className="text-xs">
-                    Il file verrà caricato quando invii il template
-                  </p>
+                <div className="space-y-2">
+                  {formData.headerFile ? (
+                    <div className="rounded-lg border p-3 flex items-center justify-between bg-muted/30">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {formData.headerType === "image" && <Image className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        {formData.headerType === "document" && <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        {formData.headerType === "video" && <Video className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <span className="text-sm truncate">{formData.headerFile.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ({(formData.headerFile.size / 1024).toFixed(0)} KB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0"
+                        onClick={() => setFormData(prev => ({ ...prev, headerFile: undefined }))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="rounded-lg border border-dashed p-4 text-center text-muted-foreground cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors block">
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept={
+                          formData.headerType === "image" ? "image/jpeg,image/png" :
+                          formData.headerType === "document" ? "application/pdf" :
+                          formData.headerType === "video" ? "video/mp4" : "*/*"
+                        }
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setFormData(prev => ({ ...prev, headerFile: file }));
+                          }
+                        }}
+                      />
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        {formData.headerType === "image" && <Image className="h-5 w-5" />}
+                        {formData.headerType === "document" && <FileText className="h-5 w-5" />}
+                        {formData.headerType === "video" && <Video className="h-5 w-5" />}
+                        <span className="font-medium">
+                          {formData.headerType === "image" && "Immagine"}
+                          {formData.headerType === "document" && "Documento"}
+                          {formData.headerType === "video" && "Video"}
+                        </span>
+                      </div>
+                      <p className="text-xs">
+                        Clicca per selezionare il file
+                      </p>
+                    </label>
+                  )}
                 </div>
               )}
             </div>
