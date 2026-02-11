@@ -86,20 +86,42 @@ serve(async (req) => {
         const components: any[] = [];
         
         // Add header component if document URL is provided
+        // BUT first verify the template actually has a HEADER component on Meta's side
         if (header_document_url) {
-          const headerDocParam: any = {
-            type: "document",
-            document: {
-              link: header_document_url
-            }
-          };
-          if (header_document_filename) {
-            headerDocParam.document.filename = header_document_filename;
+          // Check template components in DB to see if it has a DOCUMENT header
+          let templateHasDocumentHeader = false;
+          const { data: templateData } = await supabase
+            .from("whatsapp_templates")
+            .select("components")
+            .eq("account_id", account_id)
+            .eq("name", template_name)
+            .eq("language", template_language || "it")
+            .single();
+          
+          if (templateData?.components && Array.isArray(templateData.components)) {
+            templateHasDocumentHeader = templateData.components.some(
+              (c: any) => c.type?.toUpperCase() === "HEADER" && 
+                (c.format?.toUpperCase() === "DOCUMENT" || c.format?.toUpperCase() === "PDF")
+            );
           }
-          components.push({
-            type: "header",
-            parameters: [headerDocParam]
-          });
+          
+          if (templateHasDocumentHeader) {
+            const headerDocParam: any = {
+              type: "document",
+              document: {
+                link: header_document_url
+              }
+            };
+            if (header_document_filename) {
+              headerDocParam.document.filename = header_document_filename;
+            }
+            components.push({
+              type: "header",
+              parameters: [headerDocParam]
+            });
+          } else {
+            console.log(`Skipping header document - template "${template_name}" (${template_language}) does not have a DOCUMENT header component`);
+          }
         }
         
         // Add body parameters if provided
