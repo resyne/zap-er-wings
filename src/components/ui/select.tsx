@@ -79,6 +79,14 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
+      onPointerDownOutside={(e) => {
+        // Prevent Dialog focus trap from intercepting Select clicks
+        const target = e.target as HTMLElement;
+        if (target?.closest('[role="dialog"]')) {
+          e.preventDefault();
+        }
+        props.onPointerDownOutside?.(e);
+      }}
       {...props}
     >
       <SelectScrollUpButton />
