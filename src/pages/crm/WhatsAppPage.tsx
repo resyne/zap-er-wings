@@ -805,6 +805,24 @@ const syncTemplatesMutation = useMutation({
     }
   });
 
+  // Mutation per eliminare un template
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase
+        .from('whatsapp_templates')
+        .delete()
+        .eq('id', templateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+      toast.success('Template eliminato');
+    },
+    onError: (error: Error) => {
+      toast.error(`Errore eliminazione: ${error.message}`);
+    }
+  });
+
   // Verifica se siamo nella finestra 24h (customer service window)
   const isWithin24hWindow = () => {
     if (!messages || messages.length === 0) return false;
@@ -2646,6 +2664,20 @@ const syncTemplatesMutation = useMutation({
                                 Invia
                               </Button>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deleteTemplateMutation.isPending}
+                              onClick={() => {
+                                if (confirm('Sei sicuro di voler eliminare questo template? L\'azione è irreversibile.')) {
+                                  deleteTemplateMutation.mutate(template.id);
+                                }
+                              }}
+                              title="Elimina template"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
