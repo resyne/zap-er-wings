@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  Send, Mic, Paperclip, Image, FileText, 
+  Send, Mic, Paperclip, Image, FileText, Video,
   X, Loader2, Square, Play, Pause, Phone, MessageSquareText, FolderOpen
 } from "lucide-react";
 import {
@@ -291,7 +291,7 @@ export function WhatsAppChatInput({
         clearFile();
         setMessage("");
         onMessageSent();
-        toast.success(`${mediaType === "image" ? "Immagine" : mediaType === "document" ? "Documento" : "Media"} inviato`);
+        toast.success(`${mediaType === "image" ? "Immagine" : mediaType === "video" ? "Video" : mediaType === "document" ? "Documento" : "Media"} inviato`);
         
         // Delay before allowing next send
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -369,11 +369,13 @@ export function WhatsAppChatInput({
     }
   };
 
-  const openFilePicker = (type: "image" | "document") => {
+  const openFilePicker = (type: "image" | "document" | "video") => {
     if (!fileInputRef.current) return;
     
     fileInputRef.current.accept = type === "image" 
       ? "image/*" 
+      : type === "video"
+      ? "video/mp4,video/quicktime,video/3gpp,video/webm,video/*"
       : ".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv";
     fileInputRef.current.click();
   };
@@ -397,6 +399,8 @@ export function WhatsAppChatInput({
         <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
           {mediaType === "image" ? (
             <Image className="h-4 w-4 text-blue-600" />
+          ) : mediaType === "video" ? (
+            <Video className="h-4 w-4 text-purple-600" />
           ) : (
             <FileText className="h-4 w-4 text-orange-600" />
           )}
@@ -521,6 +525,10 @@ export function WhatsAppChatInput({
             <DropdownMenuItem onClick={() => openFilePicker("image")}>
               <Image className="h-4 w-4 mr-2 text-blue-600" />
               Carica immagine
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openFilePicker("video")}>
+              <Video className="h-4 w-4 mr-2 text-purple-600" />
+              Carica video
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openFilePicker("document")}>
               <FileText className="h-4 w-4 mr-2 text-orange-600" />
