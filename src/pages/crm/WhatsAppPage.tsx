@@ -626,14 +626,30 @@ export default function WhatsAppPage() {
         });
       }
 
+      // Upload header file if present (document/image/video)
+      let headerMediaUrl: string | null = null;
+      if (data.headerFile && data.headerType !== 'none' && data.headerType !== 'text') {
+        const fileExt = data.headerFile.name.split('.').pop();
+        const fileName = `whatsapp-template-headers/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, data.headerFile);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName);
+        headerMediaUrl = publicUrl;
+      }
+
       const { data: newTemplate, error } = await supabase.from('whatsapp_templates').insert({
         account_id: selectedAccount!.id,
         name: data.name,
         language: data.language,
         category: data.category,
         components: components,
-        status: 'DRAFT'
-      }).select().single();
+        status: 'DRAFT',
+        header_media_url: headerMediaUrl
+      } as any).select().single();
       if (error) throw error;
       
       return newTemplate;
@@ -1144,8 +1160,8 @@ const syncTemplatesMutation = useMutation({
     setSendTemplateData({
       recipientPhone: '',
       params: Array(paramCount).fill(''),
-      headerDocumentUrl: '',
-      headerDocumentName: '',
+      headerDocumentUrl: (template as any).header_media_url || '',
+      headerDocumentName: (template as any).header_media_url ? 'Documento precaricato dal template' : '',
       selectedLeadId: ''
     });
     setIsSendTemplateDialogOpen(true);
@@ -2012,6 +2028,9 @@ const syncTemplatesMutation = useMutation({
                                   // Pre-fill params with lead data using smart matching
                                   const prefilledParams = prefillTemplateParams(template, activeConversationLeadData);
                                   setChatTemplateParams(prefilledParams);
+                                  // Auto-populate header document if template has one stored
+                                  setChatHeaderDocUrl((template as any).header_media_url || '');
+                                  setChatHeaderDocName((template as any).header_media_url ? 'Documento precaricato dal template' : '');
                                 }
                               }}
                             >
