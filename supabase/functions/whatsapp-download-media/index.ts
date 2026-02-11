@@ -78,12 +78,24 @@ serve(async (req) => {
     console.log(`Downloaded media: ${mediaBuffer.byteLength} bytes`);
 
     // Step 3: Upload to Supabase storage
-    const fileExtension = mimeType.includes('ogg') ? 'ogg' : 
-                         mimeType.includes('mp4') ? 'mp4' :
-                         mimeType.includes('mpeg') ? 'mp3' :
-                         mimeType.includes('wav') ? 'wav' : 'ogg';
+    // Determine file extension and folder based on mime type
+    let fileExtension = 'bin';
+    let folder = 'whatsapp-media';
     
-    const fileName = `whatsapp-audio/${media_id}.${fileExtension}`;
+    if (mimeType.includes('ogg')) { fileExtension = 'ogg'; folder = 'whatsapp-audio'; }
+    else if (mimeType.includes('opus')) { fileExtension = 'ogg'; folder = 'whatsapp-audio'; }
+    else if (mimeType.includes('mpeg') && mimeType.includes('audio')) { fileExtension = 'mp3'; folder = 'whatsapp-audio'; }
+    else if (mimeType.includes('wav')) { fileExtension = 'wav'; folder = 'whatsapp-audio'; }
+    else if (mimeType.includes('mp4') && mimeType.includes('video')) { fileExtension = 'mp4'; folder = 'whatsapp-video'; }
+    else if (mimeType.includes('3gpp')) { fileExtension = '3gp'; folder = 'whatsapp-video'; }
+    else if (mimeType.includes('mp4')) { fileExtension = 'mp4'; folder = 'whatsapp-video'; }
+    else if (mimeType.includes('webm')) { fileExtension = 'webm'; folder = 'whatsapp-video'; }
+    else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) { fileExtension = 'jpg'; folder = 'whatsapp-images'; }
+    else if (mimeType.includes('png')) { fileExtension = 'png'; folder = 'whatsapp-images'; }
+    else if (mimeType.includes('webp')) { fileExtension = 'webp'; folder = 'whatsapp-images'; }
+    else if (mimeType.includes('pdf')) { fileExtension = 'pdf'; folder = 'whatsapp-documents'; }
+    
+    const fileName = `${folder}/${media_id}.${fileExtension}`;
     
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('documents')

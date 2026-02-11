@@ -37,6 +37,7 @@ import { MessageStatusIndicator } from "@/components/whatsapp/MessageStatusIndic
 import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubble";
 import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNotificationSettings";
 import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettingsDialog";
+import WhatsAppVideoPlayer from "@/components/whatsapp/WhatsAppVideoPlayer";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1865,10 +1866,12 @@ const syncTemplatesMutation = useMutation({
                                   )}
                                   
                                   {msg.message_type === 'video' && msg.media_url && (
-                                    <video 
-                                      src={msg.media_url} 
-                                      controls 
-                                      className="max-w-full rounded mb-1"
+                                    <WhatsAppVideoPlayer
+                                      messageId={msg.id}
+                                      mediaId={msg.media_url}
+                                      accountId={selectedAccount?.id || ''}
+                                      isDownloaded={msg.media_url.startsWith('http')}
+                                      isOutbound={msg.direction === 'outbound'}
                                     />
                                   )}
                                   
