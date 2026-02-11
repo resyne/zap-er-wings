@@ -293,6 +293,7 @@ serve(async (req) => {
             category: template.category,
             components: componentsArray,
             status: "DRAFT",
+            header_media_url: template.header_media_url || null,
           })
           .select()
           .single();

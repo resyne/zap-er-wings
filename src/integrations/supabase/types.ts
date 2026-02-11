@@ -10924,6 +10924,7 @@ export type Database = {
           components: Json | null
           created_at: string
           example_values: Json | null
+          header_media_url: string | null
           id: string
           is_disabled: boolean
           language: string
@@ -10940,6 +10941,7 @@ export type Database = {
           components?: Json | null
           created_at?: string
           example_values?: Json | null
+          header_media_url?: string | null
           id?: string
           is_disabled?: boolean
           language?: string
@@ -10956,6 +10958,7 @@ export type Database = {
           components?: Json | null
           created_at?: string
           example_values?: Json | null
+          header_media_url?: string | null
           id?: string
           is_disabled?: boolean
           language?: string
