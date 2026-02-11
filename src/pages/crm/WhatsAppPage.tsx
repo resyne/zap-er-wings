@@ -188,6 +188,9 @@ export default function WhatsAppPage() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [chatSelectedTemplate, setChatSelectedTemplate] = useState<WhatsAppTemplate | null>(null);
   const [chatTemplateParams, setChatTemplateParams] = useState<string[]>([]);
+  const [chatHeaderDocUrl, setChatHeaderDocUrl] = useState('');
+  const [chatHeaderDocName, setChatHeaderDocName] = useState('');
+  const [isUploadingChatDoc, setIsUploadingChatDoc] = useState(false);
   
   // State per preview template
   const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
@@ -959,6 +962,29 @@ const syncTemplatesMutation = useMutation({
     }
   };
 
+  // Upload documento per chat template selector
+  const handleChatDocumentUpload = async (file: File) => {
+    setIsUploadingChatDoc(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `whatsapp-docs/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(fileName);
+      setChatHeaderDocUrl(publicUrl);
+      setChatHeaderDocName(file.name);
+      toast.success('Documento caricato');
+    } catch (error: any) {
+      toast.error(`Errore upload: ${error.message}`);
+    } finally {
+      setIsUploadingChatDoc(false);
+    }
+  };
+
   // Estrai numero di parametri dal body del template
   const getTemplateParamCount = (template: WhatsAppTemplate) => {
     let bodyText = '';
@@ -973,6 +999,22 @@ const syncTemplatesMutation = useMutation({
     
     const matches = bodyText.match(/\{\{\d+\}\}/g);
     return matches ? matches.length : 0;
+  };
+
+  // Detect if a template has a DOCUMENT header
+  const hasDocumentHeader = (template: WhatsAppTemplate | null): boolean => {
+    if (!template) return false;
+    if (Array.isArray(template.components)) {
+      return template.components.some((c: any) => 
+        (c.type === 'HEADER' || c.type === 'header') && 
+        (c.format === 'DOCUMENT' || c.format === 'document')
+      );
+    }
+    if (template.components?.header) {
+      const ht = template.components.header.type?.toUpperCase() || template.components.header.format?.toUpperCase();
+      return ht === 'DOCUMENT';
+    }
+    return false;
   };
 
   const getTemplateBodyText = (template: WhatsAppTemplate) => {
@@ -2014,20 +2056,54 @@ const syncTemplatesMutation = useMutation({
                                     ))}
                                   </div>
                                 )}
+
+                                {/* Document upload for DOCUMENT header templates */}
+                                {hasDocumentHeader(chatSelectedTemplate) && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-semibold text-destructive">📎 Documento Header (obbligatorio)</Label>
+                                    <div className="border-2 border-dashed rounded-lg p-2 text-center">
+                                      {chatHeaderDocUrl ? (
+                                        <div className="flex items-center justify-between bg-muted/50 rounded p-2">
+                                          <div className="flex items-center gap-1.5">
+                                            <File className="h-4 w-4 text-primary" />
+                                            <span className="text-xs font-medium truncate max-w-[150px]">{chatHeaderDocName}</span>
+                                          </div>
+                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setChatHeaderDocUrl(''); setChatHeaderDocName(''); }}>
+                                            <Trash2 className="h-3 w-3 text-destructive" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <label className="cursor-pointer">
+                                          <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleChatDocumentUpload(f); }}
+                                            disabled={isUploadingChatDoc}
+                                          />
+                                          <div className="flex flex-col items-center gap-1 py-1">
+                                            {isUploadingChatDoc ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : <Upload className="h-5 w-5 text-muted-foreground" />}
+                                            <span className="text-xs text-muted-foreground">{isUploadingChatDoc ? 'Caricamento...' : 'Carica PDF'}</span>
+                                          </div>
+                                        </label>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                                 
                                 <Button 
                                   className="w-full"
-                                  disabled={sendTemplateMutation.isPending}
+                                  disabled={sendTemplateMutation.isPending || (hasDocumentHeader(chatSelectedTemplate) && !chatHeaderDocUrl)}
                                   onClick={() => {
                                     sendTemplateMutation.mutate({
                                       templateName: chatSelectedTemplate.name,
                                       templateLanguage: chatSelectedTemplate.language,
                                       recipientPhone: selectedConversation!.customer_phone,
-                                      params: chatTemplateParams // Don't filter - Meta expects exact param count
+                                      params: chatTemplateParams,
+                                      headerDocumentUrl: chatHeaderDocUrl || undefined
                                     });
                                     setShowTemplateSelector(false);
                                     setChatSelectedTemplate(null);
                                     setChatTemplateParams([]);
+                                    setChatHeaderDocUrl('');
+                                    setChatHeaderDocName('');
                                   }}
                                 >
                                   {sendTemplateMutation.isPending ? (
@@ -3482,8 +3558,9 @@ const syncTemplatesMutation = useMutation({
             )}
 
             {/* Upload Documento Header */}
+            {hasDocumentHeader(selectedTemplate) && (
             <div className="space-y-2">
-              <Label>Allega Documento (opzionale)</Label>
+              <Label className="font-semibold text-destructive">📎 Allega Documento (obbligatorio per questo template)</Label>
               <div className="border-2 border-dashed rounded-lg p-4 text-center">
                 {sendTemplateData.headerDocumentUrl ? (
                   <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
@@ -3537,6 +3614,7 @@ const syncTemplatesMutation = useMutation({
                 Il documento verrà inviato come header del messaggio template
               </p>
             </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSendTemplateDialogOpen(false)}>
@@ -3554,7 +3632,7 @@ const syncTemplatesMutation = useMutation({
                   });
                 }
               }}
-              disabled={!sendTemplateData.recipientPhone || sendTemplateMutation.isPending}
+              disabled={!sendTemplateData.recipientPhone || sendTemplateMutation.isPending || (hasDocumentHeader(selectedTemplate) && !sendTemplateData.headerDocumentUrl)}
             >
               {sendTemplateMutation.isPending ? (
                 <>
