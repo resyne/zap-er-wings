@@ -64,6 +64,74 @@ serve(async (req) => {
       );
     }
 
+    // Helper: Upload media to Meta via Resumable Upload API and get a handle
+    const uploadMediaToMeta = async (mediaUrl: string, fileType: string): Promise<string> => {
+      console.log(`Uploading media to Meta from URL: ${mediaUrl}`);
+      
+      // Step 0: Get the App ID from the access token
+      const appResponse = await fetch(`${GRAPH_API_URL}/${GRAPH_API_VERSION}/app`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const appData = await appResponse.json();
+      if (!appData.id) {
+        throw new Error(`Could not get App ID from token: ${JSON.stringify(appData.error || appData)}`);
+      }
+      const appId = appData.id;
+      console.log(`Got App ID: ${appId}`);
+      
+      // Step 1: Download the file
+      const fileResponse = await fetch(mediaUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to download file from ${mediaUrl}: ${fileResponse.status}`);
+      }
+      const fileBytes = new Uint8Array(await fileResponse.arrayBuffer());
+      const fileLength = fileBytes.length;
+      console.log(`Downloaded file: ${fileLength} bytes, type: ${fileType}`);
+      
+      // Step 2: Create upload session
+      const sessionResponse = await fetch(
+        `${GRAPH_API_URL}/${GRAPH_API_VERSION}/${appId}/uploads`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            file_length: fileLength,
+            file_type: fileType,
+            file_name: "template-header-file",
+          }),
+        }
+      );
+      const sessionData = await sessionResponse.json();
+      if (!sessionData.id) {
+        throw new Error(`Failed to create upload session: ${JSON.stringify(sessionData.error || sessionData)}`);
+      }
+      const uploadSessionId = sessionData.id;
+      console.log(`Created upload session: ${uploadSessionId}`);
+      
+      // Step 3: Upload the file bytes
+      const uploadResponse = await fetch(
+        `${GRAPH_API_URL}/${GRAPH_API_VERSION}/${uploadSessionId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `OAuth ${accessToken}`,
+            file_offset: "0",
+            "Content-Type": "application/octet-stream",
+          },
+          body: fileBytes,
+        }
+      );
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.h) {
+        throw new Error(`Failed to upload file: ${JSON.stringify(uploadData.error || uploadData)}`);
+      }
+      console.log(`Got upload handle: ${uploadData.h.substring(0, 30)}...`);
+      return uploadData.h;
+    };
+
     // Helper function to generate example value based on variable content
     const generateExample = (varContent: string, index: number): string => {
       const lowerContent = varContent.toLowerCase();
@@ -169,34 +237,46 @@ serve(async (req) => {
         
         components.push(headerComponent);
       } else if (headerType === "IMAGE") {
-        const mediaUrl = template.header_media_url || "https://example.com/image.jpg";
-        console.log(`Using IMAGE header with URL: ${mediaUrl}`);
+        const mediaUrl = template.header_media_url;
+        if (!mediaUrl) {
+          return new Response(
+            JSON.stringify({ error: "URL immagine header mancante. Carica un'immagine prima di inviare il template." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const handle = await uploadMediaToMeta(mediaUrl, "image/jpeg");
         components.push({
           type: "HEADER",
           format: "IMAGE",
-          example: {
-            header_handle: [mediaUrl]
-          }
+          example: { header_handle: [handle] }
         });
       } else if (headerType === "VIDEO") {
-        const mediaUrl = template.header_media_url || "https://example.com/video.mp4";
-        console.log(`Using VIDEO header with URL: ${mediaUrl}`);
+        const mediaUrl = template.header_media_url;
+        if (!mediaUrl) {
+          return new Response(
+            JSON.stringify({ error: "URL video header mancante. Carica un video prima di inviare il template." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const handle = await uploadMediaToMeta(mediaUrl, "video/mp4");
         components.push({
           type: "HEADER",
           format: "VIDEO",
-          example: {
-            header_handle: [mediaUrl]
-          }
+          example: { header_handle: [handle] }
         });
       } else if (headerType === "DOCUMENT") {
-        const mediaUrl = template.header_media_url || "https://example.com/document.pdf";
-        console.log(`Using DOCUMENT header with URL: ${mediaUrl}`);
+        const mediaUrl = template.header_media_url;
+        if (!mediaUrl) {
+          return new Response(
+            JSON.stringify({ error: "URL documento header mancante. Carica un PDF prima di inviare il template." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const handle = await uploadMediaToMeta(mediaUrl, "application/pdf");
         components.push({
           type: "HEADER",
           format: "DOCUMENT",
-          example: {
-            header_handle: [mediaUrl]
-          }
+          example: { header_handle: [handle] }
         });
       }
     }
