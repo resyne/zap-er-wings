@@ -606,6 +606,7 @@ export function WhatsAppTemplatePreview({
                             if (!file) return;
                             
                             setIsUploadingMedia(true);
+                            toast.info(`Caricamento "${file.name}" in corso...`);
                             try {
                               const fileExt = file.name.split('.').pop();
                               const fileName = `template-media/${Date.now()}.${fileExt}`;
@@ -623,10 +624,22 @@ export function WhatsAppTemplatePreview({
                                 .from('whatsapp-media')
                                 .getPublicUrl(fileName);
                               
+                              if (!urlData?.publicUrl) {
+                                throw new Error("URL pubblico non generato");
+                              }
+                              
                               setEditData({ ...editData, headerMediaUrl: urlData.publicUrl });
-                              toast.success("File caricato!");
+                              toast.success(`✅ File "${file.name}" caricato con successo!`, {
+                                description: "L'URL è stato inserito automaticamente nel campo header.",
+                                duration: 5000,
+                              });
+                              console.log("Header media uploaded:", urlData.publicUrl);
                             } catch (err: any) {
-                              toast.error(`Errore upload: ${err.message}`);
+                              console.error("Upload error:", err);
+                              toast.error(`❌ Errore caricamento: ${err.message}`, {
+                                description: "Verifica che il bucket 'whatsapp-media' esista e sia configurato correttamente.",
+                                duration: 8000,
+                              });
                             } finally {
                               setIsUploadingMedia(false);
                             }
