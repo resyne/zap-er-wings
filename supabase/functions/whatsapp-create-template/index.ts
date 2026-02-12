@@ -148,10 +148,11 @@ serve(async (req) => {
     }
 
     // Add HEADER component if present
-    if (normalizedComponents.header?.text) {
-      const headerType = normalizedComponents.header.type?.toUpperCase() || "TEXT";
+    if (normalizedComponents.header?.text || 
+        ["DOCUMENT", "IMAGE", "VIDEO"].includes(normalizedComponents.header?.type?.toUpperCase() || "")) {
+      const headerType = normalizedComponents.header?.type?.toUpperCase() || "TEXT";
       
-      if (headerType === "TEXT") {
+      if (headerType === "TEXT" && normalizedComponents.header?.text) {
         const { processedText, exampleValues } = processVariables(normalizedComponents.header.text);
         
         const headerComponent: Record<string, unknown> = {
@@ -168,27 +169,33 @@ serve(async (req) => {
         
         components.push(headerComponent);
       } else if (headerType === "IMAGE") {
+        const mediaUrl = template.header_media_url || "https://example.com/image.jpg";
+        console.log(`Using IMAGE header with URL: ${mediaUrl}`);
         components.push({
           type: "HEADER",
           format: "IMAGE",
           example: {
-            header_handle: ["https://example.com/image.jpg"]
+            header_handle: [mediaUrl]
           }
         });
       } else if (headerType === "VIDEO") {
+        const mediaUrl = template.header_media_url || "https://example.com/video.mp4";
+        console.log(`Using VIDEO header with URL: ${mediaUrl}`);
         components.push({
           type: "HEADER",
           format: "VIDEO",
           example: {
-            header_handle: ["https://example.com/video.mp4"]
+            header_handle: [mediaUrl]
           }
         });
       } else if (headerType === "DOCUMENT") {
+        const mediaUrl = template.header_media_url || "https://example.com/document.pdf";
+        console.log(`Using DOCUMENT header with URL: ${mediaUrl}`);
         components.push({
           type: "HEADER",
           format: "DOCUMENT",
           example: {
-            header_handle: ["https://example.com/document.pdf"]
+            header_handle: [mediaUrl]
           }
         });
       }
