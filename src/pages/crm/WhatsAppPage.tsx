@@ -38,6 +38,7 @@ import { TranslatedMessageBubble } from "@/components/crm/TranslatedMessageBubbl
 import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNotificationSettings";
 import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettingsDialog";
 import WhatsAppVideoPlayer from "@/components/whatsapp/WhatsAppVideoPlayer";
+import WhatsAppImageDisplay from "@/components/whatsapp/WhatsAppImageDisplay";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1903,13 +1904,12 @@ const syncTemplatesMutation = useMutation({
                                   
                                   {/* Media content */}
                                   {msg.message_type === 'image' && msg.media_url && (
-                                    <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
-                                      <img 
-                                        src={msg.media_url} 
-                                        alt="Immagine" 
-                                        className="max-w-full rounded mb-1 cursor-pointer hover:opacity-90"
-                                      />
-                                    </a>
+                                    <WhatsAppImageDisplay
+                                      messageId={msg.id}
+                                      mediaId={msg.media_url}
+                                      accountId={selectedAccount?.id || ''}
+                                      isOutbound={msg.direction === 'outbound'}
+                                    />
                                   )}
                                   
                                   {msg.message_type === 'audio' && msg.media_url && (
