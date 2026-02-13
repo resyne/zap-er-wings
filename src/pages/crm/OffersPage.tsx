@@ -491,6 +491,7 @@ export default function OffersPage() {
         .replace(/\{\{utente\}\}/g, user?.user_metadata?.full_name || user?.email || 'N/A')
         .replace(/\{\{cliente\.nome\}\}/g, customer.name || '')
         .replace(/\{\{cliente\.indirizzo\}\}/g, customer.address || '')
+        .replace(/\{\{cliente\.piva\}\}/g, customer.tax_id || '')
         .replace(/\{\{oggetto_offerta\}\}/g, offer.title || '')
         .replace(/\{\{tabella_prodotti\}\}/g, productsTable)
         .replace(/\{\{incluso_fornitura\}\}/g, inclusoGrid)
