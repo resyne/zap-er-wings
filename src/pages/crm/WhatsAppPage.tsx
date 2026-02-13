@@ -39,6 +39,7 @@ import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNoti
 import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettingsDialog";
 import WhatsAppVideoPlayer from "@/components/whatsapp/WhatsAppVideoPlayer";
 import WhatsAppImageDisplay from "@/components/whatsapp/WhatsAppImageDisplay";
+import SaveToLeadButton from "@/components/whatsapp/SaveToLeadButton";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1904,51 +1905,87 @@ const syncTemplatesMutation = useMutation({
                                   
                                   {/* Media content */}
                                   {msg.message_type === 'image' && msg.media_url && (
-                                    <WhatsAppImageDisplay
-                                      messageId={msg.id}
-                                      mediaId={msg.media_url}
-                                      accountId={selectedAccount?.id || ''}
-                                      isOutbound={msg.direction === 'outbound'}
-                                    />
+                                    <>
+                                      <WhatsAppImageDisplay
+                                        messageId={msg.id}
+                                        mediaId={msg.media_url}
+                                        accountId={selectedAccount?.id || ''}
+                                        isOutbound={msg.direction === 'outbound'}
+                                      />
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && msg.media_url.startsWith('http') && (
+                                        <SaveToLeadButton
+                                          leadId={selectedConversation.lead_id}
+                                          mediaUrl={msg.media_url}
+                                          messageType="image"
+                                        />
+                                      )}
+                                    </>
                                   )}
                                   
                                   {msg.message_type === 'audio' && msg.media_url && (
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Volume2 className="h-4 w-4 flex-shrink-0" />
-                                      <audio 
-                                        src={msg.media_url} 
-                                        controls 
-                                        className="max-w-full h-8"
-                                      />
-                                    </div>
+                                    <>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Volume2 className="h-4 w-4 flex-shrink-0" />
+                                        <audio 
+                                          src={msg.media_url} 
+                                          controls 
+                                          className="max-w-full h-8"
+                                        />
+                                      </div>
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && (
+                                        <SaveToLeadButton
+                                          leadId={selectedConversation.lead_id}
+                                          mediaUrl={msg.media_url}
+                                          messageType="audio"
+                                        />
+                                      )}
+                                    </>
                                   )}
                                   
                                   {msg.message_type === 'document' && msg.media_url && (
-                                    <a 
-                                      href={msg.media_url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className={`flex items-center gap-2 p-2 rounded mb-1 ${
-                                        msg.direction === 'outbound' 
-                                          ? 'bg-green-700 hover:bg-green-800' 
-                                          : 'bg-background hover:bg-accent'
-                                      }`}
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                      <span className="text-sm underline">
-                                        {msg.media_url.split('/').pop()?.split('?')[0] || 'Documento allegato'}
-                                      </span>
-                                    </a>
+                                    <>
+                                      <a 
+                                        href={msg.media_url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-2 p-2 rounded mb-1 ${
+                                          msg.direction === 'outbound' 
+                                            ? 'bg-green-700 hover:bg-green-800' 
+                                            : 'bg-background hover:bg-accent'
+                                        }`}
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        <span className="text-sm underline">
+                                          {msg.media_url.split('/').pop()?.split('?')[0] || 'Documento allegato'}
+                                        </span>
+                                      </a>
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && (
+                                        <SaveToLeadButton
+                                          leadId={selectedConversation.lead_id}
+                                          mediaUrl={msg.media_url}
+                                          messageType="document"
+                                        />
+                                      )}
+                                    </>
                                   )}
                                   
                                   {msg.message_type === 'video' && msg.media_url && (
-                                    <WhatsAppVideoPlayer
-                                      messageId={msg.id}
-                                      mediaId={msg.media_url}
-                                      accountId={selectedAccount?.id || ''}
-                                      isDownloaded={msg.media_url.startsWith('http')}
-                                      isOutbound={msg.direction === 'outbound'}
-                                    />
+                                    <>
+                                      <WhatsAppVideoPlayer
+                                        messageId={msg.id}
+                                        mediaId={msg.media_url}
+                                        accountId={selectedAccount?.id || ''}
+                                        isDownloaded={msg.media_url.startsWith('http')}
+                                        isOutbound={msg.direction === 'outbound'}
+                                      />
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && msg.media_url.startsWith('http') && (
+                                        <SaveToLeadButton
+                                          leadId={selectedConversation.lead_id}
+                                          mediaUrl={msg.media_url}
+                                          messageType="video"
+                                        />
+                                      )}
+                                    </>
                                   )}
                                   
                                   {/* Text content */}
