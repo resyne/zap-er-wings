@@ -57,7 +57,12 @@ serve(async (req) => {
 
     const mediaInfo = await mediaInfoResponse.json();
     const mediaDownloadUrl = mediaInfo.url;
-    const mimeType = mediaInfo.mime_type || 'audio/ogg';
+    // Sanitize mime_type: remove any parameters and trim whitespace
+    let mimeType = (mediaInfo.mime_type || 'application/octet-stream').split(';')[0].trim();
+    // Validate mime type format
+    if (!mimeType || !mimeType.includes('/')) {
+      mimeType = 'application/octet-stream';
+    }
 
     console.log(`Media URL obtained: ${mediaDownloadUrl}, mime_type: ${mimeType}`);
 
@@ -97,9 +102,10 @@ serve(async (req) => {
     
     const fileName = `${folder}/${media_id}.${fileExtension}`;
     
+    const uploadBytes = new Uint8Array(mediaBuffer);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('documents')
-      .upload(fileName, new Uint8Array(mediaBuffer), {
+      .upload(fileName, uploadBytes, {
         contentType: mimeType,
         upsert: true
       });
