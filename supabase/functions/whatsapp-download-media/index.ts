@@ -33,8 +33,8 @@ serve(async (req) => {
       throw new Error('WhatsApp account not found');
     }
 
-    // Sanitize the access token - remove newlines, carriage returns, extra whitespace
-    const accessToken = (account.access_token || '').replace(/[\r\n\t]/g, '').trim();
+    // Sanitize the access token - remove ALL non-printable/control characters
+    const accessToken = (account.access_token || '').replace(/[^\x20-\x7E]/g, '').trim();
     if (!accessToken) {
       throw new Error('WhatsApp access token not configured');
     }
