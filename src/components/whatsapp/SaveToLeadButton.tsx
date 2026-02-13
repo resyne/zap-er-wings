@@ -7,6 +7,8 @@ import { toast } from "sonner";
 interface SaveToLeadButtonProps {
   leadId: string;
   mediaUrl: string;
+  messageId: string;
+  accountId: string;
   messageType: string;
   isOutbound?: boolean;
 }
@@ -14,6 +16,8 @@ interface SaveToLeadButtonProps {
 export default function SaveToLeadButton({
   leadId,
   mediaUrl,
+  messageId,
+  accountId,
   messageType,
   isOutbound = false,
 }: SaveToLeadButtonProps) {
@@ -21,12 +25,9 @@ export default function SaveToLeadButton({
   const [isSaved, setIsSaved] = useState(false);
 
   const getFileExtension = (type: string, url: string) => {
-    // Try to extract from URL
     const urlPath = url.split("?")[0];
     const urlExt = urlPath.split(".").pop()?.toLowerCase();
     if (urlExt && urlExt.length <= 5 && urlExt !== urlPath) return urlExt;
-
-    // Fallback based on message type
     switch (type) {
       case "image": return "jpg";
       case "video": return "mp4";
@@ -46,6 +47,25 @@ export default function SaveToLeadButton({
     }
   };
 
+  const resolveMediaUrl = async (): Promise<string> => {
+    // If already a URL, return it
+    if (mediaUrl.startsWith("http") || mediaUrl.startsWith("/")) {
+      return mediaUrl;
+    }
+    // Otherwise it's a Meta media ID - download it first
+    const { data, error } = await supabase.functions.invoke("whatsapp-download-media", {
+      body: {
+        media_id: mediaUrl,
+        account_id: accountId,
+        message_id: messageId,
+      },
+    });
+    if (error || !data?.success) {
+      throw new Error(data?.error || "Impossibile scaricare il media");
+    }
+    return data.media_url;
+  };
+
   const handleSave = async () => {
     if (isSaving || isSaved) return;
     setIsSaving(true);
@@ -54,12 +74,15 @@ export default function SaveToLeadButton({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non autenticato");
 
+      // Resolve actual URL (download from Meta if needed)
+      const actualUrl = await resolveMediaUrl();
+
       // Download the media file
-      const response = await fetch(mediaUrl);
+      const response = await fetch(actualUrl);
       if (!response.ok) throw new Error("Impossibile scaricare il file");
       const blob = await response.blob();
 
-      const ext = getFileExtension(messageType, mediaUrl);
+      const ext = getFileExtension(messageType, actualUrl);
       const fileName = `whatsapp_${messageType}_${Date.now()}.${ext}`;
       const filePath = `${leadId}/${fileName}`;
 
