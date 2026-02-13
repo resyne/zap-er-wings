@@ -216,13 +216,42 @@ serve(async (req) => {
 
     const wamid = result.messages?.[0]?.id;
 
-    // Find or create conversation
+    // Find or create conversation - try exact match first, then fuzzy match by last 9 digits
     let { data: conversation } = await supabase
       .from("whatsapp_conversations")
       .select("*")
       .eq("account_id", account_id)
       .eq("customer_phone", recipientPhone)
       .single();
+
+    // If no exact match, try with + prefix
+    if (!conversation) {
+      const { data: convWithPlus } = await supabase
+        .from("whatsapp_conversations")
+        .select("*")
+        .eq("account_id", account_id)
+        .eq("customer_phone", `+${recipientPhone}`)
+        .single();
+      conversation = convWithPlus;
+    }
+
+    // If still no match, try fuzzy match by last 9 digits
+    if (!conversation) {
+      const lastDigits = recipientPhone.length >= 9 ? recipientPhone.slice(-9) : recipientPhone;
+      const { data: allConvs } = await supabase
+        .from("whatsapp_conversations")
+        .select("*")
+        .eq("account_id", account_id)
+        .order("last_message_at", { ascending: false });
+      
+      if (allConvs) {
+        conversation = allConvs.find((c: any) => {
+          const cDigits = (c.customer_phone || '').replace(/\D/g, '');
+          const cLast = cDigits.length >= 9 ? cDigits.slice(-9) : cDigits;
+          return cLast === lastDigits;
+        }) || null;
+      }
+    }
 
     if (!conversation) {
       const insertData: any = {
