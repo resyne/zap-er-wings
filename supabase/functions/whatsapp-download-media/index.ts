@@ -33,10 +33,12 @@ serve(async (req) => {
       throw new Error('WhatsApp account not found');
     }
 
-    const accessToken = account.access_token;
+    // Sanitize the access token - remove newlines, carriage returns, extra whitespace
+    const accessToken = (account.access_token || '').replace(/[\r\n\t]/g, '').trim();
     if (!accessToken) {
       throw new Error('WhatsApp access token not configured');
     }
+    console.log(`Access token length: ${accessToken.length}, starts with: ${accessToken.substring(0, 10)}...`);
 
     // Step 1: Get media URL from WhatsApp
     console.log(`Getting media URL for media_id: ${media_id}`);
