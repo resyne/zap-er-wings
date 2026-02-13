@@ -1912,10 +1912,12 @@ const syncTemplatesMutation = useMutation({
                                         accountId={selectedAccount?.id || ''}
                                         isOutbound={msg.direction === 'outbound'}
                                       />
-                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && msg.media_url.startsWith('http') && (
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && (
                                         <SaveToLeadButton
                                           leadId={selectedConversation.lead_id}
                                           mediaUrl={msg.media_url}
+                                          messageId={msg.id}
+                                          accountId={selectedAccount?.id || ''}
                                           messageType="image"
                                         />
                                       )}
@@ -1936,6 +1938,8 @@ const syncTemplatesMutation = useMutation({
                                         <SaveToLeadButton
                                           leadId={selectedConversation.lead_id}
                                           mediaUrl={msg.media_url}
+                                          messageId={msg.id}
+                                          accountId={selectedAccount?.id || ''}
                                           messageType="audio"
                                         />
                                       )}
@@ -1963,6 +1967,8 @@ const syncTemplatesMutation = useMutation({
                                         <SaveToLeadButton
                                           leadId={selectedConversation.lead_id}
                                           mediaUrl={msg.media_url}
+                                          messageId={msg.id}
+                                          accountId={selectedAccount?.id || ''}
                                           messageType="document"
                                         />
                                       )}
@@ -1978,10 +1984,12 @@ const syncTemplatesMutation = useMutation({
                                         isDownloaded={msg.media_url.startsWith('http')}
                                         isOutbound={msg.direction === 'outbound'}
                                       />
-                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && msg.media_url.startsWith('http') && (
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && (
                                         <SaveToLeadButton
                                           leadId={selectedConversation.lead_id}
                                           mediaUrl={msg.media_url}
+                                          messageId={msg.id}
+                                          accountId={selectedAccount?.id || ''}
                                           messageType="video"
                                         />
                                       )}
