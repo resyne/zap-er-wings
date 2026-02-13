@@ -136,13 +136,43 @@ serve(async (req) => {
                 const messageType = message.type;
                 const wamid = message.id;
 
-                // Find or create conversation
+                // Find or create conversation - try exact match first, then fuzzy match by last 9 digits
                 let { data: conversation } = await supabase
                   .from("whatsapp_conversations")
                   .select("*")
                   .eq("account_id", account.id)
                   .eq("customer_phone", from)
                   .single();
+
+                // If no exact match, try matching by last 9 digits (handles country code differences)
+                if (!conversation) {
+                  const fromDigits = from.replace(/\D/g, '');
+                  const lastDigits = fromDigits.length >= 9 ? fromDigits.slice(-9) : fromDigits;
+                  
+                  const { data: allConvs } = await supabase
+                    .from("whatsapp_conversations")
+                    .select("*")
+                    .eq("account_id", account.id)
+                    .order("last_message_at", { ascending: false });
+                  
+                  if (allConvs) {
+                    conversation = allConvs.find((c: any) => {
+                      const cDigits = (c.customer_phone || '').replace(/\D/g, '');
+                      const cLast = cDigits.length >= 9 ? cDigits.slice(-9) : cDigits;
+                      return cLast === lastDigits;
+                    }) || null;
+                    
+                    // Update the conversation's phone to the canonical Meta format
+                    if (conversation && conversation.customer_phone !== from) {
+                      console.log(`Updating conversation phone from ${conversation.customer_phone} to ${from}`);
+                      await supabase
+                        .from("whatsapp_conversations")
+                        .update({ customer_phone: from })
+                        .eq("id", conversation.id);
+                      conversation.customer_phone = from;
+                    }
+                  }
+                }
 
                 if (!conversation) {
                   // Get contact name if available
