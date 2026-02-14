@@ -568,7 +568,6 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
   onUpdate: () => void;
 }) {
   const isPending = order.production_status === 'pending';
-  const [activeTab, setActiveTab] = useState<'details' | 'actions' | 'activity'>(isPending ? 'details' : 'details');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -797,178 +796,137 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
             </div>
           </ScrollArea>
         ) : (
-          <>
-            {/* Tab Navigation - only for non-pending orders */}
-            <div className="flex border-b flex-shrink-0">
-              {[
-                { key: 'details', label: 'Dettagli', icon: Eye },
-                { key: 'actions', label: 'Azioni', icon: Package },
-                { key: 'activity', label: 'Attività', icon: History },
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={cn(
-                    "flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2",
-                    activeTab === tab.key 
-                      ? "border-primary text-primary" 
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-4">
+              {/* Delivery Date */}
+              {order.expected_delivery_date && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
+                  <div className="text-lg font-bold flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
+                      weekday: 'long', day: 'numeric', month: 'long' 
+                    })}
+                  </div>
+                </div>
+              )}
 
-            {/* Tab Content */}
-            <ScrollArea className="flex-1">
-              <div className="p-4">
-                {activeTab === 'details' && (
-                  <div className="space-y-4">
-                    {order.expected_delivery_date && (
-                      <div className="p-4 bg-muted/50 rounded-lg">
-                        <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
-                        <div className="text-lg font-bold flex items-center gap-2">
-                          <Calendar className="h-5 w-5" />
-                          {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
-                            weekday: 'long', day: 'numeric', month: 'long' 
-                          })}
-                        </div>
-                      </div>
-                    )}
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <div className="text-xs text-muted-foreground">Data ordine</div>
+                <div className="font-medium">
+                  {new Date(order.created_at).toLocaleDateString('it-IT')}
+                </div>
+              </div>
 
-                    <div className="p-3 bg-muted/30 rounded-lg">
-                      <div className="text-xs text-muted-foreground">Data ordine</div>
-                      <div className="font-medium">
-                        {new Date(order.created_at).toLocaleDateString('it-IT')}
+              {/* Items */}
+              {order.purchase_order_items?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                  {order.purchase_order_items.map((item: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-card border rounded-lg">
+                      <div className="font-medium">{item.material?.name || item.description}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
 
-                    {order.purchase_order_items?.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-sm">Articoli ordinati</h4>
-                        {order.purchase_order_items.map((item: any, idx: number) => (
-                          <div key={idx} className="p-3 bg-card border rounded-lg">
-                            <div className="font-medium">{item.material?.name || item.description}</div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {order.notes && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-sm">Note ordine</h4>
-                        <div className="p-3 bg-accent/50 border rounded-lg">
-                          <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {attachments.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
-                        {attachments.map((att: any) => (
-                          <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                            <Paperclip className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
+              {/* Notes */}
+              {order.notes && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Note ordine</h4>
+                  <div className="p-3 bg-accent/50 border rounded-lg">
+                    <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
                   </div>
-                )}
+                </div>
+              )}
 
-            {activeTab === 'actions' && (
-              <div className="space-y-4">
-                {/* Primary Action for Pending */}
-                {order.production_status === 'pending' && (
-                  <Button 
-                    className="w-full h-14 text-base gap-2" 
-                    onClick={() => setShowConfirmDialog(true)}
+              {/* Attachments */}
+              {attachments.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
+                  {attachments.map((att: any) => (
+                    <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Status Update */}
+              <div className="space-y-2 border-t pt-4">
+                <h4 className="font-semibold text-sm">Aggiorna stato</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={order.production_status === 'in_production' ? 'default' : 'outline'}
+                    className="h-12 gap-2"
+                    disabled={isSubmitting || order.production_status === 'in_production'}
+                    onClick={() => handleUpdateStatus('in_production')}
                   >
-                    <CheckCircle className="h-5 w-5" />
-                    Conferma Ordine
+                    ⚙️ In Produzione
                   </Button>
-                )}
-
-                {/* Status Update Buttons */}
-                {order.production_status !== 'pending' && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm mb-3">Aggiorna stato</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant={order.production_status === 'in_production' ? 'default' : 'outline'}
-                        className="h-12 gap-2"
-                        disabled={isSubmitting || order.production_status === 'in_production'}
-                        onClick={() => handleUpdateStatus('in_production')}
-                      >
-                        ⚙️ In Produzione
-                      </Button>
-                      <Button
-                        variant={order.production_status === 'ready_to_ship' ? 'default' : 'outline'}
-                        className="h-12 gap-2"
-                        disabled={isSubmitting || order.production_status === 'ready_to_ship'}
-                        onClick={() => handleUpdateStatus('ready_to_ship')}
-                      >
-                        📦 Pronto
-                      </Button>
-                      <Button
-                        variant={order.production_status === 'shipped' ? 'default' : 'outline'}
-                        className="h-12 gap-2"
-                        disabled={isSubmitting || order.production_status === 'shipped'}
-                        onClick={() => handleUpdateStatus('shipped')}
-                      >
-                        🚚 Spedito
-                      </Button>
-                      <Button
-                        variant={order.production_status === 'delivered' ? 'default' : 'outline'}
-                        className="h-12 gap-2"
-                        disabled={isSubmitting || order.production_status === 'delivered'}
-                        onClick={() => handleUpdateStatus('delivered')}
-                      >
-                        ✅ Consegnato
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Secondary Actions */}
-                <div className="space-y-2 pt-4 border-t">
-                  <h4 className="font-semibold text-sm mb-3">Comunicazioni</h4>
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-12 justify-start gap-3"
-                    onClick={() => setShowCommentDialog(true)}
+                  <Button
+                    variant={order.production_status === 'ready_to_ship' ? 'default' : 'outline'}
+                    className="h-12 gap-2"
+                    disabled={isSubmitting || order.production_status === 'ready_to_ship'}
+                    onClick={() => handleUpdateStatus('ready_to_ship')}
                   >
-                    <MessageSquare className="h-5 w-5" />
-                    Invia messaggio
-                    {comments.length > 0 && (
-                      <Badge variant="secondary" className="ml-auto">{comments.length}</Badge>
-                    )}
+                    📦 Pronto
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-12 justify-start gap-3"
-                    onClick={() => setShowUploadDialog(true)}
+                  <Button
+                    variant={order.production_status === 'shipped' ? 'default' : 'outline'}
+                    className="h-12 gap-2"
+                    disabled={isSubmitting || order.production_status === 'shipped'}
+                    onClick={() => handleUpdateStatus('shipped')}
                   >
-                    <Upload className="h-5 w-5" />
-                    Carica documento
-                    {attachments.length > 0 && (
-                      <Badge variant="secondary" className="ml-auto">{attachments.length}</Badge>
-                    )}
+                    🚚 Spedito
+                  </Button>
+                  <Button
+                    variant={order.production_status === 'delivered' ? 'default' : 'outline'}
+                    className="h-12 gap-2"
+                    disabled={isSubmitting || order.production_status === 'delivered'}
+                    onClick={() => handleUpdateStatus('delivered')}
+                  >
+                    ✅ Consegnato
                   </Button>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'activity' && (
-              <div className="space-y-3">
+              {/* Communications */}
+              <div className="space-y-2 border-t pt-4">
+                <h4 className="font-semibold text-sm">Comunicazioni</h4>
+                <Button 
+                  variant="outline" 
+                  className="w-full h-12 justify-start gap-3"
+                  onClick={() => setShowCommentDialog(true)}
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  Invia messaggio
+                  {comments.length > 0 && (
+                    <Badge variant="secondary" className="ml-auto">{comments.length}</Badge>
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full h-12 justify-start gap-3"
+                  onClick={() => setShowUploadDialog(true)}
+                >
+                  <Upload className="h-5 w-5" />
+                  Carica documento
+                  {attachments.length > 0 && (
+                    <Badge variant="secondary" className="ml-auto">{attachments.length}</Badge>
+                  )}
+                </Button>
+              </div>
+
+              {/* Activity Timeline */}
+              <div className="space-y-2 border-t pt-4">
+                <h4 className="font-semibold text-sm">Attività recente</h4>
                 {(() => {
                   const activities = [
                     ...comments.map((c: any) => ({
@@ -994,16 +952,16 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
                   if (activities.length === 0) {
-                    return <p className="text-center text-muted-foreground py-8">Nessuna attività</p>;
+                    return <p className="text-center text-muted-foreground py-4 text-sm">Nessuna attività</p>;
                   }
 
                   return activities.map((activity, idx) => (
                     <div key={idx} className="flex gap-3 p-3 bg-muted/30 rounded-lg">
                       <div className="flex-shrink-0">
-                        {activity.type === 'comment' && <MessageSquare className="h-5 w-5 text-blue-500" />}
-                        {activity.type === 'attachment' && <Paperclip className="h-5 w-5 text-green-500" />}
-                        {activity.type === 'status' && <Package className="h-5 w-5 text-orange-500" />}
-                        {activity.type === 'created' && <CheckCircle className="h-5 w-5 text-purple-500" />}
+                        {activity.type === 'comment' && <MessageSquare className="h-4 w-4 text-blue-500" />}
+                        {activity.type === 'attachment' && <Paperclip className="h-4 w-4 text-green-500" />}
+                        {activity.type === 'status' && <Package className="h-4 w-4 text-orange-500" />}
+                        {activity.type === 'created' && <CheckCircle className="h-4 w-4 text-purple-500" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -1032,10 +990,8 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   ));
                 })()}
               </div>
-            )}
-          </div>
-        </ScrollArea>
-          </>
+            </div>
+          </ScrollArea>
         )}
 
         {/* Confirm Order Dialog - available for both flows */}
