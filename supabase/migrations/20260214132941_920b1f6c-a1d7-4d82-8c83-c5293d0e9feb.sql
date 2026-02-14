@@ -1,0 +1,1 @@
+UPDATE suppliers SET access_code = 'francesco' WHERE id = 'f68ad624-666e-466b-8910-7b1b53e8d7f0';
