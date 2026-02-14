@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { 
   Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
-  Paperclip, Send, ChevronRight, Calendar, LayoutGrid, 
+  Paperclip, Send, ChevronRight, ChevronLeft, Calendar, LayoutGrid, 
   List, Filter, X, History, Upload, Eye, Archive, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -471,35 +471,32 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
   return (
     <Card 
       className={cn(
-        "border-l-4 overflow-hidden cursor-pointer transition-colors hover:bg-muted/30 active:bg-muted/50",
-        status.color.replace('bg-', 'border-l-'),
+        "overflow-hidden cursor-pointer transition-all hover:shadow-md active:scale-[0.99]",
         isPending && "ring-1 ring-yellow-300 dark:ring-yellow-700",
         isArchived && "opacity-60"
       )}
       onClick={onClick}
     >
+      <div className={cn("h-1 w-full", status.color)} />
       <CardContent className="p-3">
         <div className="flex items-center gap-2">
           {/* Drag Handle */}
           {dragHandleProps && (
             <div {...dragHandleProps} className="flex-shrink-0 touch-none cursor-grab active:cursor-grabbing p-0.5" onClick={(e) => e.stopPropagation()}>
-              <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+              <GripVertical className="h-4 w-4 text-muted-foreground/40" />
             </div>
           )}
 
           <div className="min-w-0 flex-1">
-            {/* Row 1: Number + Priority + Status */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Row 1: Number + Priority */}
+            <div className="flex items-center gap-2">
               <span className="font-bold text-sm">{order.number}</span>
               {priority && <span className="text-xs">{priority.emoji}</span>}
-              <Badge className={cn("text-[10px] px-1.5 py-0", status.color, "text-white")}>
-                {status.label}
-              </Badge>
             </div>
 
-            {/* Row 2: Items summary (compact) */}
+            {/* Row 2: Items summary */}
             {itemsCount > 0 && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 {order.purchase_order_items.slice(0, 2).map((item: any) => 
                   `${item.quantity}x ${item.material?.name || item.description}`
                 ).join(', ')}
@@ -534,7 +531,7 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
             </div>
           </div>
 
-          {/* Right: archive + action hint */}
+          {/* Right side */}
           <div className="flex-shrink-0 flex items-center gap-1">
             {onArchive && (
               <Button
@@ -547,13 +544,7 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
                 <Archive className={cn("h-3.5 w-3.5", isArchived ? "text-primary" : "text-muted-foreground")} />
               </Button>
             )}
-            {isPending && !isArchived ? (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
-                Da confermare
-              </Badge>
-            ) : !isArchived ? (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            ) : null}
+            <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
           </div>
         </div>
       </CardContent>
@@ -681,22 +672,24 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0">
-        {/* Header */}
-        <div className="p-4 border-b flex-shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">{order.number}</h2>
-                {priority && <span className="text-lg">{priority.emoji}</span>}
-              </div>
-              <Badge className={cn("mt-2", status.color, "text-white")}>
+      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0 [&>button]:hidden">
+        {/* Sticky Back Header */}
+        <div className="flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 w-full px-4 py-2.5 text-sm font-medium text-primary hover:bg-muted/50 transition-colors border-b"
+          >
+            <ChevronLeft className="h-5 w-5" />
+            Torna alla lista
+          </button>
+          <div className="px-4 py-3 border-b bg-card">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-bold">{order.number}</h2>
+              {priority && <span className="text-base">{priority.emoji}</span>}
+              <Badge className={cn("text-[11px] px-2 py-0.5", status.color, "text-white")}>
                 {status.label}
               </Badge>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
           </div>
         </div>
 
