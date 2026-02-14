@@ -567,7 +567,8 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
   onClose: () => void;
   onUpdate: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'details' | 'actions' | 'activity'>('details');
+  const isPending = order.production_status === 'pending';
+  const [activeTab, setActiveTab] = useState<'details' | 'actions' | 'activity'>(isPending ? 'details' : 'details');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -677,6 +678,8 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
     }
   };
 
+  const isPendingOrder = order.production_status === 'pending';
+
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0">
@@ -698,105 +701,188 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b flex-shrink-0">
-          {[
-            { key: 'details', label: 'Dettagli', icon: Eye },
-            { key: 'actions', label: 'Azioni', icon: Package },
-            { key: 'activity', label: 'Attività', icon: History },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={cn(
-                "flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2",
-                activeTab === tab.key 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        <ScrollArea className="flex-1">
-          <div className="p-4">
-            {activeTab === 'details' && (
-              <div className="space-y-4">
-                {/* Delivery Date */}
-                {order.expected_delivery_date && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
-                    <div className="text-lg font-bold flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
-                        weekday: 'long', 
-                        day: 'numeric', 
-                        month: 'long' 
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Order Date */}
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <div className="text-xs text-muted-foreground">Data ordine</div>
-                  <div className="font-medium">
-                    {new Date(order.created_at).toLocaleDateString('it-IT')}
+        {/* For PENDING orders: unified view (details + confirm form, no tabs) */}
+        {isPendingOrder ? (
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-4">
+              {/* Delivery Date Requested */}
+              {order.expected_delivery_date && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">Consegna richiesta</div>
+                  <div className="text-lg font-bold flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
+                      weekday: 'long', day: 'numeric', month: 'long' 
+                    })}
                   </div>
                 </div>
+              )}
 
-                {/* Items */}
-                {order.purchase_order_items?.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Articoli ordinati</h4>
-                    {order.purchase_order_items.map((item: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-card border rounded-lg">
-                        <div className="font-medium">{item.material?.name || item.description}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+              {/* Items */}
+              {order.purchase_order_items?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                  {order.purchase_order_items.map((item: any, idx: number) => (
+                    <div key={idx} className="p-3 bg-card border rounded-lg">
+                      <div className="font-medium">{item.material?.name || item.description}</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Notes */}
+              {order.notes && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Note ordine</h4>
+                  <div className="p-3 bg-accent/50 border rounded-lg">
+                    <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Attachments */}
+              {attachments.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
+                  {attachments.map((att: any) => (
+                    <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                      <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Confirmation Form - inline */}
+              <div className="border-t pt-4 mt-4 space-y-4">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                  Conferma Ordine
+                </h4>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="font-medium">Data di consegna prevista *</Label>
+                    <Input
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="text-base h-12"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Note (opzionale)</Label>
+                    <Textarea
+                      placeholder="Eventuali note su prezzi, disponibilità, tempi..."
+                      value={supplierNotes}
+                      onChange={(e) => setSupplierNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                  <Button 
+                    className="w-full h-12 text-base gap-2" 
+                    onClick={handleConfirmOrder}
+                    disabled={!deliveryDate || isSubmitting}
+                  >
+                    <CheckCircle className="h-5 w-5" />
+                    {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        ) : (
+          <>
+            {/* Tab Navigation - only for non-pending orders */}
+            <div className="flex border-b flex-shrink-0">
+              {[
+                { key: 'details', label: 'Dettagli', icon: Eye },
+                { key: 'actions', label: 'Azioni', icon: Package },
+                { key: 'activity', label: 'Attività', icon: History },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={cn(
+                    "flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2",
+                    activeTab === tab.key 
+                      ? "border-primary text-primary" 
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-4">
+                {activeTab === 'details' && (
+                  <div className="space-y-4">
+                    {order.expected_delivery_date && (
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
+                        <div className="text-lg font-bold flex items-center gap-2">
+                          <Calendar className="h-5 w-5" />
+                          {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
+                            weekday: 'long', day: 'numeric', month: 'long' 
+                          })}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {/* Notes */}
-                {order.notes && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Note ordine</h4>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
-                      <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+                    <div className="p-3 bg-muted/30 rounded-lg">
+                      <div className="text-xs text-muted-foreground">Data ordine</div>
+                      <div className="font-medium">
+                        {new Date(order.created_at).toLocaleDateString('it-IT')}
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Attachments */}
-                {attachments.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
-                    <div className="space-y-2">
-                      {attachments.map((att: any) => (
-                        <a
-                          key={att.id}
-                          href={att.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-                        >
-                          <Paperclip className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </a>
-                      ))}
-                    </div>
+                    {order.purchase_order_items?.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                        {order.purchase_order_items.map((item: any, idx: number) => (
+                          <div key={idx} className="p-3 bg-card border rounded-lg">
+                            <div className="font-medium">{item.material?.name || item.description}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {order.notes && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm">Note ordine</h4>
+                        <div className="p-3 bg-accent/50 border rounded-lg">
+                          <p className="text-sm whitespace-pre-wrap">{order.notes}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {attachments.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm">Allegati ({attachments.length})</h4>
+                        {attachments.map((att: any) => (
+                          <a key={att.id} href={att.file_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium truncate flex-1">{att.file_name}</span>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
             {activeTab === 'actions' && (
               <div className="space-y-4">
@@ -949,8 +1035,10 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
             )}
           </div>
         </ScrollArea>
+          </>
+        )}
 
-        {/* Confirm Order Dialog */}
+        {/* Confirm Order Dialog - available for both flows */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
