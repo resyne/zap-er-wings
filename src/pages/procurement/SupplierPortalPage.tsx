@@ -672,15 +672,15 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
 
   return (
     <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg h-[90vh] max-h-[90vh] p-0 flex flex-col gap-0 [&>button]:hidden">
+      <DialogContent className="max-w-lg h-[85vh] max-h-[85vh] p-0 flex flex-col gap-0 [&>button]:hidden top-[55%]">
         {/* Sticky Back Header */}
         <div className="flex-shrink-0">
           <button
             onClick={onClose}
-            className="flex items-center gap-2 w-full px-4 py-4 text-sm font-medium text-primary hover:bg-muted/50 active:bg-muted transition-colors border-b"
+            className="flex items-center gap-2 w-full px-4 py-5 text-base font-semibold text-primary hover:bg-muted/50 active:bg-muted transition-colors border-b bg-muted/30"
           >
-            <ChevronLeft className="h-5 w-5" />
-            ← Torna alla lista
+            <ChevronLeft className="h-6 w-6" />
+            Torna alla lista
           </button>
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center gap-2 flex-wrap">
