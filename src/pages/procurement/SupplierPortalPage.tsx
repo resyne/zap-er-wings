@@ -279,11 +279,13 @@ export default function SupplierPortalPage() {
           />
         ) : (
           <ListView 
-            orders={filteredOrders.filter(o => showArchived || !archivedOrderIds.has(o.id))} 
+            orders={filteredOrders} 
             onSelectOrder={setSelectedOrder}
             onUpdate={() => window.location.reload()}
             archivedOrderIds={archivedOrderIds}
             onToggleArchive={toggleArchive}
+            showArchived={showArchived}
+            onToggleShowArchived={() => setShowArchived(prev => !prev)}
           />
         )}
       </div>
@@ -414,34 +416,75 @@ function KanbanView({ orders, getOrdersByStatus, onSelectOrder, onUpdate, onDrag
 }
 
 // List View Component
-function ListView({ orders, onSelectOrder, onUpdate, archivedOrderIds, onToggleArchive }: {
+function ListView({ orders, onSelectOrder, onUpdate, archivedOrderIds, onToggleArchive, showArchived, onToggleShowArchived }: {
   orders: any[];
   onSelectOrder: (order: any) => void;
   onUpdate: () => void;
   archivedOrderIds: Set<string>;
   onToggleArchive: (orderId: string) => void;
+  showArchived: boolean;
+  onToggleShowArchived: () => void;
 }) {
-  if (orders.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-        <p>Nessun ordine trovato</p>
-      </div>
-    );
-  }
+  const activeOrders = orders.filter(o => !archivedOrderIds.has(o.id));
+  const archivedOrders = orders.filter(o => archivedOrderIds.has(o.id));
 
   return (
     <div className="space-y-2">
-      {orders.map(order => (
-        <MobileOrderCard 
-          key={order.id} 
-          order={order} 
-          onClick={() => onSelectOrder(order)}
-          onUpdate={onUpdate}
-          onArchive={() => onToggleArchive(order.id)}
-          isArchived={archivedOrderIds.has(order.id)}
-        />
-      ))}
+      {activeOrders.length === 0 && archivedOrders.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p>Nessun ordine trovato</p>
+        </div>
+      ) : (
+        <>
+          {activeOrders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              Nessun ordine attivo
+            </div>
+          ) : (
+            activeOrders.map(order => (
+              <MobileOrderCard 
+                key={order.id} 
+                order={order} 
+                onClick={() => onSelectOrder(order)}
+                onUpdate={onUpdate}
+                onArchive={() => onToggleArchive(order.id)}
+                isArchived={false}
+              />
+            ))
+          )}
+
+          {/* Archived Section */}
+          {archivedOrders.length > 0 && (
+            <div className="space-y-2 pt-4 border-t">
+              <button 
+                onClick={onToggleShowArchived}
+                className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <Archive className="h-4 w-4" />
+                  Archiviati ({archivedOrders.length})
+                </span>
+                <ChevronRight className={cn("h-4 w-4 transition-transform", showArchived && "rotate-90")} />
+              </button>
+              {showArchived && (
+                <div className="space-y-2">
+                  {archivedOrders.map(order => (
+                    <MobileOrderCard 
+                      key={order.id} 
+                      order={order} 
+                      onClick={() => onSelectOrder(order)}
+                      onUpdate={onUpdate}
+                      onArchive={() => onToggleArchive(order.id)}
+                      isArchived
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
