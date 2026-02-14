@@ -713,12 +713,20 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
               {/* Items */}
               {order.purchase_order_items?.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Articoli ordinati ({order.purchase_order_items.length})
+                  </h4>
                   {order.purchase_order_items.map((item: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-card border rounded-lg">
-                      <div className="font-medium">{item.material?.name || item.description}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                    <div key={idx} className="p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
+                      <div className="text-base font-bold text-foreground">{item.material?.name || item.description}</div>
+                      {item.material?.code && (
+                        <div className="text-xs text-muted-foreground mt-0.5">Cod. {item.material.code}</div>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                          Qtà: {item.quantity} {item.material?.unit || 'pz'}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -815,12 +823,20 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
               {/* Items */}
               {order.purchase_order_items?.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Articoli ordinati</h4>
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    Articoli ordinati ({order.purchase_order_items.length})
+                  </h4>
                   {order.purchase_order_items.map((item: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-card border rounded-lg">
-                      <div className="font-medium">{item.material?.name || item.description}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Quantità: <span className="font-semibold text-foreground">{item.quantity}</span>
+                    <div key={idx} className="p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
+                      <div className="text-base font-bold text-foreground">{item.material?.name || item.description}</div>
+                      {item.material?.code && (
+                        <div className="text-xs text-muted-foreground mt-0.5">Cod. {item.material.code}</div>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                          Qtà: {item.quantity} {item.material?.unit || 'pz'}
+                        </span>
                       </div>
                     </div>
                   ))}
