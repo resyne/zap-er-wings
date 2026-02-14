@@ -858,15 +858,20 @@ const SuppliersPage = () => {
                              <RefreshCw className="h-3 w-3" />
                            </Button>
                          </div>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => handleCopyPortalLink(supplier)}
-                           className="w-full text-xs gap-1"
-                         >
-                           <ExternalLink className="h-3 w-3" />
-                           Copia Link Portale
-                         </Button>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground break-all select-all">
+                              {`https://erp.abbattitorizapper.it/supplier/${supplier.id}`}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCopyPortalLink(supplier)}
+                              className="w-full text-xs gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Copia Link Portale
+                            </Button>
+                          </div>
                        </div>
                      ) : (
                        <span className="text-muted-foreground text-sm">Nessun codice</span>
