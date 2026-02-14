@@ -311,15 +311,6 @@ function ListView({ orders, onSelectOrder, onUpdate }: {
 
 // Mobile Order Card with Inline Actions
 function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: () => void; onUpdate: () => void }) {
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [showComment, setShowComment] = useState(false);
-  const [deliveryDate, setDeliveryDate] = useState("");
-  const [supplierNotes, setSupplierNotes] = useState("");
-  const [newComment, setNewComment] = useState("");
-  const [commentAuthor, setCommentAuthor] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-
   const status = statusConfig[order.production_status as keyof typeof statusConfig] || statusConfig.pending;
   const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
   
@@ -329,257 +320,78 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
 
   const commentsCount = order.purchase_order_comments?.length || 0;
   const attachmentsCount = order.purchase_order_attachments?.length || 0;
+  const itemsCount = order.purchase_order_items?.length || 0;
 
-  const handleConfirm = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!deliveryDate) {
-      toast.error("Inserisci la data di consegna");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.functions.invoke('supplier-confirm-order', {
-        body: { orderId: order.id, deliveryDate, supplierNotes }
-      });
-      if (error) throw error;
-      toast.success("Ordine confermato!");
-      setShowConfirm(false);
-      onUpdate();
-    } catch {
-      toast.error("Errore durante la conferma");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleUpdateStatus = async (newStatus: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.functions.invoke('supplier-update-status', {
-        body: { orderId: order.id, status: newStatus, notes: '' }
-      });
-      if (error) throw error;
-      toast.success("Stato aggiornato!");
-      onUpdate();
-    } catch {
-      toast.error("Errore");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSendComment = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!newComment.trim() || !commentAuthor.trim()) {
-      toast.error("Compila tutti i campi");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.functions.invoke('supplier-add-comment', {
-        body: { orderId: order.id, comment: newComment, supplierName: commentAuthor }
-      });
-      if (error) throw error;
-      toast.success("Messaggio inviato!");
-      setShowComment(false);
-      setNewComment("");
-      onUpdate();
-    } catch {
-      toast.error("Errore");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+  const isPending = order.production_status === 'pending';
 
   return (
-    <Card className={cn("border-l-4 overflow-hidden", status.color.replace('bg-', 'border-l-'))}>
-      <CardContent className="p-0">
-        {/* Main Card Content - Clickable for details */}
-        <div className="p-3 cursor-pointer active:bg-muted/50" onClick={onClick}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-base">{order.number}</span>
-                {priority && <span className="text-sm">{priority.emoji}</span>}
-              </div>
-
-              <Badge className={cn("text-xs", status.color, "text-white")}>
+    <Card 
+      className={cn(
+        "border-l-4 overflow-hidden cursor-pointer transition-colors hover:bg-muted/30 active:bg-muted/50",
+        status.color.replace('bg-', 'border-l-'),
+        isPending && "ring-1 ring-yellow-300 dark:ring-yellow-700"
+      )}
+      onClick={onClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {/* Row 1: Number + Priority + Status */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm">{order.number}</span>
+              {priority && <span className="text-xs">{priority.emoji}</span>}
+              <Badge className={cn("text-[10px] px-1.5 py-0", status.color, "text-white")}>
                 {status.label}
               </Badge>
+            </div>
 
-              {order.purchase_order_items && order.purchase_order_items.length > 0 && (
-                <div className="text-sm space-y-0.5">
-                  {order.purchase_order_items.map((item: any, idx: number) => (
-                    <div key={item.id || idx} className="text-muted-foreground truncate">
-                      • {item.quantity}x {item.material?.name || item.description}
-                    </div>
-                  ))}
+            {/* Row 2: Items summary (compact) */}
+            {itemsCount > 0 && (
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {order.purchase_order_items.slice(0, 2).map((item: any) => 
+                  `${item.quantity}x ${item.material?.name || item.description}`
+                ).join(', ')}
+                {itemsCount > 2 && ` +${itemsCount - 2}`}
+              </p>
+            )}
+
+            {/* Row 3: Meta info */}
+            <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+              {order.expected_delivery_date && (
+                <div className={cn(
+                  "flex items-center gap-1",
+                  daysUntilDeadline !== null && daysUntilDeadline < 0 && "text-destructive font-medium",
+                  daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 3 && "text-orange-600 font-medium"
+                )}>
+                  <Calendar className="h-3 w-3" />
+                  {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
                 </div>
               )}
-
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                {order.expected_delivery_date && (
-                  <div className={cn(
-                    "flex items-center gap-1",
-                    daysUntilDeadline !== null && daysUntilDeadline < 0 && "text-destructive font-medium",
-                    daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 3 && "text-orange-600 font-medium"
-                  )}>
-                    <Calendar className="h-3 w-3" />
-                    {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-                  </div>
-                )}
-                {commentsCount > 0 && (
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    {commentsCount}
-                  </div>
-                )}
-                {attachmentsCount > 0 && (
-                  <div className="flex items-center gap-1">
-                    <Paperclip className="h-3 w-3" />
-                    {attachmentsCount}
-                  </div>
-                )}
-              </div>
+              {commentsCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  {commentsCount}
+                </div>
+              )}
+              {attachmentsCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Paperclip className="h-3 w-3" />
+                  {attachmentsCount}
+                </div>
+              )}
             </div>
-            <Eye className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
-          </div>
-        </div>
-
-        {/* Status Selector - All Phases */}
-        <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-3" onClick={(e) => e.stopPropagation()}>
-          <p className="text-xs font-medium text-muted-foreground">Seleziona stato:</p>
-          
-          <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { value: 'pending', label: 'Da Confermare', emoji: '⏳' },
-              { value: 'confirmed', label: 'Confermato', emoji: '✓' },
-              { value: 'in_production', label: 'In Produzione', emoji: '⚙️' },
-              { value: 'ready_to_ship', label: 'Pronto', emoji: '📦' },
-              { value: 'shipped', label: 'Spedito', emoji: '🚚' },
-              { value: 'delivered', label: 'Consegnato', emoji: '✅' },
-            ].map((statusOption) => {
-              const isActive = order.production_status === statusOption.value;
-              return (
-                <button
-                  key={statusOption.value}
-                  disabled={isSubmitting}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isActive) return;
-                    
-                    // If changing from pending to confirmed, need delivery date
-                    if (order.production_status === 'pending' && statusOption.value === 'confirmed') {
-                      setShowConfirm(true);
-                    } else if (statusOption.value !== 'pending') {
-                      handleUpdateStatus(statusOption.value, e);
-                    }
-                  }}
-                  className={cn(
-                    "py-2 px-2 rounded-md text-xs font-medium transition-all flex flex-col items-center gap-0.5",
-                    isActive 
-                      ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1" 
-                      : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span className="text-base">{statusOption.emoji}</span>
-                  <span className="leading-tight text-center">{statusOption.label}</span>
-                </button>
-              );
-            })}
           </div>
 
-          {/* Confirm Form - When selecting Confermato from pending */}
-          {showConfirm && (
-            <div className="space-y-2 p-3 bg-card rounded-lg border">
-              <p className="text-xs font-medium">Conferma ordine</p>
-              <div>
-                <Label className="text-xs">Data Consegna *</Label>
-                <Input 
-                  type="date" 
-                  value={deliveryDate} 
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="h-10 mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Note (opzionale)</Label>
-                <Textarea 
-                  value={supplierNotes} 
-                  onChange={(e) => setSupplierNotes(e.target.value)}
-                  placeholder="Note..."
-                  className="mt-1 min-h-[60px]"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1 h-10"
-                  onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }}
-                >
-                  Annulla
-                </Button>
-                <Button 
-                  size="sm"
-                  className="flex-1 h-10"
-                  onClick={handleConfirm}
-                  disabled={isSubmitting || !deliveryDate}
-                >
-                  {isSubmitting ? "..." : "Conferma"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Message Button */}
-          {!showComment ? (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="w-full h-9 text-xs gap-1 text-muted-foreground"
-              onClick={(e) => { e.stopPropagation(); setShowComment(true); }}
-            >
-              <MessageSquare className="h-3 w-3" />
-              Invia messaggio
-            </Button>
-          ) : (
-            <div className="space-y-2 p-3 bg-card rounded-lg border">
-              <Input 
-                placeholder="Il tuo nome"
-                value={commentAuthor}
-                onChange={(e) => setCommentAuthor(e.target.value)}
-                className="h-9 text-sm"
-              />
-              <Textarea 
-                placeholder="Scrivi un messaggio..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[60px] text-sm"
-              />
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-1 h-9"
-                  onClick={(e) => { e.stopPropagation(); setShowComment(false); }}
-                >
-                  Annulla
-                </Button>
-                <Button 
-                  size="sm"
-                  className="flex-1 h-9 gap-1"
-                  onClick={handleSendComment}
-                  disabled={isSubmitting}
-                >
-                  <Send className="h-3 w-3" />
-                  Invia
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Right: action hint */}
+          <div className="flex-shrink-0">
+            {isPending ? (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
+                Da confermare
+              </Badge>
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
