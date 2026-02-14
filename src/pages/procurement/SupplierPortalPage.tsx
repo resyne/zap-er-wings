@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 import { 
   Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
   Paperclip, Send, ChevronRight, Calendar, LayoutGrid, 
-  List, Filter, X, History, Upload, Eye
+  List, Filter, X, History, Upload, Eye, Archive, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,11 +40,19 @@ const priorityConfig = {
 };
 
 const kanbanColumns = [
-  { key: 'pending', label: 'Da Confermare', color: 'border-t-yellow-500' },
-  { key: 'in_production', label: 'In Lavorazione', color: 'border-t-purple-500' },
-  { key: 'ready_to_ship', label: 'Pronti', color: 'border-t-orange-500' },
-  { key: 'delivered', label: 'Completati', color: 'border-t-green-500' },
+  { key: 'pending', label: 'Da Confermare', color: 'border-t-yellow-500', emoji: '⏳' },
+  { key: 'in_production', label: 'In Lavorazione', color: 'border-t-purple-500', emoji: '⚙️' },
+  { key: 'ready_to_ship', label: 'Pronti', color: 'border-t-orange-500', emoji: '📦' },
+  { key: 'delivered', label: 'Completati', color: 'border-t-green-500', emoji: '✅' },
 ];
+
+// Map kanban column keys to actual production_status values for the API
+const columnToStatusMap: Record<string, string> = {
+  pending: 'pending',
+  in_production: 'in_production',
+  ready_to_ship: 'ready_to_ship',
+  delivered: 'delivered',
+};
 
 export default function SupplierPortalPage() {
   const { supplierId } = useParams();
@@ -54,6 +63,61 @@ export default function SupplierPortalPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`supplier-archived-${supplierId}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const toggleArchive = useCallback((orderId: string) => {
+    setArchivedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      localStorage.setItem(`supplier-archived-${supplierId}`, JSON.stringify([...next]));
+      return next;
+    });
+  }, [supplierId]);
+
+  const handleDragEnd = useCallback(async (result: DropResult) => {
+    const { draggableId, destination, source } = result;
+    if (!destination || destination.droppableId === source.droppableId) return;
+
+    const targetStatus = columnToStatusMap[destination.droppableId];
+    if (!targetStatus) return;
+
+    // If dragging from pending to another status, we need confirmation flow
+    const order = orders.find(o => o.id === draggableId);
+    if (!order) return;
+
+    if (order.production_status === 'pending' && targetStatus !== 'pending') {
+      // Open the detail sheet for confirmation
+      setSelectedOrder(order);
+      toast.info("Conferma l'ordine dal pannello dettagli");
+      return;
+    }
+
+    // Optimistic update
+    setOrders(prev => prev.map(o => 
+      o.id === draggableId ? { ...o, production_status: targetStatus } : o
+    ));
+
+    try {
+      const { error } = await supabase.functions.invoke('supplier-update-status', {
+        body: { orderId: draggableId, status: targetStatus, notes: '' }
+      });
+      if (error) throw error;
+      toast.success("Stato aggiornato!");
+    } catch {
+      // Revert on error
+      setOrders(prev => prev.map(o => 
+        o.id === draggableId ? { ...o, production_status: order.production_status } : o
+      ));
+      toast.error("Errore nell'aggiornamento");
+    }
+  }, [orders]);
 
   useEffect(() => {
     if (!supplierId) {
@@ -207,12 +271,19 @@ export default function SupplierPortalPage() {
             getOrdersByStatus={getOrdersByStatus}
             onSelectOrder={setSelectedOrder}
             onUpdate={() => window.location.reload()}
+            onDragEnd={handleDragEnd}
+            archivedOrderIds={archivedOrderIds}
+            showArchived={showArchived}
+            onToggleShowArchived={() => setShowArchived(prev => !prev)}
+            onToggleArchive={toggleArchive}
           />
         ) : (
           <ListView 
-            orders={filteredOrders} 
+            orders={filteredOrders.filter(o => showArchived || !archivedOrderIds.has(o.id))} 
             onSelectOrder={setSelectedOrder}
             onUpdate={() => window.location.reload()}
+            archivedOrderIds={archivedOrderIds}
+            onToggleArchive={toggleArchive}
           />
         )}
       </div>
@@ -233,58 +304,122 @@ export default function SupplierPortalPage() {
 }
 
 // Kanban View Component
-function KanbanView({ orders, getOrdersByStatus, onSelectOrder, onUpdate }: {
+function KanbanView({ orders, getOrdersByStatus, onSelectOrder, onUpdate, onDragEnd, archivedOrderIds, showArchived, onToggleShowArchived, onToggleArchive }: {
   orders: any[];
   getOrdersByStatus: (status: string) => any[];
   onSelectOrder: (order: any) => void;
   onUpdate: () => void;
+  onDragEnd: (result: DropResult) => void;
+  archivedOrderIds: Set<string>;
+  showArchived: boolean;
+  onToggleShowArchived: () => void;
+  onToggleArchive: (orderId: string) => void;
 }) {
+  const archivedOrders = orders.filter(o => archivedOrderIds.has(o.id));
+
   return (
-    <div className="space-y-6">
-      {kanbanColumns.map(column => {
-        const columnOrders = getOrdersByStatus(column.key);
-        if (columnOrders.length === 0 && column.key === 'delivered') return null;
-        
-        return (
-          <div key={column.key} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-sm flex items-center gap-2">
-                <div className={cn("w-3 h-3 rounded-full", column.color.replace('border-t-', 'bg-'))} />
-                {column.label}
-              </h3>
-              <Badge variant="secondary" className="text-xs">
-                {columnOrders.length}
-              </Badge>
-            </div>
-            
-            <div className="space-y-2">
-              {columnOrders.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm bg-muted/30 rounded-lg">
-                  Nessun ordine
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="space-y-6">
+        {kanbanColumns.map(column => {
+          const allColumnOrders = getOrdersByStatus(column.key);
+          const columnOrders = allColumnOrders.filter(o => !archivedOrderIds.has(o.id));
+          
+          return (
+            <Droppable key={column.key} droppableId={column.key}>
+              {(provided, snapshot) => (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <span>{column.emoji}</span>
+                      {column.label}
+                    </h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {columnOrders.length}
+                    </Badge>
+                  </div>
+                  
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={cn(
+                      "space-y-2 min-h-[48px] rounded-lg transition-colors p-1",
+                      snapshot.isDraggingOver && "bg-primary/5 ring-2 ring-primary/20"
+                    )}
+                  >
+                    {columnOrders.length === 0 && !snapshot.isDraggingOver ? (
+                      <div className="text-center py-6 text-muted-foreground text-xs bg-muted/20 rounded-lg border border-dashed">
+                        Trascina qui un ordine
+                      </div>
+                    ) : (
+                      columnOrders.map((order, index) => (
+                        <Draggable key={order.id} draggableId={order.id} index={index}>
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              className={cn(dragSnapshot.isDragging && "opacity-90 rotate-1")}
+                            >
+                              <MobileOrderCard 
+                                order={order} 
+                                onClick={() => onSelectOrder(order)}
+                                onUpdate={onUpdate}
+                                dragHandleProps={dragProvided.dragHandleProps}
+                                onArchive={() => onToggleArchive(order.id)}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))
+                    )}
+                    {provided.placeholder}
+                  </div>
                 </div>
-              ) : (
-                columnOrders.map(order => (
+              )}
+            </Droppable>
+          );
+        })}
+
+        {/* Archived Section */}
+        {archivedOrders.length > 0 && (
+          <div className="space-y-2 pt-4 border-t">
+            <button 
+              onClick={onToggleShowArchived}
+              className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="flex items-center gap-2 font-medium">
+                <Archive className="h-4 w-4" />
+                Archiviati ({archivedOrders.length})
+              </span>
+              <ChevronRight className={cn("h-4 w-4 transition-transform", showArchived && "rotate-90")} />
+            </button>
+            {showArchived && (
+              <div className="space-y-2">
+                {archivedOrders.map(order => (
                   <MobileOrderCard 
                     key={order.id} 
                     order={order} 
                     onClick={() => onSelectOrder(order)}
                     onUpdate={onUpdate}
+                    onArchive={() => onToggleArchive(order.id)}
+                    isArchived
                   />
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
-        );
-      })}
-    </div>
+        )}
+      </div>
+    </DragDropContext>
   );
 }
 
 // List View Component
-function ListView({ orders, onSelectOrder, onUpdate }: {
+function ListView({ orders, onSelectOrder, onUpdate, archivedOrderIds, onToggleArchive }: {
   orders: any[];
   onSelectOrder: (order: any) => void;
   onUpdate: () => void;
+  archivedOrderIds: Set<string>;
+  onToggleArchive: (orderId: string) => void;
 }) {
   if (orders.length === 0) {
     return (
@@ -303,6 +438,8 @@ function ListView({ orders, onSelectOrder, onUpdate }: {
           order={order} 
           onClick={() => onSelectOrder(order)}
           onUpdate={onUpdate}
+          onArchive={() => onToggleArchive(order.id)}
+          isArchived={archivedOrderIds.has(order.id)}
         />
       ))}
     </div>
@@ -310,7 +447,14 @@ function ListView({ orders, onSelectOrder, onUpdate }: {
 }
 
 // Mobile Order Card with Inline Actions
-function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: () => void; onUpdate: () => void }) {
+function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive, isArchived }: { 
+  order: any; 
+  onClick: () => void; 
+  onUpdate: () => void;
+  dragHandleProps?: any;
+  onArchive?: () => void;
+  isArchived?: boolean;
+}) {
   const status = statusConfig[order.production_status as keyof typeof statusConfig] || statusConfig.pending;
   const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
   
@@ -329,12 +473,20 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
       className={cn(
         "border-l-4 overflow-hidden cursor-pointer transition-colors hover:bg-muted/30 active:bg-muted/50",
         status.color.replace('bg-', 'border-l-'),
-        isPending && "ring-1 ring-yellow-300 dark:ring-yellow-700"
+        isPending && "ring-1 ring-yellow-300 dark:ring-yellow-700",
+        isArchived && "opacity-60"
       )}
       onClick={onClick}
     >
       <CardContent className="p-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {/* Drag Handle */}
+          {dragHandleProps && (
+            <div {...dragHandleProps} className="flex-shrink-0 touch-none cursor-grab active:cursor-grabbing p-0.5" onClick={(e) => e.stopPropagation()}>
+              <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+            </div>
+          )}
+
           <div className="min-w-0 flex-1">
             {/* Row 1: Number + Priority + Status */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -382,15 +534,26 @@ function MobileOrderCard({ order, onClick, onUpdate }: { order: any; onClick: ()
             </div>
           </div>
 
-          {/* Right: action hint */}
-          <div className="flex-shrink-0">
-            {isPending ? (
+          {/* Right: archive + action hint */}
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {onArchive && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); onArchive(); }}
+                title={isArchived ? "Ripristina" : "Archivia"}
+              >
+                <Archive className={cn("h-3.5 w-3.5", isArchived ? "text-primary" : "text-muted-foreground")} />
+              </Button>
+            )}
+            {isPending && !isArchived ? (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
                 Da confermare
               </Badge>
-            ) : (
+            ) : !isArchived ? (
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
+            ) : null}
           </div>
         </div>
       </CardContent>
