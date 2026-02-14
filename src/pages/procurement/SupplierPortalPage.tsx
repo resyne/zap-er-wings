@@ -677,10 +677,10 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
         <div className="flex-shrink-0">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 w-full px-4 py-2.5 text-sm font-medium text-primary hover:bg-muted/50 transition-colors border-b"
+            className="flex items-center gap-2 w-full px-4 py-4 text-sm font-medium text-primary hover:bg-muted/50 active:bg-muted transition-colors border-b"
           >
             <ChevronLeft className="h-5 w-5" />
-            Torna alla lista
+            ← Torna alla lista
           </button>
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center gap-2 flex-wrap">
