@@ -14,13 +14,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { 
   Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
-  Paperclip, Send, ChevronRight, ChevronLeft, Calendar, LayoutGrid, 
-  List, Filter, X, History, Upload, Eye, Archive, GripVertical
+  Paperclip, Send, ChevronRight, ChevronLeft, Calendar,
+  X, History, Upload, Eye, Archive, GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type ViewMode = 'kanban' | 'list';
-type FilterStatus = 'all' | 'pending' | 'active' | 'completed';
+
 
 const statusConfig = {
   pending: { label: "Da Confermare", color: "bg-yellow-500", textColor: "text-yellow-600", bgLight: "bg-yellow-50 dark:bg-yellow-950/30" },
@@ -60,8 +59,7 @@ export default function SupplierPortalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [supplierData, setSupplierData] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(() => {
@@ -152,18 +150,7 @@ export default function SupplierPortalPage() {
     loadSupplierData();
   }, [supplierId, navigate]);
 
-  const getFilteredOrders = () => {
-    switch (filterStatus) {
-      case 'pending':
-        return orders.filter(o => o.production_status === 'pending');
-      case 'active':
-        return orders.filter(o => !['delivered', 'cancelled', 'pending'].includes(o.production_status));
-      case 'completed':
-        return orders.filter(o => o.production_status === 'delivered');
-      default:
-        return orders;
-    }
-  };
+
 
   const getOrdersByStatus = (status: string) => {
     if (status === 'in_production') {
@@ -197,7 +184,6 @@ export default function SupplierPortalPage() {
     );
   }
 
-  const filteredOrders = getFilteredOrders();
   const pendingCount = orders.filter(o => o.production_status === 'pending').length;
 
   return (
@@ -215,79 +201,23 @@ export default function SupplierPortalPage() {
               </p>
             </div>
             
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              <Button
-                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setViewMode('kanban')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
           </div>
-
-          {/* Filter Pills - Mobile Scrollable */}
-          {viewMode === 'list' && (
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-              {[
-                { key: 'all', label: 'Tutti', count: orders.length },
-                { key: 'pending', label: 'Da Confermare', count: orders.filter(o => o.production_status === 'pending').length },
-                { key: 'active', label: 'In Corso', count: orders.filter(o => !['delivered', 'cancelled', 'pending'].includes(o.production_status)).length },
-                { key: 'completed', label: 'Completati', count: orders.filter(o => o.production_status === 'delivered').length },
-              ].map(filter => (
-                <Button
-                  key={filter.key}
-                  variant={filterStatus === filter.key ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-shrink-0 h-8 text-xs gap-1.5"
-                  onClick={() => setFilterStatus(filter.key as FilterStatus)}
-                >
-                  {filter.label}
-                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-[10px]">
-                    {filter.count}
-                  </Badge>
-                </Button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-4">
-        {viewMode === 'kanban' ? (
-          <KanbanView 
-            orders={orders} 
-            getOrdersByStatus={getOrdersByStatus}
-            onSelectOrder={setSelectedOrder}
-            onUpdate={() => window.location.reload()}
-            onDragEnd={handleDragEnd}
-            archivedOrderIds={archivedOrderIds}
-            showArchived={showArchived}
-            onToggleShowArchived={() => setShowArchived(prev => !prev)}
-            onToggleArchive={toggleArchive}
-          />
-        ) : (
-          <ListView 
-            orders={filteredOrders} 
-            onSelectOrder={setSelectedOrder}
-            onUpdate={() => window.location.reload()}
-            archivedOrderIds={archivedOrderIds}
-            onToggleArchive={toggleArchive}
-            showArchived={showArchived}
-            onToggleShowArchived={() => setShowArchived(prev => !prev)}
-          />
-        )}
+        <KanbanView 
+          orders={orders} 
+          getOrdersByStatus={getOrdersByStatus}
+          onSelectOrder={setSelectedOrder}
+          onUpdate={() => window.location.reload()}
+          onDragEnd={handleDragEnd}
+          archivedOrderIds={archivedOrderIds}
+          showArchived={showArchived}
+          onToggleShowArchived={() => setShowArchived(prev => !prev)}
+          onToggleArchive={toggleArchive}
+        />
       </div>
 
       {/* Order Detail Sheet */}
@@ -415,79 +345,6 @@ function KanbanView({ orders, getOrdersByStatus, onSelectOrder, onUpdate, onDrag
   );
 }
 
-// List View Component
-function ListView({ orders, onSelectOrder, onUpdate, archivedOrderIds, onToggleArchive, showArchived, onToggleShowArchived }: {
-  orders: any[];
-  onSelectOrder: (order: any) => void;
-  onUpdate: () => void;
-  archivedOrderIds: Set<string>;
-  onToggleArchive: (orderId: string) => void;
-  showArchived: boolean;
-  onToggleShowArchived: () => void;
-}) {
-  const activeOrders = orders.filter(o => !archivedOrderIds.has(o.id));
-  const archivedOrders = orders.filter(o => archivedOrderIds.has(o.id));
-
-  return (
-    <div className="space-y-2">
-      {activeOrders.length === 0 && archivedOrders.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>Nessun ordine trovato</p>
-        </div>
-      ) : (
-        <>
-          {activeOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Nessun ordine attivo
-            </div>
-          ) : (
-            activeOrders.map(order => (
-              <MobileOrderCard 
-                key={order.id} 
-                order={order} 
-                onClick={() => onSelectOrder(order)}
-                onUpdate={onUpdate}
-                onArchive={() => onToggleArchive(order.id)}
-                isArchived={false}
-              />
-            ))
-          )}
-
-          {/* Archived Section */}
-          {archivedOrders.length > 0 && (
-            <div className="space-y-2 pt-4 border-t">
-              <button 
-                onClick={onToggleShowArchived}
-                className="flex items-center justify-between w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Archive className="h-4 w-4" />
-                  Archiviati ({archivedOrders.length})
-                </span>
-                <ChevronRight className={cn("h-4 w-4 transition-transform", showArchived && "rotate-90")} />
-              </button>
-              {showArchived && (
-                <div className="space-y-2">
-                  {archivedOrders.map(order => (
-                    <MobileOrderCard 
-                      key={order.id} 
-                      order={order} 
-                      onClick={() => onSelectOrder(order)}
-                      onUpdate={onUpdate}
-                      onArchive={() => onToggleArchive(order.id)}
-                      isArchived
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 // Mobile Order Card with Inline Actions
 function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive, isArchived }: { 
