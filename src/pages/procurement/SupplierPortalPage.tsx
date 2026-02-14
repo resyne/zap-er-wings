@@ -774,6 +774,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                       value={supplierNotes}
                       onChange={(e) => setSupplierNotes(e.target.value)}
                       rows={3}
+                      className="text-base"
                     />
                   </div>
                   <Button 
@@ -1014,6 +1015,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   value={supplierNotes}
                   onChange={(e) => setSupplierNotes(e.target.value)}
                   rows={3}
+                  className="text-base"
                 />
               </div>
             </div>
@@ -1049,7 +1051,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   placeholder="Es. Mario Rossi"
                   value={commentAuthorName}
                   onChange={(e) => setCommentAuthorName(e.target.value)}
-                  className="h-12"
+                  className="h-12 text-base"
                 />
               </div>
               <div className="space-y-2">
@@ -1059,6 +1061,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   rows={4}
+                  className="text-base"
                 />
               </div>
             </div>
