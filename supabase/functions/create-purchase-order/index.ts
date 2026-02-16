@@ -341,25 +341,6 @@ const handler = async (req: Request): Promise<Response> => {
       
       const confirmationUrl = `https://erp.abbattitorizapper.it/supplier/${supplier_id}`;
 
-      // Build a concise WhatsApp message with the confirmation link
-      const itemsSummary = materials.map(material => {
-        const item = items.find(i => i.material_id === material.id);
-        if (!item) return '';
-        return `• ${material.code} - ${material.name}: ${item.quantity} ${material.unit}`;
-      }).filter(Boolean).join('\n');
-
-      const deliveryText = expected_delivery_date 
-        ? new Date(expected_delivery_date).toLocaleDateString('it-IT')
-        : "Da concordare";
-
-      let whatsappMessage = `📦 *Nuovo Ordine di Acquisto N° ${purchaseOrder.number}*\n\n`;
-      whatsappMessage += `📅 Data: ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}\n`;
-      whatsappMessage += `🚚 Consegna richiesta: ${deliveryText}\n\n`;
-      if (notes) {
-        whatsappMessage += `\n📝 Note: ${notes}\n`;
-      }
-      whatsappMessage += `\n✅ *Accedi al Portale Fornitore:*\n${confirmationUrl}`;
-
       try {
         // Find the first active WhatsApp account to send from
         const { data: waAccount } = await supabase
@@ -370,7 +351,17 @@ const handler = async (req: Request): Promise<Response> => {
           .single();
 
         if (waAccount) {
-          // Call whatsapp-send edge function internally
+          // Send using approved template "nuovo_ordine_fornitore_temp"
+          // Template body: "Ciao {{1}}\nc'è un nuovo ordine di acquisto\naccedi al portale fornitore per confermare\n{{6}}\n\nGrazie"
+          const templateParams = [
+            recipientName,           // {{1}} - supplier/contact name
+            purchaseOrder.number,    // {{2}}
+            new Date(purchaseOrder.order_date).toLocaleDateString('it-IT'), // {{3}}
+            expected_delivery_date ? new Date(expected_delivery_date).toLocaleDateString('it-IT') : 'Da concordare', // {{4}}
+            notes || '-',            // {{5}}
+            confirmationUrl,         // {{6}} - portal link
+          ];
+
           const waResponse = await fetch(
             `${supabaseUrl}/functions/v1/whatsapp-send`,
             {
@@ -382,8 +373,10 @@ const handler = async (req: Request): Promise<Response> => {
               body: JSON.stringify({
                 account_id: waAccount.id,
                 to: supplierContactPhone,
-                type: 'text',
-                content: whatsappMessage,
+                type: 'template',
+                template_name: 'nuovo_ordine_fornitore_temp',
+                template_language: 'it',
+                template_params: templateParams,
               }),
             }
           );
@@ -391,7 +384,7 @@ const handler = async (req: Request): Promise<Response> => {
           const waResult = await waResponse.json();
           if (waResult.success) {
             whatsappSent = true;
-            console.log("WhatsApp notification sent to:", supplierContactPhone);
+            console.log("WhatsApp template notification sent to:", supplierContactPhone);
           } else {
             console.error("WhatsApp send failed:", waResult.error);
           }
