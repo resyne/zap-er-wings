@@ -289,7 +289,39 @@ serve(async (req) => {
       // Determine message content based on type
       let messageContent: string | undefined;
       if (type === "template") {
-        messageContent = `[Template: ${template_name}]`;
+        // Try to render template with actual parameters
+        let renderedContent = `[Template: ${template_name}]`;
+        try {
+          const { data: tplData } = await supabase
+            .from("whatsapp_templates")
+            .select("components")
+            .eq("account_id", account_id)
+            .eq("name", template_name)
+            .eq("language", template_language || "it")
+            .single();
+          
+          if (tplData?.components && Array.isArray(tplData.components)) {
+            const bodyComponent = tplData.components.find((c: any) => c.type?.toUpperCase() === "BODY");
+            if (bodyComponent?.text && template_params && template_params.length > 0) {
+              let bodyText = bodyComponent.text as string;
+              const placeholders = bodyText.match(/\{\{\d+\}\}/g) || [];
+              const uniquePlaceholders = [...new Set(placeholders)].sort((a: string, b: string) => {
+                const numA = parseInt(a.replace(/\D/g, ''));
+                const numB = parseInt(b.replace(/\D/g, ''));
+                return numA - numB;
+              });
+              uniquePlaceholders.forEach((ph: string, idx: number) => {
+                const paramValue = template_params[idx] !== undefined ? String(template_params[idx]) : '';
+                bodyText = bodyText.replaceAll(ph, paramValue);
+              });
+              renderedContent = bodyText.trim();
+            }
+          }
+        } catch (e) {
+          console.log("Could not render template content, using fallback:", e);
+        }
+        
+        messageContent = renderedContent;
         if (header_document_url) {
           messageContent += ` [+Documento]`;
         }
