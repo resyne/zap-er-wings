@@ -255,6 +255,11 @@ serve(async (req) => {
             if (p === 1) {
               // {{1}} is almost always the contact name
               paramValue = lead.contact_name || lead.company_name || 'Cliente';
+            } else if (fullContext.includes('portale fornitore') || fullContext.includes('supplier portal') || 
+                       fullContext.includes('portal proveedor') || fullContext.includes('portail fournisseur') ||
+                       fullContext.includes('lieferantenportal')) {
+              // Supplier portal link
+              paramValue = '-'; // Will be filled manually or via supplier data
             } else if (beforeText.includes('👉') || fullContext.includes('link') || fullContext.includes('enlace') || 
                        fullContext.includes('enlace') || fullContext.includes('lien') || fullContext.includes('url')) {
               // This is a link parameter - use configurator link

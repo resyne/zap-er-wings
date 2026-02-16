@@ -375,6 +375,13 @@ export function WhatsAppTemplateCreator({
                 >
                   {"{{5}}"} - Link Configuratore
                 </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setFormData(prev => ({ ...prev, body: prev.body + "{{6}}" }))}
+                >
+                  {"{{6}}"} - Link Portale Fornitore
+                </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground italic">
                 💡 I valori reali verranno inseriti quando invii il messaggio al cliente
