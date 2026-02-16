@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key, ExternalLink } from "lucide-react";
+import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key, ExternalLink, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
@@ -27,6 +28,8 @@ interface Supplier {
   access_code?: string;
   contact_name?: string;
   contact_email?: string;
+  contact_phone?: string;
+  notify_whatsapp?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -42,6 +45,8 @@ const supplierSchema = z.object({
   payment_terms: z.number().min(0, "Giorni di pagamento devono essere positivi"),
   contact_name: z.string().optional(),
   contact_email: z.string().email("Email non valida").optional().or(z.literal("")),
+  contact_phone: z.string().optional(),
+  notify_whatsapp: z.boolean().optional(),
 });
 
 const SuppliersPage = () => {
@@ -65,6 +70,8 @@ const SuppliersPage = () => {
       payment_terms: 30,
       contact_name: "",
       contact_email: "",
+      contact_phone: "",
+      notify_whatsapp: false,
     },
   });
 
@@ -80,6 +87,8 @@ const SuppliersPage = () => {
       payment_terms: 30,
       contact_name: "",
       contact_email: "",
+      contact_phone: "",
+      notify_whatsapp: false,
     },
   });
 
@@ -142,6 +151,8 @@ const SuppliersPage = () => {
         access_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
         contact_name: values.contact_name || null,
         contact_email: values.contact_email || null,
+        contact_phone: values.contact_phone || null,
+        notify_whatsapp: values.notify_whatsapp || false,
       };
 
       const { data, error } = await supabase
@@ -192,6 +203,8 @@ const SuppliersPage = () => {
         payment_terms: values.payment_terms,
         contact_name: values.contact_name || null,
         contact_email: values.contact_email || null,
+        contact_phone: values.contact_phone || null,
+        notify_whatsapp: values.notify_whatsapp || false,
       };
 
       const { error } = await supabase
@@ -241,6 +254,8 @@ const SuppliersPage = () => {
       payment_terms: supplier.payment_terms,
       contact_name: supplier.contact_name || "",
       contact_email: supplier.contact_email || "",
+      contact_phone: supplier.contact_phone || "",
+      notify_whatsapp: supplier.notify_whatsapp || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -438,6 +453,44 @@ const SuppliersPage = () => {
                 </div>
                 <FormField
                   control={form.control}
+                  name="contact_phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono Persona di Contatto</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="+39..." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="notify_whatsapp"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <MessageSquare className="h-4 w-4 text-green-600" />
+                            Notifica nuovi ordini tramite WhatsApp
+                          </div>
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Invia una notifica WhatsApp alla persona di contatto quando viene creato un nuovo ordine di acquisto
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="address"
                   render={({ field }) => (
                     <FormItem>
@@ -604,6 +657,44 @@ const SuppliersPage = () => {
                     )}
                   />
                 </div>
+                <FormField
+                  control={editForm.control}
+                  name="contact_phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefono Persona di Contatto</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="+39..." />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="notify_whatsapp"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          <div className="flex items-center gap-1">
+                            <MessageSquare className="h-4 w-4 text-green-600" />
+                            Notifica nuovi ordini tramite WhatsApp
+                          </div>
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Invia una notifica WhatsApp alla persona di contatto quando viene creato un nuovo ordine di acquisto
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={editForm.control}
                   name="address"
@@ -800,11 +891,17 @@ const SuppliersPage = () => {
                            {supplier.phone}
                          </div>
                        )}
-                       {(supplier.contact_name || supplier.contact_email) && (
+                       {(supplier.contact_name || supplier.contact_email || supplier.contact_phone) && (
                          <div className="pt-1 mt-1 border-t space-y-1">
                            {supplier.contact_name && (
-                             <div className="text-xs text-muted-foreground">
+                             <div className="text-xs text-muted-foreground font-medium">
                                {supplier.contact_name}
+                             </div>
+                           )}
+                           {supplier.contact_phone && (
+                             <div className="flex items-center text-xs text-muted-foreground">
+                               <Phone className="mr-1 h-3 w-3" />
+                               {supplier.contact_phone}
                              </div>
                            )}
                            {supplier.contact_email && (
@@ -812,6 +909,12 @@ const SuppliersPage = () => {
                                <Mail className="mr-1 h-3 w-3" />
                                {supplier.contact_email}
                              </div>
+                           )}
+                           {supplier.notify_whatsapp && (
+                             <Badge variant="outline" className="text-xs gap-1 border-green-500 text-green-700">
+                               <MessageSquare className="h-3 w-3" />
+                               WhatsApp
+                             </Badge>
                            )}
                          </div>
                        )}
