@@ -695,30 +695,32 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                     </div>
                   )}
 
-                  {/* Option: Propose different date */}
-                  <div 
-                    className={cn(
-                      "p-4 rounded-lg border-2 cursor-pointer transition-all",
-                      !acceptRequestedDate 
-                        ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30" 
-                        : "border-muted hover:border-muted-foreground/30"
-                    )}
-                    onClick={() => setAcceptRequestedDate(false)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                        !acceptRequestedDate ? "border-orange-500 bg-orange-500" : "border-muted-foreground/40"
-                      )}>
-                        {!acceptRequestedDate && <CheckCircle className="h-3.5 w-3.5 text-white" />}
+                  {/* Option: Propose different date - only show toggle when there's a requested date */}
+                  {order.expected_delivery_date && (
+                    <div 
+                      className={cn(
+                        "p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        !acceptRequestedDate 
+                          ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30" 
+                          : "border-muted hover:border-muted-foreground/30"
+                      )}
+                      onClick={() => setAcceptRequestedDate(false)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                          !acceptRequestedDate ? "border-orange-500 bg-orange-500" : "border-muted-foreground/40"
+                        )}>
+                          {!acceptRequestedDate && <CheckCircle className="h-3.5 w-3.5 text-white" />}
+                        </div>
+                        <div className="font-semibold text-sm">📅 Propongo una data diversa</div>
                       </div>
-                      <div className="font-semibold text-sm">📅 Propongo una data diversa</div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Date input - only shown when proposing different date */}
-                  {!acceptRequestedDate && (
-                    <div className="space-y-1.5 pl-8">
+                  {/* Date input - shown when proposing different date OR when no requested date exists */}
+                  {(!acceptRequestedDate || !order.expected_delivery_date) && (
+                    <div className={cn("space-y-1.5", order.expected_delivery_date && "pl-8")}>
                       <Label className="font-medium">Data di consegna prevista *</Label>
                       <Input
                         type="date"
