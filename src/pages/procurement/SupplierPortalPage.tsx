@@ -62,22 +62,29 @@ export default function SupplierPortalPage() {
   
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(`supplier-archived-${supplierId}`);
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch { return new Set(); }
-  });
 
-  const toggleArchive = useCallback((orderId: string) => {
-    setArchivedOrderIds(prev => {
-      const next = new Set(prev);
-      if (next.has(orderId)) next.delete(orderId);
-      else next.add(orderId);
-      localStorage.setItem(`supplier-archived-${supplierId}`, JSON.stringify([...next]));
-      return next;
-    });
-  }, [supplierId]);
+  const archivedOrderIds = new Set(orders.filter(o => o.archived).map(o => o.id));
+
+  const toggleArchive = useCallback(async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    const newArchived = !order.archived;
+    
+    // Optimistic update
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, archived: newArchived } : o));
+    
+    try {
+      const { error } = await supabase.functions.invoke('supplier-update-status', {
+        body: { orderId, toggleArchive: newArchived }
+      });
+      if (error) throw error;
+      toast.success(newArchived ? "Ordine archiviato" : "Ordine ripristinato");
+    } catch {
+      // Revert on error
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, archived: !newArchived } : o));
+      toast.error("Errore nell'archiviazione");
+    }
+  }, [orders]);
 
   const handleDragEnd = useCallback(async (result: DropResult) => {
     const { draggableId, destination, source } = result;

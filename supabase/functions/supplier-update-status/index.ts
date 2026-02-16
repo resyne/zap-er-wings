@@ -35,11 +35,40 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { orderId, status, notes }: UpdateStatusRequest = await req.json();
+    const body = await req.json();
+    const { orderId, status, notes, toggleArchive: archiveValue } = body;
 
-    if (!orderId || !status) {
+    if (!orderId) {
       return new Response(
-        JSON.stringify({ error: "Order ID e status sono richiesti" }),
+        JSON.stringify({ error: "Order ID è richiesto" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Handle archive toggle
+    if (typeof archiveValue === 'boolean') {
+      const { error: archiveError } = await supabase
+        .from('purchase_orders')
+        .update({ archived: archiveValue })
+        .eq('id', orderId);
+
+      if (archiveError) {
+        console.error("Error toggling archive:", archiveError);
+        return new Response(
+          JSON.stringify({ error: "Errore durante l'archiviazione" }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: archiveValue ? "Ordine archiviato" : "Ordine ripristinato" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!status) {
+      return new Response(
+        JSON.stringify({ error: "Status è richiesto" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
