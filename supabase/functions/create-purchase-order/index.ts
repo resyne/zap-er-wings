@@ -213,9 +213,7 @@ const handler = async (req: Request): Promise<Response> => {
         ? new Date(expected_delivery_date).toLocaleDateString('it-IT')
         : "Da concordare";
 
-      const confirmationUrl = confirmation 
-        ? `https://erp.abbattitorizapper.it/procurement/purchase-order-confirm?token=${confirmationToken}`
-        : null;
+      const confirmationUrl = `https://erp.abbattitorizapper.it/supplier/${supplier_id}`;
 
       // Build items table HTML
       const itemsHtml = materials.map(material => {
@@ -285,30 +283,25 @@ const handler = async (req: Request): Promise<Response> => {
                 </ul>
               </div>
 
-              ${confirmationUrl ? `
-                <div style="background-color: #d4edda; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #28a745;">
+              <div style="background-color: #d4edda; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #28a745;">
                   <h2 style="color: #155724; margin-top: 0; font-size: 20px;">🎯 CONFERMA ORDINE RICHIESTA</h2>
                   <p style="color: #155724; margin: 15px 0; font-size: 16px; font-weight: bold;">
-                    IMPORTANTE: Confermate la ricezione di questo ordine e comunicate la vostra data di consegna
+                    IMPORTANTE: Accedete al vostro Portale Fornitore per confermare l'ordine e comunicare la data di consegna
                   </p>
                   <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
                     <p style="color: #333; margin: 10px 0; font-size: 14px;">
-                      • Cliccate sul bottone per confermare la ricezione<br>
-                      • Indicate la vostra data di consegna<br>  
-                      • Aggiungete eventuali note sui prezzi o specifiche
+                      • Accedete al portale con il vostro codice<br>
+                      • Confermate la ricezione dell'ordine<br>  
+                      • Indicate la vostra data di consegna
                     </p>
                   </div>
                   <a href="${confirmationUrl}" 
                      style="display: inline-block; background-color: #28a745; color: white; padding: 15px 35px; 
                             text-decoration: none; border-radius: 8px; font-weight: bold; margin: 15px 0; 
                             font-size: 16px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                    ✅ CONFERMA RICEZIONE E CONSEGNA
+                    ✅ ACCEDI AL PORTALE FORNITORE
                   </a>
-                  <p style="color: #155724; font-size: 12px; margin: 10px 0;">
-                    Link valido per 30 giorni. Una volta confermato, l'ordine passerà automaticamente allo stato "Confermato".
-                  </p>
                 </div>
-              ` : ''}
 
               <div style="background-color: #e9ecef; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
                 <p style="margin: 0; color: #666; font-size: 14px;">
@@ -346,9 +339,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (supplier.notify_whatsapp && supplierContactPhone) {
       console.log("WhatsApp notification enabled for supplier:", supplier.name);
       
-      const confirmationUrl = confirmation 
-        ? `https://erp.abbattitorizapper.it/procurement/purchase-order-confirm?token=${confirmationToken}`
-        : null;
+      const confirmationUrl = `https://erp.abbattitorizapper.it/supplier/${supplier_id}`;
 
       // Build a concise WhatsApp message with the confirmation link
       const itemsSummary = materials.map(material => {
@@ -364,13 +355,10 @@ const handler = async (req: Request): Promise<Response> => {
       let whatsappMessage = `📦 *Nuovo Ordine di Acquisto N° ${purchaseOrder.number}*\n\n`;
       whatsappMessage += `📅 Data: ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}\n`;
       whatsappMessage += `🚚 Consegna richiesta: ${deliveryText}\n\n`;
-      whatsappMessage += `*Articoli:*\n${itemsSummary}\n`;
       if (notes) {
         whatsappMessage += `\n📝 Note: ${notes}\n`;
       }
-      if (confirmationUrl) {
-        whatsappMessage += `\n✅ *Conferma l'ordine qui:*\n${confirmationUrl}`;
-      }
+      whatsappMessage += `\n✅ *Accedi al Portale Fornitore:*\n${confirmationUrl}`;
 
       try {
         // Find the first active WhatsApp account to send from
