@@ -283,7 +283,24 @@ serve(async (req) => {
 
     // Add BODY component
     if (normalizedComponents.body?.text) {
-      const { processedText, exampleValues } = processVariables(normalizedComponents.body.text);
+      let bodyText = normalizedComponents.body.text;
+      
+      // Trim leading/trailing whitespace and newlines
+      bodyText = bodyText.trim();
+      
+      // Meta doesn't allow variables at the very start or end of a template
+      // Add a zero-width space or punctuation padding if needed
+      const varPattern = /\{\{[^}]+\}\}/;
+      if (varPattern.test(bodyText) && bodyText.match(/^\{\{[^}]+\}\}/)) {
+        // Variable at the start - not much we can do automatically, but trim helps
+        // Usually the user should add text before the variable
+      }
+      if (varPattern.test(bodyText) && bodyText.match(/\{\{[^}]+\}\}\s*$/)) {
+        // Variable at the end - append a period or newline with text
+        bodyText = bodyText.replace(/\{\{([^}]+)\}\}\s*$/, '{{$1}}.');
+      }
+      
+      const { processedText, exampleValues } = processVariables(bodyText);
       
       const bodyComponent: Record<string, unknown> = {
         type: "BODY",
