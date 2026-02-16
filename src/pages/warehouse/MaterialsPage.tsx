@@ -78,11 +78,14 @@ export default function MaterialsPage() {
   const [searchParams] = useSearchParams();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [loading, setLoading] = useState(true);
+  const [newCategory, setNewCategory] = useState("");
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const { toast } = useToast();
   const { hideAmounts } = useHideAmounts();
 
@@ -184,9 +187,26 @@ export default function MaterialsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials' as any)
+        .select('category')
+        .not('category', 'is', null)
+        .neq('category', '');
+
+      if (error) throw error;
+      const unique = [...new Set((data || []).map((d: any) => d.category as string))].sort();
+      setCategories(unique);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
   useEffect(() => {
     fetchMaterials();
     fetchSuppliers();
+    fetchCategories();
   }, []);
 
   // Realtime updates
@@ -353,12 +373,22 @@ export default function MaterialsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Anagrafica Materiali</h1>
         </div>
         {selectedSupplier && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setShowNewCategoryInput(false);
+              setNewCategory("");
+            }
+          }}>
             <DialogTrigger asChild>
               <Button 
                 onClick={() => {
                   setEditingMaterial(null);
-                  form.reset();
+                  form.reset({ 
+                    name: "", description: "", material_type: "materiale", category: "",
+                    unit: "pcs", cost: 0, minimum_stock: 0, maximum_stock: 0, current_stock: 0, location: "",
+                    supplier_id: selectedSupplier 
+                  });
                 }}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -432,9 +462,66 @@ export default function MaterialsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoria</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
+                        {!showNewCategoryInput ? (
+                          <div className="space-y-2">
+                            <Select onValueChange={(val) => {
+                              if (val === '__new__') {
+                                setShowNewCategoryInput(true);
+                              } else {
+                                field.onChange(val);
+                              }
+                            }} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona categoria" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {categories.map((cat) => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                                <SelectItem value="__new__">
+                                  <span className="flex items-center gap-1"><Plus className="h-3 w-3" /> Nuova categoria</span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input 
+                                placeholder="Nome categoria..." 
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (newCategory.trim()) {
+                                      field.onChange(newCategory.trim());
+                                      if (!categories.includes(newCategory.trim())) {
+                                        setCategories(prev => [...prev, newCategory.trim()].sort());
+                                      }
+                                      setShowNewCategoryInput(false);
+                                      setNewCategory("");
+                                    }
+                                  }
+                                }}
+                              />
+                            </FormControl>
+                            <Button type="button" size="sm" variant="outline" onClick={() => {
+                              if (newCategory.trim()) {
+                                field.onChange(newCategory.trim());
+                                if (!categories.includes(newCategory.trim())) {
+                                  setCategories(prev => [...prev, newCategory.trim()].sort());
+                                }
+                              }
+                              setShowNewCategoryInput(false);
+                              setNewCategory("");
+                            }}>
+                              OK
+                            </Button>
+                          </div>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
