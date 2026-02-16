@@ -462,6 +462,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [acceptRequestedDate, setAcceptRequestedDate] = useState(true);
   const [deliveryDate, setDeliveryDate] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [newComment, setNewComment] = useState("");
@@ -474,7 +475,8 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
   const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
 
   const handleConfirmOrder = async () => {
-    if (!deliveryDate) {
+    const finalDate = acceptRequestedDate ? order.expected_delivery_date : deliveryDate;
+    if (!finalDate) {
       toast.error("Inserisci la data di consegna");
       return;
     }
@@ -482,7 +484,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
     setIsSubmitting(true);
     try {
       const { error } = await supabase.functions.invoke('supplier-confirm-order', {
-        body: { orderId: order.id, deliveryDate, supplierNotes }
+        body: { orderId: order.id, deliveryDate: finalDate, supplierNotes }
       });
       if (error) throw error;
       toast.success("Ordine confermato!");
@@ -599,10 +601,10 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
             <div className="p-4 space-y-4">
               {/* Delivery Date Requested */}
               {order.expected_delivery_date && (
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-xs text-muted-foreground mb-1">Consegna richiesta</div>
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div className="text-xs text-muted-foreground mb-1">📅 Richiesta consegna entro il</div>
                   <div className="text-lg font-bold flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
+                    <Calendar className="h-5 w-5 text-yellow-600" />
                     {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
                       weekday: 'long', day: 'numeric', month: 'long' 
                     })}
@@ -665,16 +667,69 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   Conferma Ordine
                 </h4>
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label className="font-medium">Data di consegna prevista *</Label>
-                    <Input
-                      type="date"
-                      value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="text-base h-12"
-                    />
+                  {/* Option: Accept requested date */}
+                  {order.expected_delivery_date && (
+                    <div 
+                      className={cn(
+                        "p-4 rounded-lg border-2 cursor-pointer transition-all",
+                        acceptRequestedDate 
+                          ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
+                          : "border-muted hover:border-muted-foreground/30"
+                      )}
+                      onClick={() => setAcceptRequestedDate(true)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                          acceptRequestedDate ? "border-green-500 bg-green-500" : "border-muted-foreground/40"
+                        )}>
+                          {acceptRequestedDate && <CheckCircle className="h-3.5 w-3.5 text-white" />}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-sm">✅ Confermo la data richiesta</div>
+                          <div className="text-sm text-muted-foreground">
+                            Consegna entro il {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Option: Propose different date */}
+                  <div 
+                    className={cn(
+                      "p-4 rounded-lg border-2 cursor-pointer transition-all",
+                      !acceptRequestedDate 
+                        ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30" 
+                        : "border-muted hover:border-muted-foreground/30"
+                    )}
+                    onClick={() => setAcceptRequestedDate(false)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                        !acceptRequestedDate ? "border-orange-500 bg-orange-500" : "border-muted-foreground/40"
+                      )}>
+                        {!acceptRequestedDate && <CheckCircle className="h-3.5 w-3.5 text-white" />}
+                      </div>
+                      <div className="font-semibold text-sm">📅 Propongo una data diversa</div>
+                    </div>
                   </div>
+
+                  {/* Date input - only shown when proposing different date */}
+                  {!acceptRequestedDate && (
+                    <div className="space-y-1.5 pl-8">
+                      <Label className="font-medium">Data di consegna prevista *</Label>
+                      <Input
+                        type="date"
+                        value={deliveryDate}
+                        onChange={(e) => setDeliveryDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="text-base h-12"
+                      />
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <Label>Note (opzionale)</Label>
                     <Textarea
@@ -688,7 +743,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
                   <Button 
                     className="w-full h-12 text-base gap-2" 
                     onClick={handleConfirmOrder}
-                    disabled={!deliveryDate || isSubmitting}
+                    disabled={(!acceptRequestedDate && !deliveryDate) || isSubmitting}
                   >
                     <CheckCircle className="h-5 w-5" />
                     {isSubmitting ? "Conferma in corso..." : "Conferma Ordine"}
@@ -703,7 +758,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
               {/* Delivery Date */}
               {order.expected_delivery_date && (
                 <div className="p-4 bg-muted/50 rounded-lg">
-                  <div className="text-xs text-muted-foreground mb-1">Consegna prevista</div>
+                  <div className="text-xs text-muted-foreground mb-1">Richiesta consegna entro il</div>
                   <div className="text-lg font-bold flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
                     {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { 
