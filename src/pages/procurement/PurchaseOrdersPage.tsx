@@ -622,7 +622,7 @@ export default function PurchaseOrdersPage() {
                   <TableHead>Numero</TableHead>
                   <TableHead>Fornitore</TableHead>
                   <TableHead>Data Ordine</TableHead>
-                  <TableHead>Consegna</TableHead>
+                  <TableHead>Richiesta Consegna</TableHead>
                   <TableHead>Priorità</TableHead>
                   <TableHead>Articoli</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
@@ -764,7 +764,7 @@ export default function PurchaseOrdersPage() {
                     <p className="text-sm">{selectedOrder && new Date(selectedOrder.order_date).toLocaleDateString('it-IT')}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Consegna Prevista</label>
+                    <label className="text-sm font-medium text-muted-foreground">Richiesta consegna entro il</label>
                     <p className="text-sm">
                       {selectedOrder?.expected_delivery_date 
                         ? new Date(selectedOrder.expected_delivery_date).toLocaleDateString('it-IT')
@@ -1010,7 +1010,7 @@ export default function PurchaseOrdersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Consegna Prevista</label>
+                  <label className="text-sm font-medium">Richiesta consegna entro il (opzionale)</label>
                   <Input
                     type="date"
                     value={newOrder.expected_delivery_date}
