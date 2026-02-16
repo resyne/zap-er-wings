@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2611,131 +2612,159 @@ const syncTemplatesMutation = useMutation({
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">Attivo</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Lingua</TableHead>
-                      <TableHead>Stato</TableHead>
-                      <TableHead>Creato</TableHead>
-                      <TableHead className="text-right">Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {templates?.map(template => (
-                      <TableRow 
-                        key={template.id} 
-                        className={`cursor-pointer hover:bg-muted/50 ${template.is_disabled ? 'opacity-50' : ''}`}
-                        onClick={() => openTemplatePreview(template)}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Switch
-                            checked={!template.is_disabled}
-                            onCheckedChange={(checked) => 
-                              toggleTemplateDisabledMutation.mutate({ 
-                                templateId: template.id, 
-                                isDisabled: !checked 
-                              })
-                            }
-                            disabled={toggleTemplateDisabledMutation.isPending}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {template.name}
-                          {template.is_disabled && (
-                            <Badge variant="outline" className="ml-2 text-muted-foreground">
-                              Disabilitato
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getCategoryColor(template.category)}>
-                            {template.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{template.language.toUpperCase()}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(template.status)}>
-                            {template.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(template.created_at), 'dd/MM/yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            {/* Translate button - only for IT templates that don't have all translations */}
-                            {template.language === 'it' && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                disabled={translateTemplateMutation.isPending}
-                                onClick={() => translateTemplateMutation.mutate(template.id)}
-                                title="Traduci in EN, FR, ES"
-                              >
-                                {translateTemplateMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Languages className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                            {(template.status === 'PENDING' || template.status === 'FAILED') && !template.meta_template_id && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                disabled={uploadTemplateToMetaMutation.isPending}
-                                onClick={() => uploadTemplateToMetaMutation.mutate(template.id)}
-                              >
-                                {uploadTemplateToMetaMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                ) : template.status === 'FAILED' ? (
-                                  <RefreshCw className="h-4 w-4 mr-1" />
-                                ) : (
-                                  <Upload className="h-4 w-4 mr-1" />
-                                )}
-                                {template.status === 'FAILED' ? 'Riprova' : 'Carica su Meta'}
-                              </Button>
-                            )}
-                            {template.status === 'APPROVED' && !template.is_disabled && (
-                              <Button 
-                                variant="default" 
-                                size="sm"
-                                onClick={() => openSendTemplateDialog(template)}
-                              >
-                                <Send className="h-4 w-4 mr-1" />
-                                Invia
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              disabled={deleteTemplateMutation.isPending}
-                              onClick={() => {
-                                if (confirm('Sei sicuro di voler eliminare questo template? L\'azione è irreversibile.')) {
-                                  deleteTemplateMutation.mutate(template.id);
-                                }
-                              }}
-                              title="Elimina template"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(!templates || templates.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          Nessun template creato
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                {(() => {
+                  const categoryOrder = ['MARKETING', 'UTILITY', 'AUTHENTICATION'];
+                  const grouped = (templates || []).reduce<Record<string, WhatsAppTemplate[]>>((acc, t) => {
+                    const cat = t.category || 'OTHER';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(t);
+                    return acc;
+                  }, {});
+                  const categories = categoryOrder.filter(c => grouped[c]?.length);
+                  // Add any categories not in the predefined order
+                  Object.keys(grouped).forEach(c => {
+                    if (!categories.includes(c)) categories.push(c);
+                  });
+
+                  if (categories.length === 0) {
+                    return (
+                      <div className="text-center text-muted-foreground py-8">
+                        Nessun template creato
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Accordion type="multiple" defaultValue={categories} className="w-full">
+                      {categories.map(category => (
+                        <AccordionItem key={category} value={category} className="border-b-0">
+                          <AccordionTrigger className="hover:no-underline py-3 px-3 rounded-lg hover:bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                              <Badge className={getCategoryColor(category)}>{category}</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ({grouped[category].length} template)
+                              </span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-2 pt-0">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[50px]">Attivo</TableHead>
+                                  <TableHead>Nome</TableHead>
+                                  <TableHead>Lingua</TableHead>
+                                  <TableHead>Stato</TableHead>
+                                  <TableHead>Creato</TableHead>
+                                  <TableHead className="text-right">Azioni</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {grouped[category].map(template => (
+                                  <TableRow 
+                                    key={template.id} 
+                                    className={`cursor-pointer hover:bg-muted/50 ${template.is_disabled ? 'opacity-50' : ''}`}
+                                    onClick={() => openTemplatePreview(template)}
+                                  >
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <Switch
+                                        checked={!template.is_disabled}
+                                        onCheckedChange={(checked) => 
+                                          toggleTemplateDisabledMutation.mutate({ 
+                                            templateId: template.id, 
+                                            isDisabled: !checked 
+                                          })
+                                        }
+                                        disabled={toggleTemplateDisabledMutation.isPending}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                      {template.name}
+                                      {template.is_disabled && (
+                                        <Badge variant="outline" className="ml-2 text-muted-foreground">
+                                          Disabilitato
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{template.language.toUpperCase()}</TableCell>
+                                    <TableCell>
+                                      <Badge className={getStatusColor(template.status)}>
+                                        {template.status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      {format(new Date(template.created_at), 'dd/MM/yyyy')}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                        {template.language === 'it' && (
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            disabled={translateTemplateMutation.isPending}
+                                            onClick={() => translateTemplateMutation.mutate(template.id)}
+                                            title="Traduci in EN, FR, ES"
+                                          >
+                                            {translateTemplateMutation.isPending ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Languages className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        )}
+                                        {(template.status === 'PENDING' || template.status === 'FAILED') && !template.meta_template_id && (
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            disabled={uploadTemplateToMetaMutation.isPending}
+                                            onClick={() => uploadTemplateToMetaMutation.mutate(template.id)}
+                                          >
+                                            {uploadTemplateToMetaMutation.isPending ? (
+                                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                            ) : template.status === 'FAILED' ? (
+                                              <RefreshCw className="h-4 w-4 mr-1" />
+                                            ) : (
+                                              <Upload className="h-4 w-4 mr-1" />
+                                            )}
+                                            {template.status === 'FAILED' ? 'Riprova' : 'Carica su Meta'}
+                                          </Button>
+                                        )}
+                                        {template.status === 'APPROVED' && !template.is_disabled && (
+                                          <Button 
+                                            variant="default" 
+                                            size="sm"
+                                            onClick={() => openSendTemplateDialog(template)}
+                                          >
+                                            <Send className="h-4 w-4 mr-1" />
+                                            Invia
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive"
+                                          disabled={deleteTemplateMutation.isPending}
+                                          onClick={() => {
+                                            if (confirm('Sei sicuro di voler eliminare questo template? L\'azione è irreversibile.')) {
+                                              deleteTemplateMutation.mutate(template.id);
+                                            }
+                                          }}
+                                          title="Elimina template"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
