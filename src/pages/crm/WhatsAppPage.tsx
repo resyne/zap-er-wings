@@ -657,10 +657,17 @@ export default function WhatsAppPage() {
       
       return newTemplate;
     },
-    onSuccess: async (newTemplate) => {
+    onSuccess: async (newTemplate, variables) => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
-      toast.success('Template creato! Sto generando le traduzioni AI in EN, FR, ES...');
       setIsTemplateDialogOpen(false);
+      
+      // Only trigger translation if translateAll was checked
+      if (!variables.translateAll) {
+        toast.success('Template creato con successo!');
+        return;
+      }
+      
+      toast.success('Template creato! Sto generando le traduzioni AI in EN, FR, ES...');
       
       // Trigger AI translation in background
       try {

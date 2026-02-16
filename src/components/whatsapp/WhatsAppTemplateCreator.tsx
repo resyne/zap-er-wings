@@ -36,6 +36,7 @@ export interface TemplateFormData {
   body: string;
   footer: string;
   buttons: TemplateButton[];
+  translateAll: boolean;
 }
 
 const HEADER_OPTIONS = [
@@ -66,7 +67,8 @@ export function WhatsAppTemplateCreator({
     headerText: "",
     body: "",
     footer: "",
-    buttons: []
+    buttons: [],
+    translateAll: true
   });
 
   // Reset form when dialog opens
@@ -80,7 +82,8 @@ export function WhatsAppTemplateCreator({
         headerText: "",
         body: "",
         footer: "",
-        buttons: []
+        buttons: [],
+        translateAll: true
       });
     }
   }, [isOpen]);
@@ -201,6 +204,19 @@ export function WhatsAppTemplateCreator({
                     <SelectItem value="AUTHENTICATION">🔐 Autenticazione</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="translateAll"
+                  checked={formData.translateAll}
+                  onChange={(e) => setFormData(prev => ({ ...prev, translateAll: e.target.checked }))}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <Label htmlFor="translateAll" className="text-sm font-normal cursor-pointer">
+                  Traduci automaticamente in tutte le lingue (EN, FR, ES, DE)
+                </Label>
               </div>
             </div>
 
