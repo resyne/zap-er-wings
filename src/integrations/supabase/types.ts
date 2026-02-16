@@ -9167,12 +9167,14 @@ export type Database = {
           code: string
           contact_email: string | null
           contact_name: string | null
+          contact_phone: string | null
           country: string | null
           created_at: string | null
           email: string | null
           id: string
           last_access_at: string | null
           name: string
+          notify_whatsapp: boolean | null
           payment_terms: number | null
           phone: string | null
           tax_id: string | null
@@ -9186,12 +9188,14 @@ export type Database = {
           code: string
           contact_email?: string | null
           contact_name?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           last_access_at?: string | null
           name: string
+          notify_whatsapp?: boolean | null
           payment_terms?: number | null
           phone?: string | null
           tax_id?: string | null
@@ -9205,12 +9209,14 @@ export type Database = {
           code?: string
           contact_email?: string | null
           contact_name?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           last_access_at?: string | null
           name?: string
+          notify_whatsapp?: boolean | null
           payment_terms?: number | null
           phone?: string | null
           tax_id?: string | null
