@@ -352,14 +352,11 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (waAccount) {
           // Send using approved template "nuovo_ordine_fornitore_temp"
-          // Template body: "Ciao {{1}}\nc'è un nuovo ordine di acquisto\naccedi al portale fornitore per confermare\n{{6}}\n\nGrazie"
+          // Template body has {{1}} (name) and {{6}} (link) but Meta renumbers params sequentially
+          // So we send only 2 params: {{1}} = name, {{2}} = portal link
           const templateParams = [
             recipientName,           // {{1}} - supplier/contact name
-            purchaseOrder.number,    // {{2}}
-            new Date(purchaseOrder.order_date).toLocaleDateString('it-IT'), // {{3}}
-            expected_delivery_date ? new Date(expected_delivery_date).toLocaleDateString('it-IT') : 'Da concordare', // {{4}}
-            notes || '-',            // {{5}}
-            confirmationUrl,         // {{6}} - portal link
+            confirmationUrl,         // {{2}} - portal link
           ];
 
           const waResponse = await fetch(
