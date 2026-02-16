@@ -339,12 +339,89 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Send WhatsApp notification if enabled for this supplier
+    let whatsappSent = false;
+    const supplierContactPhone = supplier.contact_phone;
+    
+    if (supplier.notify_whatsapp && supplierContactPhone) {
+      console.log("WhatsApp notification enabled for supplier:", supplier.name);
+      
+      const confirmationUrl = confirmation 
+        ? `https://erp.abbattitorizapper.it/procurement/purchase-order-confirm?token=${confirmationToken}`
+        : null;
+
+      // Build a concise WhatsApp message with the confirmation link
+      const itemsSummary = materials.map(material => {
+        const item = items.find(i => i.material_id === material.id);
+        if (!item) return '';
+        return `• ${material.code} - ${material.name}: ${item.quantity} ${material.unit}`;
+      }).filter(Boolean).join('\n');
+
+      const deliveryText = expected_delivery_date 
+        ? new Date(expected_delivery_date).toLocaleDateString('it-IT')
+        : "Da concordare";
+
+      let whatsappMessage = `📦 *Nuovo Ordine di Acquisto N° ${purchaseOrder.number}*\n\n`;
+      whatsappMessage += `📅 Data: ${new Date(purchaseOrder.order_date).toLocaleDateString('it-IT')}\n`;
+      whatsappMessage += `🚚 Consegna richiesta: ${deliveryText}\n\n`;
+      whatsappMessage += `*Articoli:*\n${itemsSummary}\n`;
+      if (notes) {
+        whatsappMessage += `\n📝 Note: ${notes}\n`;
+      }
+      if (confirmationUrl) {
+        whatsappMessage += `\n✅ *Conferma l'ordine qui:*\n${confirmationUrl}`;
+      }
+
+      try {
+        // Find the first active WhatsApp account to send from
+        const { data: waAccount } = await supabase
+          .from('whatsapp_accounts')
+          .select('id')
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+
+        if (waAccount) {
+          // Call whatsapp-send edge function internally
+          const waResponse = await fetch(
+            `${supabaseUrl}/functions/v1/whatsapp-send`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                account_id: waAccount.id,
+                to: supplierContactPhone,
+                type: 'text',
+                content: whatsappMessage,
+              }),
+            }
+          );
+
+          const waResult = await waResponse.json();
+          if (waResult.success) {
+            whatsappSent = true;
+            console.log("WhatsApp notification sent to:", supplierContactPhone);
+          } else {
+            console.error("WhatsApp send failed:", waResult.error);
+          }
+        } else {
+          console.warn("No active WhatsApp account found for sending notification");
+        }
+      } catch (waError) {
+        console.error("Error sending WhatsApp notification:", waError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         purchaseOrder: purchaseOrder,
         orderItems: orderItems,
-        emailSent: !!recipientEmail
+        emailSent: !!recipientEmail,
+        whatsappSent: whatsappSent
       }),
       {
         status: 200,
