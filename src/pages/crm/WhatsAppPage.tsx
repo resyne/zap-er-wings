@@ -40,6 +40,7 @@ import { WhatsAppNotificationSettings } from "@/components/whatsapp/WhatsAppNoti
 import { WhatsAppAISettingsDialog } from "@/components/whatsapp/WhatsAppAISettingsDialog";
 import WhatsAppVideoPlayer from "@/components/whatsapp/WhatsAppVideoPlayer";
 import WhatsAppImageDisplay from "@/components/whatsapp/WhatsAppImageDisplay";
+import WhatsAppAudioPlayer from "@/components/crm/WhatsAppAudioPlayer";
 import SaveToLeadButton from "@/components/whatsapp/SaveToLeadButton";
 import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLanguageFlag } from "@/hooks/useChatTranslation";
 import { useAuth } from "@/hooks/useAuth";
@@ -122,12 +123,15 @@ interface WhatsAppMessage {
   content: string | null;
   media_url: string | null;
   template_name: string | null;
-  template_language: string | null; // Language code of the template used
+  template_language: string | null;
   template_params?: string[] | null;
   status: string;
   error_message: string | null;
   created_at: string;
   sent_by: string | null;
+  transcription?: string | null;
+  transcription_translated?: string | null;
+  transcription_language?: string | null;
 }
 
 interface CreditTransaction {
@@ -1934,15 +1938,16 @@ const syncTemplatesMutation = useMutation({
                                   
                                   {msg.message_type === 'audio' && msg.media_url && (
                                     <>
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <Volume2 className="h-4 w-4 flex-shrink-0" />
-                                        <audio 
-                                          src={msg.media_url} 
-                                          controls 
-                                          className="max-w-full h-8"
-                                        />
-                                      </div>
-                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && (
+                                      <WhatsAppAudioPlayer
+                                        messageId={msg.id}
+                                        mediaId={msg.media_url}
+                                        accountId={selectedAccount?.id || ''}
+                                        isDownloaded={!!msg.media_url && (msg.media_url.startsWith('http://') || msg.media_url.startsWith('https://'))}
+                                        existingTranscription={msg.transcription}
+                                        existingTranslation={msg.transcription_translated}
+                                        existingLanguage={msg.transcription_language}
+                                      />
+                                      {msg.direction === 'inbound' && selectedConversation?.lead_id && msg.media_url && (
                                         <SaveToLeadButton
                                           leadId={selectedConversation.lead_id}
                                           mediaUrl={msg.media_url}
