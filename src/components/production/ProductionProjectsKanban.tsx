@@ -17,8 +17,9 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Loader2, GripVertical, Calendar, Target,
   ArrowUpDown, Zap, Weight, Edit, Trash2, Archive,
-  BarChart3, Eye
+  BarChart3, Eye, Paperclip
 } from "lucide-react";
+import { ProjectAttachments, AttachmentCountBadge } from "./ProjectAttachments";
 
 interface ProductionProject {
   id: string;
@@ -132,6 +133,7 @@ function ProjectCard({ project, onEdit, onStatusChange }: {
 
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <span>{new Date(project.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
+          <AttachmentCountBadge projectId={project.id} />
           {project.assigned_to && <span className="truncate max-w-[80px]">{project.assigned_to}</span>}
           {project.due_date && (
             <span className="flex items-center gap-0.5">
@@ -311,6 +313,10 @@ function ProjectFormDialog({ project, open, onClose, onSaved }: {
               <Label>Note</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1" />
             </div>
+
+            {isEdit && project && (
+              <ProjectAttachments projectId={project.id} />
+            )}
           </div>
         </ScrollArea>
         <DialogFooter className="flex justify-between">
