@@ -222,6 +222,7 @@ export default function PurchaseOrdersPage() {
           ),
           purchase_order_items (
             id,
+            material_id,
             quantity,
             unit_price,
             material:materials (
