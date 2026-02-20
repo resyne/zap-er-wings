@@ -72,7 +72,9 @@ import {
   ExternalLink,
   X,
   Archive,
-  Trash2
+  Trash2,
+  Pencil,
+  Save
 } from "lucide-react";
 
 interface PurchaseOrder {
@@ -128,6 +130,14 @@ export default function PurchaseOrdersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    notes: "",
+    expected_delivery_date: "",
+    priority: "",
+    items: [] as Array<{ id?: string; material_id: string; quantity: number; unit_price: number }>
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -432,6 +442,81 @@ export default function PurchaseOrdersPage() {
     }));
   };
 
+  const startEditing = (order: PurchaseOrder) => {
+    setEditData({
+      notes: (order as any).notes || "",
+      expected_delivery_date: order.expected_delivery_date || "",
+      priority: order.priority || "media",
+      items: (order.purchase_order_items || []).map((item: any) => ({
+        id: item.id,
+        material_id: item.material_id || item.material?.id || "",
+        quantity: item.quantity,
+        unit_price: item.unit_price || 0,
+      })),
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedOrder) return;
+    setIsSavingEdit(true);
+    try {
+      // Update order fields
+      const { error: orderError } = await supabase
+        .from('purchase_orders')
+        .update({
+          notes: editData.notes || null,
+          expected_delivery_date: editData.expected_delivery_date || null,
+          priority: editData.priority,
+        })
+        .eq('id', selectedOrder.id);
+
+      if (orderError) throw orderError;
+
+      // Update items quantities
+      for (const item of editData.items) {
+        if (item.id) {
+          const { error: itemError } = await supabase
+            .from('purchase_order_items')
+            .update({ quantity: item.quantity, unit_price: item.unit_price })
+            .eq('id', item.id);
+          if (itemError) throw itemError;
+        }
+      }
+
+      // Recalculate total
+      const total = editData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      await supabase
+        .from('purchase_orders')
+        .update({ total_amount: total, subtotal: total })
+        .eq('id', selectedOrder.id);
+
+      toast.success("Ordine aggiornato con successo");
+      setIsEditing(false);
+      fetchOrders();
+
+      // Refresh selected order
+      const { data: updatedOrder } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          suppliers (name, access_code),
+          purchase_order_items (*, material:materials (*)),
+          purchase_order_comments (*),
+          purchase_order_attachments (*),
+          purchase_order_change_requests (*)
+        `)
+        .eq('id', selectedOrder.id)
+        .single();
+      if (updatedOrder) setSelectedOrder(updatedOrder);
+    } catch (error: any) {
+      console.error('Error saving edit:', error);
+      toast.error("Errore nel salvataggio delle modifiche");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const removeOrderItem = (index: number) => {
     setNewOrder(prev => ({
       ...prev,
@@ -710,31 +795,54 @@ export default function PurchaseOrdersPage() {
       </Card>
 
       {/* Order Details Dialog */}
-      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+      <Dialog open={detailsDialogOpen} onOpenChange={(open) => { setDetailsDialogOpen(open); if (!open) setIsEditing(false); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>{selectedOrder?.number}</span>
               {selectedOrder && (
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => copySupplierLink(selectedOrder)}
-                    className="gap-2"
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copia Link
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => openSupplierPortal(selectedOrder)}
-                    className="gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Portale Fornitore
-                  </Button>
+                  {isEditing ? (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+                        Annulla
+                      </Button>
+                      <Button size="sm" onClick={handleSaveEdit} disabled={isSavingEdit} className="gap-2">
+                        <Save className="h-4 w-4" />
+                        {isSavingEdit ? "Salvataggio..." : "Salva"}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => startEditing(selectedOrder)}
+                        className="gap-2"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Modifica
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copySupplierLink(selectedOrder)}
+                        className="gap-2"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copia Link
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openSupplierPortal(selectedOrder)}
+                        className="gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Portale Fornitore
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </DialogTitle>
@@ -766,16 +874,27 @@ export default function PurchaseOrdersPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Richiesta consegna entro il</label>
-                    <p className="text-sm">
-                      {selectedOrder?.expected_delivery_date 
-                        ? new Date(selectedOrder.expected_delivery_date).toLocaleDateString('it-IT')
-                        : '-'}
-                    </p>
+                    {isEditing ? (
+                      <Input
+                        type="date"
+                        value={editData.expected_delivery_date}
+                        onChange={(e) => setEditData(prev => ({ ...prev, expected_delivery_date: e.target.value }))}
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-sm">
+                        {selectedOrder?.expected_delivery_date 
+                          ? new Date(selectedOrder.expected_delivery_date).toLocaleDateString('it-IT')
+                          : '-'}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Importo Totale</label>
                     <p className="text-lg font-bold">
-                      €{selectedOrder?.total_amount?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      €{isEditing 
+                        ? editData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })
+                        : selectedOrder?.total_amount?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div>
@@ -788,18 +907,55 @@ export default function PurchaseOrdersPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Priorità</label>
-                    <div className="mt-1">
-                      {selectedOrder?.priority && priorityConfig[selectedOrder.priority as keyof typeof priorityConfig] && (
-                        <Badge className={priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].color}>
-                          {priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].label}
-                        </Badge>
-                      )}
-                    </div>
+                    {isEditing ? (
+                      <Select
+                        value={editData.priority}
+                        onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                          <SelectItem value="alta">🟠 Alta</SelectItem>
+                          <SelectItem value="media">🟡 Media</SelectItem>
+                          <SelectItem value="bassa">🔵 Bassa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="mt-1">
+                        {selectedOrder?.priority && priorityConfig[selectedOrder.priority as keyof typeof priorityConfig] && (
+                          <Badge className={priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].color}>
+                            {priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].label}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {/* Notes */}
+                {(isEditing || (selectedOrder as any)?.notes) && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Note</label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editData.notes}
+                        onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={3}
+                        className="mt-1"
+                        placeholder="Note sull'ordine..."
+                      />
+                    ) : (
+                      <p className="text-sm mt-1 whitespace-pre-wrap bg-muted/50 p-2 rounded-md">
+                        {(selectedOrder as any)?.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Status Buttons for confirmed orders */}
-                {selectedOrder?.production_status && selectedOrder.production_status !== 'pending' && (
+                {!isEditing && selectedOrder?.production_status && selectedOrder.production_status !== 'pending' && (
                   <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
                     <label className="text-sm font-medium text-muted-foreground">Aggiorna Stato Produzione</label>
                     <div className="flex flex-wrap gap-2">
@@ -846,24 +1002,70 @@ export default function PurchaseOrdersPage() {
                 <div>
                   <h4 className="font-semibold mb-3">Articoli Ordinati</h4>
                   <div className="space-y-2">
-                    {selectedOrder?.purchase_order_items?.map((item: any, idx: number) => (
-                      <div key={idx} className="p-3 border rounded-lg flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{item.material?.name || item.description}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Codice: {item.material?.code || '-'} • Quantità: {item.quantity}
+                    {isEditing ? (
+                      editData.items.map((item, idx) => (
+                        <div key={idx} className="p-3 border rounded-lg flex justify-between items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">
+                              {materials.find(m => m.id === item.material_id)?.name || 'Materiale'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Codice: {materials.find(m => m.id === item.material_id)?.code || '-'}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Qtà</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const newItems = [...editData.items];
+                                  newItems[idx] = { ...newItems[idx], quantity: parseFloat(e.target.value) || 1 };
+                                  setEditData(prev => ({ ...prev, items: newItems }));
+                                }}
+                                className="w-20"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Prezzo (€)</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unit_price}
+                                onChange={(e) => {
+                                  const newItems = [...editData.items];
+                                  newItems[idx] = { ...newItems[idx], unit_price: parseFloat(e.target.value) || 0 };
+                                  setEditData(prev => ({ ...prev, items: newItems }));
+                                }}
+                                className="w-24"
+                              />
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-semibold">
-                            €{item.unit_price?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      ))
+                    ) : (
+                      selectedOrder?.purchase_order_items?.map((item: any, idx: number) => (
+                        <div key={idx} className="p-3 border rounded-lg flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{item.material?.name || item.description}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Codice: {item.material?.code || '-'} • Quantità: {item.quantity}
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            Tot: €{(item.quantity * item.unit_price).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                          <div className="text-right">
+                            <div className="font-semibold">
+                              €{item.unit_price?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Tot: €{(item.quantity * item.unit_price).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </TabsContent>
