@@ -39,8 +39,8 @@ interface OfferLivePreviewProps {
 const companyInfo = {
   climatel: {
     name: "CLIMATEL di Elefante Pasquale",
-    piva: "IT02053990667",
-    address: "Via Michelangelo Buonarroti, 23 - 67051 Avezzano (AQ)"
+    piva: "IT03895390650",
+    address: "Via Galileo Ferraris, 24 - 84018 Scafati (SA)"
   },
   unita1: {
     name: "UNITA 1 di Stanislao Elefante",
