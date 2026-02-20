@@ -548,7 +548,7 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
   const priority = order.priority ? priorityConfig[order.priority as keyof typeof priorityConfig] : null;
 
   const handleConfirmOrder = async () => {
-    const finalDate = acceptRequestedDate ? order.expected_delivery_date : deliveryDate;
+    const finalDate = (acceptRequestedDate && order.expected_delivery_date) ? order.expected_delivery_date : deliveryDate;
     if (!finalDate) {
       toast.error("Inserisci la data di consegna");
       return;
