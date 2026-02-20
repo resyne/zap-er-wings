@@ -6,10 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Normalizza numero italiano rimuovendo prefissi internazionali e caratteri speciali
+// Normalizza numero rimuovendo TUTTI i caratteri non numerici (inclusi Unicode invisibili)
 function normalizeItalianPhone(phone: string): string {
   if (!phone) return '';
-  let normalized = phone.replace(/[\s\-\(\)\.\+]/g, '');
+  // Rimuovi TUTTO ciò che non è un digit
+  let normalized = phone.replace(/[^\d]/g, '');
+  // Rimuovi prefisso internazionale italiano
   if (normalized.startsWith('0039')) {
     normalized = normalized.slice(4);
   } else if (normalized.startsWith('39') && normalized.length > 10) {
