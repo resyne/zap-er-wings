@@ -17,9 +17,12 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Loader2, GripVertical, Calendar, Target,
   ArrowUpDown, Zap, Weight, Edit, Trash2, Archive,
-  BarChart3, Eye, Paperclip
+  BarChart3, Eye, Paperclip, ListChecks, MessageSquare, Activity
 } from "lucide-react";
 import { ProjectAttachments, AttachmentCountBadge } from "./ProjectAttachments";
+import { ProjectTasks } from "./ProjectTasks";
+import { ProjectComments } from "./ProjectComments";
+import { ProjectActivityLog } from "./ProjectActivityLog";
 
 interface ProductionProject {
   id: string;
@@ -217,108 +220,196 @@ function ProjectFormDialog({ project, open, onClose, onSaved }: {
     onSaved();
   };
 
+  const logActivity = async (action: string, details: string) => {
+    if (!project) return;
+    await supabase.from("production_project_activity_log").insert({
+      project_id: project.id,
+      action,
+      details,
+      created_by: user?.id,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh]">
+      <DialogContent className={cn("max-h-[90vh]", isEdit ? "max-w-3xl" : "max-w-lg")}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifica Progetto" : "Nuovo Progetto"}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
-          <div className="space-y-4">
-            <div>
-              <Label>Titolo *</Label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome del progetto" className="mt-1" />
-            </div>
-            <div>
-              <Label>Descrizione</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="mt-1" />
-            </div>
 
-            {isEdit && (
-              <div>
-                <Label>Stato</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {columns.map(c => (
-                      <SelectItem key={c.key} value={c.key}>{c.icon} {c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+        {isEdit && project ? (
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="w-full grid grid-cols-5">
+              <TabsTrigger value="details" className="text-xs gap-1"><Edit className="h-3 w-3" /> Dettagli</TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs gap-1"><ListChecks className="h-3 w-3" /> Task</TabsTrigger>
+              <TabsTrigger value="comments" className="text-xs gap-1"><MessageSquare className="h-3 w-3" /> Commenti</TabsTrigger>
+              <TabsTrigger value="attachments" className="text-xs gap-1"><Paperclip className="h-3 w-3" /> Allegati</TabsTrigger>
+              <TabsTrigger value="log" className="text-xs gap-1"><Activity className="h-3 w-3" /> Log</TabsTrigger>
+            </TabsList>
 
-            {/* Impact/Effort/Urgency Matrix */}
-            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                Matrice Priorità
-              </h4>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs flex items-center gap-1">
-                    <Target className="h-3 w-3 text-red-500" /> Impatto
-                  </Label>
-                  <span className="text-xs font-bold text-red-600">{impact}/5</span>
+            <TabsContent value="details">
+              <ScrollArea className="max-h-[55vh] pr-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label>Titolo *</Label>
+                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome del progetto" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Descrizione</Label>
+                    <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Stato</Label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {columns.map(c => (
+                          <SelectItem key={c.key} value={c.key}>{c.icon} {c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" /> Matrice Priorità
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs flex items-center gap-1"><Target className="h-3 w-3 text-red-500" /> Impatto</Label>
+                        <span className="text-xs font-bold text-red-600">{impact}/5</span>
+                      </div>
+                      <Slider value={[impact]} onValueChange={v => setImpact(v[0])} min={1} max={5} step={1} />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs flex items-center gap-1"><Weight className="h-3 w-3 text-blue-500" /> Sforzo</Label>
+                        <span className="text-xs font-bold text-blue-600">{effort}/5</span>
+                      </div>
+                      <Slider value={[effort]} onValueChange={v => setEffort(v[0])} min={1} max={5} step={1} />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs flex items-center gap-1"><Zap className="h-3 w-3 text-yellow-500" /> Urgenza</Label>
+                        <span className="text-xs font-bold text-yellow-600">{urgency}/5</span>
+                      </div>
+                      <Slider value={[urgency]} onValueChange={v => setUrgency(v[0])} min={1} max={5} step={1} />
+                    </div>
+                    <MatrixDot impact={impact} effort={effort} />
+                    <div className="text-center text-xs text-muted-foreground">
+                      Punteggio priorità: <span className="font-bold">{((impact * 2 + urgency - effort) / 2).toFixed(1)}</span>
+                      <br /><span className="text-[10px]">(Impatto×2 + Urgenza - Sforzo) / 2</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Assegnato a</Label>
+                      <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Nome" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Data Inizio</Label>
+                      <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Scadenza</Label>
+                      <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Note</Label>
+                    <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1" />
+                  </div>
                 </div>
-                <Slider value={[impact]} onValueChange={v => setImpact(v[0])} min={1} max={5} step={1} className="w-full" />
-              </div>
+              </ScrollArea>
+            </TabsContent>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs flex items-center gap-1">
-                    <Weight className="h-3 w-3 text-blue-500" /> Sforzo
-                  </Label>
-                  <span className="text-xs font-bold text-blue-600">{effort}/5</span>
+            <TabsContent value="tasks">
+              <ScrollArea className="max-h-[55vh] pr-4">
+                <ProjectTasks projectId={project.id} />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="comments">
+              <ScrollArea className="max-h-[55vh] pr-4">
+                <ProjectComments projectId={project.id} />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="attachments">
+              <ScrollArea className="max-h-[55vh] pr-4">
+                <ProjectAttachments projectId={project.id} />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="log">
+              <ScrollArea className="max-h-[55vh] pr-4">
+                <ProjectActivityLog projectId={project.id} />
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4">
+              <div>
+                <Label>Titolo *</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome del progetto" className="mt-1" />
+              </div>
+              <div>
+                <Label>Descrizione</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="mt-1" />
+              </div>
+              <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" /> Matrice Priorità
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs flex items-center gap-1"><Target className="h-3 w-3 text-red-500" /> Impatto</Label>
+                    <span className="text-xs font-bold text-red-600">{impact}/5</span>
+                  </div>
+                  <Slider value={[impact]} onValueChange={v => setImpact(v[0])} min={1} max={5} step={1} />
                 </div>
-                <Slider value={[effort]} onValueChange={v => setEffort(v[0])} min={1} max={5} step={1} className="w-full" />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs flex items-center gap-1">
-                    <Zap className="h-3 w-3 text-yellow-500" /> Urgenza
-                  </Label>
-                  <span className="text-xs font-bold text-yellow-600">{urgency}/5</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs flex items-center gap-1"><Weight className="h-3 w-3 text-blue-500" /> Sforzo</Label>
+                    <span className="text-xs font-bold text-blue-600">{effort}/5</span>
+                  </div>
+                  <Slider value={[effort]} onValueChange={v => setEffort(v[0])} min={1} max={5} step={1} />
                 </div>
-                <Slider value={[urgency]} onValueChange={v => setUrgency(v[0])} min={1} max={5} step={1} className="w-full" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs flex items-center gap-1"><Zap className="h-3 w-3 text-yellow-500" /> Urgenza</Label>
+                    <span className="text-xs font-bold text-yellow-600">{urgency}/5</span>
+                  </div>
+                  <Slider value={[urgency]} onValueChange={v => setUrgency(v[0])} min={1} max={5} step={1} />
+                </div>
+                <MatrixDot impact={impact} effort={effort} />
+                <div className="text-center text-xs text-muted-foreground">
+                  Punteggio priorità: <span className="font-bold">{((impact * 2 + urgency - effort) / 2).toFixed(1)}</span>
+                  <br /><span className="text-[10px]">(Impatto×2 + Urgenza - Sforzo) / 2</span>
+                </div>
               </div>
-
-              <MatrixDot impact={impact} effort={effort} />
-
-              <div className="text-center text-xs text-muted-foreground">
-                Punteggio priorità: <span className="font-bold">{((impact * 2 + urgency - effort) / 2).toFixed(1)}</span>
-                <br />
-                <span className="text-[10px]">(Impatto×2 + Urgenza - Sforzo) / 2</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Assegnato a</Label>
+                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Nome" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Data Inizio</Label>
+                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Scadenza</Label>
+                  <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1" />
+                </div>
+              </div>
+              <div>
+                <Label>Note</Label>
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1" />
               </div>
             </div>
+          </ScrollArea>
+        )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Assegnato a</Label>
-                <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Nome" className="mt-1" />
-              </div>
-              <div>
-                <Label>Data Inizio</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label>Scadenza</Label>
-                <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1" />
-              </div>
-            </div>
-
-            <div>
-              <Label>Note</Label>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="mt-1" />
-            </div>
-
-            {isEdit && project && (
-              <ProjectAttachments projectId={project.id} />
-            )}
-          </div>
-        </ScrollArea>
         <DialogFooter className="flex justify-between">
           <div>
             {isEdit && (
