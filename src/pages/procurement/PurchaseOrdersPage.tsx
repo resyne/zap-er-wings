@@ -141,7 +141,7 @@ export default function PurchaseOrdersPage() {
     notes: "",
     expected_delivery_date: "",
     priority: "",
-    items: [] as Array<{ id?: string; material_id: string; quantity: number; unit_price: number }>
+    items: [] as Array<{ id?: string; material_id: string; quantity: number; unit_price: number; _deleted?: boolean; _new?: boolean }>
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -483,19 +483,39 @@ export default function PurchaseOrdersPage() {
 
       if (orderError) throw orderError;
 
-      // Update items quantities
-      for (const item of editData.items) {
-        if (item.id) {
-          const { error: itemError } = await supabase
-            .from('purchase_order_items')
-            .update({ quantity: item.quantity, unit_price: item.unit_price })
-            .eq('id', item.id);
-          if (itemError) throw itemError;
-        }
+      // Handle deleted items
+      const deletedItems = editData.items.filter(item => item._deleted && item.id);
+      for (const item of deletedItems) {
+        await supabase.from('purchase_order_items').delete().eq('id', item.id!);
       }
 
-      // Recalculate total
-      const total = editData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      // Handle new items
+      const newItems = editData.items.filter(item => item._new && !item._deleted);
+      if (newItems.length > 0) {
+        const { error: insertError } = await supabase.from('purchase_order_items').insert(
+          newItems.map(item => ({
+            purchase_order_id: selectedOrder.id,
+            material_id: item.material_id || null,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.quantity * item.unit_price,
+          }))
+        );
+        if (insertError) throw insertError;
+      }
+
+      // Update existing items
+      const existingItems = editData.items.filter(item => item.id && !item._deleted && !item._new);
+      for (const item of existingItems) {
+        const { error: itemError } = await supabase
+          .from('purchase_order_items')
+          .update({ quantity: item.quantity, unit_price: item.unit_price, material_id: item.material_id || null })
+          .eq('id', item.id!);
+        if (itemError) throw itemError;
+      }
+
+      // Recalculate total (exclude deleted)
+      const total = editData.items.filter(i => !i._deleted).reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       await supabase
         .from('purchase_orders')
         .update({ total_amount: total, subtotal: total })
@@ -956,7 +976,7 @@ export default function PurchaseOrdersPage() {
                     <label className="text-sm font-medium text-muted-foreground">Importo Totale</label>
                     <p className="text-lg font-bold">
                       €{isEditing 
-                        ? editData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })
+                        ? editData.items.filter(i => !i._deleted).reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })
                         : selectedOrder?.total_amount?.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -1063,52 +1083,124 @@ export default function PurchaseOrdersPage() {
                 )}
 
                 <div>
-                  <h4 className="font-semibold mb-3">Articoli Ordinati</h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold">Articoli Ordinati</h4>
+                    {isEditing && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditData(prev => ({
+                            ...prev,
+                            items: [...prev.items, { material_id: "", quantity: 1, unit_price: 0, _new: true }]
+                          }));
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> Aggiungi
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {isEditing ? (
-                      editData.items.map((item, idx) => (
-                        <div key={idx} className="p-3 border rounded-lg flex justify-between items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">
-                              {materials.find(m => m.id === item.material_id)?.name || 'Materiale'}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Codice: {materials.find(m => m.id === item.material_id)?.code || '-'}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <label className="text-xs text-muted-foreground">Qtà</label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => {
+                      editData.items.filter(i => !i._deleted).map((item, idx) => {
+                        const realIdx = editData.items.indexOf(item);
+                        return (
+                          <div key={realIdx} className="p-3 border rounded-lg space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" role="combobox" className="flex-1 justify-between text-sm h-9">
+                                    {item.material_id
+                                      ? materials.find(m => m.id === item.material_id)?.name || "Materiale"
+                                      : "Seleziona materiale..."}
+                                    <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Cerca materiale..." />
+                                    <CommandList>
+                                      <CommandEmpty>Nessun materiale trovato.</CommandEmpty>
+                                      <CommandGroup>
+                                        {materials.map(material => (
+                                          <CommandItem
+                                            key={material.id}
+                                            value={`${material.name} ${material.code}`}
+                                            onSelect={() => {
+                                              const newItems = [...editData.items];
+                                              newItems[realIdx] = { ...newItems[realIdx], material_id: material.id };
+                                              setEditData(prev => ({ ...prev, items: newItems }));
+                                            }}
+                                          >
+                                            <Check className={cn("mr-2 h-4 w-4", item.material_id === material.id ? "opacity-100" : "opacity-0")} />
+                                            <div>
+                                              <div className="text-sm">{material.name}</div>
+                                              <div className="text-xs text-muted-foreground">{material.code}</div>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-destructive hover:text-destructive"
+                                onClick={() => {
                                   const newItems = [...editData.items];
-                                  newItems[idx] = { ...newItems[idx], quantity: parseFloat(e.target.value) || 1 };
+                                  if (newItems[realIdx]._new) {
+                                    newItems.splice(realIdx, 1);
+                                  } else {
+                                    newItems[realIdx] = { ...newItems[realIdx], _deleted: true };
+                                  }
                                   setEditData(prev => ({ ...prev, items: newItems }));
                                 }}
-                                className="w-20"
-                              />
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground">Prezzo (€)</label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.unit_price}
-                                onChange={(e) => {
-                                  const newItems = [...editData.items];
-                                  newItems[idx] = { ...newItems[idx], unit_price: parseFloat(e.target.value) || 0 };
-                                  setEditData(prev => ({ ...prev, items: newItems }));
-                                }}
-                                className="w-24"
-                              />
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground">Qtà</label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const newItems = [...editData.items];
+                                    newItems[realIdx] = { ...newItems[realIdx], quantity: parseFloat(e.target.value) || 1 };
+                                    setEditData(prev => ({ ...prev, items: newItems }));
+                                  }}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground">Prezzo (€)</label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.unit_price}
+                                  onChange={(e) => {
+                                    const newItems = [...editData.items];
+                                    newItems[realIdx] = { ...newItems[realIdx], unit_price: parseFloat(e.target.value) || 0 };
+                                    setEditData(prev => ({ ...prev, items: newItems }));
+                                  }}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs text-muted-foreground">Totale</label>
+                                <p className="text-sm font-medium h-8 flex items-center">
+                                  €{(item.quantity * item.unit_price).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       selectedOrder?.purchase_order_items?.map((item: any, idx: number) => (
                         <div key={idx} className="p-3 border rounded-lg flex justify-between items-center">
