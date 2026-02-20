@@ -34,13 +34,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { from, to, subject, body, smtp_config }: SendEmailRequest = await req.json();
+    const requestBody = await req.json();
+    const { from, to, subject, body, html, smtp_config } = requestBody;
 
-    console.log("Sending email via SMTP from:", from, "to:", to);
+    console.log("Sending email from:", from, "to:", to);
+
+    if (!smtp_config) {
+      // No SMTP config provided - log and return success (notification-only mode)
+      console.log("No SMTP config provided, skipping actual send. Subject:", subject);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Email notification logged (no SMTP config provided)",
+          smtp_used: false
+        }), 
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     console.log("SMTP config:", { 
-      server: smtp_config.server, 
+      server: smtp_config.server || smtp_config.host, 
       port: smtp_config.port, 
-      email: smtp_config.email.substring(0, 5) + "***" 
+      email: (smtp_config.email || smtp_config.user || '').substring(0, 5) + "***" 
     });
 
     // Validate email addresses
