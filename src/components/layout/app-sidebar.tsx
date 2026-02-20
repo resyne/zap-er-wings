@@ -121,6 +121,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Distinte Base", url: "/mfg/bom", icon: Database },
       { title: "Esecuzioni", url: "/mfg/executions", icon: Clock },
       { title: "Certificazioni", url: "/mfg/certifications", icon: ShieldCheck },
+      { title: "Progetti", url: "/mfg/projects", icon: Target },
     ]
   },
   {
