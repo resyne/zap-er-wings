@@ -84,11 +84,17 @@ interface PurchaseOrder {
   suppliers?: {
     name: string;
     access_code: string;
+    email?: string;
+    contact_email?: string;
+    contact_name?: string;
+    contact_phone?: string;
+    notify_whatsapp?: boolean;
   };
   order_date: string;
   expected_delivery_date?: string;
   estimated_delivery_date?: string;
   total_amount: number;
+  notes?: string;
   production_status: string;
   priority?: string;
   supplier_confirmed_at?: string;
@@ -179,7 +185,7 @@ export default function PurchaseOrdersPage() {
             .from('purchase_orders')
             .select(`
               *,
-              suppliers (name, access_code),
+              suppliers (name, access_code, email, contact_email, contact_phone, notify_whatsapp),
               purchase_order_items (*),
               purchase_order_comments (*),
               purchase_order_attachments (*),
@@ -208,7 +214,11 @@ export default function PurchaseOrdersPage() {
           *,
           suppliers (
             name,
-            access_code
+            access_code,
+            email,
+            contact_email,
+            contact_phone,
+            notify_whatsapp
           ),
           purchase_order_items (
             id,
@@ -372,7 +382,7 @@ export default function PurchaseOrdersPage() {
         .from('purchase_orders')
         .select(`
           *,
-          suppliers (name, access_code),
+          suppliers (name, access_code, email, contact_email, contact_phone, notify_whatsapp),
           purchase_order_items (*),
           purchase_order_comments (*),
           purchase_order_attachments (*),
@@ -491,7 +501,60 @@ export default function PurchaseOrdersPage() {
         .update({ total_amount: total, subtotal: total })
         .eq('id', selectedOrder.id);
 
-      toast.success("Ordine aggiornato con successo");
+      // Notify supplier about the modification
+      try {
+        const supplierEmail = selectedOrder.suppliers?.contact_email || selectedOrder.suppliers?.email;
+        if (supplierEmail) {
+          const portalUrl = `https://erp.abbattitorizapper.it/supplier/${selectedOrder.supplier_id}`;
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: supplierEmail,
+              subject: `⚠️ Ordine ${selectedOrder.number} modificato`,
+              html: `
+                <h2>Ordine di Acquisto Modificato</h2>
+                <p>Gentile <strong>${selectedOrder.suppliers?.contact_name || selectedOrder.suppliers?.name}</strong>,</p>
+                <p>L'ordine <strong>${selectedOrder.number}</strong> è stato modificato. Ti preghiamo di verificare le modifiche nel portale fornitori.</p>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                  <p style="margin: 0; font-weight: bold;">Modifiche apportate:</p>
+                  <ul style="margin: 10px 0 0 0;">
+                    ${editData.expected_delivery_date !== (selectedOrder.expected_delivery_date || '') ? `<li>Data di consegna richiesta aggiornata</li>` : ''}
+                    ${editData.notes !== (selectedOrder.notes || '') ? `<li>Note aggiornate</li>` : ''}
+                    ${editData.priority !== (selectedOrder.priority || 'normal') ? `<li>Priorità aggiornata: ${editData.priority}</li>` : ''}
+                    <li>Verifica quantità e prezzi nel portale</li>
+                  </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${portalUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600;">
+                    Apri Portale Fornitore
+                  </a>
+                </div>
+                
+                <p><small>Data modifica: ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}</small></p>
+              `,
+              from: 'Ordini Acquisto <noreply@abbattitorizapper.it>'
+            }
+          });
+          console.log('Supplier notification email sent');
+        }
+
+        // WhatsApp notification if enabled
+        if (selectedOrder.suppliers?.notify_whatsapp && selectedOrder.suppliers?.contact_phone) {
+          await supabase.functions.invoke('wasender-send', {
+            body: {
+              phone: selectedOrder.suppliers.contact_phone,
+              message: `⚠️ *Ordine ${selectedOrder.number} modificato*\n\nGentile ${selectedOrder.suppliers?.name}, l'ordine è stato modificato. Verifica le modifiche nel portale fornitori:\nhttps://erp.abbattitorizapper.it/supplier/${selectedOrder.supplier_id}`
+            }
+          });
+          console.log('Supplier WhatsApp notification sent');
+        }
+      } catch (notifyError) {
+        console.error('Error notifying supplier:', notifyError);
+        // Don't block the save flow
+      }
+
+      toast.success("Ordine aggiornato e fornitore notificato");
       setIsEditing(false);
       fetchOrders();
 
@@ -500,7 +563,7 @@ export default function PurchaseOrdersPage() {
         .from('purchase_orders')
         .select(`
           *,
-          suppliers (name, access_code),
+          suppliers (name, access_code, email, contact_email, contact_phone, notify_whatsapp),
           purchase_order_items (*, material:materials (*)),
           purchase_order_comments (*),
           purchase_order_attachments (*),
