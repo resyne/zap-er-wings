@@ -1224,11 +1224,6 @@ export default function PurchaseOrdersPage() {
           </Tabs>
 
           {/* Design Requests for COEM SRL */}
-          {selectedOrder?.supplier_id && (
-            <div className="mt-4 border-t pt-4">
-              <DesignRequestsSection supplierId={selectedOrder.supplier_id} isSupplierView={false} />
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
