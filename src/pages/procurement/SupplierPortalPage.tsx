@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   Package, Clock, CheckCircle, AlertCircle, MessageSquare, 
   Paperclip, Send, ChevronRight, ChevronLeft, Calendar,
-  X, History, Upload, Eye, Archive, GripVertical
+  X, History, Upload, Eye, Archive, GripVertical, Download, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -413,6 +413,12 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
 
             {/* Row 3: Meta info */}
             <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+              {order.created_at && (
+                <div className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  {new Date(order.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })}
+                </div>
+              )}
               {order.expected_delivery_date && (
                 <div className={cn(
                   "flex items-center gap-1",
@@ -457,6 +463,58 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
       </CardContent>
     </Card>
   );
+}
+
+// Generate PDF for an order
+function generateOrderPdf(order: any) {
+  const items = order.purchase_order_items || [];
+  const html = `
+    <html>
+    <head><style>
+      body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+      h1 { font-size: 22px; margin-bottom: 4px; }
+      .meta { color: #666; font-size: 13px; margin-bottom: 24px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; font-size: 14px; }
+      th { background: #f5f5f5; font-weight: 600; }
+      .section { margin-top: 24px; }
+      .label { font-weight: 600; font-size: 13px; color: #555; margin-bottom: 4px; }
+    </style></head>
+    <body>
+      <h1>Ordine di Acquisto ${order.number}</h1>
+      <div class="meta">
+        Data inserimento: ${order.created_at ? new Date(order.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+        ${order.expected_delivery_date ? '<br>Consegna richiesta: ' + new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+      </div>
+      
+      ${items.length > 0 ? `
+      <table>
+        <thead><tr><th>#</th><th>Codice</th><th>Descrizione</th><th>Qtà</th><th>Unità</th></tr></thead>
+        <tbody>
+          ${items.map((item: any, i: number) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${item.material?.code || '-'}</td>
+              <td>${item.material?.name || item.description || '-'}</td>
+              <td style="text-align:center;font-weight:600">${item.quantity}</td>
+              <td>${item.material?.unit || 'pz'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>` : '<p>Nessun articolo</p>'}
+
+      ${order.notes ? `<div class="section"><div class="label">Note:</div><p>${order.notes}</p></div>` : ''}
+    </body>
+    </html>
+  `;
+
+  // Open in new window for printing/saving as PDF
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+  }
 }
 
 // Order Detail Sheet (Full-screen on mobile)
@@ -592,13 +650,32 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
             Torna alla lista
           </button>
           <div className="px-4 py-3 border-b bg-card">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold">{order.number}</h2>
-              {priority && <span className="text-base">{priority.emoji}</span>}
-              <Badge className={cn("text-[11px] px-2 py-0.5", status.color, "text-white")}>
-                {status.label}
-              </Badge>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold">{order.number}</h2>
+                {priority && <span className="text-base">{priority.emoji}</span>}
+                <Badge className={cn("text-[11px] px-2 py-0.5", status.color, "text-white")}>
+                  {status.label}
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  generateOrderPdf(order);
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+                PDF
+              </Button>
             </div>
+            {order.created_at && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Inserito il {new Date(order.created_at).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
           </div>
         </div>
 
