@@ -427,7 +427,12 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
                   {new Date(order.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })}
                 </div>
               )}
-              {order.expected_delivery_date && (
+              {order.estimated_delivery_date && order.production_status !== 'pending' ? (
+                <div className="flex items-center gap-1 text-emerald-600 font-medium">
+                  <CheckCircle className="h-3 w-3" />
+                  {new Date(order.estimated_delivery_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                </div>
+              ) : order.expected_delivery_date ? (
                 <div className={cn(
                   "flex items-center gap-1",
                   daysUntilDeadline !== null && daysUntilDeadline < 0 && "text-destructive font-medium",
@@ -436,7 +441,7 @@ function MobileOrderCard({ order, onClick, onUpdate, dragHandleProps, onArchive,
                   <Calendar className="h-3 w-3" />
                   {new Date(order.expected_delivery_date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
                 </div>
-              )}
+              ) : null}
               {commentsCount > 0 && (
                 <div className="flex items-center gap-1">
                   <MessageSquare className="h-3 w-3" />
