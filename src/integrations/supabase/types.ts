@@ -2100,6 +2100,132 @@ export type Database = {
           },
         ]
       }
+      design_request_comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          design_request_id: string
+          id: string
+          is_supplier: boolean | null
+        }
+        Insert: {
+          author_name: string
+          content: string
+          created_at?: string
+          design_request_id: string
+          id?: string
+          is_supplier?: boolean | null
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          design_request_id?: string
+          id?: string
+          is_supplier?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_request_comments_design_request_id_fkey"
+            columns: ["design_request_id"]
+            isOneToOne: false
+            referencedRelation: "design_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_request_files: {
+        Row: {
+          created_at: string
+          design_request_id: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          design_request_id: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          design_request_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_request_files_design_request_id_fkey"
+            columns: ["design_request_id"]
+            isOneToOne: false
+            referencedRelation: "design_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      design_requests: {
+        Row: {
+          accepted_at: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          estimate_notes: string | null
+          estimated_cost: number | null
+          estimated_hours: number | null
+          id: string
+          status: string
+          supplier_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimate_notes?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          id?: string
+          status?: string
+          supplier_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          estimate_notes?: string | null
+          estimated_cost?: number | null
+          estimated_hours?: number | null
+          id?: string
+          status?: string
+          supplier_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_requests_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_automation_logs: {
         Row: {
           automation_id: string

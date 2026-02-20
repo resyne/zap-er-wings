@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DesignRequestsSection } from "@/components/supplier-portal/DesignRequestsSection";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -956,6 +957,13 @@ export default function PurchaseOrdersPage() {
               </TabsContent>
             </ScrollArea>
           </Tabs>
+
+          {/* Design Requests for COEM SRL */}
+          {selectedOrder?.supplier_id && (
+            <div className="mt-4 border-t pt-4">
+              <DesignRequestsSection supplierId={selectedOrder.supplier_id} isSupplierView={false} />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
