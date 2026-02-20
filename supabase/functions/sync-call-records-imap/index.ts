@@ -476,12 +476,10 @@ async function syncLegacyConfig(supabase: any, config: any) {
   }
 }
 
-// Normalizza numero italiano rimuovendo prefissi internazionali e caratteri speciali
+// Normalizza numero rimuovendo TUTTI i caratteri non numerici (inclusi Unicode invisibili)
 function normalizeItalianPhone(phone: string): string {
   if (!phone) return '';
-  // Rimuovi spazi, trattini, parentesi, punti
-  let normalized = phone.replace(/[\s\-\(\)\.\+]/g, '');
-  // Rimuovi prefisso internazionale italiano (39, 0039)
+  let normalized = phone.replace(/[^\d]/g, '');
   if (normalized.startsWith('0039')) {
     normalized = normalized.slice(4);
   } else if (normalized.startsWith('39') && normalized.length > 10) {
