@@ -564,8 +564,10 @@ export default function PurchaseOrdersPage() {
         if (selectedOrder.suppliers?.notify_whatsapp && selectedOrder.suppliers?.contact_phone) {
           await supabase.functions.invoke('wasender-send', {
             body: {
-              phone: selectedOrder.suppliers.contact_phone,
-              message: `⚠️ *Ordine ${selectedOrder.number} modificato*\n\nGentile ${selectedOrder.suppliers?.name}, l'ordine è stato modificato. Verifica le modifiche nel portale fornitori:\nhttps://erp.abbattitorizapper.it/supplier/${selectedOrder.supplier_id}`
+              to: selectedOrder.suppliers.contact_phone,
+              text: `⚠️ *Ordine ${selectedOrder.number} modificato*\n\nGentile ${selectedOrder.suppliers?.name}, l'ordine è stato modificato. Verifica le modifiche nel portale fornitori:\nhttps://erp.abbattitorizapper.it/supplier/${selectedOrder.supplier_id}`,
+              accountId: 'wasender',
+              conversationId: selectedOrder.id
             }
           });
           console.log('Supplier WhatsApp notification sent');
