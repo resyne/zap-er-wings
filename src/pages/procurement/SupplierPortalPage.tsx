@@ -556,15 +556,16 @@ function OrderDetailSheet({ order, onClose, onUpdate }: {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.functions.invoke('supplier-confirm-order', {
+      const { data, error } = await supabase.functions.invoke('supplier-confirm-order', {
         body: { orderId: order.id, deliveryDate: finalDate, supplierNotes }
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success("Ordine confermato!");
-      setShowConfirmDialog(false);
       onUpdate();
-    } catch (error) {
-      toast.error("Errore durante la conferma");
+    } catch (error: any) {
+      console.error("Confirm order error:", error);
+      toast.error(error?.message || "Errore durante la conferma");
     } finally {
       setIsSubmitting(false);
     }
