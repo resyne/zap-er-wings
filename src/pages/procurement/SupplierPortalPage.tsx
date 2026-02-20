@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { DesignRequestsSection } from "@/components/supplier-portal/DesignRequestsSection";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -225,6 +226,13 @@ export default function SupplierPortalPage() {
           onToggleShowArchived={() => setShowArchived(prev => !prev)}
           onToggleArchive={toggleArchive}
         />
+
+        {/* Design Requests Section - only for COEM SRL */}
+        {supplierId && (
+          <div className="mt-6">
+            <DesignRequestsSection supplierId={supplierId} isSupplierView={true} />
+          </div>
+        )}
       </div>
 
       {/* Order Detail Sheet */}
