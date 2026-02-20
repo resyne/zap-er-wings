@@ -6385,6 +6385,74 @@ export type Database = {
           },
         ]
       }
+      production_projects: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          design_request_id: string | null
+          due_date: string | null
+          effort: number | null
+          id: string
+          impact: number | null
+          notes: string | null
+          priority_score: number | null
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+          urgency: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          design_request_id?: string | null
+          due_date?: string | null
+          effort?: number | null
+          id?: string
+          impact?: number | null
+          notes?: string | null
+          priority_score?: number | null
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          urgency?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          design_request_id?: string | null
+          due_date?: string | null
+          effort?: number | null
+          id?: string
+          impact?: number | null
+          notes?: string | null
+          priority_score?: number | null
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          urgency?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_projects_design_request_id_fkey"
+            columns: ["design_request_id"]
+            isOneToOne: false
+            referencedRelation: "design_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           base_price: number | null
