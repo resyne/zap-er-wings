@@ -95,6 +95,9 @@ export function DesignRequestsSection({ supplierId, isSupplierView = false }: De
 
   if (supplierId !== COEM_SUPPLIER_ID) return null;
 
+  // Export the supplier ID for reuse
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
