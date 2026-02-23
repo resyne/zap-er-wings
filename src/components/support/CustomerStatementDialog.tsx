@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Receipt } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -30,6 +32,10 @@ interface StatementReport {
   total_amount: number | null;
   payment_status: string;
   payment_date: string | null;
+  invoiced: boolean;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  customer_invoice_id: string | null;
   technicians?: { first_name: string; last_name: string };
 }
 
@@ -55,6 +61,10 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
   const [selectedYear, setSelectedYear] = useState<string>(String(currentDate.getFullYear()));
   const [reports, setReports] = useState<StatementReport[]>([]);
   const [loading, setLoading] = useState(false);
+  const [invoicingReportId, setInvoicingReportId] = useState<string | null>(null);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const { toast } = useToast();
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
@@ -84,6 +94,7 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
       .select(`
         id, report_number, intervention_date, intervention_type,
         amount, vat_rate, total_amount, payment_status, payment_date,
+        invoiced, invoice_number, invoice_date, customer_invoice_id,
         technicians ( first_name, last_name )
       `)
       .eq('customer_id', selectedCustomerId)
@@ -103,10 +114,97 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
       .from('service_reports')
       .update({ payment_status: newStatus, payment_date: paymentDate })
       .eq('id', reportId);
+
+    // If linked to scadenziario, update that too
+    const report = reports.find(r => r.id === reportId);
+    if (report?.customer_invoice_id) {
+      await supabase
+        .from('customer_invoices')
+        .update({ 
+          status: newStatus === 'pagato' ? 'paid' : 'pending',
+          payment_date: paymentDate
+        })
+        .eq('id', report.customer_invoice_id);
+    }
     
     setReports(prev => prev.map(r => 
       r.id === reportId ? { ...r, payment_status: newStatus, payment_date: paymentDate } : r
     ));
+  };
+
+  const markAsInvoiced = async (reportId: string) => {
+    if (!invoiceNumber.trim()) {
+      toast({ title: "Inserisci il numero fattura", variant: "destructive" });
+      return;
+    }
+
+    const report = reports.find(r => r.id === reportId);
+    if (!report || !selectedCustomer) return;
+
+    const invoiceDate = new Date().toISOString().split('T')[0];
+    const dueDate = invoiceDueDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+
+    // Create entry in customer_invoices (scadenziario)
+    const { data: invoiceData, error: invoiceError } = await supabase
+      .from('customer_invoices')
+      .insert({
+        invoice_number: invoiceNumber,
+        customer_name: selectedCustomer.company_name || selectedCustomer.name,
+        invoice_date: invoiceDate,
+        due_date: dueDate,
+        amount: Number(report.amount) || 0,
+        tax_amount: Number(report.total_amount || 0) - Number(report.amount || 0),
+        total_amount: Number(report.total_amount) || 0,
+        status: report.payment_status === 'pagato' ? 'paid' : 'pending',
+        payment_date: report.payment_status === 'pagato' ? report.payment_date : null,
+        notes: `Rapporto intervento ${report.report_number || reportId}`
+      })
+      .select('id')
+      .single();
+
+    if (invoiceError) {
+      toast({ title: "Errore creazione fattura nello scadenziario", description: invoiceError.message, variant: "destructive" });
+      return;
+    }
+
+    // Update service_report
+    await supabase
+      .from('service_reports')
+      .update({ 
+        invoiced: true, 
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        customer_invoice_id: invoiceData.id
+      })
+      .eq('id', reportId);
+
+    setReports(prev => prev.map(r => 
+      r.id === reportId ? { ...r, invoiced: true, invoice_number: invoiceNumber, invoice_date: invoiceDate, customer_invoice_id: invoiceData.id } : r
+    ));
+
+    setInvoicingReportId(null);
+    setInvoiceNumber('');
+    setInvoiceDueDate('');
+    toast({ title: "Rapporto segnato come fatturato e aggiunto allo scadenziario" });
+  };
+
+  const removeInvoice = async (reportId: string) => {
+    const report = reports.find(r => r.id === reportId);
+    
+    // Remove from scadenziario if linked
+    if (report?.customer_invoice_id) {
+      await supabase.from('customer_invoices').delete().eq('id', report.customer_invoice_id);
+    }
+
+    await supabase
+      .from('service_reports')
+      .update({ invoiced: false, invoice_number: null, invoice_date: null, customer_invoice_id: null })
+      .eq('id', reportId);
+
+    setReports(prev => prev.map(r => 
+      r.id === reportId ? { ...r, invoiced: false, invoice_number: null, invoice_date: null, customer_invoice_id: null } : r
+    ));
+    toast({ title: "Fatturazione rimossa" });
   };
 
   const totals = useMemo(() => {
@@ -114,7 +212,9 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
     const grossTotal = reports.reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
     const paid = reports.filter(r => r.payment_status === 'pagato').reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
     const unpaid = grossTotal - paid;
-    return { netTotal, grossTotal, paid, unpaid };
+    const invoicedTotal = reports.filter(r => r.invoiced).reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
+    const notInvoiced = grossTotal - invoicedTotal;
+    return { netTotal, grossTotal, paid, unpaid, invoicedTotal, notInvoiced };
   }, [reports]);
 
   const monthLabel = months.find(m => m.value === selectedMonth)?.label || '';
@@ -123,7 +223,6 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
     if (!selectedCustomer || reports.length === 0) return;
     const doc = new jsPDF();
 
-    // Header
     doc.setFontSize(16);
     doc.setFont(undefined!, "bold");
     doc.text("ESTRATTO CONTO - RAPPORTI DI INTERVENTO", 105, 20, { align: "center" });
@@ -132,7 +231,6 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
     doc.setFont(undefined!, "normal");
     doc.text(`Periodo: ${monthLabel} ${selectedYear}`, 105, 28, { align: "center" });
 
-    // Customer info
     let y = 40;
     doc.setFont(undefined!, "bold");
     doc.text("Cliente:", 20, y);
@@ -146,33 +244,31 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
     if (selectedCustomer.tax_id) { y += 5; doc.text(`P.IVA/CF: ${selectedCustomer.tax_id}`, 20, y); }
     y += 10;
 
-    // Table
     const tableData = reports.map(r => [
       r.report_number || '-',
       new Date(r.intervention_date).toLocaleDateString('it-IT'),
       r.intervention_type,
       r.technicians ? `${r.technicians.first_name} ${r.technicians.last_name}` : '-',
       r.amount ? `€${Number(r.amount).toFixed(2)}` : '-',
-      r.vat_rate != null ? `${Number(r.vat_rate).toFixed(0)}%` : '-',
       r.total_amount ? `€${Number(r.total_amount).toFixed(2)}` : '-',
+      r.invoiced ? `Sì (${r.invoice_number})` : 'No',
       r.payment_status === 'pagato' ? 'Pagato' : 'Non Pagato',
     ]);
 
     autoTable(doc, {
       startY: y,
-      head: [['N. Rapporto', 'Data', 'Tipo', 'Tecnico', 'Netto', 'IVA', 'Totale', 'Stato']],
+      head: [['N. Rapporto', 'Data', 'Tipo', 'Tecnico', 'Netto', 'Totale', 'Fatturato', 'Pagamento']],
       body: tableData,
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 7, cellPadding: 2 },
       headStyles: { fillColor: [41, 65, 122], textColor: 255, fontStyle: 'bold' },
       columnStyles: {
         4: { halign: 'right' },
-        5: { halign: 'center' },
-        6: { halign: 'right', fontStyle: 'bold' },
+        5: { halign: 'right', fontStyle: 'bold' },
+        6: { halign: 'center' },
         7: { halign: 'center' },
       },
     });
 
-    // Totals
     const finalY = (doc as any).lastAutoTable?.finalY || y + 20;
     let ty = finalY + 10;
     doc.setFontSize(10);
@@ -182,11 +278,12 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
     ty += 7;
     doc.text(`Totale Netto: €${totals.netTotal.toFixed(2)}`, 20, ty); ty += 6;
     doc.text(`Totale Lordo: €${totals.grossTotal.toFixed(2)}`, 20, ty); ty += 6;
+    doc.text(`Fatturato: €${totals.invoicedTotal.toFixed(2)}`, 20, ty); ty += 6;
+    doc.text(`Non Fatturato: €${totals.notInvoiced.toFixed(2)}`, 20, ty); ty += 6;
     doc.text(`Pagato: €${totals.paid.toFixed(2)}`, 20, ty); ty += 6;
     doc.setFont(undefined!, "bold");
     doc.text(`Da Pagare: €${totals.unpaid.toFixed(2)}`, 20, ty);
 
-    // Footer
     ty += 15;
     doc.setFontSize(8);
     doc.setFont(undefined!, "normal");
@@ -198,7 +295,7 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -264,7 +361,8 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
                       <th className="text-left p-2 border-b">Tipo</th>
                       <th className="text-right p-2 border-b">Netto</th>
                       <th className="text-right p-2 border-b">Totale</th>
-                      <th className="text-center p-2 border-b">Stato</th>
+                      <th className="text-center p-2 border-b">Fatturato</th>
+                      <th className="text-center p-2 border-b">Pagamento</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -275,6 +373,51 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
                         <td className="p-2 capitalize">{r.intervention_type}</td>
                         <td className="p-2 text-right">{r.amount ? `€${Number(r.amount).toFixed(2)}` : '-'}</td>
                         <td className="p-2 text-right font-medium">{r.total_amount ? `€${Number(r.total_amount).toFixed(2)}` : '-'}</td>
+                        <td className="p-2 text-center">
+                          {r.invoiced ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <Badge 
+                                className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 cursor-pointer"
+                                onClick={() => removeInvoice(r.id)}
+                              >
+                                <Receipt className="w-3 h-3 mr-1" />
+                                {r.invoice_number}
+                              </Badge>
+                            </div>
+                          ) : invoicingReportId === r.id ? (
+                            <div className="flex flex-col gap-1.5 items-center">
+                              <Input
+                                placeholder="N. Fattura"
+                                value={invoiceNumber}
+                                onChange={e => setInvoiceNumber(e.target.value)}
+                                className="h-7 text-xs w-28"
+                              />
+                              <Input
+                                type="date"
+                                placeholder="Scadenza"
+                                value={invoiceDueDate}
+                                onChange={e => setInvoiceDueDate(e.target.value)}
+                                className="h-7 text-xs w-28"
+                              />
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="default" className="h-6 text-xs px-2" onClick={() => markAsInvoiced(r.id)}>
+                                  Salva
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => { setInvoicingReportId(null); setInvoiceNumber(''); setInvoiceDueDate(''); }}>
+                                  ✕
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="cursor-pointer hover:bg-muted"
+                              onClick={() => { setInvoicingReportId(r.id); setInvoiceNumber(''); setInvoiceDueDate(''); }}
+                            >
+                              Non Fatturato
+                            </Badge>
+                          )}
+                        </td>
                         <td className="p-2 text-center">
                           <Badge
                             variant={r.payment_status === 'pagato' ? 'default' : 'destructive'}
@@ -291,7 +434,7 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
               </div>
 
               {/* Totals */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div className="bg-muted p-3 rounded-lg text-center">
                   <p className="text-xs text-muted-foreground">Totale Netto</p>
                   <p className="font-semibold">€{totals.netTotal.toFixed(2)}</p>
@@ -299,6 +442,14 @@ export function CustomerStatementDialog({ open, onOpenChange, customers }: Custo
                 <div className="bg-muted p-3 rounded-lg text-center">
                   <p className="text-xs text-muted-foreground">Totale Lordo</p>
                   <p className="font-semibold">€{totals.grossTotal.toFixed(2)}</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground">Fatturato</p>
+                  <p className="font-semibold text-blue-700 dark:text-blue-400">€{totals.invoicedTotal.toFixed(2)}</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground">Non Fatturato</p>
+                  <p className="font-semibold text-orange-700 dark:text-orange-400">€{totals.notInvoiced.toFixed(2)}</p>
                 </div>
                 <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg text-center">
                   <p className="text-xs text-muted-foreground">Pagato</p>

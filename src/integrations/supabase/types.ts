@@ -8287,6 +8287,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           customer_id: string | null
+          customer_invoice_id: string | null
           customer_signature: string | null
           description: string | null
           end_time: string | null
@@ -8294,6 +8295,9 @@ export type Database = {
           id: string
           intervention_date: string
           intervention_type: string
+          invoice_date: string | null
+          invoice_number: string | null
+          invoiced: boolean
           kilometers: number | null
           materials_used: string | null
           notes: string | null
@@ -8320,6 +8324,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
+          customer_invoice_id?: string | null
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
@@ -8327,6 +8332,9 @@ export type Database = {
           id?: string
           intervention_date: string
           intervention_type: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
@@ -8353,6 +8361,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           customer_id?: string | null
+          customer_invoice_id?: string | null
           customer_signature?: string | null
           description?: string | null
           end_time?: string | null
@@ -8360,6 +8369,9 @@ export type Database = {
           id?: string
           intervention_date?: string
           intervention_type?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          invoiced?: boolean
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
@@ -8393,6 +8405,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_customer_invoice_id_fkey"
+            columns: ["customer_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "customer_invoices"
             referencedColumns: ["id"]
           },
           {
