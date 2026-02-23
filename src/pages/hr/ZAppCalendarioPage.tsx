@@ -10,14 +10,9 @@ import {
   Wrench,
   Truck,
   CalendarDays,
-  Users,
   CheckSquare,
   Clock,
-  MapPin,
   FileText,
-  Phone,
-  Mail,
-  StickyNote,
 } from "lucide-react";
 import {
   format,
@@ -35,7 +30,6 @@ import { useCalendarData } from "@/components/direzione/calendario/useCalendarDa
 import {
   CalendarItem,
   statusLabels,
-  activityTypeLabels,
 } from "@/components/direzione/calendario/types";
 import {
   Sheet,
@@ -44,39 +38,29 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
+const WORK_ORDER_TYPES = ["work_order", "service_order", "shipping_order"];
+
 const typeConfig: Record<string, { label: string; icon: any; bg: string; border: string; text: string }> = {
-  task: { label: "Task", icon: CheckSquare, bg: "bg-blue-50", border: "border-l-blue-500", text: "text-blue-700" },
   work_order: { label: "Produzione", icon: Package, bg: "bg-purple-50", border: "border-l-purple-500", text: "text-purple-700" },
   service_order: { label: "Assistenza", icon: Wrench, bg: "bg-orange-50", border: "border-l-orange-500", text: "text-orange-700" },
   shipping_order: { label: "Spedizione", icon: Truck, bg: "bg-green-50", border: "border-l-green-500", text: "text-green-700" },
-  event: { label: "Evento", icon: CalendarDays, bg: "bg-indigo-50", border: "border-l-indigo-500", text: "text-indigo-700" },
-  lead_activity: { label: "CRM", icon: Users, bg: "bg-rose-50", border: "border-l-rose-500", text: "text-rose-700" },
 };
 
 function getItemDate(item: CalendarItem): Date | null {
   switch (item.item_type) {
-    case "task": return item.due_date ? parseISO(item.due_date) : null;
     case "work_order":
     case "service_order": return item.scheduled_date ? parseISO(item.scheduled_date) : null;
     case "shipping_order": return item.order_date ? parseISO(item.order_date) : null;
-    case "event": return parseISO(item.event_date);
-    case "lead_activity": return parseISO(item.activity_date);
     default: return null;
   }
 }
 
 function getItemTitle(item: CalendarItem): string {
   switch (item.item_type) {
-    case "task": return item.title;
     case "work_order": return item.title || `OP ${item.number}`;
     case "service_order": return item.title || `Assistenza ${item.number}`;
     case "shipping_order": return `Spedizione ${item.number}`;
-    case "event": return item.title;
-    case "lead_activity": {
-      const actType = activityTypeLabels[item.activity_type] || item.activity_type;
-      return `${actType}: ${item.leads?.company_name || "Lead"}`;
-    }
-    default: return "Elemento";
+    default: return "Commessa";
   }
 }
 
@@ -92,8 +76,14 @@ export default function ZAppCalendarioPage() {
 
   const { items, loading } = useCalendarData(weekStart, weekEnd);
 
+  // Filter only work orders (production, service, shipping)
+  const workOrderItems = useMemo(() => 
+    items.filter((item) => WORK_ORDER_TYPES.includes(item.item_type)), 
+    [items]
+  );
+
   const getItemsForDay = (day: Date) =>
-    items.filter((item) => {
+    workOrderItems.filter((item) => {
       const d = getItemDate(item);
       return d && isSameDay(d, day);
     });
@@ -172,11 +162,11 @@ export default function ZAppCalendarioPage() {
         ) : selectedDayItems.length === 0 ? (
           <div className="text-center py-12">
             <CalendarDays className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground text-sm">Nessuna attività per questo giorno</p>
+            <p className="text-muted-foreground text-sm">Nessuna commessa per questo giorno</p>
           </div>
         ) : (
           selectedDayItems.map((item) => {
-            const cfg = typeConfig[item.item_type] || typeConfig.task;
+            const cfg = typeConfig[item.item_type] || typeConfig.work_order;
             const Icon = cfg.icon;
             return (
               <button
@@ -223,7 +213,7 @@ export default function ZAppCalendarioPage() {
 }
 
 function ItemDetailSheet({ item }: { item: CalendarItem }) {
-  const cfg = typeConfig[item.item_type] || typeConfig.task;
+  const cfg = typeConfig[item.item_type] || typeConfig.work_order;
   const Icon = cfg.icon;
 
   const formatDate = (d?: string | null) => {
@@ -263,14 +253,6 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
           <Row icon={CheckSquare} label="Stato" value={statusLabels[item.status as keyof typeof statusLabels] || item.status} />
         )}
 
-        {item.item_type === "task" && (
-          <>
-            <Row icon={FileText} label="Descrizione" value={item.description} />
-            <Row icon={Clock} label="Scadenza" value={formatDate(item.due_date)} />
-            <Row icon={CalendarDays} label="Categoria" value={item.category} />
-          </>
-        )}
-
         {item.item_type === "work_order" && (
           <>
             <Row icon={FileText} label="Titolo" value={item.title} />
@@ -294,25 +276,6 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
             <Row icon={Clock} label="Preparazione" value={formatDate(item.preparation_date)} />
             <Row icon={Clock} label="Pronto" value={formatDate(item.ready_date)} />
             <Row icon={Truck} label="Spedito" value={formatDate(item.shipped_date)} />
-          </>
-        )}
-
-        {item.item_type === "event" && (
-          <>
-            <Row icon={FileText} label="Descrizione" value={item.description} />
-            <Row icon={CalendarDays} label="Tipo" value={item.event_type} />
-            <Row icon={Clock} label="Data" value={formatDate(item.event_date)} />
-            <Row icon={Clock} label="Fine" value={formatDate(item.end_date)} />
-          </>
-        )}
-
-        {item.item_type === "lead_activity" && (
-          <>
-            <Row icon={Users} label="Lead" value={item.leads?.company_name} />
-            <Row icon={Users} label="Contatto" value={item.leads?.contact_name} />
-            <Row icon={CalendarDays} label="Tipo attività" value={activityTypeLabels[item.activity_type] || item.activity_type} />
-            <Row icon={Clock} label="Data" value={formatDate(item.activity_date)} />
-            <Row icon={StickyNote} label="Note" value={item.notes} />
           </>
         )}
       </div>
