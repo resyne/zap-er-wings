@@ -1712,6 +1712,21 @@ export default function ServiceReportsPage() {
         onEdit={() => {
           if (selectedReport) startEditReport(selectedReport);
         }}
+        onDelete={async () => {
+          if (!selectedReport) return;
+          if (!confirm('Sei sicuro di voler eliminare questo rapporto?')) return;
+          try {
+            await supabase.from('service_report_materials').delete().eq('report_id', selectedReport.id);
+            await supabase.from('service_reports').delete().eq('id', selectedReport.id);
+            setShowReportDetails(false);
+            setSelectedReport(null);
+            loadInitialData();
+            toast({ title: "Rapporto eliminato", description: "Il rapporto è stato eliminato con successo" });
+          } catch (error) {
+            console.error('Error deleting report:', error);
+            toast({ title: "Errore", description: "Errore nell'eliminazione del rapporto", variant: "destructive" });
+          }
+        }}
         onDownloadPDF={async () => {
           if (selectedReport) {
             // Load materials for this report
