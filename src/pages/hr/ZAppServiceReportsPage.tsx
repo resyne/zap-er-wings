@@ -162,8 +162,7 @@ export default function ZAppServiceReportsPage() {
 
   const handleEdit = () => {
     if (!selectedReport) return;
-    // Navigate to the existing service reports page in edit mode
-    navigate("/support/service-reports");
+    navigate("/hr/z-app/rapporti/nuovo");
   };
 
   return (
@@ -355,7 +354,7 @@ export default function ZAppServiceReportsPage() {
 
       {/* FAB */}
       <button
-        onClick={() => navigate("/support/service-reports?new=true")}
+        onClick={() => navigate("/hr/z-app/rapporti/nuovo")}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center active:scale-90 transition-transform z-30"
       >
         <Plus className="h-7 w-7" />

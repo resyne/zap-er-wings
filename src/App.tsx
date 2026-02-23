@@ -109,6 +109,7 @@ import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 import TaskKpiPage from "./pages/direzione/TaskKpiPage";
 import ZAppPage from "./pages/hr/ZAppPage";
 import ZAppServiceReportsPage from "./pages/hr/ZAppServiceReportsPage";
+import ZAppNewServiceReportPage from "./pages/hr/ZAppNewServiceReportPage";
 import ZAppRegistroPage from "./pages/hr/ZAppRegistroPage";
 import ZAppMagazzino from "./pages/hr/ZAppMagazzino";
 import ZAppCommesse from "./pages/hr/ZAppCommesse";
@@ -219,6 +220,7 @@ const App = () => (
                 <Route path="hr/ticket-restaurant" element={<TicketRestaurantPage />} />
                 <Route path="hr/z-app" element={<ZAppPage />} />
                 <Route path="hr/z-app/rapporti" element={<ZAppServiceReportsPage />} />
+                <Route path="hr/z-app/rapporti/nuovo" element={<ZAppNewServiceReportPage />} />
                 <Route path="hr/z-app/registro" element={<ZAppRegistroPage />} />
                 <Route path="hr/z-app/magazzino" element={<ZAppMagazzino />} />
                 <Route path="hr/z-app/commesse" element={<ZAppCommesse />} />
