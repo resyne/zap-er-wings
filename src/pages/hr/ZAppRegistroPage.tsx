@@ -288,23 +288,6 @@ export default function ZAppRegistroPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 p-4">
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-border">
-          <div className="flex items-center gap-2 mb-1">
-            <ArrowUp className="h-4 w-4 text-green-600" />
-            <span className="text-xs text-muted-foreground">Incassi</span>
-          </div>
-          <p className="text-lg font-bold text-green-600">{formatCurrency(totaleEntrate)}</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-border">
-          <div className="flex items-center gap-2 mb-1">
-            <ArrowDown className="h-4 w-4 text-red-600" />
-            <span className="text-xs text-muted-foreground">Spese</span>
-          </div>
-          <p className="text-lg font-bold text-red-600">{formatCurrency(totaleUscite)}</p>
-        </div>
-      </div>
 
       {/* Quick Actions */}
       <div className="px-4 grid grid-cols-2 gap-3">
