@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key, ExternalLink, MessageSquare } from "lucide-react";
+import { Plus, Search, Building2, Phone, Mail, MapPin, Edit, Trash2, Copy, RefreshCw, Key, ExternalLink, MessageSquare, FileText } from "lucide-react";
+import { SupplierPriceListsDialog } from "@/components/procurement/SupplierPriceListsDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
@@ -57,6 +58,7 @@ const SuppliersPage = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [priceListSupplier, setPriceListSupplier] = useState<Supplier | null>(null);
 
   const form = useForm<z.infer<typeof supplierSchema>>({
     defaultValues: {
@@ -985,30 +987,46 @@ const SuppliersPage = () => {
                       {supplier.active ? "Attivo" : "Inattivo"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditSupplier(supplier)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSupplier(supplier)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                   <TableCell>
+                     <div className="flex items-center space-x-2">
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => setPriceListSupplier(supplier)}
+                         title="Listini"
+                       >
+                         <FileText className="h-4 w-4" />
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleEditSupplier(supplier)}
+                       >
+                         <Edit className="h-4 w-4" />
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="sm"
+                         onClick={() => handleDeleteSupplier(supplier)}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      {priceListSupplier && (
+        <SupplierPriceListsDialog
+          open={!!priceListSupplier}
+          onOpenChange={(open) => !open && setPriceListSupplier(null)}
+          supplierId={priceListSupplier.id}
+          supplierName={priceListSupplier.name}
+        />
+      )}
     </div>
   );
 };
