@@ -295,8 +295,11 @@ export default function ServiceReportsPage() {
     return Math.max(1, hours); // Minimum 1 hour
   };
 
-  // Calculate amount based on technicians list and time
-  const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number) => {
+  // Calculate material items net total
+  const materialsTotalNetto = materialItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+  // Calculate amount based on technicians list, time, km and materials
+  const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number, matTotal: number = materialsTotalNetto) => {
     const hours = calculateHoursFromTime(startTime, endTime);
     const headCount = techs.filter(t => t.type === 'head').length;
     const specCount = techs.filter(t => t.type === 'specialized').length;
@@ -305,8 +308,19 @@ export default function ServiceReportsPage() {
     const specCost = hours * specCount * pricingSettings.specialized_technician_hourly_rate;
     const kmCost = km * pricingSettings.head_technician_km_rate;
     
-    return headCost + specCost + kmCost;
+    return headCost + specCost + kmCost + matTotal;
   };
+
+  // Recalculate amount when materialItems change
+  useEffect(() => {
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(techniciansList, formData.start_time, formData.end_time, km, materialsTotalNetto);
+    setFormData(prev => {
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
+    });
+  }, [materialsTotalNetto]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
