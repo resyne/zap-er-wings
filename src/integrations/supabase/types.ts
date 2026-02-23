@@ -8297,6 +8297,8 @@ export type Database = {
           kilometers: number | null
           materials_used: string | null
           notes: string | null
+          payment_date: string | null
+          payment_status: string
           production_work_order_id: string | null
           report_number: string | null
           specialized_technician_hours: number | null
@@ -8328,6 +8330,8 @@ export type Database = {
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
+          payment_date?: string | null
+          payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
           specialized_technician_hours?: number | null
@@ -8359,6 +8363,8 @@ export type Database = {
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
+          payment_date?: string | null
+          payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
           specialized_technician_hours?: number | null
