@@ -5,12 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Megaphone,
@@ -26,6 +36,8 @@ import {
   Mail,
   MailOpen,
   Filter,
+  Plus,
+  Send,
 } from "lucide-react";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -51,6 +63,12 @@ const priorityConfig: Record<string, { label: string; className: string }> = {
 
 type FilterType = "all" | "unread" | CommType;
 
+const employeeCommTypes = [
+  { value: "vacation_request", label: "Richiesta ferie", icon: Palmtree },
+  { value: "personal", label: "Messaggio personale", icon: User },
+  { value: "info", label: "Segnalazione", icon: Info },
+];
+
 export default function ZAppComunicazioniPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -58,6 +76,10 @@ export default function ZAppComunicazioniPage() {
   const [selectedComm, setSelectedComm] = useState<any | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeTitle, setComposeTitle] = useState("");
+  const [composeContent, setComposeContent] = useState("");
+  const [composeType, setComposeType] = useState("vacation_request");
 
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ["internal-communications", user?.id],
@@ -83,6 +105,27 @@ export default function ZAppComunicazioniPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["internal-communications"] });
+    },
+  });
+
+  const sendComm = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("internal_communications").insert({
+        title: composeTitle,
+        content: composeContent,
+        communication_type: composeType,
+        priority: "normal",
+        sender_id: user?.id,
+        recipient_id: null, // goes to admin/all
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["internal-communications"] });
+      setShowCompose(false);
+      setComposeTitle("");
+      setComposeContent("");
+      setComposeType("vacation_request");
     },
   });
 
@@ -236,6 +279,69 @@ export default function ZAppComunicazioniPage() {
       <Sheet open={!!selectedComm} onOpenChange={(o) => !o && setSelectedComm(null)}>
         <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl overflow-y-auto">
           {selectedComm && <CommDetailSheet comm={selectedComm} />}
+        </SheetContent>
+      </Sheet>
+
+      {/* FAB - Compose */}
+      <button
+        onClick={() => setShowCompose(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-rose-600 text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform z-50"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {/* Compose Sheet */}
+      <Sheet open={showCompose} onOpenChange={setShowCompose}>
+        <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl overflow-y-auto">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Invia Comunicazione
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Tipo</Label>
+              <Select value={composeType} onValueChange={setComposeType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {employeeCommTypes.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      <span className="flex items-center gap-2">
+                        <t.icon className="h-3.5 w-3.5" />
+                        {t.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Titolo</Label>
+              <Input
+                value={composeTitle}
+                onChange={(e) => setComposeTitle(e.target.value)}
+                placeholder="Oggetto del messaggio"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Messaggio</Label>
+              <Textarea
+                value={composeContent}
+                onChange={(e) => setComposeContent(e.target.value)}
+                placeholder="Scrivi qui..."
+                rows={4}
+              />
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => sendComm.mutate()}
+              disabled={!composeTitle.trim() || !composeContent.trim() || sendComm.isPending}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {sendComm.isPending ? "Invio..." : "Invia"}
+            </Button>
+          </div>
         </SheetContent>
       </Sheet>
     </div>
