@@ -171,17 +171,25 @@ export function ReportDetailsDialog({
           )}
 
           {/* Dettagli Economici */}
-          {(report.amount || report.total_amount) && (
+          {(report.amount || report.total_amount || matNetto > 0) && (
             <>
               <Separator />
               <div>
                 <h3 className="font-semibold text-lg mb-3">Dettagli Economici</h3>
                 <div className="bg-muted p-4 rounded-lg space-y-2">
-                  {report.amount && <p><strong>Importo:</strong> €{report.amount.toFixed(2)}</p>}
-                  {report.vat_rate !== null && <p><strong>IVA:</strong> {report.vat_rate.toFixed(2)}%</p>}
+                  {report.amount != null && (
+                    <p><strong>Importo Intervento (manodopera + km):</strong> €{(report.amount - matNetto).toFixed(2)}</p>
+                  )}
+                  {matNetto > 0 && (
+                    <p><strong>Importo Materiali:</strong> €{matNetto.toFixed(2)}</p>
+                  )}
+                  {report.amount != null && (
+                    <p><strong>Importo Netto Totale:</strong> €{Number(report.amount).toFixed(2)}</p>
+                  )}
+                  {report.vat_rate !== null && <p><strong>IVA:</strong> {Number(report.vat_rate).toFixed(2)}%</p>}
                   {report.total_amount && (
                     <p className="text-lg font-bold text-primary">
-                      <strong>Totale:</strong> €{report.total_amount.toFixed(2)}
+                      <strong>Totale Complessivo:</strong> €{Number(report.total_amount).toFixed(2)}
                     </p>
                   )}
                 </div>
