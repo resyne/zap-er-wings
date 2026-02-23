@@ -184,7 +184,7 @@ export default function ZAppServiceReportsPage() {
           <Button
             size="sm"
             className="bg-white text-blue-600 hover:bg-blue-50 shrink-0 font-semibold"
-            onClick={() => navigate("/support/service-reports?new=true")}
+            onClick={() => navigate("/hr/z-app/rapporti/nuovo")}
           >
             <Plus className="h-4 w-4 mr-1" />
             Nuovo
