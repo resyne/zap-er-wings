@@ -95,12 +95,18 @@ export default function ZAppNewServiceReportPage() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
-  const [techniciansList, setTechniciansList] = useState<Array<{ type: 'head' | 'specialized'; id: string }>>([]);
+  const [techniciansList, setTechniciansList] = useState<Array<{ type: 'head' | 'specialized'; id: string; technicianId: string }>>([]);
+  const [showAddTechnician, setShowAddTechnician] = useState(false);
+  const [addTechType, setAddTechType] = useState<'head' | 'specialized'>('specialized');
+
+  // Derive "main" technician from the first in the list
+  const selectedTechnician = techniciansList.length > 0
+    ? technicians.find(t => t.id === techniciansList[0].technicianId) || null
+    : null;
   const [pricingSettings, setPricingSettings] = useState({
     specialized_technician_hourly_rate: 40,
     specialized_technician_km_rate: 0.40,
@@ -224,10 +230,11 @@ export default function ZAppNewServiceReportPage() {
     });
   };
 
-  const addTechnician = (type: 'head' | 'specialized') => {
-    const newTech = { type, id: crypto.randomUUID() };
+  const addTechnicianToList = (technicianId: string, type: 'head' | 'specialized') => {
+    const newTech = { type, id: crypto.randomUUID(), technicianId };
     const newList = [...techniciansList, newTech];
     setTechniciansList(newList);
+    setShowAddTechnician(false);
     const km = parseFloat(formData.kilometers) || 0;
     const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
     setFormData(prev => {
@@ -273,8 +280,8 @@ export default function ZAppNewServiceReportPage() {
   };
 
   const goToSignatures = () => {
-    if (!selectedCustomer || !formData.intervention_type || !selectedTechnician) {
-      toast.error("Seleziona almeno cliente, tipo intervento e tecnico");
+    if (!selectedCustomer || !formData.intervention_type || techniciansList.length === 0) {
+      toast.error("Seleziona almeno cliente, tipo intervento e un tecnico");
       return;
     }
     setStep("signatures");
@@ -640,44 +647,74 @@ export default function ZAppNewServiceReportPage() {
             </MobileSection>
 
             {/* Technicians */}
-            <MobileSection title="Tecnici" icon={Users} badge={selectedTechnician ? `${(techniciansList.length || 0) + 1}` : undefined}>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Tecnico Principale *</Label>
-                <Select onValueChange={(id) => setSelectedTechnician(technicians.find(t => t.id === id) || null)}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleziona tecnico..." /></SelectTrigger>
-                  <SelectContent>
-                    {technicians.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.first_name} {t.last_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <MobileSection title="Tecnici" icon={Users} badge={techniciansList.length > 0 ? `${techniciansList.length}` : undefined}>
               {techniciansList.length > 0 && (
                 <div className="space-y-1.5">
-                  {techniciansList.map((tech, idx) => (
-                    <div key={tech.id} className="flex items-center gap-2 bg-muted/50 p-2.5 rounded-xl">
-                      <div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white", tech.type === 'head' ? "bg-blue-500" : "bg-amber-500")}>
-                        {idx + 1}
+                  {techniciansList.map((tech, idx) => {
+                    const t = technicians.find(tc => tc.id === tech.technicianId);
+                    return (
+                      <div key={tech.id} className="flex items-center gap-2 bg-muted/50 p-2.5 rounded-xl">
+                        <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0", tech.type === 'head' ? "bg-blue-500" : "bg-amber-500")}>
+                          {t ? t.first_name.charAt(0) : idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium block truncate">{t ? `${t.first_name} ${t.last_name}` : 'Tecnico'}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {tech.type === 'head' ? 'Capo Tecnico' : 'Specializzato'} · €{tech.type === 'head' ? pricingSettings.head_technician_hourly_rate : pricingSettings.specialized_technician_hourly_rate}/h
+                          </span>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive rounded-full" onClick={() => removeTechnician(tech.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium block truncate">{tech.type === 'head' ? 'Capo Tecnico' : 'Specializzato'}</span>
-                        <span className="text-[10px] text-muted-foreground">€{tech.type === 'head' ? pricingSettings.head_technician_hourly_rate : pricingSettings.specialized_technician_hourly_rate}/h</span>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive rounded-full" onClick={() => removeTechnician(tech.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+
+              {techniciansList.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">Nessun tecnico aggiunto. Aggiungi almeno un tecnico.</p>
+              )}
+
+              {/* Add technician buttons */}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => addTechnician('head')}>
+                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => { setAddTechType('head'); setShowAddTechnician(true); }}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Capo Tecnico
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => addTechnician('specialized')}>
+                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => { setAddTechType('specialized'); setShowAddTechnician(true); }}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Specializzato
                 </Button>
               </div>
+
+              {/* Technician picker */}
+              {showAddTechnician && (
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
+                    <span className="text-xs font-medium">Seleziona {addTechType === 'head' ? 'Capo Tecnico' : 'Specializzato'}</span>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setShowAddTechnician(false)}>Annulla</Button>
+                  </div>
+                  <div className="max-h-48 overflow-auto">
+                    {technicians
+                      .filter(t => !techniciansList.some(tl => tl.technicianId === t.id))
+                      .map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className="w-full flex items-center gap-3 px-3 py-3 text-left hover:bg-muted/50 active:bg-muted border-b last:border-b-0 transition-colors"
+                          onClick={() => addTechnicianToList(t.id, addTechType)}
+                        >
+                          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0", addTechType === 'head' ? "bg-blue-500" : "bg-amber-500")}>
+                            {t.first_name.charAt(0)}
+                          </div>
+                          <span className="text-sm font-medium">{t.first_name} {t.last_name}</span>
+                        </button>
+                      ))}
+                    {technicians.filter(t => !techniciansList.some(tl => tl.technicianId === t.id)).length === 0 && (
+                      <p className="text-xs text-muted-foreground italic p-3">Tutti i tecnici sono già stati aggiunti</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </MobileSection>
 
             {/* Date & Time */}
