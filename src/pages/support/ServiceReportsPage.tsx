@@ -12,7 +12,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users, Archive, Trash2, Receipt, CircleDollarSign } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
@@ -76,6 +77,10 @@ interface ServiceReport {
   notes?: string;
   start_time?: string;
   end_time?: string;
+  invoiced?: boolean;
+  invoice_number?: string;
+  payment_status?: string;
+  archived?: boolean;
   customers?: Customer;
   technicians?: Technician;
   work_orders?: WorkOrder;
@@ -135,6 +140,7 @@ export default function ServiceReportsPage() {
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
   const [showStatement, setShowStatement] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const { toast } = useToast();
 
   // Filtered customers for search
@@ -236,6 +242,10 @@ export default function ServiceReportsPage() {
           total_amount,
           customer_signature,
           technician_signature,
+          invoiced,
+          invoice_number,
+          payment_status,
+          archived,
           customers (
             id,
             name,
@@ -1147,85 +1157,160 @@ export default function ServiceReportsPage() {
       {!showCreateForm && !showActions ? (
         <Card className="border-0 sm:border shadow-none sm:shadow-sm">
           <CardHeader className="px-0 sm:px-6">
-            <CardTitle className="text-lg sm:text-xl">Rapporti Esistenti</CardTitle>
-            <CardDescription className="text-sm">
-              Elenco rapporti di intervento
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-0 sm:px-6">
-            {reports.length === 0 ? (
-              <div className="text-center py-8 sm:py-12">
-                <FileText className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
-                <p className="text-muted-foreground mb-4 text-sm sm:text-base">Nessun rapporto trovato</p>
-                <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2 mx-auto" size="lg">
-                  <Plus className="w-5 h-5" />
-                  Crea il Primo Rapporto
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg sm:text-xl">Rapporti Esistenti</CardTitle>
+                <CardDescription className="text-sm">
+                  Elenco rapporti di intervento
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={showArchived ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="flex items-center gap-1.5"
+                >
+                  <Archive className="w-4 h-4" />
+                  {showArchived ? "Archiviati" : "Archivio"}
                 </Button>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {reports.map((report) => (
-                  <div 
-                    key={report.id} 
-                    className="p-3 sm:p-4 border rounded-lg hover:bg-accent/50 active:bg-accent/70 transition-colors cursor-pointer touch-manipulation"
-                    onClick={() => {
-                      setSelectedReport(report);
-                      setShowReportDetails(true);
-                    }}
-                  >
-                    <div className="flex flex-col gap-2">
-                      {/* Nome cliente e azienda */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                        <h3 className="font-semibold text-base sm:text-lg">
-                          {report.customers?.name || 'Cliente non specificato'}
-                        </h3>
-                        {report.customers?.company_name && (
-                          <span className="text-xs sm:text-sm text-muted-foreground">
-                            {report.customers.company_name}
-                          </span>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 sm:px-6">
+            {(() => {
+              const filteredReports = reports.filter(r => showArchived ? r.archived : !r.archived);
+              return filteredReports.length === 0 ? (
+                <div className="text-center py-8 sm:py-12">
+                  <FileText className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-muted-foreground mb-3 sm:mb-4" />
+                  <p className="text-muted-foreground mb-4 text-sm sm:text-base">
+                    {showArchived ? "Nessun rapporto archiviato" : "Nessun rapporto trovato"}
+                  </p>
+                  {!showArchived && (
+                    <Button onClick={() => setShowCreateForm(true)} className="flex items-center gap-2 mx-auto" size="lg">
+                      <Plus className="w-5 h-5" />
+                      Crea il Primo Rapporto
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredReports.map((report) => (
+                    <div 
+                      key={report.id} 
+                      className="p-3 sm:p-4 border rounded-lg hover:bg-accent/50 active:bg-accent/70 transition-colors cursor-pointer touch-manipulation"
+                      onClick={() => {
+                        setSelectedReport(report);
+                        setShowReportDetails(true);
+                      }}
+                    >
+                      <div className="flex flex-col gap-2">
+                        {/* Nome cliente e azienda */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                          <h3 className="font-semibold text-base sm:text-lg">
+                            {report.customers?.name || 'Cliente non specificato'}
+                          </h3>
+                          {report.customers?.company_name && (
+                            <span className="text-xs sm:text-sm text-muted-foreground">
+                              {report.customers.company_name}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Info grid */}
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Data:</span>
+                            <p className="font-medium">
+                              {new Date(report.intervention_date).toLocaleDateString('it-IT')}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Tipo:</span>
+                            <p className="font-medium capitalize">{report.intervention_type}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Tecnico:</span>
+                            <p className="font-medium">
+                              {report.technicians?.first_name} {report.technicians?.last_name}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Stato:</span>
+                            <p className="font-medium capitalize">{report.status}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Descrizione e totale */}
+                        {report.work_performed && (
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                            {report.work_performed}
+                          </p>
                         )}
+
+                        {/* Totale + Badge fatturato/pagato */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {report.total_amount ? (
+                            <span className="text-sm font-semibold text-primary">
+                              Totale: €{report.total_amount.toFixed(2)}
+                            </span>
+                          ) : null}
+                          {report.invoiced ? (
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                              <Receipt className="w-3 h-3" />
+                              Fatturato {report.invoice_number ? `(${report.invoice_number})` : ''}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Non Fatturato</Badge>
+                          )}
+                          {report.payment_status === 'pagato' ? (
+                            <Badge className="text-xs bg-green-600 hover:bg-green-700 flex items-center gap-1">
+                              <CircleDollarSign className="w-3 h-3" />
+                              Pagato
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-xs">Non Pagato</Badge>
+                          )}
+                        </div>
+
+                        {/* Azioni rapide: archivia/elimina */}
+                        <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                            onClick={async () => {
+                              const newArchived = !report.archived;
+                              await supabase.from('service_reports').update({ archived: newArchived }).eq('id', report.id);
+                              setReports(prev => prev.map(r => r.id === report.id ? { ...r, archived: newArchived } : r));
+                              toast({ title: newArchived ? "Rapporto archiviato" : "Rapporto ripristinato" });
+                            }}
+                          >
+                            <Archive className="w-3.5 h-3.5 mr-1" />
+                            {report.archived ? "Ripristina" : "Archivia"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs px-2 text-destructive hover:text-destructive"
+                            onClick={async () => {
+                              if (!confirm('Sei sicuro di voler eliminare questo rapporto?')) return;
+                              await supabase.from('service_report_materials').delete().eq('report_id', report.id);
+                              await supabase.from('service_reports').delete().eq('id', report.id);
+                              setReports(prev => prev.filter(r => r.id !== report.id));
+                              toast({ title: "Rapporto eliminato" });
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                            Elimina
+                          </Button>
+                        </div>
                       </div>
-                      
-                      {/* Info grid - mobile 2 cols, desktop 4 cols */}
-                      <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Data:</span>
-                          <p className="font-medium">
-                            {new Date(report.intervention_date).toLocaleDateString('it-IT')}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Tipo:</span>
-                          <p className="font-medium capitalize">{report.intervention_type}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Tecnico:</span>
-                          <p className="font-medium">
-                            {report.technicians?.first_name} {report.technicians?.last_name}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Stato:</span>
-                          <p className="font-medium capitalize">{report.status}</p>
-                        </div>
-                      </div>
-                      
-                      {/* Descrizione e totale */}
-                      {report.work_performed && (
-                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                          {report.work_performed}
-                        </p>
-                      )}
-                      {report.total_amount && (
-                        <p className="text-sm font-semibold text-primary">
-                          Totale: €{report.total_amount.toFixed(2)}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       ) : showActions ? (
