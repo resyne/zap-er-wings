@@ -108,6 +108,7 @@ import ContentCreationPage from "./pages/marketing/ContentCreationPage";
 import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 import TaskKpiPage from "./pages/direzione/TaskKpiPage";
 import ZAppPage from "./pages/hr/ZAppPage";
+import ZAppServiceReportsPage from "./pages/hr/ZAppServiceReportsPage";
 import StrategyPage from "./pages/direzione/StrategyPage";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
@@ -212,6 +213,7 @@ const App = () => (
                 <Route path="hr/fluida" element={<FluidaPage />} />
                 <Route path="hr/ticket-restaurant" element={<TicketRestaurantPage />} />
                 <Route path="hr/z-app" element={<ZAppPage />} />
+                <Route path="hr/z-app/rapporti" element={<ZAppServiceReportsPage />} />
                 <Route path="docs" element={<DocumentationPage />} />
                 <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
                 <Route path="docs/technical-sheets/blast-chillers" element={<BlastChillersPage />} />
