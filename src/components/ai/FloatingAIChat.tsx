@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ interface Message {
 }
 
 export default function FloatingAIChat() {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -27,6 +29,11 @@ export default function FloatingAIChat() {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Hide on Z-APP pages
+  if (location.pathname.startsWith("/hr/z-app")) {
+    return null;
+  }
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
