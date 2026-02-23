@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -3522,27 +3524,53 @@ const syncTemplatesMutation = useMutation({
               </div>
               <div>
                 <Label>Associa a Lead</Label>
-                <Select 
-                  value={newContactData.lead_id || "none"} 
-                  onValueChange={(v) => setNewContactData(prev => ({ 
-                    ...prev, 
-                    lead_id: v === "none" ? "" : v,
-                    customer_id: '', // Clear customer if lead selected
-                    name: prev.name || leads?.find(l => l.id === v)?.contact_name || ''
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nessuno</SelectItem>
-                    {leads?.map(lead => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.contact_name || lead.phone || 'Lead senza nome'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal h-9">
+                      {newContactData.lead_id 
+                        ? (leads?.find(l => l.id === newContactData.lead_id)?.contact_name || leads?.find(l => l.id === newContactData.lead_id)?.phone || 'Lead selezionato')
+                        : "Cerca lead..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Cerca per nome o telefono..." />
+                      <CommandList>
+                        <CommandEmpty>Nessun lead trovato.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="none"
+                            onSelect={() => setNewContactData(prev => ({ ...prev, lead_id: '', customer_id: '' }))}
+                          >
+                            Nessuno
+                          </CommandItem>
+                          {leads?.map(lead => (
+                            <CommandItem
+                              key={lead.id}
+                              value={`${lead.contact_name || ''} ${lead.phone || ''} ${lead.email || ''}`}
+                              onSelect={() => {
+                                const selectedLead = lead;
+                                setNewContactData(prev => ({
+                                  ...prev,
+                                  lead_id: selectedLead.id,
+                                  customer_id: '',
+                                  name: prev.name || selectedLead.contact_name || '',
+                                  phone: selectedLead.phone || prev.phone
+                                }));
+                              }}
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-sm">{lead.contact_name || 'Lead senza nome'}</span>
+                                {lead.phone && <span className="text-xs text-muted-foreground">{lead.phone}</span>}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
