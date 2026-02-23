@@ -17,6 +17,7 @@ import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog"
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
 import { MaterialsLineItems, type MaterialItem } from "@/components/support/MaterialsLineItems";
+import { CustomerStatementDialog } from "@/components/support/CustomerStatementDialog";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 
@@ -133,6 +134,7 @@ export default function ServiceReportsPage() {
   const [customerSignature, setCustomerSignature] = useState<string>('');
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
+  const [showStatement, setShowStatement] = useState(false);
   const { toast } = useToast();
 
   // Filtered customers for search
@@ -1007,6 +1009,14 @@ export default function ServiceReportsPage() {
         </div>
         {!showCreateForm && !showActions && (
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button 
+              variant="outline"
+              onClick={() => setShowStatement(true)} 
+              className="w-full sm:w-auto flex items-center justify-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Estratto Conto
+            </Button>
             <Button 
               variant="outline"
               onClick={() => setShowSettings(true)} 
@@ -2103,6 +2113,12 @@ export default function ServiceReportsPage() {
             setLoading(false);
           }
         }}
+      />
+
+      <CustomerStatementDialog
+        open={showStatement}
+        onOpenChange={setShowStatement}
+        customers={customers}
       />
     </div>
   );
