@@ -16,6 +16,7 @@ import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, Che
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { ReportDetailsDialog } from "@/components/support/ReportDetailsDialog";
+import { MaterialsLineItems, type MaterialItem } from "@/components/support/MaterialsLineItems";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 
@@ -130,6 +131,7 @@ export default function ServiceReportsPage() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [customerSignature, setCustomerSignature] = useState<string>('');
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
+  const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
   const { toast } = useToast();
 
   // Filtered customers for search
@@ -491,6 +493,20 @@ export default function ServiceReportsPage() {
 
       if (error) throw error;
 
+      // Save material items
+      if (materialItems.length > 0) {
+        const materialsToInsert = materialItems.filter(m => m.description.trim()).map(m => ({
+          report_id: data.id,
+          description: m.description,
+          quantity: m.quantity,
+          unit_price: m.unit_price,
+          vat_rate: m.vat_rate
+        }));
+        if (materialsToInsert.length > 0) {
+          await supabase.from('service_report_materials').insert(materialsToInsert);
+        }
+      }
+
       setSavedReportId(data.id);
       setShowSignatures(false);
       setShowActions(true);
@@ -579,6 +595,9 @@ export default function ServiceReportsPage() {
       doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
       y += 7;
       doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
+      y += 7;
+      const techCount = techniciansList.length || 1;
+      doc.text(`N. Tecnici presenti: ${techCount}`, 20, y);
       y += 10;
 
       if (formData.description) {
@@ -601,7 +620,52 @@ export default function ServiceReportsPage() {
         y += workLines.length * 7 + 3;
       }
 
-      if (formData.materials_used) {
+      // Materiali come tabella
+      if (materialItems.length > 0 && materialItems.some(m => m.description.trim())) {
+        if (y > 200) { doc.addPage(); y = 20; }
+        doc.setFont(undefined, "bold");
+        doc.text("Materiali Utilizzati:", 20, y);
+        y += 7;
+        doc.setFontSize(9);
+        // Header
+        doc.setFont(undefined, "bold");
+        doc.text("Descrizione", 20, y);
+        doc.text("Qtà", 120, y);
+        doc.text("Prezzo", 140, y);
+        doc.text("IVA", 165, y);
+        doc.text("Totale", 180, y);
+        y += 5;
+        doc.line(20, y, 195, y);
+        y += 3;
+        doc.setFont(undefined, "normal");
+        let matNettoTotal = 0;
+        let matIvaTotal = 0;
+        materialItems.filter(m => m.description.trim()).forEach(item => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const netto = item.quantity * item.unit_price;
+          const iva = netto * item.vat_rate / 100;
+          matNettoTotal += netto;
+          matIvaTotal += iva;
+          const descText = doc.splitTextToSize(item.description, 95);
+          doc.text(descText, 20, y);
+          doc.text(String(item.quantity), 120, y);
+          doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : '-', 140, y);
+          doc.text(`${item.vat_rate}%`, 165, y);
+          doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+          y += descText.length * 5 + 2;
+        });
+        if (matNettoTotal > 0) {
+          y += 2;
+          doc.line(20, y, 195, y);
+          y += 5;
+          doc.setFont(undefined, "bold");
+          doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
+          y += 5;
+        }
+        doc.setFontSize(12);
+        doc.setFont(undefined, "normal");
+        y += 5;
+      } else if (formData.materials_used) {
         doc.setFont(undefined, "bold");
         doc.text("Materiali Utilizzati:", 20, y);
         doc.setFont(undefined, "normal");
@@ -621,7 +685,7 @@ export default function ServiceReportsPage() {
         y += noteLines.length * 7 + 3;
       }
 
-      // Nota fatturazione (sostituisce dettagli economici)
+      // Nota fatturazione
       if (y > 240) {
         doc.addPage();
         y = 20;
@@ -633,6 +697,31 @@ export default function ServiceReportsPage() {
       doc.setFontSize(12);
       doc.setFont(undefined, "normal");
       y += 5;
+
+      // Termini e Condizioni
+      if (y > 210) { doc.addPage(); y = 20; }
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont(undefined, "bold");
+      doc.text("TERMINI E CONDIZIONI", 20, y);
+      y += 5;
+      doc.setFont(undefined, "normal");
+      const tcLines = [
+        "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
+        "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
+        "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
+        "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+        "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
+        "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
+        "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
+      ];
+      tcLines.forEach(line => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        const wrapped = doc.splitTextToSize(line, 170);
+        doc.text(wrapped, 20, y);
+        y += wrapped.length * 4 + 1;
+      });
+      doc.setFontSize(12);
 
       // Firme
       if (y > 220) {
@@ -734,6 +823,7 @@ export default function ServiceReportsPage() {
       kilometers: '0'
     });
     setTechniciansList([]);
+    setMaterialItems([]);
     setSelectedCustomer(null);
     setSelectedTechnician(null);
     setSelectedWorkOrder(null);
@@ -1426,17 +1516,7 @@ export default function ServiceReportsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="materials_used" className="text-sm font-medium">Materiali Utilizzati</Label>
-                <Textarea
-                  id="materials_used"
-                  value={formData.materials_used}
-                  onChange={(e) => handleInputChange('materials_used', e.target.value)}
-                  placeholder="Elenca i materiali..."
-                  rows={2}
-                  className="text-base resize-none"
-                />
-              </div>
+              <MaterialsLineItems items={materialItems} onChange={setMaterialItems} />
 
               <div className="space-y-2">
                 <Label htmlFor="notes" className="text-sm font-medium">Note Aggiuntive</Label>
@@ -1538,51 +1618,48 @@ export default function ServiceReportsPage() {
         open={showReportDetails}
         onOpenChange={setShowReportDetails}
         report={selectedReport}
-        onDownloadPDF={() => {
+        onDownloadPDF={async () => {
           if (selectedReport) {
+            // Load materials for this report
+            const { data: reportMaterials } = await supabase
+              .from('service_report_materials')
+              .select('*')
+              .eq('report_id', selectedReport.id);
+
             const doc = new jsPDF();
             let y = 20;
             const customer = selectedReport.customers;
             const technician = selectedReport.technicians;
 
-            // Logo aziendale
             const logoImg = new Image();
             logoImg.src = '/images/logo-zapper.png';
             logoImg.onload = () => {
               doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
               
-              // Intestazione
               doc.setFontSize(18);
               doc.setFont(undefined, "bold");
               doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
               y = 35;
 
-              // Informazioni cliente
-              doc.setFontSize(12);
+              // Report number
+              if ((selectedReport as any).report_number) {
+                doc.setFontSize(10);
+                doc.setFont(undefined, "normal");
+                doc.text(`N. ${(selectedReport as any).report_number}`, 195, 28, { align: "right" });
+                doc.setFontSize(12);
+              }
+
               doc.setFont(undefined, "bold");
               doc.text("Cliente:", 20, y);
               doc.setFont(undefined, "normal");
               y += 7;
               doc.text(customer?.name || 'N/A', 20, y);
-              if (customer?.company_name) {
-                y += 7;
-                doc.text(customer.company_name, 20, y);
-              }
-              if (customer?.email) {
-                y += 7;
-                doc.text(`Email: ${customer.email}`, 20, y);
-              }
-              if (customer?.phone) {
-                y += 7;
-                doc.text(`Tel: ${customer.phone}`, 20, y);
-              }
-              if (customer?.address) {
-                y += 7;
-                doc.text(`Indirizzo: ${customer.address}`, 20, y);
-              }
+              if (customer?.company_name) { y += 7; doc.text(customer.company_name, 20, y); }
+              if (customer?.email) { y += 7; doc.text(`Email: ${customer.email}`, 20, y); }
+              if (customer?.phone) { y += 7; doc.text(`Tel: ${customer.phone}`, 20, y); }
+              if (customer?.address) { y += 7; doc.text(`Indirizzo: ${customer.address}`, 20, y); }
               y += 10;
 
-              // Dettagli intervento
               doc.setFont(undefined, "bold");
               doc.text("Dettagli Intervento:", 20, y);
               doc.setFont(undefined, "normal");
@@ -1596,6 +1673,9 @@ export default function ServiceReportsPage() {
               doc.text(`Tipo: ${selectedReport.intervention_type}`, 20, y);
               y += 7;
               doc.text(`Tecnico: ${technician?.first_name} ${technician?.last_name}`, 20, y);
+              y += 7;
+              const techCount = (selectedReport as any).technicians_count || 1;
+              doc.text(`N. Tecnici presenti: ${techCount}`, 20, y);
               y += 10;
 
               if (selectedReport.description) {
@@ -1618,7 +1698,51 @@ export default function ServiceReportsPage() {
                 y += workLines.length * 7 + 3;
               }
 
-              if (selectedReport.materials_used) {
+              // Materiali da DB
+              if (reportMaterials && reportMaterials.length > 0) {
+                if (y > 200) { doc.addPage(); y = 20; }
+                doc.setFont(undefined, "bold");
+                doc.text("Materiali Utilizzati:", 20, y);
+                y += 7;
+                doc.setFontSize(9);
+                doc.setFont(undefined, "bold");
+                doc.text("Descrizione", 20, y);
+                doc.text("Qtà", 120, y);
+                doc.text("Prezzo", 140, y);
+                doc.text("IVA", 165, y);
+                doc.text("Totale", 180, y);
+                y += 5;
+                doc.line(20, y, 195, y);
+                y += 3;
+                doc.setFont(undefined, "normal");
+                let matNettoTotal = 0;
+                let matIvaTotal = 0;
+                reportMaterials.forEach((item: any) => {
+                  if (y > 270) { doc.addPage(); y = 20; }
+                  const netto = item.quantity * item.unit_price;
+                  const iva = netto * item.vat_rate / 100;
+                  matNettoTotal += netto;
+                  matIvaTotal += iva;
+                  const descText = doc.splitTextToSize(item.description, 95);
+                  doc.text(descText, 20, y);
+                  doc.text(String(item.quantity), 120, y);
+                  doc.text(item.unit_price > 0 ? `€${Number(item.unit_price).toFixed(2)}` : '-', 140, y);
+                  doc.text(`${item.vat_rate}%`, 165, y);
+                  doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+                  y += descText.length * 5 + 2;
+                });
+                if (matNettoTotal > 0) {
+                  y += 2;
+                  doc.line(20, y, 195, y);
+                  y += 5;
+                  doc.setFont(undefined, "bold");
+                  doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
+                  y += 5;
+                }
+                doc.setFontSize(12);
+                doc.setFont(undefined, "normal");
+                y += 5;
+              } else if (selectedReport.materials_used) {
                 doc.setFont(undefined, "bold");
                 doc.text("Materiali Utilizzati:", 20, y);
                 doc.setFont(undefined, "normal");
@@ -1640,10 +1764,7 @@ export default function ServiceReportsPage() {
 
               // Dettagli economici
               if (selectedReport.amount) {
-                if (y > 220) {
-                  doc.addPage();
-                  y = 20;
-                }
+                if (y > 220) { doc.addPage(); y = 20; }
                 y += 10;
                 doc.setFont(undefined, "bold");
                 doc.text("Dettagli Economici:", 20, y);
@@ -1651,10 +1772,7 @@ export default function ServiceReportsPage() {
                 y += 7;
                 doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
                 y += 7;
-                if (selectedReport.vat_rate) {
-                  doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y);
-                  y += 7;
-                }
+                if (selectedReport.vat_rate) { doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y); y += 7; }
                 if (selectedReport.total_amount) {
                   doc.setFont(undefined, "bold");
                   doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
@@ -1663,25 +1781,44 @@ export default function ServiceReportsPage() {
                 }
               }
 
-              // Firme
-              if (y > 220) {
-                doc.addPage();
-                y = 20;
-              }
-              y += 10;
+              // Termini e Condizioni
+              if (y > 210) { doc.addPage(); y = 20; }
+              y += 5;
+              doc.setFontSize(8);
+              doc.setFont(undefined, "bold");
+              doc.text("TERMINI E CONDIZIONI", 20, y);
+              y += 5;
+              doc.setFont(undefined, "normal");
+              const tcLines = [
+                "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
+                "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
+                "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
+                "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+                "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
+                "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
+                "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
+              ];
+              tcLines.forEach(line => {
+                if (y > 275) { doc.addPage(); y = 20; }
+                const wrapped = doc.splitTextToSize(line, 170);
+                doc.text(wrapped, 20, y);
+                y += wrapped.length * 4 + 1;
+              });
+              doc.setFontSize(12);
 
+              // Firme
+              if (y > 220) { doc.addPage(); y = 20; }
+              y += 10;
               doc.setFont(undefined, "bold");
               doc.text("Firma Cliente:", 20, y);
               if (selectedReport.customer_signature) {
                 doc.addImage(selectedReport.customer_signature, "PNG", 20, y + 5, 70, 30);
               }
-
               doc.text("Firma Tecnico:", 110, y);
               if (selectedReport.technician_signature) {
                 doc.addImage(selectedReport.technician_signature, "PNG", 110, y + 5, 70, 30);
               }
 
-              // Footer con contatti aziendali
               const pageHeight = doc.internal.pageSize.height;
               doc.setFontSize(8);
               doc.setFont(undefined, "normal");

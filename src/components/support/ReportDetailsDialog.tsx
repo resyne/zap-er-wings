@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ReportDetailsDialogProps {
   open: boolean;
@@ -18,10 +20,25 @@ export function ReportDetailsDialog({
   onDownloadPDF,
   onSendEmail
 }: ReportDetailsDialogProps) {
+  const [materials, setMaterials] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (open && report?.id) {
+      supabase
+        .from('service_report_materials')
+        .select('*')
+        .eq('report_id', report.id)
+        .then(({ data }) => setMaterials(data || []));
+    }
+  }, [open, report?.id]);
+
   if (!report) return null;
 
   const customer = report.customers;
   const technician = report.technicians;
+
+  const matNetto = materials.reduce((s, m) => s + m.quantity * m.unit_price, 0);
+  const matIva = materials.reduce((s, m) => s + m.quantity * m.unit_price * m.vat_rate / 100, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,6 +75,7 @@ export function ReportDetailsDialog({
               )}
               <p><strong>Tipo:</strong> <span className="capitalize">{report.intervention_type}</span></p>
               <p><strong>Tecnico:</strong> {technician?.first_name} {technician?.last_name}</p>
+              <p><strong>N. Tecnici presenti:</strong> {report.technicians_count || 1}</p>
               <p><strong>Stato:</strong> <span className="capitalize">{report.status}</span></p>
             </div>
           </div>
@@ -86,7 +104,45 @@ export function ReportDetailsDialog({
             </>
           )}
 
-          {report.materials_used && (
+          {/* Materiali strutturati */}
+          {materials.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="font-semibold text-lg mb-3">Materiali Utilizzati</h3>
+                <div className="space-y-2">
+                  {materials.map((mat: any) => (
+                    <div key={mat.id} className="bg-muted p-3 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{mat.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Qtà: {mat.quantity} 
+                          {mat.unit_price > 0 && ` • €${Number(mat.unit_price).toFixed(2)}/un • IVA ${mat.vat_rate}%`}
+                        </p>
+                      </div>
+                      {mat.unit_price > 0 && (
+                        <span className="font-semibold text-sm">
+                          €{(mat.quantity * mat.unit_price * (1 + mat.vat_rate / 100)).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {matNetto > 0 && (
+                    <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 text-sm">
+                      <div className="flex justify-between">
+                        <span>Netto: €{matNetto.toFixed(2)}</span>
+                        <span>IVA: €{matIva.toFixed(2)}</span>
+                        <span className="font-bold">Totale: €{(matNetto + matIva).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Materiali legacy (testo) */}
+          {report.materials_used && materials.length === 0 && (
             <>
               <Separator />
               <div>

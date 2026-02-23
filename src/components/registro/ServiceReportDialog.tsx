@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Plus, Check, ChevronsUpDown, Download, Mail, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
+import { MaterialsLineItems, type MaterialItem } from "@/components/support/MaterialsLineItems";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 
@@ -85,6 +86,7 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
   });
   const [customerSignature, setCustomerSignature] = useState<string>('');
   const [technicianSignature, setTechnicianSignature] = useState<string>('');
+  const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
 
   // Filtered customers for search
   const filteredCustomers = useMemo(() => {
@@ -239,6 +241,20 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
 
       if (error) throw error;
 
+      // Save material items
+      if (materialItems.length > 0) {
+        const materialsToInsert = materialItems.filter(m => m.description.trim()).map(m => ({
+          report_id: data.id,
+          description: m.description,
+          quantity: m.quantity,
+          unit_price: m.unit_price,
+          vat_rate: m.vat_rate
+        }));
+        if (materialsToInsert.length > 0) {
+          await supabase.from('service_report_materials').insert(materialsToInsert);
+        }
+      }
+
       setSavedReportId(data.id);
       setStep("actions");
       toast.success("Rapporto salvato con successo");
@@ -313,6 +329,8 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
       doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
       y += 7;
       doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
+      y += 7;
+      doc.text(`N. Tecnici presenti: 1`, 20, y);
       y += 10;
 
       if (formData.description) {
@@ -335,7 +353,51 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
         y += workLines.length * 7 + 3;
       }
 
-      if (formData.materials_used) {
+      // Materiali come tabella
+      if (materialItems.length > 0 && materialItems.some(m => m.description.trim())) {
+        if (y > 200) { doc.addPage(); y = 20; }
+        doc.setFont(undefined, "bold");
+        doc.text("Materiali Utilizzati:", 20, y);
+        y += 7;
+        doc.setFontSize(9);
+        doc.setFont(undefined, "bold");
+        doc.text("Descrizione", 20, y);
+        doc.text("Qtà", 120, y);
+        doc.text("Prezzo", 140, y);
+        doc.text("IVA", 165, y);
+        doc.text("Totale", 180, y);
+        y += 5;
+        doc.line(20, y, 195, y);
+        y += 3;
+        doc.setFont(undefined, "normal");
+        let matNettoTotal = 0;
+        let matIvaTotal = 0;
+        materialItems.filter(m => m.description.trim()).forEach(item => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const netto = item.quantity * item.unit_price;
+          const iva = netto * item.vat_rate / 100;
+          matNettoTotal += netto;
+          matIvaTotal += iva;
+          const descText = doc.splitTextToSize(item.description, 95);
+          doc.text(descText, 20, y);
+          doc.text(String(item.quantity), 120, y);
+          doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : '-', 140, y);
+          doc.text(`${item.vat_rate}%`, 165, y);
+          doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+          y += descText.length * 5 + 2;
+        });
+        if (matNettoTotal > 0) {
+          y += 2;
+          doc.line(20, y, 195, y);
+          y += 5;
+          doc.setFont(undefined, "bold");
+          doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
+          y += 5;
+        }
+        doc.setFontSize(12);
+        doc.setFont(undefined, "normal");
+        y += 5;
+      } else if (formData.materials_used) {
         doc.setFont(undefined, "bold");
         doc.text("Materiali Utilizzati:", 20, y);
         doc.setFont(undefined, "normal");
@@ -356,10 +418,7 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
       }
 
       if (formData.amount) {
-        if (y > 220) {
-          doc.addPage();
-          y = 20;
-        }
+        if (y > 220) { doc.addPage(); y = 20; }
         y += 10;
         doc.setFont(undefined, "bold");
         doc.text("Dettagli Economici:", 20, y);
@@ -375,10 +434,32 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
         y += 10;
       }
 
-      if (y > 220) {
-        doc.addPage();
-        y = 20;
-      }
+      // Termini e Condizioni
+      if (y > 210) { doc.addPage(); y = 20; }
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont(undefined, "bold");
+      doc.text("TERMINI E CONDIZIONI", 20, y);
+      y += 5;
+      doc.setFont(undefined, "normal");
+      const tcLines = [
+        "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
+        "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
+        "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
+        "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+        "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
+        "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
+        "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
+      ];
+      tcLines.forEach(line => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        const wrapped = doc.splitTextToSize(line, 170);
+        doc.text(wrapped, 20, y);
+        y += wrapped.length * 4 + 1;
+      });
+      doc.setFontSize(12);
+
+      if (y > 220) { doc.addPage(); y = 20; }
       y += 10;
 
       doc.setFont(undefined, "bold");
@@ -463,6 +544,7 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
     setCustomerSearch("");
     setCustomerSignature('');
     setTechnicianSignature('');
+    setMaterialItems([]);
     setSavedReportId(null);
     setStep("form");
     onOpenChange(false);
@@ -644,16 +726,8 @@ export function ServiceReportDialog({ open, onOpenChange }: ServiceReportDialogP
                 />
               </div>
 
-              {/* Materials Used */}
-              <div className="space-y-2">
-                <Label>Materiali Utilizzati</Label>
-                <Textarea 
-                  value={formData.materials_used}
-                  onChange={(e) => handleInputChange('materials_used', e.target.value)}
-                  placeholder="Elenco materiali..."
-                  rows={2}
-                />
-              </div>
+              {/* Materials Line Items */}
+              <MaterialsLineItems items={materialItems} onChange={setMaterialItems} />
 
               {/* Notes */}
               <div className="space-y-2">

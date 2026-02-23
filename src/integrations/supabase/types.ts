@@ -8209,6 +8209,50 @@ export type Database = {
         }
         Relationships: []
       }
+      service_report_materials: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          quantity: number
+          report_id: string
+          total: number | null
+          total_with_vat: number | null
+          unit_price: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          quantity?: number
+          report_id: string
+          total?: number | null
+          total_with_vat?: number | null
+          unit_price?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          quantity?: number
+          report_id?: string
+          total?: number | null
+          total_with_vat?: number | null
+          unit_price?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_report_materials_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "service_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_report_settings: {
         Row: {
           created_at: string
