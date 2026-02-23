@@ -110,6 +110,7 @@ import TaskKpiPage from "./pages/direzione/TaskKpiPage";
 import ZAppPage from "./pages/hr/ZAppPage";
 import ZAppServiceReportsPage from "./pages/hr/ZAppServiceReportsPage";
 import ZAppRegistroPage from "./pages/hr/ZAppRegistroPage";
+import ZAppMagazzino from "./pages/hr/ZAppMagazzino";
 import StrategyPage from "./pages/direzione/StrategyPage";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
@@ -216,6 +217,7 @@ const App = () => (
                 <Route path="hr/z-app" element={<ZAppPage />} />
                 <Route path="hr/z-app/rapporti" element={<ZAppServiceReportsPage />} />
                 <Route path="hr/z-app/registro" element={<ZAppRegistroPage />} />
+                <Route path="hr/z-app/magazzino" element={<ZAppMagazzino />} />
                 <Route path="docs" element={<DocumentationPage />} />
                 <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
                 <Route path="docs/technical-sheets/blast-chillers" element={<BlastChillersPage />} />
