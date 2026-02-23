@@ -29,7 +29,7 @@ const sections = [
     description: "Gestisci scorte, movimenti e materiali",
     icon: Package2,
     color: "bg-amber-500",
-    url: "/wms/stock",
+    url: "/hr/z-app/magazzino",
   },
   {
     title: "Commesse",
