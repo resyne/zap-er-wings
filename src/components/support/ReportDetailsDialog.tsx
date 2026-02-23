@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Mail } from "lucide-react";
+import { Download, Mail, Pencil } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,6 +11,7 @@ interface ReportDetailsDialogProps {
   report: any;
   onDownloadPDF: () => void;
   onSendEmail: () => void;
+  onEdit?: () => void;
 }
 
 export function ReportDetailsDialog({
@@ -18,7 +19,8 @@ export function ReportDetailsDialog({
   onOpenChange,
   report,
   onDownloadPDF,
-  onSendEmail
+  onSendEmail,
+  onEdit
 }: ReportDetailsDialogProps) {
   const [materials, setMaterials] = useState<any[]>([]);
 
@@ -208,6 +210,12 @@ export function ReportDetailsDialog({
 
           {/* Azioni */}
           <div className="flex gap-3 pt-4">
+            {onEdit && (
+              <Button onClick={onEdit} variant="secondary" className="flex-1 flex items-center justify-center gap-2">
+                <Pencil className="w-4 h-4" />
+                Modifica
+              </Button>
+            )}
             <Button onClick={onDownloadPDF} className="flex-1 flex items-center justify-center gap-2">
               <Download className="w-4 h-4" />
               Scarica PDF
