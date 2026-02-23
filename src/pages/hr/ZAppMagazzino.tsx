@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Plus, Loader2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
@@ -22,6 +24,7 @@ interface Material {
   maximum_stock: number;
   category?: string;
   supplier_id?: string;
+  suppliers?: { name: string } | null;
 }
 
 interface StockMovement {
@@ -40,18 +43,19 @@ interface StockMovement {
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [caricoOpen, setCaricoOpen] = useState(false);
   const [scaricoOpen, setScaricoOpen] = useState(false);
+  const [stockFilter, setStockFilter] = useState<string>("all");
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
 
-  // Fetch materials/stock
+  // Fetch materials with supplier name
   const { data: materials = [], isLoading: loadingMaterials } = useQuery({
     queryKey: ["zapp-materials"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id")
+        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, suppliers(name)")
         .eq("active", true)
         .order("name");
       if (error) throw error;
@@ -65,7 +69,6 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return [];
-
       const { data, error } = await supabase
         .from("stock_movements")
         .select("id, movement_date, movement_type, origin_type, item_description, quantity, unit, status, notes, created_at")
@@ -77,12 +80,52 @@ export default function ZAppMagazzino() {
     },
   });
 
-  const filteredMaterials = materials.filter((m) =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter materials
+  const filteredMaterials = useMemo(() => {
+    return materials.filter((m) => {
+      const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = stockFilter === "all" ||
+        (stockFilter === "low" && m.current_stock <= m.minimum_stock) ||
+        (stockFilter === "ok" && m.current_stock > m.minimum_stock && m.current_stock < m.maximum_stock) ||
+        (stockFilter === "excess" && m.current_stock >= m.maximum_stock);
+      return matchesSearch && matchesFilter;
+    });
+  }, [materials, searchTerm, stockFilter]);
+
+  // Group by supplier
+  const groupedBySupplier = useMemo(() => {
+    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+    for (const m of filteredMaterials) {
+      const key = m.supplier_id || "__no_supplier__";
+      const supplierName = m.suppliers?.name || "Senza fornitore";
+      if (!groups[key]) {
+        groups[key] = { supplierName, materials: [] };
+      }
+      groups[key].materials.push(m);
+    }
+    // Sort groups: named suppliers first alphabetically, "Senza fornitore" last
+    return Object.entries(groups).sort(([keyA, a], [keyB, b]) => {
+      if (keyA === "__no_supplier__") return 1;
+      if (keyB === "__no_supplier__") return -1;
+      return a.supplierName.localeCompare(b.supplierName);
+    });
+  }, [filteredMaterials]);
 
   const lowStockCount = materials.filter((m) => m.current_stock <= m.minimum_stock).length;
+
+  const toggleSupplier = (key: string) => {
+    setExpandedSuppliers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Expand all on first load
+  const isAllExpanded = expandedSuppliers.has("__all__");
+  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
 
   const getStockBadge = (m: Material) => {
     if (m.current_stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>;
@@ -154,48 +197,111 @@ export default function ZAppMagazzino() {
 
         {/* Stock Tab */}
         <TabsContent value="scorte" className="mt-3 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cerca materiale..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 rounded-xl bg-white"
-            />
+          {/* Search + Filter */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca materiale..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 rounded-xl bg-white"
+              />
+            </div>
+            <Select value={stockFilter} onValueChange={setStockFilter}>
+              <SelectTrigger className="w-[110px] rounded-xl bg-white">
+                <Filter className="h-3.5 w-3.5 mr-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti</SelectItem>
+                <SelectItem value="low">Sotto scorta</SelectItem>
+                <SelectItem value="ok">OK</SelectItem>
+                <SelectItem value="excess">Eccesso</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Count */}
+          <p className="text-xs text-muted-foreground">
+            {filteredMaterials.length} articoli in {groupedBySupplier.length} fornitori
+          </p>
 
           {loadingMaterials ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredMaterials.length === 0 ? (
+          ) : groupedBySupplier.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               Nessun materiale trovato
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredMaterials.map((m) => (
-                <div
-                  key={m.id}
-                  className="bg-white rounded-xl p-3 shadow-sm border border-border flex items-center gap-3"
-                >
-                  <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    m.current_stock <= m.minimum_stock ? "bg-red-100" : "bg-green-100"
-                  }`}>
-                    <Package className={`h-5 w-5 ${
-                      m.current_stock <= m.minimum_stock ? "text-red-600" : "text-green-600"
-                    }`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{m.name}</p>
-                    <p className="text-xs text-muted-foreground">{m.code}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-sm">{m.current_stock} <span className="text-xs font-normal text-muted-foreground">{m.unit}</span></p>
-                    {getStockBadge(m)}
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {groupedBySupplier.map(([key, group]) => {
+                const groupLowStock = group.materials.filter((m) => m.current_stock <= m.minimum_stock).length;
+                return (
+                  <Collapsible
+                    key={key}
+                    open={isExpanded(key)}
+                    onOpenChange={() => {
+                      // If first interaction, remove __all__ flag
+                      if (isAllExpanded) {
+                        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
+                        allKeys.delete(key); // toggle this one off
+                        setExpandedSuppliers(allKeys);
+                      } else {
+                        toggleSupplier(key);
+                      }
+                    }}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm border border-border hover:bg-muted/50 transition-colors">
+                        <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-4 w-4 text-amber-700" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="font-semibold text-sm truncate">{group.supplierName}</p>
+                          <p className="text-[11px] text-muted-foreground">{group.materials.length} articoli</p>
+                        </div>
+                        {groupLowStock > 0 && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 mr-1">{groupLowStock} ⚠</Badge>
+                        )}
+                        {isExpanded(key) ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-amber-200 pl-2">
+                        {group.materials.map((m) => (
+                          <div
+                            key={m.id}
+                            className="bg-white rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5"
+                          >
+                            <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
+                              m.current_stock <= m.minimum_stock ? "bg-red-50" : "bg-green-50"
+                            }`}>
+                              <Package className={`h-4 w-4 ${
+                                m.current_stock <= m.minimum_stock ? "text-red-500" : "text-green-500"
+                              }`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-[13px] truncate">{m.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{m.code}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-bold text-[13px]">{m.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{m.unit}</span></p>
+                              {getStockBadge(m)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </TabsContent>
