@@ -3321,6 +3321,54 @@ export type Database = {
           },
         ]
       }
+      internal_communications: {
+        Row: {
+          attachment_url: string | null
+          communication_type: string
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          metadata: Json | null
+          priority: string
+          read_at: string | null
+          recipient_id: string | null
+          sender_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          communication_type?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          recipient_id?: string | null
+          sender_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_url?: string | null
+          communication_type?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          priority?: string
+          read_at?: string | null
+          recipient_id?: string | null
+          sender_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_registry: {
         Row: {
           account_splits: Json | null
