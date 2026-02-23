@@ -36,7 +36,7 @@ const sections = [
     description: "Lavoro, produzione e spedizione",
     icon: Wrench,
     color: "bg-purple-500",
-    url: "/direzione/orders",
+    url: "/hr/z-app/commesse",
   },
   {
     title: "Calendario Lavori",
