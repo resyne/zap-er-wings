@@ -102,6 +102,7 @@ export default function ServiceReportsPage() {
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<ServiceReport | null>(null);
   const [showReportDetails, setShowReportDetails] = useState(false);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     intervention_type: '',
     description: '',
@@ -446,11 +447,16 @@ export default function ServiceReportsPage() {
       });
       return;
     }
-    setShowSignatures(true);
+    // If editing and signatures already exist, save directly
+    if (editingReportId && customerSignature && technicianSignature) {
+      saveReport();
+    } else {
+      setShowSignatures(true);
+    }
   };
 
   const saveReport = async () => {
-    if (!customerSignature || !technicianSignature) {
+    if (!editingReportId && (!customerSignature || !technicianSignature)) {
       toast({
         title: "Firme mancanti",
         description: "Entrambe le firme sono obbligatorie",
@@ -461,42 +467,60 @@ export default function ServiceReportsPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('service_reports')
-        .insert({
-          customer_id: selectedCustomer?.id,
-          technician_id: selectedTechnician?.id,
-          work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
-          production_work_order_id: selectedWorkOrder?.type === 'production' ? selectedWorkOrder.id : null,
-          intervention_type: formData.intervention_type,
-          description: formData.description || null,
-          work_performed: formData.work_performed,
-          materials_used: formData.materials_used,
-          notes: formData.notes,
-          technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
-          intervention_date: formData.intervention_date,
-          start_time: formData.start_time || null,
-          end_time: formData.end_time || null,
-          amount: formData.amount ? parseFloat(formData.amount) : null,
-          vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
-          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
-          customer_signature: customerSignature,
-          technician_signature: technicianSignature,
-          status: 'completed',
-          technicians_count: techniciansList.length || 1,
-          kilometers: parseFloat(formData.kilometers) || 0,
-          head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
-          specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
-        })
-        .select()
-        .single();
+      const reportPayload = {
+        customer_id: selectedCustomer?.id,
+        technician_id: selectedTechnician?.id,
+        work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
+        production_work_order_id: selectedWorkOrder?.type === 'production' ? selectedWorkOrder.id : null,
+        intervention_type: formData.intervention_type,
+        description: formData.description || null,
+        work_performed: formData.work_performed,
+        materials_used: formData.materials_used,
+        notes: formData.notes,
+        technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
+        intervention_date: formData.intervention_date,
+        start_time: formData.start_time || null,
+        end_time: formData.end_time || null,
+        amount: formData.amount ? parseFloat(formData.amount) : null,
+        vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
+        total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+        customer_signature: customerSignature || undefined,
+        technician_signature: technicianSignature || undefined,
+        status: 'completed' as const,
+        technicians_count: techniciansList.length || 1,
+        kilometers: parseFloat(formData.kilometers) || 0,
+        head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
+      };
 
-      if (error) throw error;
+      let reportId: string;
+
+      if (editingReportId) {
+        // Update existing report
+        const { error } = await supabase
+          .from('service_reports')
+          .update(reportPayload)
+          .eq('id', editingReportId);
+        if (error) throw error;
+        reportId = editingReportId;
+
+        // Replace materials: delete old, insert new
+        await supabase.from('service_report_materials').delete().eq('report_id', editingReportId);
+      } else {
+        // Insert new report
+        const { data, error } = await supabase
+          .from('service_reports')
+          .insert(reportPayload)
+          .select()
+          .single();
+        if (error) throw error;
+        reportId = data.id;
+      }
 
       // Save material items
       if (materialItems.length > 0) {
         const materialsToInsert = materialItems.filter(m => m.description.trim()).map(m => ({
-          report_id: data.id,
+          report_id: reportId,
           description: m.description,
           quantity: m.quantity,
           unit_price: m.unit_price,
@@ -507,13 +531,13 @@ export default function ServiceReportsPage() {
         }
       }
 
-      setSavedReportId(data.id);
+      setSavedReportId(reportId);
       setShowSignatures(false);
       setShowActions(true);
 
       toast({
-        title: "Rapporto salvato",
-        description: "Il rapporto di intervento è stato salvato con successo",
+        title: editingReportId ? "Rapporto aggiornato" : "Rapporto salvato",
+        description: editingReportId ? "Il rapporto è stato aggiornato con successo" : "Il rapporto di intervento è stato salvato con successo",
       });
     } catch (error) {
       console.error('Error saving report:', error);
@@ -833,8 +857,75 @@ export default function ServiceReportsPage() {
     setShowSignatures(false);
     setShowActions(false);
     setSavedReportId(null);
+    setEditingReportId(null);
     setShowCreateForm(false);
     loadInitialData();
+  };
+
+  const startEditReport = async (report: ServiceReport) => {
+    // Load materials for this report
+    const { data: reportMaterials } = await supabase
+      .from('service_report_materials')
+      .select('*')
+      .eq('report_id', report.id);
+
+    // Populate form
+    setFormData({
+      intervention_type: report.intervention_type || '',
+      description: report.description || '',
+      work_performed: report.work_performed || '',
+      materials_used: report.materials_used || '',
+      notes: report.notes || '',
+      intervention_date: report.intervention_date || new Date().toISOString().split('T')[0],
+      start_time: report.start_time || '',
+      end_time: report.end_time || '',
+      amount: report.amount?.toString() || '',
+      vat_rate: report.vat_rate?.toString() || '22',
+      total_amount: report.total_amount?.toString() || '',
+      kilometers: (report as any).kilometers?.toString() || '0'
+    });
+
+    // Set customer and technician
+    if (report.customers) setSelectedCustomer(report.customers);
+    if (report.technicians) setSelectedTechnician(report.technicians);
+
+    // Set materials
+    if (reportMaterials && reportMaterials.length > 0) {
+      setMaterialItems(reportMaterials.map((m: any) => ({
+        id: m.id,
+        description: m.description,
+        quantity: Number(m.quantity),
+        unit_price: Number(m.unit_price),
+        vat_rate: Number(m.vat_rate)
+      })));
+    } else {
+      setMaterialItems([]);
+    }
+
+    // Set signatures
+    setCustomerSignature(report.customer_signature || '');
+    setTechnicianSignature(report.technician_signature || '');
+
+    // Set technicians count
+    const techCount = (report as any).technicians_count || 1;
+    const headHours = (report as any).head_technician_hours || 0;
+    const specHours = (report as any).specialized_technician_hours || 0;
+    const totalHours = calculateHoursFromTime(report.start_time || '', report.end_time || '') || 1;
+    const headCount = totalHours > 0 ? Math.round(headHours / totalHours) : 0;
+    const specCount = totalHours > 0 ? Math.round(specHours / totalHours) : 0;
+    const techList: Array<{ type: 'head' | 'specialized'; id: string }> = [];
+    for (let i = 0; i < headCount; i++) techList.push({ type: 'head', id: crypto.randomUUID() });
+    for (let i = 0; i < specCount; i++) techList.push({ type: 'specialized', id: crypto.randomUUID() });
+    if (techList.length === 0 && techCount > 0) {
+      for (let i = 0; i < techCount; i++) techList.push({ type: 'specialized', id: crypto.randomUUID() });
+    }
+    setTechniciansList(techList);
+
+    setEditingReportId(report.id);
+    setShowReportDetails(false);
+    setShowCreateForm(true);
+    setShowSignatures(false);
+    setShowActions(false);
   };
 
   return (
@@ -1549,7 +1640,7 @@ export default function ServiceReportsPage() {
               size="lg"
             >
               <FileText className="w-5 h-5" />
-              Genera Rapporto
+              {editingReportId ? "Aggiorna Rapporto" : "Genera Rapporto"}
             </Button>
           </div>
         </div>
@@ -1597,11 +1688,11 @@ export default function ServiceReportsPage() {
               </Button>
               <Button
                 onClick={saveReport}
-                disabled={loading || !customerSignature || !technicianSignature}
+                disabled={loading || (!editingReportId && (!customerSignature || !technicianSignature))}
                 className="h-12 order-1 sm:order-2"
                 size="lg"
               >
-                {loading ? "Salvando..." : "Salva Rapporto"}
+                {loading ? "Salvando..." : editingReportId ? "Aggiorna Rapporto" : "Salva Rapporto"}
               </Button>
             </div>
           </CardContent>
@@ -1618,6 +1709,9 @@ export default function ServiceReportsPage() {
         open={showReportDetails}
         onOpenChange={setShowReportDetails}
         report={selectedReport}
+        onEdit={() => {
+          if (selectedReport) startEditReport(selectedReport);
+        }}
         onDownloadPDF={async () => {
           if (selectedReport) {
             // Load materials for this report
