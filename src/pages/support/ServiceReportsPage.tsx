@@ -709,42 +709,76 @@ export default function ServiceReportsPage() {
         y += noteLines.length * 7 + 3;
       }
 
-      // Nota fatturazione
-      if (y > 240) {
-        doc.addPage();
-        y = 20;
+      // Dettagli economici
+      if (parseFloat(formData.amount) > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        y += 10;
+        doc.setFont(undefined, "bold");
+        doc.text("Dettagli Economici:", 20, y);
+        doc.setFont(undefined, "normal");
+        y += 7;
+        doc.text(`Importo Netto: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
+        y += 7;
+        if (formData.vat_rate) { doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y); y += 7; }
+        if (formData.total_amount) {
+          doc.setFont(undefined, "bold");
+          doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
+          doc.setFont(undefined, "normal");
+          y += 10;
+        }
       }
-      y += 10;
-      doc.setFontSize(10);
-      doc.setFont(undefined, "italic");
-      doc.text("Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata", 20, y);
-      doc.setFontSize(12);
-      doc.setFont(undefined, "normal");
-      y += 5;
 
-      // Termini e Condizioni
-      if (y > 210) { doc.addPage(); y = 20; }
+      // Listino Prezzi
+      if (y > 180) { doc.addPage(); y = 20; }
+      y += 5;
+      doc.setFontSize(9);
+      doc.setFont(undefined, "bold");
+      doc.text("LISTINO PREZZI INTERVENTI FUORI CONTRATTO - 2026", 105, y, { align: "center" });
+      y += 6;
+      doc.setFontSize(8);
+      doc.setFont(undefined, "normal");
+      const listinoIntro = doc.splitTextToSize("Gli interventi tecnici richiesti al di fuori di un contratto di manutenzione programmata verranno gestiti secondo le seguenti condizioni:", 170);
+      doc.text(listinoIntro, 20, y);
+      y += listinoIntro.length * 4 + 3;
+
+      doc.setFont(undefined, "bold");
+      doc.text("Costo di chiamata: ", 20, y);
+      doc.setFont(undefined, "normal");
+      doc.text("€ 50,00+iva", 20 + doc.getTextWidth("Costo di chiamata: "), y);
+      y += 4;
+      doc.setFontSize(7);
+      doc.text("*L'amministrazione si riserva la facoltà di azzerare il costo di chiamata", 20, y);
       y += 5;
       doc.setFontSize(8);
+
       doc.setFont(undefined, "bold");
-      doc.text("TERMINI E CONDIZIONI", 20, y);
-      y += 5;
+      doc.text("Rimborso chilometrico: ", 20, y);
       doc.setFont(undefined, "normal");
-      const tcLines = [
-        "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
-        "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
-        "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
-        "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
-        "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
-        "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
-        "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
-      ];
-      tcLines.forEach(line => {
-        if (y > 275) { doc.addPage(); y = 20; }
-        const wrapped = doc.splitTextToSize(line, 170);
-        doc.text(wrapped, 20, y);
-        y += wrapped.length * 4 + 1;
-      });
+      doc.text("€ 0,40+iva / km", 20 + doc.getTextWidth("Rimborso chilometrico: "), y);
+      y += 4;
+      const kmDesc = doc.splitTextToSize("calcolato sulla percorrenza andata e ritorno dal punto di partenza del tecnico.", 170);
+      doc.text(kmDesc, 20, y);
+      y += kmDesc.length * 4;
+      doc.setFontSize(7);
+      doc.text("*L'amministrazione si riserva la facoltà di azzerare il rimborso chilometrico", 20, y);
+      y += 5;
+      doc.setFontSize(8);
+
+      doc.setFont(undefined, "bold");
+      doc.text("Costo dell'intervento: ", 20, y);
+      doc.setFont(undefined, "normal");
+      doc.text("€ 40,00+iva / ora per singolo tecnico", 20 + doc.getTextWidth("Costo dell'intervento: "), y);
+      y += 5;
+
+      doc.setFont(undefined, "bold");
+      doc.text("Materiali utilizzati: ", 20, y);
+      doc.setFont(undefined, "normal");
+      doc.text("addebitati in base alle quantità impiegate", 20 + doc.getTextWidth("Materiali utilizzati: "), y);
+      y += 6;
+
+      const closingLines = doc.splitTextToSize("Al termine dell'intervento verrà rilasciato un rapporto di intervento riepilogativo delle attività svolte. Se non comunicato a termine lavoro, il corrispettivo verrà indicato nella fattura emessa successivamente all'intervento.", 170);
+      doc.text(closingLines, 20, y);
+      y += closingLines.length * 4 + 2;
       doc.setFontSize(12);
 
       // Firme
@@ -1890,29 +1924,57 @@ export default function ServiceReportsPage() {
                 }
               }
 
-              // Termini e Condizioni
-              if (y > 210) { doc.addPage(); y = 20; }
+              // Listino Prezzi
+              if (y > 180) { doc.addPage(); y = 20; }
+              y += 5;
+              doc.setFontSize(9);
+              doc.setFont(undefined, "bold");
+              doc.text("LISTINO PREZZI INTERVENTI FUORI CONTRATTO - 2026", 105, y, { align: "center" });
+              y += 6;
+              doc.setFontSize(8);
+              doc.setFont(undefined, "normal");
+              const listinoIntro2 = doc.splitTextToSize("Gli interventi tecnici richiesti al di fuori di un contratto di manutenzione programmata verranno gestiti secondo le seguenti condizioni:", 170);
+              doc.text(listinoIntro2, 20, y);
+              y += listinoIntro2.length * 4 + 3;
+
+              doc.setFont(undefined, "bold");
+              doc.text("Costo di chiamata: ", 20, y);
+              doc.setFont(undefined, "normal");
+              doc.text("€ 50,00+iva", 20 + doc.getTextWidth("Costo di chiamata: "), y);
+              y += 4;
+              doc.setFontSize(7);
+              doc.text("*L'amministrazione si riserva la facoltà di azzerare il costo di chiamata", 20, y);
               y += 5;
               doc.setFontSize(8);
+
               doc.setFont(undefined, "bold");
-              doc.text("TERMINI E CONDIZIONI", 20, y);
-              y += 5;
+              doc.text("Rimborso chilometrico: ", 20, y);
               doc.setFont(undefined, "normal");
-              const tcLines = [
-                "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
-                "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
-                "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
-                "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
-                "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
-                "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
-                "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
-              ];
-              tcLines.forEach(line => {
-                if (y > 275) { doc.addPage(); y = 20; }
-                const wrapped = doc.splitTextToSize(line, 170);
-                doc.text(wrapped, 20, y);
-                y += wrapped.length * 4 + 1;
-              });
+              doc.text("€ 0,40+iva / km", 20 + doc.getTextWidth("Rimborso chilometrico: "), y);
+              y += 4;
+              const kmDesc2 = doc.splitTextToSize("calcolato sulla percorrenza andata e ritorno dal punto di partenza del tecnico.", 170);
+              doc.text(kmDesc2, 20, y);
+              y += kmDesc2.length * 4;
+              doc.setFontSize(7);
+              doc.text("*L'amministrazione si riserva la facoltà di azzerare il rimborso chilometrico", 20, y);
+              y += 5;
+              doc.setFontSize(8);
+
+              doc.setFont(undefined, "bold");
+              doc.text("Costo dell'intervento: ", 20, y);
+              doc.setFont(undefined, "normal");
+              doc.text("€ 40,00+iva / ora per singolo tecnico", 20 + doc.getTextWidth("Costo dell'intervento: "), y);
+              y += 5;
+
+              doc.setFont(undefined, "bold");
+              doc.text("Materiali utilizzati: ", 20, y);
+              doc.setFont(undefined, "normal");
+              doc.text("addebitati in base alle quantità impiegate", 20 + doc.getTextWidth("Materiali utilizzati: "), y);
+              y += 6;
+
+              const closingLines2 = doc.splitTextToSize("Al termine dell'intervento verrà rilasciato un rapporto di intervento riepilogativo delle attività svolte. Se non comunicato a termine lavoro, il corrispettivo verrà indicato nella fattura emessa successivamente all'intervento.", 170);
+              doc.text(closingLines2, 20, y);
+              y += closingLines2.length * 4 + 2;
               doc.setFontSize(12);
 
               // Firme
