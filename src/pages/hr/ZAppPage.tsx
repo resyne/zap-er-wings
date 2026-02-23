@@ -15,7 +15,7 @@ const sections = [
     description: "Compila e consulta i rapporti di intervento",
     icon: FileText,
     color: "bg-blue-500",
-    url: "/support/service-reports",
+    url: "/hr/z-app/rapporti",
   },
   {
     title: "Registro Incasso/Spese",
