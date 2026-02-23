@@ -196,6 +196,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Turni", url: "/hr/roster", icon: CalendarDays },
       { title: "Fluida", url: "/hr/fluida", icon: Users },
       { title: "Ticket Restaurant", url: "/hr/ticket-restaurant", icon: UtensilsCrossed },
+      { title: "Z-APP", url: "/hr/z-app", icon: Zap },
     ]
   },
   {
