@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Check, ChevronsUpDown, Download, Mail, Loader2, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, Check, ChevronsUpDown, Download, Mail, Loader2, ChevronRight, CheckCircle2, Trash2, UserPlus } from "lucide-react";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { MaterialsLineItems, type MaterialItem } from "@/components/support/MaterialsLineItems";
@@ -71,6 +71,18 @@ export default function ZAppNewServiceReportPage() {
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
+
+  // Technicians list - dynamic adding (same as desktop)
+  const [techniciansList, setTechniciansList] = useState<Array<{ type: 'head' | 'specialized'; id: string }>>([]);
+
+  // Pricing settings (same as desktop)
+  const [pricingSettings, setPricingSettings] = useState({
+    specialized_technician_hourly_rate: 40,
+    specialized_technician_km_rate: 0.40,
+    head_technician_hourly_rate: 60,
+    head_technician_km_rate: 0.60
+  });
+
   const [formData, setFormData] = useState({
     intervention_type: '',
     description: '',
@@ -82,7 +94,8 @@ export default function ZAppNewServiceReportPage() {
     end_time: '',
     amount: '',
     vat_rate: '22',
-    total_amount: ''
+    total_amount: '',
+    kilometers: '0'
   });
   const [customerSignature, setCustomerSignature] = useState('');
   const [technicianSignature, setTechnicianSignature] = useState('');
@@ -105,7 +118,7 @@ export default function ZAppNewServiceReportPage() {
 
   const loadInitialData = async () => {
     try {
-      const [customersRes, techniciansRes, serviceOrdersRes] = await Promise.all([
+      const [customersRes, techniciansRes, serviceOrdersRes, settingsRes] = await Promise.all([
         supabase.from('customers')
           .select('id, name, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address')
           .order('company_name', { ascending: true, nullsFirst: false }).order('name'),
@@ -114,27 +127,115 @@ export default function ZAppNewServiceReportPage() {
           .eq('active', true).order('first_name'),
         supabase.from('service_work_orders')
           .select('id, number, title, description, customer_id')
-          .in('status', ['planned', 'in_progress'])
+          .neq('status', 'completata')
+          .order('number', { ascending: false }),
+        supabase.from('service_report_settings')
+          .select('setting_key, setting_value')
       ]);
 
       setCustomers(customersRes.data || []);
       setTechnicians(techniciansRes.data || []);
       setWorkOrders((serviceOrdersRes.data || []).map(wo => ({ ...wo, type: 'service' as const })));
+
+      if (settingsRes.data) {
+        const newSettings: Record<string, number> = {};
+        settingsRes.data.forEach((s: { setting_key: string; setting_value: number }) => {
+          newSettings[s.setting_key] = s.setting_value;
+        });
+        setPricingSettings(prev => ({ ...prev, ...newSettings }));
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error("Errore nel caricamento dei dati");
     }
   };
 
+  // Calculate hours from start and end time (minimum 1 hour, rounded up)
+  const calculateHoursFromTime = (startTime: string, endTime: string): number => {
+    if (!startTime || !endTime) return 0;
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    let diffMinutes = endMinutes - startMinutes;
+    if (diffMinutes <= 0) return 1;
+    return Math.max(1, Math.ceil(diffMinutes / 60));
+  };
+
+  // Material items net total
+  const materialsTotalNetto = materialItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+  // Calculate amount based on technicians list, time, km and materials
+  const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number, matTotal: number = materialsTotalNetto) => {
+    const hours = calculateHoursFromTime(startTime, endTime);
+    const headCount = techs.filter(t => t.type === 'head').length;
+    const specCount = techs.filter(t => t.type === 'specialized').length;
+    const headCost = hours * headCount * pricingSettings.head_technician_hourly_rate;
+    const specCost = hours * specCount * pricingSettings.specialized_technician_hourly_rate;
+    const kmCost = km * pricingSettings.head_technician_km_rate;
+    return headCost + specCost + kmCost + matTotal;
+  };
+
+  // Recalculate amount when materialItems change
+  useEffect(() => {
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(techniciansList, formData.start_time, formData.end_time, km, materialsTotalNetto);
+    setFormData(prev => {
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
+    });
+  }, [materialsTotalNetto]);
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
-      if (field === 'amount' || field === 'vat_rate') {
-        const amount = parseFloat(field === 'amount' ? value : newData.amount) || 0;
-        const vatRate = parseFloat(field === 'vat_rate' ? value : newData.vat_rate) || 0;
-        newData.total_amount = (amount + (amount * vatRate / 100)).toFixed(2);
+
+      // Auto-calculate amount based on technicians and time
+      if (['kilometers', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate') {
+        const km = parseFloat(field === 'kilometers' ? value : newData.kilometers) || 0;
+        const startTime = field === 'start_time' ? value : newData.start_time;
+        const endTime = field === 'end_time' ? value : newData.end_time;
+        const calculatedAmount = calculateAmount(techniciansList, startTime, endTime, km);
+
+        if (!prev.amount || ['kilometers', 'start_time', 'end_time'].includes(field)) {
+          newData.amount = calculatedAmount.toFixed(2);
+        }
       }
+
+      // Auto-calculate total when amount or vat changes
+      const amount = parseFloat(newData.amount) || 0;
+      const vatRate = parseFloat(newData.vat_rate) || 0;
+      newData.total_amount = (amount + (amount * vatRate / 100)).toFixed(2);
+
       return newData;
+    });
+  };
+
+  // Add technician to the list
+  const addTechnician = (type: 'head' | 'specialized') => {
+    const newTech = { type, id: crypto.randomUUID() };
+    const newList = [...techniciansList, newTech];
+    setTechniciansList(newList);
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+    setFormData(prev => {
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
+    });
+  };
+
+  // Remove technician from the list
+  const removeTechnician = (id: string) => {
+    const newList = techniciansList.filter(t => t.id !== id);
+    setTechniciansList(newList);
+    const km = parseFloat(formData.kilometers) || 0;
+    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+    setFormData(prev => {
+      const vatRate = parseFloat(prev.vat_rate) || 0;
+      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
     });
   };
 
@@ -181,28 +282,35 @@ export default function ZAppNewServiceReportPage() {
 
     setLoading(true);
     try {
+      const reportPayload = {
+        customer_id: selectedCustomer?.id,
+        technician_id: selectedTechnician?.id,
+        work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
+        production_work_order_id: selectedWorkOrder?.type === 'production' ? selectedWorkOrder.id : null,
+        intervention_type: formData.intervention_type,
+        description: formData.description || null,
+        work_performed: formData.work_performed,
+        materials_used: formData.materials_used,
+        notes: formData.notes,
+        technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
+        intervention_date: formData.intervention_date,
+        start_time: formData.start_time || null,
+        end_time: formData.end_time || null,
+        amount: formData.amount ? parseFloat(formData.amount) : null,
+        vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
+        total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+        customer_signature: customerSignature,
+        technician_signature: technicianSignature,
+        status: 'completed' as const,
+        technicians_count: techniciansList.length || 1,
+        kilometers: parseFloat(formData.kilometers) || 0,
+        head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
+      };
+
       const { data, error } = await supabase
         .from('service_reports')
-        .insert({
-          customer_id: selectedCustomer?.id,
-          technician_id: selectedTechnician?.id,
-          work_order_id: selectedWorkOrder?.type === 'service' ? selectedWorkOrder.id : null,
-          intervention_type: formData.intervention_type,
-          description: formData.description || null,
-          work_performed: formData.work_performed,
-          materials_used: formData.materials_used,
-          notes: formData.notes,
-          technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
-          intervention_date: formData.intervention_date,
-          start_time: formData.start_time || null,
-          end_time: formData.end_time || null,
-          amount: formData.amount ? parseFloat(formData.amount) : null,
-          vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
-          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
-          customer_signature: customerSignature,
-          technician_signature: technicianSignature,
-          status: 'completed'
-        })
+        .insert(reportPayload)
         .select()
         .single();
 
@@ -247,6 +355,7 @@ export default function ZAppNewServiceReportPage() {
       doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
       y = 35;
 
+      // Cliente
       doc.setFontSize(12);
       doc.setFont(undefined!, "bold");
       doc.text("Cliente:", 20, y);
@@ -262,6 +371,17 @@ export default function ZAppNewServiceReportPage() {
       }
       y += 10;
 
+      // Commessa
+      if (selectedWorkOrder) {
+        doc.setFont(undefined!, "bold");
+        doc.text("Commessa di Lavoro:", 20, y);
+        doc.setFont(undefined!, "normal");
+        y += 7;
+        doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
+        y += 10;
+      }
+
+      // Dettagli
       doc.setFont(undefined!, "bold");
       doc.text("Dettagli Intervento:", 20, y);
       doc.setFont(undefined!, "normal");
@@ -275,7 +395,15 @@ export default function ZAppNewServiceReportPage() {
       doc.text(`Tipo: ${formData.intervention_type}`, 20, y);
       y += 7;
       doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y);
-      y += 10;
+      y += 7;
+      const techCount = techniciansList.length || 1;
+      doc.text(`N. Tecnici presenti: ${techCount}`, 20, y);
+      y += 7;
+      if (parseFloat(formData.kilometers) > 0) {
+        doc.text(`Km percorsi: ${formData.kilometers}`, 20, y);
+        y += 7;
+      }
+      y += 3;
 
       if (formData.description) {
         doc.setFont(undefined!, "bold");
@@ -297,6 +425,63 @@ export default function ZAppNewServiceReportPage() {
         y += lines.length * 7 + 3;
       }
 
+      // Materials table
+      if (materialItems.length > 0 && materialItems.some(m => m.description.trim())) {
+        if (y > 200) { doc.addPage(); y = 20; }
+        doc.setFont(undefined!, "bold");
+        doc.text("Materiali Utilizzati:", 20, y);
+        y += 7;
+        doc.setFontSize(9);
+        doc.setFont(undefined!, "bold");
+        doc.text("Descrizione", 20, y);
+        doc.text("Qtà", 120, y);
+        doc.text("Prezzo", 140, y);
+        doc.text("IVA", 165, y);
+        doc.text("Totale", 180, y);
+        y += 5;
+        doc.line(20, y, 195, y);
+        y += 3;
+        doc.setFont(undefined!, "normal");
+        let matNettoTotal = 0;
+        let matIvaTotal = 0;
+        materialItems.filter(m => m.description.trim()).forEach(item => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          const netto = item.quantity * item.unit_price;
+          const iva = netto * item.vat_rate / 100;
+          matNettoTotal += netto;
+          matIvaTotal += iva;
+          const descText = doc.splitTextToSize(item.description, 95);
+          doc.text(descText, 20, y);
+          doc.text(String(item.quantity), 120, y);
+          doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : '-', 140, y);
+          doc.text(`${item.vat_rate}%`, 165, y);
+          doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+          y += descText.length * 5 + 2;
+        });
+        if (matNettoTotal > 0) {
+          y += 2;
+          doc.line(20, y, 195, y);
+          y += 5;
+          doc.setFont(undefined!, "bold");
+          doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
+          y += 5;
+        }
+        doc.setFontSize(12);
+        doc.setFont(undefined!, "normal");
+        y += 5;
+      }
+
+      if (formData.notes) {
+        doc.setFont(undefined!, "bold");
+        doc.text("Note:", 20, y);
+        doc.setFont(undefined!, "normal");
+        y += 7;
+        const lines = doc.splitTextToSize(formData.notes, 170);
+        doc.text(lines, 20, y);
+        y += lines.length * 7 + 3;
+      }
+
+      // Economici
       if (formData.amount) {
         if (y > 220) { doc.addPage(); y = 20; }
         y += 10;
@@ -313,6 +498,32 @@ export default function ZAppNewServiceReportPage() {
         y += 10;
       }
 
+      // T&C
+      if (y > 210) { doc.addPage(); y = 20; }
+      y += 5;
+      doc.setFontSize(8);
+      doc.setFont(undefined!, "bold");
+      doc.text("TERMINI E CONDIZIONI", 20, y);
+      y += 5;
+      doc.setFont(undefined!, "normal");
+      const tcLines = [
+        "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
+        "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
+        "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
+        "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+        "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
+        "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
+        "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
+      ];
+      tcLines.forEach(line => {
+        if (y > 275) { doc.addPage(); y = 20; }
+        const wrapped = doc.splitTextToSize(line, 170);
+        doc.text(wrapped, 20, y);
+        y += wrapped.length * 4 + 1;
+      });
+      doc.setFontSize(12);
+
+      // Firme
       if (y > 220) { doc.addPage(); y = 20; }
       y += 10;
       doc.setFont(undefined!, "bold");
@@ -321,12 +532,14 @@ export default function ZAppNewServiceReportPage() {
       if (customerSignature) doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
       if (technicianSignature) doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
 
+      // Footer
       const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
       doc.setFont(undefined!, "normal");
       doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
       doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
       doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
+      doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
 
       const fileName = `rapporto_${formData.intervention_date}_${selectedCustomer.name.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
@@ -414,7 +627,7 @@ export default function ZAppNewServiceReportPage() {
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Commessa (opzionale)</Label>
               <Select onValueChange={handleWorkOrderSelect}>
-                <SelectTrigger><SelectValue placeholder="Seleziona commessa..." /></SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue placeholder="Seleziona commessa..." /></SelectTrigger>
                 <SelectContent>
                   {workOrders.map(wo => (
                     <SelectItem key={wo.id} value={wo.id}>{wo.number} - {wo.title}</SelectItem>
@@ -460,9 +673,9 @@ export default function ZAppNewServiceReportPage() {
               </div>
             </div>
 
-            {/* Technician */}
+            {/* Technician (main) */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Tecnico *</Label>
+              <Label className="text-xs font-medium">Tecnico Principale *</Label>
               <Select onValueChange={(id) => setSelectedTechnician(technicians.find(t => t.id === id) || null)}>
                 <SelectTrigger className="h-10"><SelectValue placeholder="Seleziona tecnico..." /></SelectTrigger>
                 <SelectContent>
@@ -471,6 +684,46 @@ export default function ZAppNewServiceReportPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Technicians List (dynamic add/remove) */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium flex items-center gap-1">
+                <UserPlus className="h-3.5 w-3.5" />
+                Squadra Tecnici
+              </Label>
+              {techniciansList.length > 0 && (
+                <div className="space-y-2">
+                  {techniciansList.map((tech, idx) => (
+                    <div key={tech.id} className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg">
+                      <span className="text-xs font-medium flex-1">
+                        #{idx + 1} — {tech.type === 'head' ? 'Capo Tecnico' : 'Tecnico Specializzato'}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        €{tech.type === 'head' ? pricingSettings.head_technician_hourly_rate : pricingSettings.specialized_technician_hourly_rate}/h
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => removeTechnician(tech.id)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1 text-xs h-9" onClick={() => addTechnician('head')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Capo Tecnico
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1 text-xs h-9" onClick={() => addTechnician('specialized')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Specializzato
+                </Button>
+              </div>
+              {techniciansList.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Totale tecnici: {techniciansList.length} ({techniciansList.filter(t => t.type === 'head').length} capi, {techniciansList.filter(t => t.type === 'specialized').length} specializzati)
+                </p>
+              )}
             </div>
 
             {/* Intervention Type */}
@@ -506,6 +759,18 @@ export default function ZAppNewServiceReportPage() {
               </div>
             </div>
 
+            {/* Kilometers */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Km Percorsi</Label>
+              <Input
+                type="number"
+                className="h-10"
+                value={formData.kilometers}
+                onChange={(e) => handleInputChange('kilometers', e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
             {/* Description */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Descrizione Problema</Label>
@@ -527,27 +792,30 @@ export default function ZAppNewServiceReportPage() {
               <Textarea value={formData.notes} onChange={(e) => handleInputChange('notes', e.target.value)} placeholder="Note aggiuntive..." rows={2} />
             </div>
 
-            {/* Economic */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Importo (€)</Label>
-                <Input type="number" step="0.01" className="h-10" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">IVA (%)</Label>
-                <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0%</SelectItem>
-                    <SelectItem value="4">4%</SelectItem>
-                    <SelectItem value="10">10%</SelectItem>
-                    <SelectItem value="22">22%</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Totale (€)</Label>
-                <Input type="text" className="h-10 bg-muted" value={formData.total_amount} readOnly />
+            {/* Economic - auto-calculated */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Dettagli Economici (auto-calcolati)</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Importo (€)</Label>
+                  <Input type="number" step="0.01" className="h-10" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">IVA (%)</Label>
+                  <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
+                    <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="4">4%</SelectItem>
+                      <SelectItem value="10">10%</SelectItem>
+                      <SelectItem value="22">22%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Totale (€)</Label>
+                  <Input type="text" className="h-10 bg-muted font-semibold" value={formData.total_amount} readOnly />
+                </div>
               </div>
             </div>
           </div>
