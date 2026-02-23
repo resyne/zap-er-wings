@@ -43,7 +43,7 @@ const sections = [
     description: "Lavori programmati e calendario",
     icon: CalendarDays,
     color: "bg-indigo-500",
-    url: "/direzione/calendario",
+    url: "/hr/z-app/calendario",
   },
   {
     title: "Comunicazioni",
