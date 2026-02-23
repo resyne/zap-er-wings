@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Search, User, Wrench, Building2, Phone, Mail, Calendar, Activity } from "lucide-react";
+import { Users, Search, User, Wrench, Building2, Phone, Mail, Calendar, Activity, MessageCircle } from "lucide-react";
+import { CommunicationsManager } from "@/components/hr/CommunicationsManager";
 
 interface Employee {
   id: string;
@@ -193,9 +194,13 @@ export default function PeoplePage() {
       </div>
 
       <Tabs defaultValue="employees" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="employees">Dipendenti HR</TabsTrigger>
           <TabsTrigger value="technicians">Tecnici</TabsTrigger>
+          <TabsTrigger value="communications" className="flex items-center gap-1.5">
+            <MessageCircle className="h-4 w-4" />
+            Comunicazioni
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees">
@@ -412,6 +417,10 @@ export default function PeoplePage() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="communications">
+          <CommunicationsManager />
         </TabsContent>
       </Tabs>
     </div>
