@@ -22,7 +22,7 @@ const sections = [
     description: "Registra incassi e spese operative",
     icon: DollarSign,
     color: "bg-green-500",
-    url: "/finance/prima-nota",
+    url: "/hr/z-app/registro",
   },
   {
     title: "Magazzino",
