@@ -724,19 +724,38 @@ export default function ServiceReportsPage() {
       }
 
       // Dettagli economici
-      if (parseFloat(formData.amount) > 0) {
-        if (y > 220) { doc.addPage(); y = 20; }
+      if (parseFloat(formData.amount) > 0 || materialsTotalNetto > 0) {
+        if (y > 200) { doc.addPage(); y = 20; }
         y += 10;
         doc.setFont(undefined, "bold");
         doc.text("Dettagli Economici:", 20, y);
         doc.setFont(undefined, "normal");
         y += 7;
-        doc.text(`Importo Netto: €${parseFloat(formData.amount).toFixed(2)}`, 20, y);
-        y += 7;
+
+        const hours = calculateHoursFromTime(formData.start_time, formData.end_time);
+        const headCount = techniciansList.filter(t => t.type === 'head').length;
+        const specCount = techniciansList.filter(t => t.type === 'specialized').length;
+        const laborCost = hours * headCount * pricingSettings.head_technician_hourly_rate + hours * specCount * pricingSettings.specialized_technician_hourly_rate;
+        const km = parseFloat(formData.kilometers) || 0;
+        const kmCost = km * pricingSettings.head_technician_km_rate;
+
+        if (laborCost > 0) {
+          doc.text(`Manodopera (${hours}h x ${headCount + specCount} tecnici): €${laborCost.toFixed(2)}`, 20, y); y += 7;
+        }
+        if (kmCost > 0) {
+          doc.text(`Rimborso Chilometrico (${km} km): €${kmCost.toFixed(2)}`, 20, y); y += 7;
+        }
+        if (materialsTotalNetto > 0) {
+          doc.text(`Materiali: €${materialsTotalNetto.toFixed(2)}`, 20, y); y += 7;
+        }
+
+        const netTotal = parseFloat(formData.amount) || 0;
+        doc.text(`Importo Netto Totale: €${netTotal.toFixed(2)}`, 20, y); y += 7;
+
         if (formData.vat_rate) { doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y); y += 7; }
         if (formData.total_amount) {
           doc.setFont(undefined, "bold");
-          doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
+          doc.text(`Totale Complessivo: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y);
           doc.setFont(undefined, "normal");
           y += 10;
         }
@@ -1856,6 +1875,8 @@ export default function ServiceReportsPage() {
               }
 
               // Materiali da DB
+              let matNettoTotal = 0;
+              let matIvaTotal = 0;
               if (reportMaterials && reportMaterials.length > 0) {
                 if (y > 200) { doc.addPage(); y = 20; }
                 doc.setFont(undefined, "bold");
@@ -1872,8 +1893,6 @@ export default function ServiceReportsPage() {
                 doc.line(20, y, 195, y);
                 y += 3;
                 doc.setFont(undefined, "normal");
-                let matNettoTotal = 0;
-                let matIvaTotal = 0;
                 reportMaterials.forEach((item: any) => {
                   if (y > 270) { doc.addPage(); y = 20; }
                   const netto = item.quantity * item.unit_price;
@@ -1920,19 +1939,37 @@ export default function ServiceReportsPage() {
               }
 
               // Dettagli economici
-              if (selectedReport.amount) {
-                if (y > 220) { doc.addPage(); y = 20; }
+              const netAmount = Number(selectedReport.amount) || 0;
+              if (netAmount > 0 || matNettoTotal > 0) {
+                if (y > 200) { doc.addPage(); y = 20; }
                 y += 10;
                 doc.setFont(undefined, "bold");
                 doc.text("Dettagli Economici:", 20, y);
                 doc.setFont(undefined, "normal");
                 y += 7;
-                doc.text(`Importo: €${selectedReport.amount.toFixed(2)}`, 20, y);
-                y += 7;
-                if (selectedReport.vat_rate) { doc.text(`IVA: ${selectedReport.vat_rate.toFixed(2)}%`, 20, y); y += 7; }
+
+                const reportKm = (selectedReport as any).kilometers || 0;
+                const headHours = (selectedReport as any).head_technician_hours || 0;
+                const specHours = (selectedReport as any).specialized_technician_hours || 0;
+                const laborCost = netAmount - matNettoTotal - (reportKm * pricingSettings.head_technician_km_rate);
+                const kmCost = reportKm * pricingSettings.head_technician_km_rate;
+
+                if (laborCost > 0) {
+                  doc.text(`Manodopera: €${laborCost.toFixed(2)}`, 20, y); y += 7;
+                }
+                if (kmCost > 0) {
+                  doc.text(`Rimborso Chilometrico (${reportKm} km): €${kmCost.toFixed(2)}`, 20, y); y += 7;
+                }
+                if (matNettoTotal > 0) {
+                  doc.text(`Materiali: €${matNettoTotal.toFixed(2)}`, 20, y); y += 7;
+                }
+
+                doc.text(`Importo Netto Totale: €${netAmount.toFixed(2)}`, 20, y); y += 7;
+
+                if (selectedReport.vat_rate) { doc.text(`IVA: ${Number(selectedReport.vat_rate).toFixed(2)}%`, 20, y); y += 7; }
                 if (selectedReport.total_amount) {
                   doc.setFont(undefined, "bold");
-                  doc.text(`Totale: €${selectedReport.total_amount.toFixed(2)}`, 20, y);
+                  doc.text(`Totale Complessivo: €${Number(selectedReport.total_amount).toFixed(2)}`, 20, y);
                   doc.setFont(undefined, "normal");
                   y += 10;
                 }
