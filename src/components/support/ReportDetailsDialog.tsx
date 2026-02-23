@@ -177,15 +177,19 @@ export function ReportDetailsDialog({
               <div>
                 <h3 className="font-semibold text-lg mb-3">Dettagli Economici</h3>
                 <div className="bg-muted p-4 rounded-lg space-y-2">
-                  {report.amount != null && (
-                    <p><strong>Importo Intervento (manodopera + km):</strong> €{(report.amount - matNetto).toFixed(2)}</p>
-                  )}
-                  {matNetto > 0 && (
-                    <p><strong>Importo Materiali:</strong> €{matNetto.toFixed(2)}</p>
-                  )}
-                  {report.amount != null && (
-                    <p><strong>Importo Netto Totale:</strong> €{Number(report.amount).toFixed(2)}</p>
-                  )}
+                  {report.amount != null && (() => {
+                    const netAmount = Number(report.amount) || 0;
+                    const laborKmAmount = matNetto > 0 ? netAmount - matNetto : netAmount;
+                    return (
+                      <>
+                        <p><strong>Importo Intervento (manodopera + km):</strong> €{laborKmAmount.toFixed(2)}</p>
+                        {matNetto > 0 && (
+                          <p><strong>Importo Materiali:</strong> €{matNetto.toFixed(2)}</p>
+                        )}
+                        <p><strong>Importo Netto Totale:</strong> €{netAmount.toFixed(2)}</p>
+                      </>
+                    );
+                  })()}
                   {report.vat_rate !== null && <p><strong>IVA:</strong> {Number(report.vat_rate).toFixed(2)}%</p>}
                   {report.total_amount && (
                     <p className="text-lg font-bold text-primary">
