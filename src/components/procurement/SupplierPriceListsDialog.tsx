@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Trash2, Upload, FileText } from "lucide-react";
+import { Download, Trash2, Upload, FileText, Search, Sparkles, Loader2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 
 interface StorageFile {
@@ -31,12 +32,19 @@ export function SupplierPriceListsDialog({
   const [files, setFiles] = useState<StorageFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [aiResult, setAiResult] = useState("");
   const { toast } = useToast();
 
   const folderPath = `supplier-pricelists/${supplierId}`;
 
   useEffect(() => {
-    if (open) loadFiles();
+    if (open) {
+      loadFiles();
+      setSearchQuery("");
+      setAiResult("");
+    }
   }, [open]);
 
   const loadFiles = async () => {
@@ -147,15 +155,69 @@ export function SupplierPriceListsDialog({
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   };
 
+  const handleAISearch = async () => {
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setAiResult("");
+    try {
+      const { data, error } = await supabase.functions.invoke("search-supplier-pricelist", {
+        body: { supplierId, query: searchQuery.trim() },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({ title: "Errore", description: data.error, variant: "destructive" });
+        return;
+      }
+
+      setAiResult(data?.result || "Nessun risultato.");
+    } catch (err: any) {
+      console.error("AI search error:", err);
+      toast({ title: "Errore", description: "Errore nella ricerca AI", variant: "destructive" });
+    } finally {
+      setSearching(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Listini - {supplierName}
           </DialogTitle>
         </DialogHeader>
+
+        {/* AI Search */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca materiale nei listini (es. 'acciaio inox 304')..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAISearch()}
+                className="pl-9"
+              />
+            </div>
+            <Button onClick={handleAISearch} disabled={searching || !searchQuery.trim()} size="sm" className="gap-1">
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Cerca
+            </Button>
+          </div>
+          {aiResult && (
+            <div className="p-3 bg-muted rounded-lg border">
+              <div className="flex items-center gap-1 mb-1">
+                <Sparkles className="h-3 w-3 text-primary" />
+                <span className="text-xs font-medium text-primary">Risultato AI</span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{aiResult}</p>
+            </div>
+          )}
+        </div>
 
         {/* Upload */}
         <div
