@@ -21,13 +21,13 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
-    const model = isPdf ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
+    // Use Gemini for all file types - it supports PDFs natively via URL
+    const model = "google/gemini-2.5-flash";
     
     // Pass URL directly to avoid memory issues with large files
     const imageUrl = fileUrl;
 
-    console.log(`Analyzing competitor pricelist: ${fileName}, model: ${model}, isPdf: ${isPdf}`);
+    console.log(`Analyzing competitor pricelist: ${fileName}, model: ${model}`);
 
     const systemPrompt = `Sei un analista di mercato specializzato nell'estrazione di dati da listini prezzi di competitor nel settore dei forni professionali, abbattitori di temperatura e attrezzature per la ristorazione.
 
