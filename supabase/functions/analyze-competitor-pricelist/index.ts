@@ -9,9 +9,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { fileUrl, fileName, query } = await req.json();
-    if (!fileUrl || !query) {
-      return new Response(JSON.stringify({ error: "fileUrl and query are required" }), {
+    const { fileUrl, fileName, query, pdfText } = await req.json();
+    if (!query) {
+      return new Response(JSON.stringify({ error: "query is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -20,7 +20,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    console.log(`Searching competitor pricelist: ${fileName}, query: ${query}`);
+    console.log(`Searching competitor pricelist: ${fileName}, query: ${query}, hasPdfText: ${!!pdfText}`);
 
     const systemPrompt = `Sei un assistente esperto nell'analisi di listini prezzi di competitor nel settore dei forni professionali, abbattitori di temperatura e attrezzature per la ristorazione.
 
@@ -34,11 +34,26 @@ Regole:
 - Formatta la risposta in modo leggibile usando elenchi puntati quando appropriato
 - Sii conciso ma completo`;
 
-    // Use openai/gpt-5 which handles PDF URLs natively without downloading
-    const userContent = [
-      { type: "text", text: query },
-      { type: "image_url", image_url: { url: fileUrl } },
-    ];
+    let userContent: any;
+
+    if (pdfText) {
+      // PDF text extracted client-side - send as plain text (no memory issues)
+      const truncated = pdfText.length > 120000
+        ? pdfText.substring(0, 120000) + "\n\n[... testo troncato ...]"
+        : pdfText;
+      userContent = `Contenuto del documento "${fileName}":\n\n${truncated}\n\n---\n\nDomanda: ${query}`;
+    } else if (fileUrl) {
+      // For images (PNG, JPEG, etc.) pass URL directly
+      userContent = [
+        { type: "text", text: query },
+        { type: "image_url", image_url: { url: fileUrl } },
+      ];
+    } else {
+      return new Response(JSON.stringify({ error: "fileUrl or pdfText is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -47,7 +62,7 @@ Regole:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-5",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
