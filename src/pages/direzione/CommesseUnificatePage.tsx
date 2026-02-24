@@ -382,9 +382,6 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-semibold text-base truncate">{group.customerName}</p>
-                  {group.customerCode && (
-                    <Badge variant="outline" className="text-[10px]">Cod. {group.customerCode}</Badge>
-                  )}
                   <Badge variant="secondary" className="text-[10px]">{totalOrders} commesse</Badge>
                 </div>
                 <PhasePipeline group={group} />
