@@ -21,11 +21,32 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Use Gemini for all file types - it supports PDFs natively via URL
     const model = "google/gemini-2.5-flash";
     
-    // Pass URL directly to avoid memory issues with large files
-    const imageUrl = fileUrl;
+    // Gateway requires base64 data URLs for PDFs (URL only works for images)
+    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
+    let imageUrl = fileUrl;
+    
+    if (isPdf) {
+      console.log("Downloading PDF for base64 conversion...");
+      const pdfResp = await fetch(fileUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      const maxSize = 20 * 1024 * 1024; // 20MB limit
+      if (pdfBuffer.byteLength > maxSize) {
+        return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const uint8 = new Uint8Array(pdfBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const base64 = btoa(binary);
+      imageUrl = `data:application/pdf;base64,${base64}`;
+      console.log(`PDF converted to base64, size: ${(pdfBuffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
+    }
 
     console.log(`Analyzing competitor pricelist: ${fileName}, model: ${model}`);
 
