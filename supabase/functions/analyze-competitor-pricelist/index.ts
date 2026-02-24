@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -10,9 +9,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { fileUrl, competitorId, fileName } = await req.json();
-    if (!fileUrl) {
-      return new Response(JSON.stringify({ error: "fileUrl is required" }), {
+    const { fileUrl, fileName, query } = await req.json();
+    if (!fileUrl || !query) {
+      return new Response(JSON.stringify({ error: "fileUrl and query are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -22,17 +21,17 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const model = "google/gemini-2.5-flash";
-    
-    // Gateway requires base64 data URLs for PDFs (URL only works for images)
+
+    // Gateway requires base64 data URLs for PDFs
     const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
     let imageUrl = fileUrl;
-    
+
     if (isPdf) {
       console.log("Downloading PDF for base64 conversion...");
       const pdfResp = await fetch(fileUrl);
       if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
       const pdfBuffer = await pdfResp.arrayBuffer();
-      const maxSize = 20 * 1024 * 1024; // 20MB limit
+      const maxSize = 20 * 1024 * 1024;
       if (pdfBuffer.byteLength > maxSize) {
         return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -48,20 +47,19 @@ serve(async (req) => {
       console.log(`PDF converted to base64, size: ${(pdfBuffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
     }
 
-    console.log(`Analyzing competitor pricelist: ${fileName}, model: ${model}`);
+    console.log(`Searching competitor pricelist: ${fileName}, query: ${query}`);
 
-    const systemPrompt = `Sei un analista di mercato specializzato nell'estrazione di dati da listini prezzi di competitor nel settore dei forni professionali, abbattitori di temperatura e attrezzature per la ristorazione.
+    const systemPrompt = `Sei un assistente esperto nell'analisi di listini prezzi di competitor nel settore dei forni professionali, abbattitori di temperatura e attrezzature per la ristorazione.
 
-Analizza il documento e estrai TUTTI i prodotti/modelli con i seguenti dati:
-- name: nome completo del prodotto
-- model: codice modello o SKU
-- category: categoria (es: "Forni", "Abbattitori", "Lavatrici", "Accessori", ecc.)
-- price: prezzo in formato numerico (senza simboli valuta)
-- currency: valuta (EUR, USD, GBP ecc.)
-- notes: eventuali note tecniche rilevanti (capacità, dimensioni, potenza)
-- specifications: oggetto JSON con specifiche tecniche chiave (dimensioni, peso, potenza, capacità, ecc.)
+Ti viene fornito un documento (listino prezzi) e una domanda dell'utente. Rispondi in modo preciso e dettagliato basandoti ESCLUSIVAMENTE sul contenuto del documento.
 
-Estrai il maggior numero possibile di prodotti. Se il prezzo non è disponibile, metti null.`;
+Regole:
+- Rispondi sempre in italiano
+- Se trovi prezzi, riportali esattamente come nel documento
+- Se trovi specifiche tecniche, elencale in modo chiaro
+- Se la risposta non è nel documento, dillo chiaramente
+- Formatta la risposta in modo leggibile usando elenchi puntati quando appropriato
+- Sii conciso ma completo`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -76,44 +74,11 @@ Estrai il maggior numero possibile di prodotti. Se il prezzo non è disponibile,
           {
             role: "user",
             content: [
-              { type: "text", text: `Analizza questo listino prezzi competitor ed estrai tutti i prodotti con prezzi e specifiche. File: ${fileName || "listino"}` },
+              { type: "text", text: query },
               { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_competitor_products",
-              description: "Estrae i prodotti dal listino competitor",
-              parameters: {
-                type: "object",
-                properties: {
-                  products: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Nome del prodotto" },
-                        model: { type: "string", description: "Codice modello/SKU" },
-                        category: { type: "string", description: "Categoria prodotto" },
-                        price: { type: "number", description: "Prezzo" },
-                        currency: { type: "string", description: "Valuta" },
-                        notes: { type: "string", description: "Note tecniche" },
-                        specifications: { type: "object", description: "Specifiche tecniche" },
-                      },
-                      required: ["name"],
-                    },
-                  },
-                },
-                required: ["products"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "extract_competitor_products" } },
       }),
     });
 
@@ -134,17 +99,10 @@ Estrai il maggior numero possibile di prodotti. Se il prezzo non è disponibile,
     }
 
     const aiData = await response.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    
-    if (toolCall?.function?.arguments) {
-      const extracted = JSON.parse(toolCall.function.arguments);
-      console.log(`Extracted ${extracted.products?.length || 0} products`);
-      return new Response(JSON.stringify({ products: extracted.products || [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const answer = aiData.choices?.[0]?.message?.content || "Nessuna risposta dall'AI.";
 
-    return new Response(JSON.stringify({ products: [] }), {
+    console.log(`AI answer length: ${answer.length}`);
+    return new Response(JSON.stringify({ answer }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
