@@ -50,18 +50,8 @@ export function AppLayout() {
   }, [navigate]);
 
   useEffect(() => {
-    if (isZAppOnly) {
-      const allowedPaths = ['/hr/z-app', '/personal-area', '/auth'];
-      const isAllowed = allowedPaths.some(path => location.pathname.startsWith(path));
-      
-      if (!isAllowed) {
-        toast({
-          title: "Accesso Limitato",
-          description: "Il tuo account è limitato all'uso di Z-APP.",
-          variant: "destructive"
-        });
-        navigate('/hr/z-app');
-      }
+    if (isZAppOnly && location.pathname !== '/hr/z-app' && !location.pathname.startsWith('/hr/z-app/') && location.pathname !== '/auth') {
+      navigate('/hr/z-app', { replace: true });
     }
   }, [isZAppOnly, location.pathname, navigate]);
 

@@ -314,9 +314,7 @@ export function AppSidebar() {
             // Apply Z-APP only filter
             if (isZAppOnly) {
               visibleItems = visibleItems.filter(item => 
-                item.url === '/hr/z-app' || 
-                item.url === '/personal-area' || // Keep personal area for basic profile
-                item.url === '/personal-area/calendario' // Keep personal calendar
+                item.url === '/hr/z-app'
               );
             }
             
