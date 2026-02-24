@@ -1,34 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-/**
- * Extracts text from a PDF using pdf-parse via esm.sh
- * Falls back to sending file URL directly for images
- */
-async function extractPdfText(fileUrl: string): Promise<string> {
-  console.log("Downloading PDF for text extraction...");
-  const resp = await fetch(fileUrl);
-  if (!resp.ok) throw new Error(`Failed to download file: ${resp.status}`);
-
-  const arrayBuffer = await resp.arrayBuffer();
-  const sizeMB = arrayBuffer.byteLength / 1024 / 1024;
-  console.log(`PDF downloaded, size: ${sizeMB.toFixed(1)}MB`);
-
-  // Use pdf.js-extract for text extraction - lighter than full pdf-parse
-  // We'll use a simpler approach: send to Gemini as base64 in smaller chunks
-  // Actually, let's use the pdf-parse library
-  const { default: pdfParse } = await import("https://esm.sh/pdf-parse@1.1.1");
-  
-  const buffer = new Uint8Array(arrayBuffer);
-  const data = await pdfParse(buffer);
-  
-  console.log(`Extracted ${data.text.length} chars from ${data.numpages} pages`);
-  return data.text;
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -45,7 +21,6 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const model = "google/gemini-2.5-flash";
     const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
 
     console.log(`Searching competitor pricelist: ${fileName}, query: ${query}, isPdf: ${isPdf}`);
@@ -65,30 +40,31 @@ Regole:
     let userContent: any;
 
     if (isPdf) {
-      // Extract text from PDF - memory efficient, no base64 needed
-      let pdfText: string;
-      try {
-        pdfText = await extractPdfText(fileUrl);
-      } catch (extractErr) {
-        console.error("PDF text extraction failed:", extractErr);
-        return new Response(JSON.stringify({ error: "Impossibile estrarre il testo dal PDF. Il file potrebbe essere un PDF basato su immagini." }), {
+      // Download PDF and convert to base64 using Deno's efficient encoder
+      // (no string concatenation - handles large files without O(n²) memory)
+      console.log("Downloading PDF...");
+      const pdfResp = await fetch(fileUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
+
+      const pdfBytes = new Uint8Array(await pdfResp.arrayBuffer());
+      const sizeMB = pdfBytes.byteLength / 1024 / 1024;
+      console.log(`PDF downloaded: ${sizeMB.toFixed(1)}MB`);
+
+      if (sizeMB > 20) {
+        return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)." }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      if (!pdfText || pdfText.trim().length < 50) {
-        return new Response(JSON.stringify({ error: "Il PDF non contiene testo estraibile. Potrebbe essere un PDF basato su immagini/scansioni." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      // Deno's encodeBase64 is native and memory-efficient
+      const base64 = encodeBase64(pdfBytes);
+      const dataUrl = `data:application/pdf;base64,${base64}`;
+      console.log(`Base64 encoded, sending to AI...`);
 
-      // Truncate if extremely long to stay within token limits
-      const maxChars = 100000;
-      const truncatedText = pdfText.length > maxChars 
-        ? pdfText.substring(0, maxChars) + "\n\n[... testo troncato per limiti di dimensione ...]" 
-        : pdfText;
-
-      userContent = `Contenuto del documento "${fileName}":\n\n${truncatedText}\n\n---\n\nDomanda: ${query}`;
+      userContent = [
+        { type: "text", text: query },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ];
     } else {
       // For images, pass URL directly
       userContent = [
@@ -104,7 +80,7 @@ Regole:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model,
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
