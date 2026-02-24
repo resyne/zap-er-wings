@@ -608,7 +608,7 @@ export default function CommesseUnificatePage() {
     },
   });
 
-  const isLoading = loadingWO || loadingSWO || loadingSO;
+  const isLoading = loadingWO && loadingSWO && loadingSO;
   const allOrders = useMemo(() => [...workOrders, ...serviceOrders, ...shippingOrders], [workOrders, serviceOrders, shippingOrders]);
 
   const filteredOrders = useMemo(() => {
