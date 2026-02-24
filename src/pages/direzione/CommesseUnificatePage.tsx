@@ -502,6 +502,7 @@ export default function CommesseUnificatePage() {
   // ─── Data Fetching ──────────────────────────────────────
   const { data: workOrders = [], isLoading: loadingWO } = useQuery({
     queryKey: ["commesse-work-orders"],
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_orders")
@@ -540,6 +541,7 @@ export default function CommesseUnificatePage() {
 
   const { data: serviceOrders = [], isLoading: loadingSWO } = useQuery({
     queryKey: ["commesse-service-orders"],
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_work_orders")
@@ -572,6 +574,7 @@ export default function CommesseUnificatePage() {
 
   const { data: shippingOrders = [], isLoading: loadingSO } = useQuery({
     queryKey: ["commesse-shipping-orders"],
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("shipping_orders")
