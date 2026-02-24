@@ -962,6 +962,143 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_price_lists: {
+        Row: {
+          competitor_id: string
+          created_at: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          notes: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          competitor_id: string
+          created_at?: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          competitor_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_price_lists_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitor_products: {
+        Row: {
+          category: string | null
+          competitor_id: string
+          created_at: string
+          currency: string | null
+          id: string
+          model: string | null
+          name: string
+          notes: string | null
+          price: number | null
+          price_list_id: string | null
+          specifications: Json | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          competitor_id: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          model?: string | null
+          name: string
+          notes?: string | null
+          price?: number | null
+          price_list_id?: string | null
+          specifications?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          competitor_id?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          model?: string | null
+          name?: string
+          notes?: string | null
+          price?: number | null
+          price_list_id?: string | null
+          specifications?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_products_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_products_price_list_id_fkey"
+            columns: ["price_list_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_price_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitors: {
+        Row: {
+          country: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       configurator_links: {
         Row: {
           code: string

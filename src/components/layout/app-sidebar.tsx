@@ -238,6 +238,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Reportistica", url: "/marketing/reports", icon: PieChart },
       { title: "Archivio documenti/media", url: "/marketing/archive", icon: FileText },
       { title: "Brandkit", url: "/marketing/brandkit", icon: Palette },
+      { title: "Competitor Analysis", url: "/marketing/competitor-analysis", icon: Target },
     ]
   },
   {

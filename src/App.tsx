@@ -105,6 +105,7 @@ import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
 import IntegrationsPage from "./pages/integrations/IntegrationsPage";
 import { TasksPage } from "./pages/tasks/TasksPage";
 import ContentCreationPage from "./pages/marketing/ContentCreationPage";
+import CompetitorAnalysisPage from "./pages/marketing/CompetitorAnalysisPage";
 import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
 import TaskKpiPage from "./pages/direzione/TaskKpiPage";
 import ZAppPage from "./pages/hr/ZAppPage";
@@ -241,6 +242,7 @@ const App = () => (
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="marketing/content-creation" element={<ContentCreationPage />} />
                 <Route path="marketing/brandkit" element={<BrandkitPage />} />
+                <Route path="marketing/competitor-analysis" element={<CompetitorAnalysisPage />} />
                 <Route path="marketing/brandkit/:brandId" element={<BrandAssetManager />} />
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="tasks" element={<TasksPage />} />
