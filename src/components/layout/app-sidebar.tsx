@@ -107,6 +107,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Commesse",
     items: [
+      { title: "Pipeline Commesse", url: "/direzione/commesse", icon: Building2 },
       { title: "Ordini", url: "/direzione/orders", icon: ShoppingCart },
       { title: "Commesse di Produzione", url: "/mfg/work-orders", icon: Wrench },
       { title: "Commesse di Lavoro", url: "/support/work-orders", icon: Wrench },
