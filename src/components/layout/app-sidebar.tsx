@@ -3,6 +3,7 @@ import * as React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   BarChart3,
   Users,
@@ -257,6 +258,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const { user } = useAuth();
   const { isPageVisible, loading: visibilityLoading } = usePageVisibility(user?.id);
+  const { isZAppOnly } = useUserRole();
   
   const [openGroups, setOpenGroups] = useState<string[]>(
     navigationGroups
@@ -307,7 +309,16 @@ export function AppSidebar() {
         <div className="flex-1 overflow-auto p-2 bg-white">
           {navigationGroups.map((group) => {
             // Filter items based on visibility
-            const visibleItems = group.items.filter(item => isPageVisible(item.url));
+            let visibleItems = group.items.filter(item => isPageVisible(item.url));
+
+            // Apply Z-APP only filter
+            if (isZAppOnly) {
+              visibleItems = visibleItems.filter(item => 
+                item.url === '/hr/z-app' || 
+                item.url === '/personal-area' || // Keep personal area for basic profile
+                item.url === '/personal-area/calendario' // Keep personal calendar
+              );
+            }
             
             // Skip the group if no items are visible
             if (visibleItems.length === 0) return null;
