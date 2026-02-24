@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PresenceTracker } from "@/components/auth/PresenceTracker";
 import { AppLayout } from "./components/layout/app-layout";
 import AuthPage from "./pages/auth/AuthPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { DirectionalDashboardPage } from "./pages/dashboard/DirectionalDashboardPage";
 import PeoplePage from "./pages/hr/PeoplePage";
@@ -134,9 +135,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/offerta/:code" element={<PublicOfferPage />} />
               <Route path="/ddt/:code" element={<PublicDDTPage />} />
-              <Route path="/configurator/:code" element={<PublicConfiguratorPage />} />
               <Route path="/supplier/:supplierId" element={<SupplierPortalPage />} />
               <Route path="/procurement/purchase-order-confirm" element={<PurchaseOrderConfirmPage />} />
               <Route path="/riepilogo-operativo" element={<PublicRiepilogoOperativoPage />} />

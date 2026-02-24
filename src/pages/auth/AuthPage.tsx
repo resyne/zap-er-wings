@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   
@@ -93,6 +94,38 @@ export default function AuthPage() {
     }
   };
 
+  const handlePasswordRecovery = async () => {
+    if (!email) {
+      toast({
+        title: "Inserisci l'email",
+        description: "Scrivi la tua email per ricevere il link di recupero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+
+      toast({
+        title: "Email inviata",
+        description: "Controlla la casella di posta per impostare una nuova password.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error?.message || "Impossibile inviare l'email di recupero",
+        variant: "destructive",
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -139,6 +172,17 @@ export default function AuthPage() {
                   placeholder="••••••••"
                   minLength={6}
                 />
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto p-0 text-sm"
+                    onClick={handlePasswordRecovery}
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? "Invio in corso..." : "Password dimenticata? Recuperala"}
+                  </Button>
+                </div>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
