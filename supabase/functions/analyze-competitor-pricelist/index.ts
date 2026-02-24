@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,9 +22,36 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const model = "google/gemini-2.5-flash";
+    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
+    let contentUrl = fileUrl;
 
-    // Pass URL directly to Gemini - it supports PDFs natively via URL
-    const imageUrl = fileUrl;
+    if (isPdf) {
+      console.log("Downloading PDF for base64 conversion...");
+      const pdfResp = await fetch(fileUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
+
+      // Check size via Content-Length header first to avoid downloading huge files
+      const contentLength = parseInt(pdfResp.headers.get("content-length") || "0");
+      const maxSize = 10 * 1024 * 1024; // 10MB limit for edge function memory safety
+      if (contentLength > maxSize) {
+        await pdfResp.body?.cancel();
+        return new Response(JSON.stringify({ error: "File troppo grande (max 10MB). Prova con un file più piccolo." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pdfBytes = new Uint8Array(await pdfResp.arrayBuffer());
+      if (pdfBytes.byteLength > maxSize) {
+        return new Response(JSON.stringify({ error: "File troppo grande (max 10MB)." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Use Deno's efficient base64 encoding (no string concatenation)
+      const base64 = encodeBase64(pdfBytes);
+      contentUrl = `data:application/pdf;base64,${base64}`;
+      console.log(`PDF converted, size: ${(pdfBytes.byteLength / 1024 / 1024).toFixed(1)}MB`);
+    }
 
     console.log(`Searching competitor pricelist: ${fileName}, query: ${query}`);
 
@@ -53,7 +81,7 @@ Regole:
             role: "user",
             content: [
               { type: "text", text: query },
-              { type: "image_url", image_url: { url: imageUrl } },
+              { type: "image_url", image_url: { url: contentUrl } },
             ],
           },
         ],
