@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,9 +20,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
-
-    console.log(`Searching competitor pricelist: ${fileName}, query: ${query}, isPdf: ${isPdf}`);
+    console.log(`Searching competitor pricelist: ${fileName}, query: ${query}`);
 
     const systemPrompt = `Sei un assistente esperto nell'analisi di listini prezzi di competitor nel settore dei forni professionali, abbattitori di temperatura e attrezzature per la ristorazione.
 
@@ -37,41 +34,11 @@ Regole:
 - Formatta la risposta in modo leggibile usando elenchi puntati quando appropriato
 - Sii conciso ma completo`;
 
-    let userContent: any;
-
-    if (isPdf) {
-      // Download PDF and convert to base64 using Deno's efficient encoder
-      // (no string concatenation - handles large files without O(n²) memory)
-      console.log("Downloading PDF...");
-      const pdfResp = await fetch(fileUrl);
-      if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
-
-      const pdfBytes = new Uint8Array(await pdfResp.arrayBuffer());
-      const sizeMB = pdfBytes.byteLength / 1024 / 1024;
-      console.log(`PDF downloaded: ${sizeMB.toFixed(1)}MB`);
-
-      if (sizeMB > 20) {
-        return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Deno's encodeBase64 is native and memory-efficient
-      const base64 = encodeBase64(pdfBytes);
-      const dataUrl = `data:application/pdf;base64,${base64}`;
-      console.log(`Base64 encoded, sending to AI...`);
-
-      userContent = [
-        { type: "text", text: query },
-        { type: "image_url", image_url: { url: dataUrl } },
-      ];
-    } else {
-      // For images, pass URL directly
-      userContent = [
-        { type: "text", text: query },
-        { type: "image_url", image_url: { url: fileUrl } },
-      ];
-    }
+    // Use openai/gpt-5 which handles PDF URLs natively without downloading
+    const userContent = [
+      { type: "text", text: query },
+      { type: "image_url", image_url: { url: fileUrl } },
+    ];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -80,7 +47,7 @@ Regole:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
