@@ -244,14 +244,26 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">{order.title}</span>
+                  <span className="font-mono text-xs font-semibold text-primary">{order.number}</span>
+                  {order.sales_order_number && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      <FileText className="h-2.5 w-2.5 mr-0.5" />Ord. {order.sales_order_number}
+                    </Badge>
+                  )}
+                  {order.offer_number && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      Off. {order.offer_number}
+                    </Badge>
+                  )}
                   {priorityInfo?.icon && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                  <span className="font-mono">{order.number}</span>
-                  {order.scheduled_date && <span>• {fmtDate(order.scheduled_date)}</span>}
+                <p className="text-sm font-medium truncate mt-0.5">{order.title}</p>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(order.created_at)}</span>
+                  {order.scheduled_date && <span>• Previsto: {fmtDate(order.scheduled_date)}</span>}
                   {order.assigned_to_name && <span>• <User className="h-3 w-3 inline -mt-0.5" /> {order.assigned_to_name}</span>}
                   {order.article && <span>• {order.article}</span>}
+                  {priorityInfo && <span className={priorityInfo.color}>• {priorityInfo.label}</span>}
                 </div>
               </div>
               <Badge className={`${statusInfo.color} text-[10px] px-2 border flex-shrink-0`}>{statusInfo.label}</Badge>
