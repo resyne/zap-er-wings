@@ -243,17 +243,15 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
                 <Icon className={`h-4 w-4 ${config.text}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-primary">{order.number}</span>
-                  {order.sales_order_number && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      <FileText className="h-2.5 w-2.5 mr-0.5" />Ord. {order.sales_order_number}
-                    </Badge>
-                  )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-semibold text-primary">
+                    {order.sales_order_number || order.number}
+                  </span>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono">
+                    {order.type === "produzione" ? "PROD" : order.type === "spedizione" ? "SPED" : "INST"}
+                  </Badge>
                   {order.offer_number && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      Off. {order.offer_number}
-                    </Badge>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0">Off. {order.offer_number}</Badge>
                   )}
                   {priorityInfo?.icon && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
                 </div>
@@ -262,7 +260,7 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
                   <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(order.created_at)}</span>
                   {order.scheduled_date && <span>• Previsto: {fmtDate(order.scheduled_date)}</span>}
                   {order.assigned_to_name && <span>• <User className="h-3 w-3 inline -mt-0.5" /> {order.assigned_to_name}</span>}
-                  {order.article && <span>• {order.article}</span>}
+                  {order.article && <span className="truncate max-w-[200px]">• {order.article.split('\n')[0]}</span>}
                   {priorityInfo && <span className={priorityInfo.color}>• {priorityInfo.label}</span>}
                 </div>
               </div>
