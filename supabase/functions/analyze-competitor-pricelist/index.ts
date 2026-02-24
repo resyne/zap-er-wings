@@ -22,30 +22,8 @@ serve(async (req) => {
 
     const model = "google/gemini-2.5-flash";
 
-    // Gateway requires base64 data URLs for PDFs
-    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
-    let imageUrl = fileUrl;
-
-    if (isPdf) {
-      console.log("Downloading PDF for base64 conversion...");
-      const pdfResp = await fetch(fileUrl);
-      if (!pdfResp.ok) throw new Error(`Failed to download file: ${pdfResp.status}`);
-      const pdfBuffer = await pdfResp.arrayBuffer();
-      const maxSize = 20 * 1024 * 1024;
-      if (pdfBuffer.byteLength > maxSize) {
-        return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const uint8 = new Uint8Array(pdfBuffer);
-      let binary = "";
-      for (let i = 0; i < uint8.length; i++) {
-        binary += String.fromCharCode(uint8[i]);
-      }
-      const base64 = btoa(binary);
-      imageUrl = `data:application/pdf;base64,${base64}`;
-      console.log(`PDF converted to base64, size: ${(pdfBuffer.byteLength / 1024 / 1024).toFixed(1)}MB`);
-    }
+    // Pass URL directly to Gemini - it supports PDFs natively via URL
+    const imageUrl = fileUrl;
 
     console.log(`Searching competitor pricelist: ${fileName}, query: ${query}`);
 
