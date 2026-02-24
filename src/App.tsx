@@ -36,6 +36,7 @@ import EmailMarketingPage from "./pages/marketing/EmailMarketingPage";
 import CampaignsPage from "./pages/marketing/CampaignsPage";
 import MarketingAutomationPage from "./pages/marketing/MarketingAutomationPage";
 import OrdersPage from "./pages/crm/OrdersPage";
+import CommesseUnificatePage from "./pages/direzione/CommesseUnificatePage";
 import CustomersPage from "./pages/crm/CustomersPage";
 import OffersPage from "./pages/crm/OffersPage";
 import ProductCatalogPage from "./pages/crm/ProductCatalogPage";
@@ -152,6 +153,7 @@ const App = () => (
                 <Route path="direzione/strategy" element={<StrategyPage />} />
                 <Route path="direzione/riepilogo-operativo" element={<RiepilogoOperativoPage />} />
                 <Route path="direzione/orders" element={<OrdersPage />} />
+                <Route path="direzione/commesse" element={<CommesseUnificatePage />} />
                 
                 <Route path="personal-area" element={<DashboardPage />} />
                 <Route path="dashboard" element={<DashboardPage />} />
