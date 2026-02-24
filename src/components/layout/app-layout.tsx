@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -18,7 +18,8 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { userRole } = useUserRole();
+  const { userRole, isZAppOnly } = useUserRole();
+  const location = useLocation();
 
   useEffect(() => {
     // Set up auth state listener
@@ -47,6 +48,22 @@ export function AppLayout() {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (isZAppOnly) {
+      const allowedPaths = ['/hr/z-app', '/personal-area', '/auth'];
+      const isAllowed = allowedPaths.some(path => location.pathname.startsWith(path));
+      
+      if (!isAllowed && location.pathname !== '/') {
+        toast({
+          title: "Accesso Limitato",
+          description: "Il tuo account è limitato all'uso di Z-APP.",
+          variant: "destructive"
+        });
+        navigate('/hr/z-app');
+      }
+    }
+  }, [isZAppOnly, location.pathname, navigate]);
 
   const handleLogout = async () => {
     try {

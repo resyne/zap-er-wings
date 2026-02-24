@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Eye, EyeOff, Smartphone } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { UserPageVisibilityDialog } from "./UserPageVisibilityDialog";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +25,7 @@ interface UserWithRole {
   user_type: "erp" | "website";
   created_at: string;
   hide_amounts?: boolean;
+  z_app_only?: boolean;
 }
 
 export function UserManagement() {
@@ -56,7 +57,7 @@ export function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, user_type, created_at, hide_amounts");
+        .select("id, email, first_name, last_name, user_type, created_at, hide_amounts, z_app_only");
 
       if (profilesError) throw profilesError;
 
@@ -76,7 +77,8 @@ export function UserManagement() {
         user_type: (profile.user_type as "erp" | "website") || "website",
         role: (roles?.find(r => r.user_id === profile.id)?.role || "user") as "admin" | "moderator" | "user",
         created_at: profile.created_at,
-        hide_amounts: profile.hide_amounts || false
+        hide_amounts: profile.hide_amounts || false,
+        z_app_only: profile.z_app_only || false
       })) || [];
 
       setUsers(usersWithRoles);
@@ -151,6 +153,31 @@ export function UserManagement() {
       fetchUsers();
     } catch (error) {
       console.error("Error updating hide_amounts:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare le impostazioni",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleZAppOnly = async (userId: string, currentValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ z_app_only: !currentValue })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: `Accesso Z-APP ${!currentValue ? 'attivato' : 'disattivato'} per questo utente`,
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating z_app_only:", error);
       toast({
         title: "Errore",
         description: "Impossibile aggiornare le impostazioni",
@@ -445,6 +472,7 @@ export function UserManagement() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Nascondi Importi</TableHead>
+                <TableHead>Solo Z-APP</TableHead>
                 <TableHead>Data Registrazione</TableHead>
                 {isAdmin && <TableHead className="text-right">Azioni</TableHead>}
               </TableRow>
@@ -481,6 +509,16 @@ export function UserManagement() {
                       ) : (
                         <Eye className="h-4 w-4 text-muted-foreground" />
                       )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={user.z_app_only || false}
+                        onCheckedChange={() => toggleZAppOnly(user.id, user.z_app_only || false)}
+                        disabled={!isAdmin || user.id === currentUser?.id}
+                      />
+                      <Smartphone className={`h-4 w-4 ${user.z_app_only ? "text-primary" : "text-muted-foreground"}`} />
                     </div>
                   </TableCell>
                   <TableCell>

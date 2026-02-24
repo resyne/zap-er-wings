@@ -6873,6 +6873,7 @@ export type Database = {
           site_origin: string | null
           updated_at: string
           user_type: string | null
+          z_app_only: boolean
         }
         Insert: {
           created_at?: string
@@ -6884,6 +6885,7 @@ export type Database = {
           site_origin?: string | null
           updated_at?: string
           user_type?: string | null
+          z_app_only?: boolean
         }
         Update: {
           created_at?: string
@@ -6895,6 +6897,7 @@ export type Database = {
           site_origin?: string | null
           updated_at?: string
           user_type?: string | null
+          z_app_only?: boolean
         }
         Relationships: []
       }
