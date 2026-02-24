@@ -54,7 +54,7 @@ export function AppLayout() {
       const allowedPaths = ['/hr/z-app', '/personal-area', '/auth'];
       const isAllowed = allowedPaths.some(path => location.pathname.startsWith(path));
       
-      if (!isAllowed && location.pathname !== '/') {
+      if (!isAllowed) {
         toast({
           title: "Accesso Limitato",
           description: "Il tuo account è limitato all'uso di Z-APP.",
