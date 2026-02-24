@@ -69,6 +69,11 @@ interface CustomerGroup {
   shipping: UnifiedOrder[];
   service: UnifiedOrder[];
   phases: { produzione: string; spedizione: string; servizio: string };
+  orderNumbers: string[];
+  earliestDate?: string;
+  latestDate?: string;
+  articlesSummary: string[];
+  totalAmount?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -127,6 +132,11 @@ const priorityLabels: Record<string, { label: string; color: string; icon?: bool
   medium: { label: "Media", color: "text-amber-600" },
   high: { label: "Alta", color: "text-orange-600 font-semibold", icon: true },
   urgent: { label: "Urgente", color: "text-red-600 font-bold", icon: true },
+};
+
+const fmtDate = (d?: string | null) => {
+  if (!d) return null;
+  try { return format(new Date(d), "dd MMM yyyy", { locale: it }); } catch { return d; }
 };
 
 // ─── Articles Checklist ──────────────────────────────────────
@@ -228,10 +238,6 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
   const priorityInfo = order.priority ? priorityLabels[order.priority] : null;
   const statusFlow = order.type === "produzione" ? statusFlowProduzione : order.type === "servizio" ? statusFlowServizio : statusFlowSpedizione;
 
-  const fmtDate = (d?: string | null) => {
-    if (!d) return null;
-    try { return format(new Date(d), "dd MMM yyyy", { locale: it }); } catch { return d; }
-  };
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -379,13 +385,34 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
               <div className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
                 <Building2 className="h-5 w-5 text-foreground" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-semibold text-base truncate">{group.customerName}</p>
-                  <Badge variant="secondary" className="text-[10px]">{totalOrders} commesse</Badge>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <p className="font-semibold text-base truncate">{group.customerName}</p>
+                    <Badge variant="secondary" className="text-[10px]">{totalOrders} commesse</Badge>
+                    {group.orderNumbers.length > 0 && (
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        {group.orderNumbers.join(" · ")}
+                      </span>
+                    )}
+                  </div>
+                  {/* Order summary line */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5 flex-wrap">
+                    {group.earliestDate && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {fmtDate(group.earliestDate)}
+                        {group.latestDate && group.latestDate !== group.earliestDate && ` → ${fmtDate(group.latestDate)}`}
+                      </span>
+                    )}
+                    {group.articlesSummary.length > 0 && (
+                      <span className="flex items-center gap-1 truncate max-w-[400px]">
+                        <Package className="h-3 w-3 flex-shrink-0" />
+                        {group.articlesSummary.join(" | ")}
+                      </span>
+                    )}
+                  </div>
+                  <PhasePipeline group={group} />
                 </div>
-                <PhasePipeline group={group} />
-              </div>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`} />
             </div>
           </button>
@@ -605,10 +632,26 @@ export default function CommesseUnificatePage() {
           customerCode: order.customer_code,
           production: [], shipping: [], service: [],
           phases: { produzione: "", spedizione: "", servizio: "" },
+          orderNumbers: [],
+          articlesSummary: [],
         });
       }
       const group = groupMap.get(key)!;
       if (!group.customerCode && order.customer_code) group.customerCode = order.customer_code;
+      // Collect unique order numbers
+      const ref = order.sales_order_number || order.number;
+      if (ref && !group.orderNumbers.includes(ref)) group.orderNumbers.push(ref);
+      // Collect unique first-line articles
+      if (order.article) {
+        const firstLine = order.article.split('\n')[0].trim();
+        if (firstLine && !group.articlesSummary.includes(firstLine) && group.articlesSummary.length < 3) {
+          group.articlesSummary.push(firstLine);
+        }
+      }
+      // Track dates
+      const d = order.created_at;
+      if (d && (!group.earliestDate || d < group.earliestDate)) group.earliestDate = d;
+      if (d && (!group.latestDate || d > group.latestDate)) group.latestDate = d;
       if (order.type === "produzione") group.production.push(order);
       else if (order.type === "spedizione") group.shipping.push(order);
       else if (order.type === "servizio") group.service.push(order);
