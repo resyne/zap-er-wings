@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,17 +21,11 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Download file and convert to base64
-    const fileResp = await fetch(fileUrl);
-    if (!fileResp.ok) throw new Error(`Failed to fetch file: ${fileResp.status}`);
-    
-    const contentType = fileResp.headers.get("content-type") || "application/octet-stream";
-    const arrayBuffer = await fileResp.arrayBuffer();
-    const base64 = base64Encode(new Uint8Array(arrayBuffer));
-    const dataUrl = `data:${contentType};base64,${base64}`;
-
-    const isPdf = contentType === "application/pdf" || (fileName || "").toLowerCase().endsWith(".pdf");
+    const isPdf = (fileName || "").toLowerCase().endsWith(".pdf");
     const model = isPdf ? "openai/gpt-5-mini" : "google/gemini-2.5-flash";
+    
+    // Pass URL directly to avoid memory issues with large files
+    const imageUrl = fileUrl;
 
     console.log(`Analyzing competitor pricelist: ${fileName}, model: ${model}, isPdf: ${isPdf}`);
 
@@ -62,7 +56,7 @@ Estrai il maggior numero possibile di prodotti. Se il prezzo non è disponibile,
             role: "user",
             content: [
               { type: "text", text: `Analizza questo listino prezzi competitor ed estrai tutti i prodotti con prezzi e specifiche. File: ${fileName || "listino"}` },
-              { type: "image_url", image_url: { url: dataUrl } },
+              { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
