@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ export default function CompetitorAnalysisPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchMessages, setSearchMessages] = useState<SearchMessage[]>([]);
+  const pdfTextCache = useRef<Record<string, string>>({});
 
   const { data: competitors = [], isLoading } = useQuery({
     queryKey: ["competitors"],
@@ -224,11 +226,35 @@ export default function CompetitorAnalysisPage() {
     ]);
 
     try {
+      const isPdf = selectedPriceList.file_name.toLowerCase().endsWith(".pdf");
+      let pdfText: string | undefined;
+
+      if (isPdf) {
+        // Extract text client-side to avoid edge function memory limits
+        if (pdfTextCache.current[selectedPriceList.id]) {
+          pdfText = pdfTextCache.current[selectedPriceList.id];
+        } else {
+          toast.info("Estrazione testo dal PDF...");
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+          const pdf = await pdfjsLib.getDocument(selectedPriceList.file_url).promise;
+          const pages: string[] = [];
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const text = content.items.map((item: any) => item.str).join(" ");
+            pages.push(text);
+          }
+          pdfText = pages.join("\n\n");
+          pdfTextCache.current[selectedPriceList.id] = pdfText;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("analyze-competitor-pricelist", {
         body: {
-          fileUrl: selectedPriceList.file_url,
+          fileUrl: isPdf ? undefined : selectedPriceList.file_url,
           fileName: selectedPriceList.file_name,
           query,
+          pdfText,
         },
       });
       if (error) throw error;
