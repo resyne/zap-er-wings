@@ -149,3 +149,6 @@ verify_jwt = false
   name = "process-whatsapp-lead-automations"
   cron = "*/5 * * * *"
   region = "eu-west-1"
+
+[functions.analyze-competitor-pricelist]
+verify_jwt = false
