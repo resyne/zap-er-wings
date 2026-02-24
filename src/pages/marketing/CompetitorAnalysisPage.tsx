@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Upload, Brain, Trash2, Globe, Building2, Package, FileText, Loader2, Eye } from "lucide-react";
+import { Plus, Upload, Brain, Trash2, Globe, Building2, Package, FileText, Loader2, Eye, Search, Send, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Competitor {
   id: string;
@@ -48,6 +49,12 @@ interface PriceList {
   created_at: string;
 }
 
+interface SearchMessage {
+  role: "user" | "assistant";
+  content: string;
+  priceListName?: string;
+}
+
 export default function CompetitorAnalysisPage() {
   const queryClient = useQueryClient();
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null);
@@ -56,8 +63,12 @@ export default function CompetitorAnalysisPage() {
   const [newCompetitor, setNewCompetitor] = useState({ name: "", website: "", country: "", notes: "" });
   const [newProduct, setNewProduct] = useState({ name: "", model: "", category: "", price: "", notes: "" });
   const [uploading, setUploading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [aiResults, setAiResults] = useState<CompetitorProduct[]>([]);
+
+  // AI Search state
+  const [selectedPriceList, setSelectedPriceList] = useState<PriceList | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchMessages, setSearchMessages] = useState<SearchMessage[]>([]);
 
   const { data: competitors = [], isLoading } = useQuery({
     queryKey: ["competitors"],
@@ -171,7 +182,7 @@ export default function CompetitorAnalysisPage() {
     try {
       const file = e.target.files[0];
       const filePath = `competitor-pricelists/${selectedCompetitor.id}/${Date.now()}-${file.name}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from("company-documents")
         .upload(filePath, file);
@@ -201,55 +212,46 @@ export default function CompetitorAnalysisPage() {
     }
   };
 
-  const analyzePriceList = async (priceList: PriceList) => {
-    setAnalyzing(true);
-    setAiResults([]);
+  const handleAiSearch = async () => {
+    if (!selectedPriceList || !searchQuery.trim()) return;
+    const query = searchQuery.trim();
+    setSearchQuery("");
+    setSearching(true);
+
+    setSearchMessages((prev) => [
+      ...prev,
+      { role: "user", content: query, priceListName: selectedPriceList.file_name },
+    ]);
+
     try {
       const { data, error } = await supabase.functions.invoke("analyze-competitor-pricelist", {
-        body: { fileUrl: priceList.file_url, competitorId: selectedCompetitor?.id, fileName: priceList.file_name },
+        body: {
+          fileUrl: selectedPriceList.file_url,
+          fileName: selectedPriceList.file_name,
+          query,
+        },
       });
       if (error) throw error;
-      
-      if (data?.products?.length) {
-        setAiResults(data.products);
-        toast.success(`${data.products.length} prodotti estratti dall'AI`);
-      } else {
-        toast.info("Nessun prodotto estratto dal listino");
-      }
+
+      setSearchMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data?.answer || "Nessuna risposta." },
+      ]);
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message || "Errore nell'analisi AI");
+      const errorMsg = err?.message || "Errore nella ricerca AI";
+      toast.error(errorMsg);
+      setSearchMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `❌ Errore: ${errorMsg}` },
+      ]);
     } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const saveAiResults = async () => {
-    if (!selectedCompetitor || !aiResults.length) return;
-    try {
-      const toInsert = aiResults.map((p) => ({
-        competitor_id: selectedCompetitor.id,
-        name: p.name,
-        model: p.model || null,
-        category: p.category || null,
-        price: p.price || null,
-        currency: p.currency || "EUR",
-        notes: p.notes || null,
-        specifications: (p.specifications as any) || null,
-      }));
-      const { error } = await supabase.from("competitor_products").insert(toInsert as any);
-      if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ["competitor-products"] });
-      setAiResults([]);
-      toast.success("Prodotti salvati nel database");
-    } catch {
-      toast.error("Errore nel salvataggio");
+      setSearching(false);
     }
   };
 
   const deletePriceList = async (pl: PriceList) => {
     try {
-      // Extract path from URL
       const urlParts = pl.file_url.split("/company-documents/");
       if (urlParts[1]) {
         await supabase.storage.from("company-documents").remove([urlParts[1]]);
@@ -257,6 +259,7 @@ export default function CompetitorAnalysisPage() {
       const { error } = await supabase.from("competitor_price_lists").delete().eq("id", pl.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["competitor-price-lists"] });
+      if (selectedPriceList?.id === pl.id) setSelectedPriceList(null);
       toast.success("Listino eliminato");
     } catch {
       toast.error("Errore nell'eliminazione");
@@ -268,7 +271,7 @@ export default function CompetitorAnalysisPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Competitor Analysis</h1>
-          <p className="text-muted-foreground">Analizza listini e prodotti dei competitor con l'AI</p>
+          <p className="text-muted-foreground">Carica listini competitor e cerca informazioni con l'AI</p>
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
@@ -303,7 +306,7 @@ export default function CompetitorAnalysisPage() {
                 <div
                   key={c.id}
                   className={`p-3 rounded-lg cursor-pointer border transition-colors ${selectedCompetitor?.id === c.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-                  onClick={() => setSelectedCompetitor(c)}
+                  onClick={() => { setSelectedCompetitor(c); setSelectedPriceList(null); setSearchMessages([]); }}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -328,11 +331,144 @@ export default function CompetitorAnalysisPage() {
         {/* Detail Area */}
         <div className="lg:col-span-3">
           {selectedCompetitor ? (
-            <Tabs defaultValue="products">
+            <Tabs defaultValue="pricelists">
               <TabsList>
+                <TabsTrigger value="pricelists"><Search className="mr-2 h-4 w-4" /> Listini & Ricerca AI ({priceLists.length})</TabsTrigger>
                 <TabsTrigger value="products"><Package className="mr-2 h-4 w-4" /> Prodotti ({products.length})</TabsTrigger>
-                <TabsTrigger value="pricelists"><FileText className="mr-2 h-4 w-4" /> Listini ({priceLists.length})</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="pricelists" className="space-y-4">
+                <div className="flex justify-end">
+                  <label>
+                    <Button size="sm" asChild disabled={uploading}>
+                      <span className="cursor-pointer">
+                        {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {uploading ? "Caricamento..." : "Carica Listino"}
+                      </span>
+                    </Button>
+                    <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onChange={handleFileUpload} />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {/* Price lists column */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4" /> Listini caricati</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {priceLists.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8 text-sm">Nessun listino caricato.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {priceLists.map((pl) => (
+                            <div
+                              key={pl.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${selectedPriceList?.id === pl.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+                              onClick={() => { setSelectedPriceList(pl); setSearchMessages([]); }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{pl.file_name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(pl.created_at), "dd MMM yyyy", { locale: it })}
+                                    {pl.file_size && ` · ${(pl.file_size / 1024).toFixed(0)} KB`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); window.open(pl.file_url, "_blank"); }}>
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); deletePriceList(pl); }}>
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* AI Search column */}
+                  <Card className="flex flex-col">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Brain className="h-4 w-4 text-primary" />
+                        Ricerca AI nel listino
+                        {selectedPriceList && (
+                          <Badge variant="secondary" className="text-xs font-normal ml-1 truncate max-w-[180px]">
+                            {selectedPriceList.file_name}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-1 flex flex-col min-h-0">
+                      {!selectedPriceList ? (
+                        <div className="flex-1 flex items-center justify-center text-center py-8">
+                          <div>
+                            <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                            <p className="text-sm text-muted-foreground">Seleziona un listino dalla lista per iniziare a cercare informazioni con l'AI</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <ScrollArea className="flex-1 min-h-[300px] max-h-[400px] mb-3">
+                            <div className="space-y-3 pr-2">
+                              {searchMessages.length === 0 && (
+                                <div className="text-center py-8">
+                                  <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                                  <p className="text-sm text-muted-foreground">Chiedi qualsiasi cosa sul listino</p>
+                                  <div className="mt-3 space-y-1.5">
+                                    {["Quali modelli di forni sono disponibili?", "Qual è il prezzo del modello più costoso?", "Elenca tutti i prodotti con le specifiche tecniche"].map((suggestion) => (
+                                      <button
+                                        key={suggestion}
+                                        className="block w-full text-left text-xs text-primary hover:underline px-2 py-1 rounded hover:bg-primary/5 transition-colors"
+                                        onClick={() => { setSearchQuery(suggestion); }}
+                                      >
+                                        💡 {suggestion}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {searchMessages.map((msg, i) => (
+                                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                                  <div className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              {searching && (
+                                <div className="flex justify-start">
+                                  <div className="bg-muted rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Analizzo il listino...
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Es: Quanto costa il modello X?"
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter" && !searching) handleAiSearch(); }}
+                              disabled={searching}
+                            />
+                            <Button size="icon" onClick={handleAiSearch} disabled={!searchQuery.trim() || searching}>
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
               <TabsContent value="products" className="space-y-4">
                 <div className="flex justify-end">
@@ -356,44 +492,10 @@ export default function CompetitorAnalysisPage() {
                   </Dialog>
                 </div>
 
-                {/* AI Results */}
-                {aiResults.length > 0 && (
-                  <Card className="border-primary">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2"><Brain className="h-5 w-5 text-primary" /> Prodotti estratti dall'AI ({aiResults.length})</CardTitle>
-                        <Button onClick={saveAiResults} size="sm">Salva tutti nel database</Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nome</TableHead>
-                            <TableHead>Modello</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead className="text-right">Prezzo</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {aiResults.map((p, i) => (
-                            <TableRow key={i}>
-                              <TableCell className="font-medium">{p.name}</TableCell>
-                              <TableCell>{p.model || "-"}</TableCell>
-                              <TableCell>{p.category ? <Badge variant="outline">{p.category}</Badge> : "-"}</TableCell>
-                              <TableCell className="text-right">{p.price != null ? `€ ${p.price.toLocaleString("it-IT")}` : "-"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                )}
-
                 <Card>
                   <CardContent className="pt-4">
                     {products.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">Nessun prodotto. Carica un listino e usa l'AI per estrarre i dati, oppure aggiungi manualmente.</p>
+                      <p className="text-center text-muted-foreground py-8">Nessun prodotto. Aggiungi manualmente i prodotti competitor.</p>
                     ) : (
                       <Table>
                         <TableHeader>
@@ -423,57 +525,6 @@ export default function CompetitorAnalysisPage() {
                           ))}
                         </TableBody>
                       </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pricelists" className="space-y-4">
-                <div className="flex justify-end">
-                  <label>
-                    <Button size="sm" asChild disabled={uploading}>
-                      <span className="cursor-pointer">
-                        {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                        {uploading ? "Caricamento..." : "Carica Listino"}
-                      </span>
-                    </Button>
-                    <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" onChange={handleFileUpload} />
-                  </label>
-                </div>
-
-                <Card>
-                  <CardContent className="pt-4">
-                    {priceLists.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">Nessun listino caricato. Carica PDF, Excel o immagini dei listini competitor.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {priceLists.map((pl) => (
-                          <div key={pl.id} className="flex items-center justify-between p-3 rounded-lg border">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-8 w-8 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">{pl.file_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(pl.created_at), "dd MMM yyyy", { locale: it })}
-                                  {pl.file_size && ` · ${(pl.file_size / 1024).toFixed(0)} KB`}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="sm" onClick={() => window.open(pl.file_url, "_blank")}>
-                                <Eye className="mr-1 h-3.5 w-3.5" /> Vedi
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => analyzePriceList(pl)} disabled={analyzing}>
-                                {analyzing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Brain className="mr-1 h-3.5 w-3.5" />}
-                                Analizza con AI
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deletePriceList(pl)}>
-                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
                     )}
                   </CardContent>
                 </Card>
