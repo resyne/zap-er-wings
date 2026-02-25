@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Calculator, Save, FileText } from "lucide-react";
+import { Plus, Search, Trash2, Calculator, Save, FileText, Sparkles } from "lucide-react";
+import AICostEstimatorChat from "@/components/crm/AICostEstimatorChat";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -655,6 +656,9 @@ export default function CostEstimatorPage() {
           Crea e gestisci preventivi di costo per i clienti includendo materiali e tecnici
         </p>
       </div>
+
+      {/* AI Cost Estimator Chat */}
+      <AICostEstimatorChat />
 
       {/* Cost Drafts Section */}
       <Card>
