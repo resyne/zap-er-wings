@@ -139,6 +139,45 @@ export default function ZAppNewServiceReportPage() {
   const [isQuotedOrder, setIsQuotedOrder] = useState(false);
   const [isWarranty, setIsWarranty] = useState(false);
   const [isMaintenanceContract, setIsMaintenanceContract] = useState(false);
+  const [departureCity, setDepartureCity] = useState('Scafati (SA)');
+  const [destinationCity, setDestinationCity] = useState('');
+  const [calculatingKm, setCalculatingKm] = useState(false);
+  const [kmAutoCalculated, setKmAutoCalculated] = useState(false);
+
+  // Auto-calculate km when cities change
+  useEffect(() => {
+    if (!departureCity.trim() || !destinationCity.trim()) return;
+    const timer = setTimeout(async () => {
+      setCalculatingKm(true);
+      try {
+        // Geocode both cities using Nominatim
+        const geocode = async (city: string) => {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Italia')}&format=json&limit=1`);
+          const data = await res.json();
+          if (data.length === 0) throw new Error(`Città "${city}" non trovata`);
+          return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        };
+        const [from, to] = await Promise.all([geocode(departureCity), geocode(destinationCity)]);
+        // Calculate route distance using OSRM
+        const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`);
+        const routeData = await routeRes.json();
+        if (routeData.code === 'Ok' && routeData.routes.length > 0) {
+          const oneWayKm = Math.round(routeData.routes[0].distance / 1000);
+          const roundTripKm = oneWayKm * 2;
+          handleInputChange('kilometers', roundTripKm.toString());
+          setKmAutoCalculated(true);
+        } else {
+          toast.error("Impossibile calcolare il percorso");
+        }
+      } catch (err: any) {
+        console.error("Km calc error:", err);
+        toast.error(err.message || "Errore nel calcolo km");
+      } finally {
+        setCalculatingKm(false);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [departureCity, destinationCity]);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return customers;
@@ -897,9 +936,34 @@ export default function ZAppNewServiceReportPage() {
                   <span className="text-xs font-medium text-blue-700">Durata effettiva intervento: {calculatedHours} {calculatedHours === 1 ? 'ora' : 'ore'}</span>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> Km Percorsi</Label>
-                <Input type="number" className="h-11 rounded-xl text-base" value={formData.kilometers} onChange={(e) => handleInputChange('kilometers', e.target.value)} placeholder="0" inputMode="numeric" />
+              {/* Smart Km Calculator */}
+              <div className="space-y-2 pt-1">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> Calcolo Chilometri (A/R)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Partenza</Label>
+                    <Input className="h-11 rounded-xl text-sm" value={departureCity} onChange={(e) => { setDepartureCity(e.target.value); setKmAutoCalculated(false); }} placeholder="Scafati (SA)" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Destinazione</Label>
+                    <Input className="h-11 rounded-xl text-sm" value={destinationCity} onChange={(e) => { setDestinationCity(e.target.value); setKmAutoCalculated(false); }} placeholder="Es. Napoli" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Km Totali (A/R)</Label>
+                    <div className="relative">
+                      <Input type="number" className="h-11 rounded-xl text-base" value={formData.kilometers} onChange={(e) => { handleInputChange('kilometers', e.target.value); setKmAutoCalculated(false); }} placeholder="0" inputMode="numeric" />
+                      {calculatingKm && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
+                  </div>
+                </div>
+                {kmAutoCalculated && parseFloat(formData.kilometers) > 0 && (
+                  <div className="bg-green-50 rounded-xl p-2 flex items-center gap-2 border border-green-200">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                    <span className="text-[11px] text-green-700">Km calcolati automaticamente: <strong>{formData.kilometers} km</strong> (andata e ritorno)</span>
+                  </div>
+                )}
               </div>
             </MobileSection>
 
