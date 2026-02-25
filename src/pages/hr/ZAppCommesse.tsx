@@ -584,6 +584,7 @@ export default function ZAppCommesse() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [phaseTab, setPhaseTab] = useState<"produzione" | "spedizione" | "servizio">("produzione");
   const [scheduleOrder, setScheduleOrder] = useState<UnifiedOrder | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -797,12 +798,23 @@ export default function ZAppCommesse() {
     });
   }, [allOrders, debouncedSearch, statusFilter]);
 
-  // Group by customer
+  // Filter by phase tab
+  const filteredByPhase = useMemo(() => {
+    return filteredOrders.filter(o => o.type === phaseTab);
+  }, [filteredOrders, phaseTab]);
+
+  // Phase counts for tab badges
+  const phaseCounts = useMemo(() => ({
+    produzione: filteredOrders.filter(o => o.type === "produzione").length,
+    spedizione: filteredOrders.filter(o => o.type === "spedizione").length,
+    servizio: filteredOrders.filter(o => o.type === "servizio").length,
+  }), [filteredOrders]);
+
+  // Group by customer (only orders matching the active phase tab)
   const customerGroups = useMemo((): CustomerGroup[] => {
     const groupMap = new Map<string, CustomerGroup>();
 
-    filteredOrders.forEach(order => {
-      // Group by customer name, fallback to sales_order_id, fallback to order id
+    filteredByPhase.forEach(order => {
       const key = order.customer_name || order.sales_order_id || order.id;
       
       if (!groupMap.has(key)) {
@@ -827,25 +839,22 @@ export default function ZAppCommesse() {
 
     const priorityWeight = (p?: string) => p === 'urgent' ? 4 : p === 'high' ? 3 : p === 'medium' ? 2 : p === 'low' ? 1 : 0;
 
-    // Sort: by highest priority order in the group, then active first, then by customer name
     return Array.from(groupMap.values()).sort((a, b) => {
       const allA = [...a.production, ...a.shipping, ...a.service];
       const allB = [...b.production, ...b.shipping, ...b.service];
-      // Highest priority in group
       const maxPriorityA = Math.max(...allA.map(o => priorityWeight(o.priority)), 0);
       const maxPriorityB = Math.max(...allB.map(o => priorityWeight(o.priority)), 0);
       if (maxPriorityA !== maxPriorityB) return maxPriorityB - maxPriorityA;
-      // Active groups first
       const aActive = allA.some(o => !completedStatuses.includes(o.status));
       const bActive = allB.some(o => !completedStatuses.includes(o.status));
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
       return a.customerName.localeCompare(b.customerName);
     });
-  }, [filteredOrders]);
+  }, [filteredByPhase]);
 
   const totalCustomers = customerGroups.length;
-  const totalOrders = filteredOrders.length;
+  const totalOrders = filteredByPhase.length;
 
   // ─── Page Layout ────────────────────────────────────────
   return (
@@ -879,15 +888,29 @@ export default function ZAppCommesse() {
           </Select>
         </div>
 
-        {/* Phase legend */}
-        <div className="flex gap-3 flex-wrap">
+        {/* Phase tabs */}
+        <div className="flex rounded-xl bg-muted p-1 gap-1">
           {(["produzione", "spedizione", "servizio"] as const).map(phase => {
             const c = phaseConfig[phase];
+            const Icon = c.icon;
+            const isActive = phaseTab === phase;
+            const count = phaseCounts[phase];
             return (
-              <div key={phase} className={`flex items-center gap-1.5 text-[11px] ${c.text} font-medium`}>
-                <div className={`h-2.5 w-2.5 rounded-full ${c.color}`} />
-                {c.label}
-              </div>
+              <button
+                key={phase}
+                onClick={() => setPhaseTab(phase)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-medium transition-all ${
+                  isActive 
+                    ? `bg-background shadow-sm ${c.text}` 
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{c.label}</span>
+                <Badge variant={isActive ? "default" : "secondary"} className="text-[10px] px-1.5 py-0 ml-0.5">
+                  {count}
+                </Badge>
+              </button>
             );
           })}
         </div>
