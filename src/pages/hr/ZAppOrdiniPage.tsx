@@ -1,10 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { toast } from "sonner";
+import {
+  ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
+  Plus, Check, ChevronsUpDown, Loader2
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -20,16 +31,29 @@ interface Order {
   shipping_orders?: Array<{ id: string; number: string; status: string }>;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+  code: string;
+  company_name?: string;
+}
+
 const statusColors: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-800",
   commissionato: "bg-blue-100 text-blue-800",
   in_lavorazione: "bg-amber-100 text-amber-800",
+  in_progress: "bg-amber-100 text-amber-800",
   completato: "bg-green-100 text-green-800",
+  completed: "bg-green-100 text-green-800",
 };
 
 const statusLabels: Record<string, string> = {
+  draft: "Bozza",
   commissionato: "Commissionato",
   in_lavorazione: "In Lavorazione",
+  in_progress: "In Lavorazione",
   completato: "Completato",
+  completed: "Completato",
 };
 
 const typeLabels: Record<string, string> = {
@@ -46,12 +70,31 @@ const typeIcons: Record<string, any> = {
   ods: Truck,
 };
 
+type ViewMode = "list" | "detail" | "create";
+
 export default function ZAppOrdiniPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  // Create form state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    notes: "",
+    order_date: new Date().toISOString().split("T")[0],
+    delivery_date: "",
+  });
+  const [commesse, setCommesse] = useState({
+    produzione: false,
+    lavoro: false,
+    spedizione: false,
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -81,6 +124,16 @@ export default function ZAppOrdiniPage() {
     }
   };
 
+  const loadCustomers = async () => {
+    // @ts-ignore - Supabase type instantiation too deep
+    const { data } = await supabase
+      .from("customers")
+      .select("id, name, code, company_name")
+      .eq("is_active", true)
+      .order("name");
+    if (data) setCustomers(data as any);
+  };
+
   const filteredOrders = orders.filter(o => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -100,13 +153,290 @@ export default function ZAppOrdiniPage() {
     return subs;
   };
 
-  if (selectedOrder) {
+  const selectedCustomer = useMemo(
+    () => customers.find(c => c.id === selectedCustomerId),
+    [customers, selectedCustomerId]
+  );
+
+  const openCreateForm = () => {
+    loadCustomers();
+    setSelectedCustomerId("");
+    setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "" });
+    setCommesse({ produzione: false, lavoro: false, spedizione: false });
+    setViewMode("create");
+  };
+
+  const handleCreateOrder = async () => {
+    if (!selectedCustomerId) { toast.error("Seleziona un cliente"); return; }
+    if (!commesse.produzione && !commesse.lavoro && !commesse.spedizione) {
+      toast.error("Seleziona almeno un tipo di commessa");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Determine order type
+      let orderType = "";
+      if (commesse.produzione && commesse.lavoro) orderType = "odpel";
+      else if (commesse.produzione) orderType = "odp";
+      else if (commesse.lavoro) orderType = "odl";
+      else if (commesse.spedizione) orderType = "ods";
+
+      const customerName = selectedCustomer?.name || "Cliente";
+
+      // 1. Create sales order
+      const { data: salesOrder, error: soError } = await supabase
+        .from("sales_orders")
+        .insert([{
+          number: "",
+          customer_id: selectedCustomerId,
+          order_date: formData.order_date || null,
+          delivery_date: formData.delivery_date || null,
+          status: "commissionato",
+          order_type: orderType,
+          notes: formData.notes || null,
+          order_source: "sale",
+        }] as any)
+        .select()
+        .single();
+
+      if (soError) throw soError;
+
+      const createdCommesse: string[] = [];
+
+      // 2. Create production work order
+      if (commesse.produzione) {
+        const { data: wo, error } = await supabase
+          .from("work_orders")
+          .insert([{
+            number: "",
+            title: `Produzione per ${customerName}`,
+            description: formData.notes || "",
+            status: "da_fare",
+            customer_id: selectedCustomerId,
+            sales_order_id: salesOrder.id,
+            priority: "medium",
+            notes: formData.notes || null,
+          }])
+          .select()
+          .single();
+        if (error) throw error;
+        if (wo) createdCommesse.push(`CdP: ${wo.number}`);
+      }
+
+      // 3. Create service work order
+      if (commesse.lavoro) {
+        const { data: swo, error } = await supabase
+          .from("service_work_orders")
+          .insert([{
+            number: "",
+            title: `Lavoro per ${customerName}`,
+            description: formData.notes || "",
+            status: "da_programmare",
+            customer_id: selectedCustomerId,
+            sales_order_id: salesOrder.id,
+            priority: "medium",
+            notes: formData.notes || null,
+          }])
+          .select()
+          .single();
+        if (error) throw error;
+        if (swo) createdCommesse.push(`CdL: ${swo.number}`);
+      }
+
+      // 4. Create shipping order
+      if (commesse.spedizione) {
+        // Get customer address
+        const { data: custData } = await supabase
+          .from("customers")
+          .select("city, province, address, shipping_address")
+          .eq("id", selectedCustomerId)
+          .single();
+
+        const { data: so, error } = await supabase
+          .from("shipping_orders")
+          .insert([{
+            number: "",
+            customer_id: selectedCustomerId,
+            status: "da_preparare",
+            order_date: formData.order_date || new Date().toISOString().split("T")[0],
+            notes: formData.notes || null,
+            sales_order_id: salesOrder.id,
+            shipping_address: custData?.shipping_address || custData?.address || null,
+            shipping_city: custData?.city || null,
+            shipping_province: custData?.province || null,
+          }])
+          .select()
+          .single();
+        if (error) throw error;
+        if (so) createdCommesse.push(`CdS: ${so.number}`);
+      }
+
+      toast.success(`Ordine ${salesOrder.number} creato!\n${createdCommesse.join(" • ")}`);
+      setViewMode("list");
+      loadOrders();
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      toast.error("Errore: " + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ===== CREATE VIEW =====
+  if (viewMode === "create") {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <div className="bg-teal-600 text-white px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setViewMode("list")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-lg font-bold">Nuovo Ordine</h1>
+              <p className="text-teal-100 text-sm">Crea ordine con commesse</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 max-w-2xl mx-auto space-y-4">
+          {/* Cliente */}
+          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+            <Label className="font-semibold text-sm">Cliente *</Label>
+            <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" role="combobox" className="w-full justify-between h-11">
+                  {selectedCustomer
+                    ? `${selectedCustomer.name} (${selectedCustomer.code})`
+                    : "Seleziona cliente..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Cerca cliente..." />
+                  <CommandList>
+                    <CommandEmpty>Nessun cliente trovato</CommandEmpty>
+                    <CommandGroup>
+                      {customers.map(c => (
+                        <CommandItem
+                          key={c.id}
+                          value={`${c.name} ${c.company_name || ""} ${c.code}`}
+                          onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                          <div>
+                            <p className="font-medium text-sm">{c.name}</p>
+                            <p className="text-xs text-muted-foreground">{c.code}</p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Date */}
+          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Data Ordine</Label>
+                <Input
+                  type="date"
+                  value={formData.order_date}
+                  onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Data Consegna</Label>
+                <Input
+                  type="date"
+                  value={formData.delivery_date}
+                  onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Tipo Commesse */}
+          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+            <Label className="font-semibold text-sm">Commesse da creare *</Label>
+            <div className="space-y-3 mt-2">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                <Checkbox
+                  checked={commesse.produzione}
+                  onCheckedChange={v => setCommesse(p => ({ ...p, produzione: !!v }))}
+                />
+                <Package className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium text-sm">Commessa di Produzione</p>
+                  <p className="text-xs text-muted-foreground">Ordine di produzione (CdP)</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                <Checkbox
+                  checked={commesse.lavoro}
+                  onCheckedChange={v => setCommesse(p => ({ ...p, lavoro: !!v }))}
+                />
+                <Wrench className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-sm">Commessa di Lavoro</p>
+                  <p className="text-xs text-muted-foreground">Installazione / Intervento (CdL)</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                <Checkbox
+                  checked={commesse.spedizione}
+                  onCheckedChange={v => setCommesse(p => ({ ...p, spedizione: !!v }))}
+                />
+                <Truck className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-sm">Commessa di Spedizione</p>
+                  <p className="text-xs text-muted-foreground">Ordine di spedizione (CdS)</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Note */}
+          <div className="bg-white rounded-xl border border-border p-4 space-y-2">
+            <Label className="text-xs text-muted-foreground">Note</Label>
+            <Textarea
+              placeholder="Note sull'ordine..."
+              value={formData.notes}
+              onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
+              rows={3}
+            />
+          </div>
+
+          {/* Submit */}
+          <Button
+            onClick={handleCreateOrder}
+            disabled={saving || !selectedCustomerId || (!commesse.produzione && !commesse.lavoro && !commesse.spedizione)}
+            className="w-full h-12 text-base font-semibold bg-teal-600 hover:bg-teal-700"
+          >
+            {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
+            Crea Ordine con Commesse
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== DETAIL VIEW =====
+  if (viewMode === "detail" && selectedOrder) {
     const subs = getSubOrders(selectedOrder);
     return (
       <div className="min-h-screen bg-muted/30">
         <div className="bg-teal-600 text-white px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setSelectedOrder(null)}>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => { setSelectedOrder(null); setViewMode("list"); }}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -117,7 +447,6 @@ export default function ZAppOrdiniPage() {
         </div>
 
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
-          {/* Info principali */}
           <div className="bg-white rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Stato</span>
@@ -145,7 +474,6 @@ export default function ZAppOrdiniPage() {
             )}
           </div>
 
-          {/* Commesse collegate */}
           {subs.length > 0 && (
             <div className="bg-white rounded-xl border border-border p-4 space-y-3">
               <h3 className="font-semibold text-sm">Commesse Collegate</h3>
@@ -165,23 +493,29 @@ export default function ZAppOrdiniPage() {
     );
   }
 
+  // ===== LIST VIEW =====
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Header */}
       <div className="bg-teal-600 text-white px-4 py-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => navigate("/hr/z-app")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold">Ordini</h1>
             <p className="text-teal-100 text-sm">{filteredOrders.length} ordini</p>
           </div>
+          <Button
+            size="icon"
+            className="bg-white/20 hover:bg-white/30 text-white h-10 w-10 rounded-xl"
+            onClick={openCreateForm}
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
       <div className="p-4 max-w-2xl mx-auto space-y-3">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -195,7 +529,13 @@ export default function ZAppOrdiniPage() {
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Caricamento...</div>
         ) : filteredOrders.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">Nessun ordine trovato</div>
+          <div className="text-center py-12 text-muted-foreground">
+            <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p>Nessun ordine trovato</p>
+            <Button variant="outline" className="mt-3" onClick={openCreateForm}>
+              <Plus className="h-4 w-4 mr-2" /> Crea il primo ordine
+            </Button>
+          </div>
         ) : (
           <div className="space-y-2">
             {filteredOrders.map(order => {
@@ -204,7 +544,7 @@ export default function ZAppOrdiniPage() {
               return (
                 <button
                   key={order.id}
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={() => { setSelectedOrder(order); setViewMode("detail"); }}
                   className="w-full flex items-center gap-3 p-4 bg-white rounded-xl border border-border hover:shadow-md active:scale-[0.98] transition-all text-left"
                 >
                   <div className="h-10 w-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
