@@ -75,6 +75,7 @@ const ORDER_TYPE_CATEGORIES = [
   { value: "produzione", label: "Produzione", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
   { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
   { value: "ricambi", label: "Ricambi", icon: Settings, color: "text-purple-600 bg-purple-50 border-purple-200" },
+  { value: "installazione", label: "Installazione", icon: MapPin, color: "text-green-600 bg-green-50 border-green-200" },
 ];
 
 const DELIVERY_MODES_PRODUZIONE = [
@@ -115,6 +116,7 @@ const categoryLabels: Record<string, string> = {
   produzione: "Produzione",
   intervento: "Intervento",
   ricambi: "Ricambi",
+  installazione: "Installazione",
 };
 
 type ViewMode = "list" | "detail";
@@ -276,7 +278,9 @@ export default function ZAppOrdiniPage() {
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
-      // ritiro = no shipping commessa needed
+    } else if (orderTypeCategory === "installazione") {
+      commesse.push("Produzione");
+      commesse.push("Installazione");
     }
 
     return commesse;
