@@ -271,11 +271,18 @@ export default function ZAppNewServiceReportPage() {
     return 40;
   };
 
+  const KM_RATE = 0.40; // €/km + IVA
+  const CALLOUT_FEE = 40.00; // € + IVA
+  const LOCAL_AREA_ONE_WAY_KM = 15;
+
+  const isLocalArea = (totalKmRoundTrip: number) => (totalKmRoundTrip / 2) <= LOCAL_AREA_ONE_WAY_KM;
+
   const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number, matTotal: number = materialsTotalNetto) => {
     const hours = calculateHoursFromTime(startTime, endTime);
     const techCost = techs.reduce((sum, t) => sum + hours * getTechRate(t.technicianId), 0);
-    const kmCost = km * pricingSettings.head_technician_km_rate;
-    return techCost + kmCost + matTotal;
+    const kmCost = km * KM_RATE;
+    const calloutCost = isLocalArea(km) ? 0 : CALLOUT_FEE;
+    return techCost + kmCost + calloutCost + matTotal;
   };
 
   useEffect(() => {
@@ -959,9 +966,18 @@ export default function ZAppNewServiceReportPage() {
                   </div>
                 </div>
                 {kmAutoCalculated && parseFloat(formData.kilometers) > 0 && (
-                  <div className="bg-green-50 rounded-xl p-2 flex items-center gap-2 border border-green-200">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                    <span className="text-[11px] text-green-700">Km calcolati automaticamente: <strong>{formData.kilometers} km</strong> (andata e ritorno)</span>
+                  <div className={cn(
+                    "rounded-xl p-2 flex items-center gap-2 border",
+                    isLocalArea(parseFloat(formData.kilometers))
+                      ? "bg-green-50 border-green-200"
+                      : "bg-orange-50 border-orange-200"
+                  )}>
+                    <CheckCircle2 className={cn("h-3.5 w-3.5 shrink-0", isLocalArea(parseFloat(formData.kilometers)) ? "text-green-600" : "text-orange-600")} />
+                    <span className={cn("text-[11px]", isLocalArea(parseFloat(formData.kilometers)) ? "text-green-700" : "text-orange-700")}>
+                      <strong>{formData.kilometers} km A/R</strong> — {isLocalArea(parseFloat(formData.kilometers))
+                        ? "📍 Area locale (nessun costo chiamata)"
+                        : `🔧 Fuori zona — costo chiamata €${CALLOUT_FEE.toFixed(2)} + IVA`}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1040,10 +1056,18 @@ export default function ZAppNewServiceReportPage() {
                         </div>
                       )}
                       {parseFloat(formData.kilometers) > 0 && (
-                        <div className="flex justify-between">
-                          <span>Km ({formData.kilometers} km)</span>
-                          <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</span>
-                        </div>
+                        <>
+                          <div className="flex justify-between">
+                            <span>Km ({formData.kilometers} km × €{KM_RATE.toFixed(2)})</span>
+                            <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * KM_RATE).toFixed(2)}</span>
+                          </div>
+                          {!isLocalArea(parseFloat(formData.kilometers)) && (
+                            <div className="flex justify-between">
+                              <span>Costo chiamata (oltre {LOCAL_AREA_ONE_WAY_KM} km)</span>
+                              <span className="font-medium text-foreground">€{CALLOUT_FEE.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                       {materialsTotalNetto > 0 && (
                         <div className="flex justify-between">
