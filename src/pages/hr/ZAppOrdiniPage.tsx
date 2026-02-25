@@ -461,6 +461,19 @@ export default function ZAppOrdiniPage() {
 
       const phaseLabels = phasesConfig.join(" → ");
 
+      // Notify technicians via WhatsApp (fire-and-forget)
+      supabase.functions.invoke("notify-commessa-created", {
+        body: {
+          commessa_title: commessaTitle,
+          commessa_type: orderTypeCategory,
+          deadline: formData.deadline || null,
+          customer_name: customerName,
+        },
+      }).then(res => {
+        if (res.error) console.error("WhatsApp notification error:", res.error);
+        else console.log("WhatsApp notification sent:", res.data);
+      });
+
       setShowCreateForm(false);
       loadOrders();
     } catch (error: any) {
