@@ -4,7 +4,7 @@ import {
   ArrowLeft, Search, Loader2, Wrench, Truck, Settings,
   Calendar, MapPin, User, Package, Clock, ChevronDown,
   FileText, AlertTriangle, CheckCircle2, Image, Boxes,
-  CreditCard, ChevronRight, Building2
+  CreditCard, ChevronRight, Building2, CalendarPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -303,9 +306,10 @@ function PhasePipeline({ group }: { group: CustomerGroup }) {
 }
 
 // ─── Phase Order Card (compact) ──────────────────────────────
-function PhaseOrderCard({ order, onStatusChange, isPending }: {
+function PhaseOrderCard({ order, onStatusChange, isPending, onSchedule }: {
   order: UnifiedOrder;
   onStatusChange: (id: string, type: string, newStatus: string) => void;
+  onSchedule: (order: UnifiedOrder) => void;
   isPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -352,6 +356,25 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
 
         <CollapsibleContent>
           <div className="border-t border-border/50 px-2.5 py-2.5 space-y-2.5">
+            {/* Schedule button */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Calendario</p>
+                {order.scheduled_date ? (
+                  <p className="text-[11px] text-foreground">{fmtDate(order.scheduled_date)}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Non calendarizzato</p>
+                )}
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onSchedule(order); }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 active:scale-95 transition-all"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" />
+                {order.scheduled_date ? "Modifica" : "Calendarizza"}
+              </button>
+            </div>
+
             {/* Status change */}
             <div>
               <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Cambia stato</p>
@@ -447,9 +470,10 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
 }
 
 // ─── Customer Group Card ─────────────────────────────────────
-function CustomerGroupCard({ group, onStatusChange, isPending }: {
+function CustomerGroupCard({ group, onStatusChange, onSchedule, isPending }: {
   group: CustomerGroup;
   onStatusChange: (id: string, type: string, newStatus: string) => void;
+  onSchedule: (order: UnifiedOrder) => void;
   isPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -493,7 +517,7 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
                 </div>
                 <div className="space-y-1.5">
                   {group.production.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
+                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} onSchedule={onSchedule} isPending={isPending} />
                   ))}
                 </div>
               </div>
@@ -510,7 +534,7 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
                 </div>
                 <div className="space-y-1.5">
                   {group.shipping.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
+                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} onSchedule={onSchedule} isPending={isPending} />
                   ))}
                 </div>
               </div>
@@ -527,7 +551,7 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
                 </div>
                 <div className="space-y-1.5">
                   {group.service.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
+                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} onSchedule={onSchedule} isPending={isPending} />
                   ))}
                 </div>
               </div>
@@ -545,6 +569,8 @@ export default function ZAppCommesse() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [scheduleOrder, setScheduleOrder] = useState<UnifiedOrder | null>(null);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, type, newStatus }: { id: string; type: string; newStatus: string }) => {
@@ -563,6 +589,38 @@ export default function ZAppCommesse() {
 
   const handleStatusChange = (id: string, type: string, newStatus: string) => {
     updateStatus.mutate({ id, type, newStatus });
+  };
+
+  const handleOpenSchedule = (order: UnifiedOrder) => {
+    setScheduleOrder(order);
+    setScheduleDate(order.scheduled_date ? new Date(order.scheduled_date) : undefined);
+  };
+
+  const scheduleOrderMutation = useMutation({
+    mutationFn: async ({ id, type, date }: { id: string; type: string; date: string }) => {
+      const table = type === "produzione" ? "work_orders" : type === "servizio" ? "service_work_orders" : "shipping_orders";
+      const field = type === "spedizione" ? "order_date" : "scheduled_date";
+      const { error } = await supabase.from(table).update({ [field]: date }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Commessa calendarizzata");
+      queryClient.invalidateQueries({ queryKey: ["zapp-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-service-work-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-shipping-orders"] });
+      setScheduleOrder(null);
+    },
+    onError: (err: any) => toast.error("Errore: " + err.message),
+  });
+
+  const handleConfirmSchedule = () => {
+    if (!scheduleOrder || !scheduleDate) return;
+    scheduleOrderMutation.mutate({
+      id: scheduleOrder.id,
+      type: scheduleOrder.type,
+      date: format(scheduleDate, "yyyy-MM-dd"),
+    });
+  };
   };
 
   // ─── Data Fetching ──────────────────────────────────────
@@ -788,11 +846,44 @@ export default function ZAppCommesse() {
               key={group.key}
               group={group}
               onStatusChange={handleStatusChange}
+              onSchedule={handleOpenSchedule}
               isPending={updateStatus.isPending}
             />
           ))
         )}
       </div>
+
+      {/* Schedule Dialog */}
+      <Dialog open={!!scheduleOrder} onOpenChange={(o) => !o && setScheduleOrder(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Calendarizza Commessa</DialogTitle>
+          </DialogHeader>
+          {scheduleOrder && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {scheduleOrder.title} — <span className="font-mono">{scheduleOrder.number}</span>
+              </p>
+              <div>
+                <Label className="text-xs">Seleziona data</Label>
+                <CalendarPicker
+                  mode="single"
+                  selected={scheduleDate}
+                  onSelect={setScheduleDate}
+                  locale={it}
+                  className="rounded-md border mt-1"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleOrder(null)}>Annulla</Button>
+            <Button onClick={handleConfirmSchedule} disabled={!scheduleDate || scheduleOrderMutation.isPending}>
+              {scheduleOrderMutation.isPending ? "Salvataggio..." : "Conferma"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
