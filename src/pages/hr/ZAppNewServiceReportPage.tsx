@@ -159,34 +159,68 @@ export default function ZAppNewServiceReportPage() {
 
         const geocode = async (city: string) => {
           const searchQuery = normalizeCity(city);
+          const rawQuery = city.trim();
 
-          // 1) Nominatim
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=5&countrycodes=it`);
-            if (res.ok) {
-              const data = await res.json();
-              if (Array.isArray(data) && data.length > 0) {
-                const best = data.find((r: any) => ['city', 'town', 'village', 'municipality'].includes(r.type)) || data[0];
-                return { lat: parseFloat(best.lat), lon: parseFloat(best.lon), name: best.display_name };
+          // 1) Nominatim with User-Agent
+          for (const q of [searchQuery, rawQuery]) {
+            try {
+              const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&countrycodes=it`,
+                { headers: { 'Accept': 'application/json' } }
+              );
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                  const best = data.find((r: any) => ['city', 'town', 'village', 'municipality'].includes(r.type)) || data[0];
+                  return { lat: parseFloat(best.lat), lon: parseFloat(best.lon), name: best.display_name };
+                }
               }
+            } catch {
+              // try next
             }
-          } catch {
-            // fallback below
           }
 
           // 2) Photon (komoot) fallback
-          try {
-            const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=5&lang=it`);
-            if (photonRes.ok) {
-              const photonData = await photonRes.json();
-              const feature = photonData?.features?.[0];
-              if (feature?.geometry?.coordinates?.length >= 2) {
-                const [lon, lat] = feature.geometry.coordinates;
-                return { lat: Number(lat), lon: Number(lon), name: feature?.properties?.name || city };
+          for (const q of [searchQuery, rawQuery]) {
+            try {
+              const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=it`);
+              if (photonRes.ok) {
+                const photonData = await photonRes.json();
+                const feature = photonData?.features?.[0];
+                if (feature?.geometry?.coordinates?.length >= 2) {
+                  const [lon, lat] = feature.geometry.coordinates;
+                  return { lat: Number(lat), lon: Number(lon), name: feature?.properties?.name || city };
+                }
               }
+            } catch {
+              // try next
             }
-          } catch {
-            // handled by final throw
+          }
+
+          // 3) Well-known Italian cities hardcoded fallback
+          const knownCities: Record<string, { lat: number; lon: number }> = {
+            'scafati': { lat: 40.7537, lon: 14.5282 },
+            'roma': { lat: 41.9028, lon: 12.4964 },
+            'milano': { lat: 45.4642, lon: 9.1900 },
+            'napoli': { lat: 40.8518, lon: 14.2681 },
+            'torino': { lat: 45.0703, lon: 7.6869 },
+            'palermo': { lat: 38.1157, lon: 13.3615 },
+            'firenze': { lat: 43.7696, lon: 11.2558 },
+            'bologna': { lat: 44.4949, lon: 11.3426 },
+            'bari': { lat: 41.1171, lon: 16.8719 },
+            'salerno': { lat: 40.6824, lon: 14.7681 },
+            'angri': { lat: 40.7382, lon: 14.5694 },
+            'pompei': { lat: 40.7462, lon: 14.5006 },
+            'castellammare di stabia': { lat: 40.6946, lon: 14.4831 },
+            'nocera inferiore': { lat: 40.7460, lon: 14.6369 },
+            'pagani': { lat: 40.7428, lon: 14.6153 },
+            'sarno': { lat: 40.8109, lon: 14.6196 },
+            'cava de tirreni': { lat: 40.7015, lon: 14.7063 },
+          };
+          const cityLower = rawQuery.replace(/\s*\([^)]*\)\s*/g, '').trim().toLowerCase();
+          const known = knownCities[cityLower];
+          if (known) {
+            return { lat: known.lat, lon: known.lon, name: rawQuery };
           }
 
           throw new Error(`Impossibile geolocalizzare "${city}"`);
