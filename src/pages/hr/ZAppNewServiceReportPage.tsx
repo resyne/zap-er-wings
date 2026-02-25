@@ -131,6 +131,8 @@ export default function ZAppNewServiceReportPage() {
   const [technicianSignature, setTechnicianSignature] = useState('');
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
   const [isQuotedOrder, setIsQuotedOrder] = useState(false);
+  const [isWarranty, setIsWarranty] = useState(false);
+  const [isMaintenanceContract, setIsMaintenanceContract] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return customers;
@@ -323,7 +325,9 @@ export default function ZAppNewServiceReportPage() {
         technicians_count: techniciansList.length || 1,
         kilometers: parseFloat(formData.kilometers) || 0,
         head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
-        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length,
+        is_warranty: isWarranty,
+        is_maintenance_contract: isMaintenanceContract
       };
 
       const { data, error } = await supabase.from('service_reports').insert(reportPayload).select().single();
@@ -615,6 +619,40 @@ export default function ZAppNewServiceReportPage() {
                     <br />
                     <span className="text-muted-foreground">L'intervento è compreso in una commessa con importi già definiti. Non verranno generati importi aggiuntivi.</span>
                   </label>
+                </div>
+              )}
+
+              {/* Checkbox garanzia e contratto manutenzione - solo per manutenzione/riparazione */}
+              {(formData.intervention_type === 'manutenzione' || formData.intervention_type === 'riparazione') && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+                    <input
+                      type="checkbox"
+                      id="isWarranty"
+                      checked={isWarranty}
+                      onChange={(e) => setIsWarranty(e.target.checked)}
+                      className="mt-0.5 h-5 w-5 rounded border-primary text-primary accent-primary shrink-0"
+                    />
+                    <label htmlFor="isWarranty" className="text-xs leading-snug">
+                      <span className="font-semibold">🛡️ In garanzia</span>
+                      <br />
+                      <span className="text-muted-foreground">L'intervento è coperto dalla garanzia del prodotto.</span>
+                    </label>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+                    <input
+                      type="checkbox"
+                      id="isMaintenanceContract"
+                      checked={isMaintenanceContract}
+                      onChange={(e) => setIsMaintenanceContract(e.target.checked)}
+                      className="mt-0.5 h-5 w-5 rounded border-primary text-primary accent-primary shrink-0"
+                    />
+                    <label htmlFor="isMaintenanceContract" className="text-xs leading-snug">
+                      <span className="font-semibold">📋 Contratto di manutenzione</span>
+                      <br />
+                      <span className="text-muted-foreground">L'intervento rientra in un contratto di manutenzione attivo.</span>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
