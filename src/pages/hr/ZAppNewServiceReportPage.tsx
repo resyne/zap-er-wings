@@ -150,32 +150,77 @@ export default function ZAppNewServiceReportPage() {
     const timer = setTimeout(async () => {
       setCalculatingKm(true);
       try {
-        // Geocode both cities using Nominatim with better precision
-        const geocode = async (city: string) => {
-          // Strip province notation like "(SA)" for cleaner geocoding
+        // Geocode cities with resilient fallbacks (Nominatim -> Photon)
+        const normalizeCity = (city: string) => {
           const cleanCity = city.replace(/\s*\([^)]*\)\s*/g, '').trim();
           const province = city.match(/\(([^)]+)\)/)?.[1] || '';
-          const searchQuery = province 
-            ? `${cleanCity}, ${province}, Campania, Italia`
-            : `${cleanCity}, Campania, Italia`;
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=5&countrycodes=it`);
-          const data = await res.json();
-          if (data.length === 0) throw new Error(`Città "${city}" non trovata`);
-          // Prefer results that are cities/towns/villages
-          const best = data.find((r: any) => ['city', 'town', 'village', 'municipality'].includes(r.type)) || data[0];
-          return { lat: parseFloat(best.lat), lon: parseFloat(best.lon), name: best.display_name };
+          return province ? `${cleanCity}, ${province}, Italia` : `${cleanCity}, Italia`;
         };
+
+        const geocode = async (city: string) => {
+          const searchQuery = normalizeCity(city);
+
+          // 1) Nominatim
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=5&countrycodes=it`);
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) {
+                const best = data.find((r: any) => ['city', 'town', 'village', 'municipality'].includes(r.type)) || data[0];
+                return { lat: parseFloat(best.lat), lon: parseFloat(best.lon), name: best.display_name };
+              }
+            }
+          } catch {
+            // fallback below
+          }
+
+          // 2) Photon (komoot) fallback
+          try {
+            const photonRes = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=5&lang=it`);
+            if (photonRes.ok) {
+              const photonData = await photonRes.json();
+              const feature = photonData?.features?.[0];
+              if (feature?.geometry?.coordinates?.length >= 2) {
+                const [lon, lat] = feature.geometry.coordinates;
+                return { lat: Number(lat), lon: Number(lon), name: feature?.properties?.name || city };
+              }
+            }
+          } catch {
+            // handled by final throw
+          }
+
+          throw new Error(`Impossibile geolocalizzare "${city}"`);
+        };
+
+        const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+          const toRad = (v: number) => (v * Math.PI) / 180;
+          const R = 6371;
+          const dLat = toRad(lat2 - lat1);
+          const dLon = toRad(lon2 - lon1);
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+          return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        };
+
         const [from, to] = await Promise.all([geocode(departureCity), geocode(destinationCity)]);
-        // Calculate route distance using OSRM
-        const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`);
-        const routeData = await routeRes.json();
-        if (routeData.code === 'Ok' && routeData.routes.length > 0) {
-          const oneWayKm = Math.round(routeData.routes[0].distance / 1000);
-          const roundTripKm = oneWayKm * 2;
-          handleInputChange('kilometers', roundTripKm.toString());
+
+        // Prefer route distance, fallback to straight-line distance
+        try {
+          const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=false`);
+          const routeData = await routeRes.json();
+          if (routeData.code === 'Ok' && routeData.routes.length > 0) {
+            const oneWayKm = Math.round(routeData.routes[0].distance / 1000);
+            const roundTripKm = oneWayKm * 2;
+            handleInputChange('kilometers', roundTripKm.toString());
+            setKmAutoCalculated(true);
+          } else {
+            throw new Error('Route API non disponibile');
+          }
+        } catch {
+          const oneWayKmApprox = Math.max(1, Math.round(haversineKm(from.lat, from.lon, to.lat, to.lon) * 1.25));
+          const roundTripKmApprox = oneWayKmApprox * 2;
+          handleInputChange('kilometers', roundTripKmApprox.toString());
           setKmAutoCalculated(true);
-        } else {
-          toast.error("Impossibile calcolare il percorso");
+          toast.warning('Calcolo km approssimato (servizio mappe temporaneamente non disponibile)');
         }
       } catch (err: any) {
         console.error("Km calc error:", err);
