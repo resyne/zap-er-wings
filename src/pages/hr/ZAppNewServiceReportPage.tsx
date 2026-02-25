@@ -12,8 +12,10 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Check, ChevronsUpDown, Download, Mail, Loader2, 
   ChevronRight, CheckCircle2, Trash2, Clock, MapPin, 
-  Wrench, FileText, Users, Euro, ChevronDown, Building2
+  Wrench, FileText, Users, Euro, ChevronDown, Building2, Pencil, Save
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { MaterialsLineItems, type MaterialItem } from "@/components/support/MaterialsLineItems";
@@ -99,6 +101,9 @@ export default function ZAppNewServiceReportPage() {
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showEditCustomer, setShowEditCustomer] = useState(false);
+  const [editCustomerData, setEditCustomerData] = useState<Partial<Customer>>({});
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [techniciansList, setTechniciansList] = useState<Array<{ type: 'head' | 'specialized'; id: string; technicianId: string }>>([]);
   const [showAddTechnician, setShowAddTechnician] = useState(false);
@@ -312,6 +317,39 @@ export default function ZAppNewServiceReportPage() {
     setCustomers(prev => [...prev, newCustomer]);
     setSelectedCustomer(newCustomer);
     setShowCreateCustomer(false);
+  };
+
+  const openEditCustomer = () => {
+    if (!selectedCustomer) return;
+    setEditCustomerData({ ...selectedCustomer });
+    setShowEditCustomer(true);
+  };
+
+  const handleSaveCustomer = async () => {
+    if (!selectedCustomer || !editCustomerData.name?.trim()) {
+      toast.error("Il nome è obbligatorio");
+      return;
+    }
+    setSavingCustomer(true);
+    try {
+      const updatePayload: Record<string, any> = {};
+      const fields: (keyof Customer)[] = ['name', 'company_name', 'email', 'phone', 'address', 'city', 'province', 'postal_code', 'country', 'tax_id', 'pec', 'sdi_code', 'shipping_address'];
+      fields.forEach(f => { updatePayload[f] = editCustomerData[f] || null; });
+
+      const { error } = await supabase.from('customers').update(updatePayload).eq('id', selectedCustomer.id);
+      if (error) throw error;
+
+      const updatedCustomer = { ...selectedCustomer, ...updatePayload } as Customer;
+      setSelectedCustomer(updatedCustomer);
+      setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+      setShowEditCustomer(false);
+      toast.success("Cliente aggiornato");
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      toast.error("Errore nell'aggiornamento del cliente");
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const goToSignatures = () => {
@@ -753,10 +791,14 @@ export default function ZAppNewServiceReportPage() {
                       <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <Building2 className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm text-foreground truncate">{selectedCustomer.company_name || selectedCustomer.name}</p>
                         {selectedCustomer.company_name && <p className="text-muted-foreground">{selectedCustomer.name}</p>}
                       </div>
+                      <Button variant="ghost" size="sm" className="h-8 px-2 rounded-lg text-primary" onClick={openEditCustomer}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        <span className="text-[11px]">Modifica</span>
+                      </Button>
                     </div>
                     <div className="grid grid-cols-1 gap-1 pt-1 border-t border-border/50">
                       {selectedCustomer.address && (
@@ -1057,6 +1099,90 @@ export default function ZAppNewServiceReportPage() {
       )}
 
       <CreateCustomerDialog open={showCreateCustomer} onOpenChange={setShowCreateCustomer} onCustomerCreated={handleCustomerCreated} />
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={showEditCustomer} onOpenChange={setShowEditCustomer}>
+        <DialogContent className="max-w-lg max-h-[90vh] p-0">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-base">Modifica Cliente</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[65vh] px-4">
+            <div className="space-y-3 pb-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground">Nome *</Label>
+                  <Input value={editCustomerData.name || ''} onChange={e => setEditCustomerData(p => ({ ...p, name: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground">Ragione Sociale</Label>
+                  <Input value={editCustomerData.company_name || ''} onChange={e => setEditCustomerData(p => ({ ...p, company_name: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <Input type="email" value={editCustomerData.email || ''} onChange={e => setEditCustomerData(p => ({ ...p, email: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Telefono</Label>
+                  <Input value={editCustomerData.phone || ''} onChange={e => setEditCustomerData(p => ({ ...p, phone: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">PEC</Label>
+                  <Input type="email" value={editCustomerData.pec || ''} onChange={e => setEditCustomerData(p => ({ ...p, pec: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">P.IVA / C.F.</Label>
+                  <Input value={editCustomerData.tax_id || ''} onChange={e => setEditCustomerData(p => ({ ...p, tax_id: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Codice SDI</Label>
+                  <Input value={editCustomerData.sdi_code || ''} onChange={e => setEditCustomerData(p => ({ ...p, sdi_code: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">📍 Indirizzo</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">Indirizzo</Label>
+                    <Input value={editCustomerData.address || ''} onChange={e => setEditCustomerData(p => ({ ...p, address: e.target.value }))} className="h-10 rounded-lg" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Città</Label>
+                    <Input value={editCustomerData.city || ''} onChange={e => setEditCustomerData(p => ({ ...p, city: e.target.value }))} className="h-10 rounded-lg" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Provincia</Label>
+                    <Input value={editCustomerData.province || ''} onChange={e => setEditCustomerData(p => ({ ...p, province: e.target.value }))} className="h-10 rounded-lg" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">CAP</Label>
+                    <Input value={editCustomerData.postal_code || ''} onChange={e => setEditCustomerData(p => ({ ...p, postal_code: e.target.value }))} className="h-10 rounded-lg" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Paese</Label>
+                    <Input value={editCustomerData.country || ''} onChange={e => setEditCustomerData(p => ({ ...p, country: e.target.value }))} className="h-10 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">🚚 Indirizzo di Spedizione</p>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Indirizzo spedizione</Label>
+                  <Input value={editCustomerData.shipping_address || ''} onChange={e => setEditCustomerData(p => ({ ...p, shipping_address: e.target.value }))} className="h-10 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter className="px-4 pb-4 pt-2 border-t">
+            <Button variant="outline" onClick={() => setShowEditCustomer(false)} className="rounded-lg">Annulla</Button>
+            <Button onClick={handleSaveCustomer} disabled={savingCustomer} className="rounded-lg">
+              {savingCustomer ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
