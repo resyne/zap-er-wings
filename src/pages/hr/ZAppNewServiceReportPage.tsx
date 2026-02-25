@@ -226,14 +226,17 @@ export default function ZAppNewServiceReportPage() {
 
   const materialsTotalNetto = materialItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
+  const getTechRate = (technicianId: string): number => {
+    const t = technicians.find(tc => tc.id === technicianId);
+    if (t && t.first_name.toLowerCase() === 'pasquale') return 60;
+    return 40;
+  };
+
   const calculateAmount = (techs: typeof techniciansList, startTime: string, endTime: string, km: number, matTotal: number = materialsTotalNetto) => {
     const hours = calculateHoursFromTime(startTime, endTime);
-    const headCount = techs.filter(t => t.type === 'head').length;
-    const specCount = techs.filter(t => t.type === 'specialized').length;
-    const headCost = hours * headCount * pricingSettings.head_technician_hourly_rate;
-    const specCost = hours * specCount * pricingSettings.specialized_technician_hourly_rate;
+    const techCost = techs.reduce((sum, t) => sum + hours * getTechRate(t.technicianId), 0);
     const kmCost = km * pricingSettings.head_technician_km_rate;
-    return headCost + specCost + kmCost + matTotal;
+    return techCost + kmCost + matTotal;
   };
 
   useEffect(() => {
@@ -266,11 +269,10 @@ export default function ZAppNewServiceReportPage() {
     });
   };
 
-  const addTechnicianToList = (technicianId: string, type: 'head' | 'specialized') => {
-    const newTech = { type, id: crypto.randomUUID(), technicianId };
+  const addTechnicianToList = (technicianId: string) => {
+    const newTech = { type: 'specialized' as const, id: crypto.randomUUID(), technicianId };
     const newList = [...techniciansList, newTech];
     setTechniciansList(newList);
-    setShowAddTechnician(false);
     if (!isQuotedOrder) {
       const km = parseFloat(formData.kilometers) || 0;
       const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
@@ -389,8 +391,8 @@ export default function ZAppNewServiceReportPage() {
         status: 'completed' as const,
         technicians_count: techniciansList.length || 1,
         kilometers: parseFloat(formData.kilometers) || 0,
-        head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
-        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length,
+        head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => { const tc = technicians.find(x => x.id === t.technicianId); return tc && tc.first_name.toLowerCase() === 'pasquale'; }).length,
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => { const tc = technicians.find(x => x.id === t.technicianId); return !tc || tc.first_name.toLowerCase() !== 'pasquale'; }).length,
         is_warranty: isWarranty,
         is_maintenance_contract: isMaintenanceContract
       };
@@ -824,16 +826,15 @@ export default function ZAppNewServiceReportPage() {
                 <div className="space-y-1.5">
                   {techniciansList.map((tech, idx) => {
                     const t = technicians.find(tc => tc.id === tech.technicianId);
+                    const rate = getTechRate(tech.technicianId);
                     return (
                       <div key={tech.id} className="flex items-center gap-2 bg-muted/50 p-2.5 rounded-xl">
-                        <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0", tech.type === 'head' ? "bg-blue-500" : "bg-amber-500")}>
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0">
                           {t ? t.first_name.charAt(0) : idx + 1}
                         </div>
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-medium block truncate">{t ? `${t.first_name} ${t.last_name}` : 'Tecnico'}</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {tech.type === 'head' ? 'Capo Tecnico' : 'Specializzato'} · €{tech.type === 'head' ? pricingSettings.head_technician_hourly_rate : pricingSettings.specialized_technician_hourly_rate}/h
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">€{rate}/h</span>
                         </div>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive rounded-full" onClick={() => removeTechnician(tech.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -848,43 +849,22 @@ export default function ZAppNewServiceReportPage() {
                 <p className="text-xs text-muted-foreground italic">Nessun tecnico aggiunto. Aggiungi almeno un tecnico.</p>
               )}
 
-              {/* Add technician buttons */}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => { setAddTechType('head'); setShowAddTechnician(true); }}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Capo Tecnico
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1 h-10 text-xs rounded-xl active:scale-95 transition-transform" onClick={() => { setAddTechType('specialized'); setShowAddTechnician(true); }}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Specializzato
-                </Button>
-              </div>
-
-              {/* Technician picker */}
-              {showAddTechnician && (
-                <div className="border rounded-xl overflow-hidden">
-                  <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs font-medium">Seleziona {addTechType === 'head' ? 'Capo Tecnico' : 'Specializzato'}</span>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setShowAddTechnician(false)}>Annulla</Button>
-                  </div>
-                  <div className="max-h-48 overflow-auto">
-                    {technicians
-                      .filter(t => !techniciansList.some(tl => tl.technicianId === t.id))
-                      .map(t => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className="w-full flex items-center gap-3 px-3 py-3 text-left hover:bg-muted/50 active:bg-muted border-b last:border-b-0 transition-colors"
-                          onClick={() => addTechnicianToList(t.id, addTechType)}
-                        >
-                          <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0", addTechType === 'head' ? "bg-blue-500" : "bg-amber-500")}>
-                            {t.first_name.charAt(0)}
-                          </div>
-                          <span className="text-sm font-medium">{t.first_name} {t.last_name}</span>
-                        </button>
-                      ))}
-                    {technicians.filter(t => !techniciansList.some(tl => tl.technicianId === t.id)).length === 0 && (
-                      <p className="text-xs text-muted-foreground italic p-3">Tutti i tecnici sono già stati aggiunti</p>
-                    )}
-                  </div>
+              {/* Add technician - show available ones directly */}
+              {technicians.filter(t => !techniciansList.some(tl => tl.technicianId === t.id)).length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {technicians
+                    .filter(t => !techniciansList.some(tl => tl.technicianId === t.id))
+                    .map(t => (
+                      <Button
+                        key={t.id}
+                        variant="outline"
+                        size="sm"
+                        className="h-10 text-xs rounded-xl active:scale-95 transition-transform"
+                        onClick={() => addTechnicianToList(t.id)}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> {t.first_name}
+                      </Button>
+                    ))}
                 </div>
               )}
             </MobileSection>
