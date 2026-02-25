@@ -6941,10 +6941,13 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          installation_possible: boolean
           is_active: boolean | null
           material_id: string | null
           name: string
           product_type: string
+          requires_production: boolean
+          shipping_possible: boolean
           technical_specs: Json | null
           unit_of_measure: string | null
           updated_at: string
@@ -6957,10 +6960,13 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          installation_possible?: boolean
           is_active?: boolean | null
           material_id?: string | null
           name: string
           product_type: string
+          requires_production?: boolean
+          shipping_possible?: boolean
           technical_specs?: Json | null
           unit_of_measure?: string | null
           updated_at?: string
@@ -6973,10 +6979,13 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          installation_possible?: boolean
           is_active?: boolean | null
           material_id?: string | null
           name?: string
           product_type?: string
+          requires_production?: boolean
+          shipping_possible?: boolean
           technical_specs?: Json | null
           unit_of_measure?: string | null
           updated_at?: string
@@ -8168,17 +8177,21 @@ export type Database = {
           created_by: string | null
           customer_id: string | null
           delivery_date: string | null
+          delivery_mode: string | null
           id: string
           invoice_date: string | null
           invoice_number: string | null
           invoiced: boolean | null
+          is_warranty: boolean
           lead_id: string | null
           notes: string | null
           number: string
           offer_id: string | null
           order_date: string | null
           order_source: string | null
+          order_subject: string | null
           order_type: string | null
+          order_type_category: string | null
           quote_id: string | null
           status: string | null
           total_amount: number | null
@@ -8192,17 +8205,21 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           delivery_date?: string | null
+          delivery_mode?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
+          is_warranty?: boolean
           lead_id?: string | null
           notes?: string | null
           number: string
           offer_id?: string | null
           order_date?: string | null
           order_source?: string | null
+          order_subject?: string | null
           order_type?: string | null
+          order_type_category?: string | null
           quote_id?: string | null
           status?: string | null
           total_amount?: number | null
@@ -8216,17 +8233,21 @@ export type Database = {
           created_by?: string | null
           customer_id?: string | null
           delivery_date?: string | null
+          delivery_mode?: string | null
           id?: string
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
+          is_warranty?: boolean
           lead_id?: string | null
           notes?: string | null
           number?: string
           offer_id?: string | null
           order_date?: string | null
           order_source?: string | null
+          order_subject?: string | null
           order_type?: string | null
+          order_type_category?: string | null
           quote_id?: string | null
           status?: string | null
           total_amount?: number | null

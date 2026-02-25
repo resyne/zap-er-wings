@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
-  Plus, Check, ChevronsUpDown, Loader2
+  Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
+  MapPin, Building2, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +26,10 @@ interface Order {
   delivery_date: string | null;
   status: string | null;
   order_type: string | null;
+  order_type_category: string | null;
+  delivery_mode: string | null;
   notes: string | null;
+  order_subject: string | null;
   customers?: { name: string; code: string } | null;
   work_orders?: Array<{ id: string; number: string; status: string }>;
   service_work_orders?: Array<{ id: string; number: string; status: string }>;
@@ -38,13 +43,35 @@ interface Customer {
   company_name?: string;
 }
 
-interface BomModel {
+interface Product {
   id: string;
   name: string;
-  machinery_model: string | null;
-  version: string;
-  parent_id: string | null;
+  code: string;
+  product_type: string;
+  requires_production: boolean;
+  installation_possible: boolean;
+  shipping_possible: boolean;
 }
+
+interface Material {
+  id: string;
+  name: string;
+  code: string;
+}
+
+const ORDER_TYPE_CATEGORIES = [
+  { value: "produzione", label: "Produzione", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
+  { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
+  { value: "ricambi", label: "Ricambi", icon: Settings, color: "text-purple-600 bg-purple-50 border-purple-200" },
+  { value: "installazione", label: "Installazione", icon: MapPin, color: "text-green-600 bg-green-50 border-green-200" },
+  { value: "misto", label: "Misto", icon: Zap, color: "text-orange-600 bg-orange-50 border-orange-200" },
+];
+
+const DELIVERY_MODES = [
+  { value: "installazione", label: "Installazione presso cliente", icon: MapPin, desc: "Produzione + Installazione" },
+  { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Produzione + Spedizione" },
+  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Solo Produzione" },
+];
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -64,18 +91,12 @@ const statusLabels: Record<string, string> = {
   completed: "Completato",
 };
 
-const typeLabels: Record<string, string> = {
-  odl: "CdL",
-  odp: "CdP",
-  odpel: "CdP+L",
-  ods: "CdS",
-};
-
-const typeIcons: Record<string, any> = {
-  odl: Wrench,
-  odp: Package,
-  odpel: Package,
-  ods: Truck,
+const categoryLabels: Record<string, string> = {
+  produzione: "Produzione",
+  intervento: "Intervento",
+  ricambi: "Ricambi",
+  installazione: "Installazione",
+  misto: "Misto",
 };
 
 type ViewMode = "list" | "detail";
@@ -91,35 +112,36 @@ export default function ZAppOrdiniPage() {
 
   // Create form state
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
+  const [materialOpen, setMaterialOpen] = useState(false);
+
+  const [orderTypeCategory, setOrderTypeCategory] = useState("");
+  const [isWarranty, setIsWarranty] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState("");
+  const [subjectMode, setSubjectMode] = useState<"text" | "product" | "material">("text");
+  const [orderSubject, setOrderSubject] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedMaterialId, setSelectedMaterialId] = useState("");
+
   const [formData, setFormData] = useState({
     notes: "",
     order_date: new Date().toISOString().split("T")[0],
     delivery_date: "",
   });
-  const [commesse, setCommesse] = useState({
-    produzione: false,
-    lavoro: false,
-    spedizione: false,
-  });
   const [saving, setSaving] = useState(false);
-  const [bomModels, setBomModels] = useState<BomModel[]>([]);
-  const [selectedBomLavoro, setSelectedBomLavoro] = useState("");
-  const [includeProduzioneLavoro, setIncludeProduzioneLavoro] = useState(false);
-  const [selectedBomSpedizione, setSelectedBomSpedizione] = useState("");
-  const [needsProductionForShipping, setNeedsProductionForShipping] = useState(false);
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  useEffect(() => { loadOrders(); }, []);
 
   const loadOrders = async () => {
     try {
       const { data, error } = await supabase
         .from("sales_orders")
         .select(`
-          id, number, order_date, delivery_date, status, order_type, notes,
+          id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject,
           customers(name, code),
           work_orders(id, number, status),
           service_work_orders(id, number, status),
@@ -128,7 +150,6 @@ export default function ZAppOrdiniPage() {
         .eq("archived", false)
         .order("created_at", { ascending: false })
         .limit(100);
-
       if (error) throw error;
       setOrders((data || []) as unknown as Order[]);
     } catch (error) {
@@ -139,23 +160,22 @@ export default function ZAppOrdiniPage() {
   };
 
   const loadCustomers = async () => {
-    // @ts-ignore - Supabase type instantiation too deep
-    const { data } = await supabase
-      .from("customers")
-      .select("id, name, code, company_name")
-      .eq("is_active", true)
-      .order("name");
+    // @ts-ignore
+    const { data } = await supabase.from("customers").select("id, name, code, company_name").eq("is_active", true).order("name");
     if (data) setCustomers(data as any);
   };
 
-  const loadBomModels = async () => {
+  const loadProducts = async () => {
     const { data } = await supabase
-      .from("boms")
-      .select("id, name, machinery_model, version, parent_id")
-      .eq("level", 0)
-      .is("parent_id", null)
+      .from("products")
+      .select("id, name, code, product_type, requires_production, installation_possible, shipping_possible")
       .order("name");
-    if (data) setBomModels(data as BomModel[]);
+    if (data) setProducts(data as unknown as Product[]);
+  };
+
+  const loadMaterials = async () => {
+    const { data } = await supabase.from("materials").select("id, name, code").order("name");
+    if (data) setMaterials(data as Material[]);
   };
 
   const filteredOrders = orders.filter(o => {
@@ -165,57 +185,113 @@ export default function ZAppOrdiniPage() {
       o.number?.toLowerCase().includes(term) ||
       o.customers?.name?.toLowerCase().includes(term) ||
       o.customers?.code?.toLowerCase().includes(term) ||
-      o.notes?.toLowerCase().includes(term)
+      o.notes?.toLowerCase().includes(term) ||
+      o.order_subject?.toLowerCase().includes(term)
     );
   });
 
   const getSubOrders = (order: Order) => {
     const subs: Array<{ type: string; number: string; status: string }> = [];
     order.work_orders?.forEach(wo => subs.push({ type: "Produzione", number: wo.number, status: wo.status }));
-    order.service_work_orders?.forEach(so => subs.push({ type: "Lavoro", number: so.number, status: so.status }));
+    order.service_work_orders?.forEach(so => subs.push({ type: "Intervento/Installazione", number: so.number, status: so.status }));
     order.shipping_orders?.forEach(sh => subs.push({ type: "Spedizione", number: sh.number, status: sh.status }));
     return subs;
   };
 
-  const selectedCustomer = useMemo(
-    () => customers.find(c => c.id === selectedCustomerId),
-    [customers, selectedCustomerId]
-  );
+  const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId), [customers, selectedCustomerId]);
+  const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
+  const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
+
+  // Determine if delivery mode is needed (only for types that involve a physical product)
+  const needsDeliveryMode = ["produzione", "ricambi", "misto"].includes(orderTypeCategory);
+  // For intervento, it's always service work order
+  // For installazione, it's always production + installation
+  const needsProductSelection = ["produzione", "ricambi", "installazione", "misto"].includes(orderTypeCategory);
+
+  // Available delivery modes based on selected product capabilities
+  const availableDeliveryModes = useMemo(() => {
+    if (!selectedProduct) return DELIVERY_MODES;
+    return DELIVERY_MODES.filter(dm => {
+      if (dm.value === "installazione") return selectedProduct.installation_possible;
+      if (dm.value === "spedizione") return selectedProduct.shipping_possible;
+      return true; // ritiro always available
+    });
+  }, [selectedProduct]);
 
   const openCreateForm = () => {
     loadCustomers();
-    loadBomModels();
+    loadProducts();
+    loadMaterials();
     setSelectedCustomerId("");
+    setOrderTypeCategory("");
+    setIsWarranty(false);
+    setDeliveryMode("");
+    setSubjectMode("text");
+    setOrderSubject("");
+    setSelectedProductId("");
+    setSelectedMaterialId("");
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "" });
-    setCommesse({ produzione: false, lavoro: false, spedizione: false });
-    setSelectedBomLavoro("");
-    setIncludeProduzioneLavoro(false);
-    setSelectedBomSpedizione("");
-    setNeedsProductionForShipping(false);
+    setSaving(false);
     setShowCreateForm(true);
   };
 
-  const handleCreateOrder = async () => {
-    if (!selectedCustomerId) { toast.error("Seleziona un cliente"); return; }
-    const needsProd = commesse.produzione || includeProduzioneLavoro || needsProductionForShipping;
-    const needsLavoro = commesse.lavoro;
-    const needsSpedizione = commesse.spedizione;
-    if (!needsProd && !needsLavoro && !needsSpedizione) {
-      toast.error("Seleziona almeno un tipo di commessa");
-      return;
+  // Compute what commesse will be auto-created
+  const computeCommesse = () => {
+    const commesse: string[] = [];
+
+    if (orderTypeCategory === "produzione") {
+      commesse.push("Produzione");
+      if (deliveryMode === "installazione") commesse.push("Installazione");
+      if (deliveryMode === "spedizione") commesse.push("Spedizione");
+    } else if (orderTypeCategory === "intervento") {
+      commesse.push("Intervento (Lavoro)");
+    } else if (orderTypeCategory === "ricambi") {
+      if (deliveryMode === "spedizione") commesse.push("Spedizione");
+      if (deliveryMode === "installazione") commesse.push("Installazione");
+      // ricambi may not need production if from stock
+    } else if (orderTypeCategory === "installazione") {
+      commesse.push("Produzione");
+      commesse.push("Installazione");
+    } else if (orderTypeCategory === "misto") {
+      commesse.push("Produzione");
+      commesse.push("Intervento (Lavoro)");
+      if (deliveryMode === "installazione") commesse.push("Installazione");
+      if (deliveryMode === "spedizione") commesse.push("Spedizione");
     }
 
-    setSaving(true);
-    try {
-      let orderType = "";
-      if (needsProd && needsLavoro) orderType = "odpel";
-      else if (needsProd) orderType = "odp";
-      else if (needsLavoro) orderType = "odl";
-      else if (needsSpedizione) orderType = "ods";
+    return commesse;
+  };
 
+  const canSubmit = () => {
+    if (!selectedCustomerId || !orderTypeCategory) return false;
+    if (needsDeliveryMode && !deliveryMode) return false;
+    // Need either text subject or product/material selection
+    if (subjectMode === "text" && !orderSubject.trim()) return false;
+    if (subjectMode === "product" && !selectedProductId) return false;
+    if (subjectMode === "material" && !selectedMaterialId) return false;
+    return true;
+  };
+
+  const handleCreateOrder = async () => {
+    if (!canSubmit()) return;
+    setSaving(true);
+
+    try {
       const customerName = selectedCustomer?.name || "Cliente";
-      const selectedBomNameLavoro = bomModels.find(b => b.id === selectedBomLavoro)?.name;
-      const selectedBomNameSpedizione = bomModels.find(b => b.id === selectedBomSpedizione)?.name;
+      const productName = selectedProduct?.name || selectedMaterial?.name || orderSubject || "";
+      const subject = subjectMode === "product" ? `${selectedProduct?.code} - ${selectedProduct?.name}`
+        : subjectMode === "material" ? `${selectedMaterial?.code} - ${selectedMaterial?.name}`
+        : orderSubject;
+
+      // Determine order_type for backward compatibility
+      let orderType = "";
+      const commesseToCreate = computeCommesse();
+      const hasProd = commesseToCreate.some(c => c.includes("Produzione"));
+      const hasLavoro = commesseToCreate.some(c => c.includes("Lavoro") || c.includes("Intervento"));
+      if (hasProd && hasLavoro) orderType = "odpel";
+      else if (hasProd) orderType = "odp";
+      else if (hasLavoro) orderType = "odl";
+      else orderType = "ods";
 
       // 1. Create sales order
       const { data: salesOrder, error: soError } = await supabase
@@ -227,6 +303,10 @@ export default function ZAppOrdiniPage() {
           delivery_date: formData.delivery_date || null,
           status: "commissionato",
           order_type: orderType,
+          order_type_category: orderTypeCategory,
+          delivery_mode: needsDeliveryMode ? deliveryMode : (orderTypeCategory === "installazione" ? "installazione" : null),
+          is_warranty: isWarranty,
+          order_subject: subject,
           notes: formData.notes || null,
           order_source: "sale",
         }] as any)
@@ -236,24 +316,20 @@ export default function ZAppOrdiniPage() {
       if (soError) throw soError;
       const createdCommesse: string[] = [];
 
-      // 2. Create production work order (standalone, or for lavoro, or for shipping)
-      if (needsProd) {
-        const bomId = commesse.produzione ? undefined : 
-                      includeProduzioneLavoro ? selectedBomLavoro : selectedBomSpedizione;
-        const bomName = commesse.produzione ? "" : 
-                       includeProduzioneLavoro ? selectedBomNameLavoro : selectedBomNameSpedizione;
+      // 2. Auto-create commesse based on type + delivery mode
+      // Production
+      if (commesseToCreate.some(c => c === "Produzione")) {
         const { data: wo, error } = await supabase
           .from("work_orders")
           .insert([{
             number: "",
-            title: `Produzione ${bomName || ""} per ${customerName}`.trim(),
-            description: formData.notes || "",
+            title: `Produzione ${productName} per ${customerName}`.trim(),
+            description: subject || "",
             status: "da_fare",
             customer_id: selectedCustomerId,
             sales_order_id: salesOrder.id,
             priority: "medium",
             notes: formData.notes || null,
-            bom_id: bomId || null,
           }])
           .select()
           .single();
@@ -261,14 +337,15 @@ export default function ZAppOrdiniPage() {
         if (wo) createdCommesse.push(`Produzione: ${wo.number}`);
       }
 
-      // 3. Create service work order
-      if (needsLavoro) {
+      // Service/Intervento/Installation work order
+      if (commesseToCreate.some(c => c.includes("Intervento") || c.includes("Installazione"))) {
+        const isInstallation = commesseToCreate.some(c => c.includes("Installazione"));
         const { data: swo, error } = await supabase
           .from("service_work_orders")
           .insert([{
             number: "",
-            title: `Lavoro ${selectedBomNameLavoro ? selectedBomNameLavoro + " " : ""}per ${customerName}`,
-            description: formData.notes || "",
+            title: `${isInstallation ? "Installazione" : "Intervento"} ${productName} per ${customerName}`.trim(),
+            description: subject || "",
             status: "da_programmare",
             customer_id: selectedCustomerId,
             sales_order_id: salesOrder.id,
@@ -278,11 +355,11 @@ export default function ZAppOrdiniPage() {
           .select()
           .single();
         if (error) throw error;
-        if (swo) createdCommesse.push(`Lavoro: ${swo.number}`);
+        if (swo) createdCommesse.push(`${isInstallation ? "Installazione" : "Intervento"}: ${swo.number}`);
       }
 
-      // 4. Create shipping order
-      if (needsSpedizione) {
+      // Shipping
+      if (commesseToCreate.some(c => c === "Spedizione")) {
         const { data: custData } = await supabase
           .from("customers")
           .select("city, province, address, shipping_address")
@@ -296,7 +373,7 @@ export default function ZAppOrdiniPage() {
             customer_id: selectedCustomerId,
             status: "da_preparare",
             order_date: formData.order_date || new Date().toISOString().split("T")[0],
-            notes: `${selectedBomNameSpedizione ? "Prodotto: " + selectedBomNameSpedizione + ". " : ""}${formData.notes || ""}`.trim() || null,
+            notes: `${subject ? "Oggetto: " + subject + ". " : ""}${formData.notes || ""}`.trim() || null,
             sales_order_id: salesOrder.id,
             shipping_address: custData?.shipping_address || custData?.address || null,
             shipping_city: custData?.city || null,
@@ -318,8 +395,6 @@ export default function ZAppOrdiniPage() {
       setSaving(false);
     }
   };
-
-  // (create form is now inline in list view)
 
   // ===== DETAIL VIEW =====
   if (viewMode === "detail" && selectedOrder) {
@@ -346,16 +421,30 @@ export default function ZAppOrdiniPage() {
                 {statusLabels[selectedOrder.status || ""] || selectedOrder.status || "—"}
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Tipo</span>
-              <span className="text-sm font-medium">{typeLabels[selectedOrder.order_type || ""] || selectedOrder.order_type || "—"}</span>
-            </div>
+            {selectedOrder.order_type_category && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Tipo Ordine</span>
+                <span className="text-sm font-medium">{categoryLabels[selectedOrder.order_type_category] || selectedOrder.order_type_category}</span>
+              </div>
+            )}
+            {selectedOrder.delivery_mode && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Consegna</span>
+                <span className="text-sm font-medium capitalize">{selectedOrder.delivery_mode}</span>
+              </div>
+            )}
+            {selectedOrder.order_subject && (
+              <div>
+                <span className="text-sm text-muted-foreground">Oggetto</span>
+                <p className="text-sm mt-1 font-medium">{selectedOrder.order_subject}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Data Ordine</span>
               <span className="text-sm">{selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString("it-IT") : "—"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Consegna</span>
+              <span className="text-sm text-muted-foreground">Consegna Prevista</span>
               <span className="text-sm">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString("it-IT") : "—"}</span>
             </div>
             {selectedOrder.notes && (
@@ -386,6 +475,8 @@ export default function ZAppOrdiniPage() {
   }
 
   // ===== LIST VIEW =====
+  const plannedCommesse = computeCommesse();
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="bg-teal-600 text-white px-4 py-4">
@@ -401,169 +492,258 @@ export default function ZAppOrdiniPage() {
       </div>
 
       <div className="p-4 max-w-2xl mx-auto space-y-3">
-        {/* Nuovo Ordine - always on top */}
+        {/* Nuovo Ordine */}
         {!showCreateForm ? (
-          <Button
-            onClick={openCreateForm}
-            className="w-full h-12 text-base font-semibold bg-teal-600 hover:bg-teal-700 rounded-xl"
-          >
+          <Button onClick={openCreateForm} className="w-full h-12 text-base font-semibold bg-teal-600 hover:bg-teal-700 rounded-xl">
             <Plus className="h-5 w-5 mr-2" /> Nuovo Ordine
           </Button>
         ) : (
           <div className="space-y-3">
-            {/* Cliente */}
+            {/* 1. Tipo Ordine */}
             <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-              <Label className="font-semibold text-sm">Cliente *</Label>
-              <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between h-11">
-                    {selectedCustomer
-                      ? `${selectedCustomer.name} (${selectedCustomer.code})`
-                      : "Seleziona cliente..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Cerca cliente..." />
-                    <CommandList>
-                      <CommandEmpty>Nessun cliente trovato</CommandEmpty>
-                      <CommandGroup>
-                        {customers.map(c => (
-                          <CommandItem
-                            key={c.id}
-                            value={`${c.name} ${c.company_name || ""} ${c.code}`}
-                            onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                            <div>
-                              <p className="font-medium text-sm">{c.name}</p>
-                              <p className="text-xs text-muted-foreground">{c.code}</p>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Date */}
-            <div className="bg-white rounded-xl border border-border p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Data Ordine</Label>
-                  <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Data Consegna</Label>
-                  <Input type="date" value={formData.delivery_date} onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))} className="mt-1" />
-                </div>
+              <Label className="font-semibold text-sm">Tipo Ordine *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {ORDER_TYPE_CATEGORIES.map(cat => {
+                  const Icon = cat.icon;
+                  const isSelected = orderTypeCategory === cat.value;
+                  return (
+                    <button
+                      key={cat.value}
+                      type="button"
+                      onClick={() => {
+                        setOrderTypeCategory(cat.value);
+                        setDeliveryMode("");
+                        setIsWarranty(false);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 p-3 rounded-lg border-2 text-left transition-all text-sm font-medium",
+                        isSelected ? cat.color + " border-current shadow-sm" : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      {cat.label}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-
-            {/* Commesse */}
-            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-              <Label className="font-semibold text-sm">Commesse da creare *</Label>
-              <div className="space-y-2 mt-2">
-                {/* Produzione */}
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                  <Checkbox checked={commesse.produzione} onCheckedChange={v => {
-                    setCommesse(p => ({ ...p, produzione: !!v }));
-                    if (!v) setIncludeProduzioneLavoro(false);
-                  }} />
-                  <Package className="h-5 w-5 text-amber-600" />
-                  <span className="font-medium text-sm">Produzione</span>
+              {/* Warranty toggle for Ricambi */}
+              {orderTypeCategory === "ricambi" && (
+                <label className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 cursor-pointer">
+                  <Shield className="h-5 w-5 text-amber-600" />
+                  <span className="text-sm font-medium flex-1">In garanzia</span>
+                  <Switch checked={isWarranty} onCheckedChange={setIsWarranty} />
                 </label>
+              )}
+            </div>
 
-                {/* Lavoro */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                    <Checkbox checked={commesse.lavoro} onCheckedChange={v => {
-                      setCommesse(p => ({ ...p, lavoro: !!v }));
-                      if (!v) { setIncludeProduzioneLavoro(false); setSelectedBomLavoro(""); }
-                    }} />
-                    <Wrench className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium text-sm">Lavoro</span>
-                  </label>
-                  {commesse.lavoro && (
-                    <div className="ml-10 space-y-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox checked={includeProduzioneLavoro} onCheckedChange={v => {
-                          setIncludeProduzioneLavoro(!!v);
-                          if (!v) setSelectedBomLavoro("");
-                          if (v) setCommesse(p => ({ ...p, produzione: false }));
-                        }} />
-                        <span className="text-sm text-muted-foreground">Include produzione macchinario</span>
-                      </label>
-                      {includeProduzioneLavoro && (
-                        <Select value={selectedBomLavoro} onValueChange={setSelectedBomLavoro}>
-                          <SelectTrigger className="h-10">
-                            <SelectValue placeholder="Seleziona macchinario..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {bomModels.map(b => (
-                              <SelectItem key={b.id} value={b.id}>{b.machinery_model || b.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  )}
+            {/* 2. Cliente */}
+            {orderTypeCategory && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+                <Label className="font-semibold text-sm">Cliente *</Label>
+                <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between h-11">
+                      {selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "Seleziona cliente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Cerca cliente..." />
+                      <CommandList>
+                        <CommandEmpty>Nessun cliente trovato</CommandEmpty>
+                        <CommandGroup>
+                          {customers.map(c => (
+                            <CommandItem key={c.id} value={`${c.name} ${c.company_name || ""} ${c.code}`} onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}>
+                              <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                              <div>
+                                <p className="font-medium text-sm">{c.name}</p>
+                                <p className="text-xs text-muted-foreground">{c.code}</p>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {/* 3. Oggetto dell'ordine */}
+            {orderTypeCategory && selectedCustomerId && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+                <Label className="font-semibold text-sm">Oggetto dell'ordine *</Label>
+                <div className="flex gap-1 bg-muted rounded-lg p-1">
+                  <button
+                    type="button"
+                    onClick={() => { setSubjectMode("text"); setSelectedProductId(""); setSelectedMaterialId(""); }}
+                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Testo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSubjectMode("product"); setOrderSubject(""); setSelectedMaterialId(""); }}
+                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
+                  >
+                    <Package className="h-3.5 w-3.5" /> Prodotto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSubjectMode("material"); setOrderSubject(""); setSelectedProductId(""); }}
+                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
+                  >
+                    <Settings className="h-3.5 w-3.5" /> Materiale
+                  </button>
                 </div>
 
-                {/* Spedizione */}
+                {subjectMode === "text" && (
+                  <Input
+                    placeholder="Es: Forno rotativo mod. X per panificio..."
+                    value={orderSubject}
+                    onChange={e => setOrderSubject(e.target.value)}
+                    className="h-11"
+                  />
+                )}
+
+                {subjectMode === "product" && (
+                  <Popover open={productOpen} onOpenChange={setProductOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between h-11">
+                        {selectedProduct ? `${selectedProduct.code} - ${selectedProduct.name}` : "Seleziona prodotto..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Cerca prodotto..." />
+                        <CommandList>
+                          <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
+                          <CommandGroup>
+                            {products.map(p => (
+                              <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => { setSelectedProductId(p.id); setProductOpen(false); setDeliveryMode(""); }}>
+                                <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
+                                <div>
+                                  <p className="font-medium text-sm">{p.name}</p>
+                                  <p className="text-xs text-muted-foreground">{p.code}</p>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+
+                {subjectMode === "material" && (
+                  <Popover open={materialOpen} onOpenChange={setMaterialOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between h-11">
+                        {selectedMaterial ? `${selectedMaterial.code} - ${selectedMaterial.name}` : "Seleziona materiale..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Cerca materiale..." />
+                        <CommandList>
+                          <CommandEmpty>Nessun materiale trovato</CommandEmpty>
+                          <CommandGroup>
+                            {materials.map(m => (
+                              <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => { setSelectedMaterialId(m.id); setMaterialOpen(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", selectedMaterialId === m.id ? "opacity-100" : "opacity-0")} />
+                                <div>
+                                  <p className="font-medium text-sm">{m.name}</p>
+                                  <p className="text-xs text-muted-foreground">{m.code}</p>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            )}
+
+            {/* 4. Modalità di consegna (only for types that need it) */}
+            {needsDeliveryMode && selectedCustomerId && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+                <Label className="font-semibold text-sm">Modalità di consegna *</Label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                    <Checkbox checked={commesse.spedizione} onCheckedChange={v => {
-                      setCommesse(p => ({ ...p, spedizione: !!v }));
-                      if (!v) { setSelectedBomSpedizione(""); setNeedsProductionForShipping(false); }
-                    }} />
-                    <Truck className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-sm">Spedizione</span>
-                  </label>
-                  {commesse.spedizione && (
-                    <div className="ml-10 space-y-2">
-                      <Select value={selectedBomSpedizione} onValueChange={v => {
-                        setSelectedBomSpedizione(v);
-                      }}>
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Cosa spedire..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bomModels.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.machinery_model || b.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedBomSpedizione && (
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={needsProductionForShipping} onCheckedChange={v => {
-                            setNeedsProductionForShipping(!!v);
-                            if (v) setCommesse(p => ({ ...p, produzione: false }));
-                          }} />
-                          <span className="text-sm text-muted-foreground">Va prodotto (non disponibile)</span>
-                        </label>
-                      )}
-                    </div>
-                  )}
+                  {availableDeliveryModes.map(dm => {
+                    const Icon = dm.icon;
+                    const isSelected = deliveryMode === dm.value;
+                    return (
+                      <button
+                        key={dm.value}
+                        type="button"
+                        onClick={() => setDeliveryMode(dm.value)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all",
+                          isSelected ? "border-teal-500 bg-teal-50 shadow-sm" : "border-border hover:bg-muted/50"
+                        )}
+                      >
+                        <Icon className={cn("h-5 w-5 shrink-0", isSelected ? "text-teal-600" : "text-muted-foreground")} />
+                        <div className="flex-1">
+                          <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{dm.label}</p>
+                          <p className="text-xs text-muted-foreground">{dm.desc}</p>
+                        </div>
+                        {isSelected && <Check className="h-5 w-5 text-teal-600" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Note */}
-            <div className="bg-white rounded-xl border border-border p-4 space-y-2">
-              <Label className="text-xs text-muted-foreground">Note</Label>
-              <Textarea placeholder="Note sull'ordine..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
-            </div>
+            {/* 5. Date */}
+            {orderTypeCategory && selectedCustomerId && (
+              <div className="bg-white rounded-xl border border-border p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data Ordine</Label>
+                    <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data Consegna</Label>
+                    <Input type="date" value={formData.delivery_date} onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))} className="mt-1" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 6. Note */}
+            {orderTypeCategory && selectedCustomerId && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-2">
+                <Label className="text-xs text-muted-foreground">Note</Label>
+                <Textarea placeholder="Note sull'ordine..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
+              </div>
+            )}
+
+            {/* 7. Preview commesse auto-generate */}
+            {plannedCommesse.length > 0 && canSubmit() && (
+              <div className="bg-teal-50 rounded-xl border border-teal-200 p-4 space-y-2">
+                <p className="text-xs font-semibold text-teal-700">Commesse che verranno create automaticamente:</p>
+                <div className="flex flex-wrap gap-2">
+                  {plannedCommesse.map((c, i) => (
+                    <Badge key={i} variant="outline" className="bg-white text-teal-700 border-teal-300 text-xs">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 h-11" onClick={() => setShowCreateForm(false)}>Annulla</Button>
               <Button
                 onClick={handleCreateOrder}
-                disabled={saving || !selectedCustomerId || (!commesse.produzione && !commesse.lavoro && !commesse.spedizione)}
+                disabled={saving || !canSubmit()}
                 className="flex-1 h-11 bg-teal-600 hover:bg-teal-700"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
@@ -592,7 +772,8 @@ export default function ZAppOrdiniPage() {
         ) : (
           <div className="space-y-2">
             {filteredOrders.map(order => {
-              const TypeIcon = typeIcons[order.order_type || ""] || ShoppingCart;
+              const catIcon = ORDER_TYPE_CATEGORIES.find(c => c.value === order.order_type_category)?.icon || ShoppingCart;
+              const CatIcon = catIcon;
               const subsCount = (order.work_orders?.length || 0) + (order.service_work_orders?.length || 0) + (order.shipping_orders?.length || 0);
               return (
                 <button
@@ -601,7 +782,7 @@ export default function ZAppOrdiniPage() {
                   className="w-full flex items-center gap-3 p-4 bg-white rounded-xl border border-border hover:shadow-md active:scale-[0.98] transition-all text-left"
                 >
                   <div className="h-10 w-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                    <TypeIcon className="h-5 w-5 text-teal-700" />
+                    <CatIcon className="h-5 w-5 text-teal-700" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -611,9 +792,13 @@ export default function ZAppOrdiniPage() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {order.customers?.name || "—"} • {typeLabels[order.order_type || ""] || order.order_type}
+                      {order.customers?.name || "—"}
+                      {order.order_type_category && ` • ${categoryLabels[order.order_type_category] || order.order_type_category}`}
                       {subsCount > 0 && ` • ${subsCount} commesse`}
                     </p>
+                    {order.order_subject && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{order.order_subject}</p>
+                    )}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </button>
