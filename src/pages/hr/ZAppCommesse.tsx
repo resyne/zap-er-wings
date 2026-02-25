@@ -684,6 +684,7 @@ export default function ZAppCommesse() {
           sales_orders(number)
         `)
         .eq("archived", false)
+        .not("status", "in", '("completata")')
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []).map((so: any): UnifiedOrder => ({
