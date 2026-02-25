@@ -216,6 +216,18 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           </div>
 
           {/* Indirizzo di spedizione */}
+          <div className="space-y-2">
+            <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+            <Textarea
+              id="shipping_address"
+              value={sameBillingAddress ? formData.address : formData.shipping_address}
+              onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+              placeholder="Via, numero civico"
+              rows={2}
+              disabled={sameBillingAddress}
+            />
+          </div>
+
           <div className="flex items-center space-x-2">
             <Checkbox
               id="same_billing"
@@ -227,19 +239,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             />
             <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
           </div>
-
-          {!sameBillingAddress && (
-            <div className="space-y-2">
-              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
-              <Textarea
-                id="shipping_address"
-                value={formData.shipping_address}
-                onChange={(e) => handleInputChange('shipping_address', e.target.value)}
-                placeholder="Via, numero civico"
-                rows={2}
-              />
-            </div>
-          )}
 
           {/* Referente e contatti */}
           <div className="space-y-2">
