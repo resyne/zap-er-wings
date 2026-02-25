@@ -174,10 +174,9 @@ export default function ZAppOrdiniPage() {
   };
 
   const loadCustomers = async () => {
-    // @ts-ignore
     const { data } = await supabase.from("customers")
       .select("id, name, code, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address")
-      .eq("is_active", true)
+      .eq("active", true)
       .order("name");
     if (data) setCustomers(data as any);
   };
