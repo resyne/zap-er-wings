@@ -159,7 +159,7 @@ export default function ZAppNewServiceReportPage() {
           .select('id, first_name, last_name, employee_code')
           .eq('active', true).order('first_name'),
         supabase.from('service_work_orders')
-          .select('id, number, title, description, customer_id')
+          .select('id, number, title, description, customer_id, customers(name, company_name)')
           .eq('archived', false)
           .not('status', 'in', '("completata","archiviata","annullata")')
           .order('number', { ascending: false }),
@@ -665,9 +665,14 @@ export default function ZAppNewServiceReportPage() {
                 <Select onValueChange={handleWorkOrderSelect}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleziona commessa..." /></SelectTrigger>
                   <SelectContent>
-                    {workOrders.map(wo => (
-                      <SelectItem key={wo.id} value={wo.id}>{wo.number} - {wo.title}</SelectItem>
-                    ))}
+                    {workOrders.map(wo => {
+                      const customerName = (wo as any).customers?.company_name || (wo as any).customers?.name || '';
+                      return (
+                        <SelectItem key={wo.id} value={wo.id}>
+                          {customerName ? `${customerName} - ` : ''}{wo.title || wo.number}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
