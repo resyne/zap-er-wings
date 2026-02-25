@@ -296,6 +296,7 @@ const PhasePipeline = memo(function PhasePipeline({ phases }: { phases: Commessa
             }`}>
               {isDone ? <CheckCircle2 className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
               <span className="hidden sm:inline">{config.label}</span>
+              <span className="text-[9px] opacity-75">({(statusLabels[phase.status] || { label: phase.status }).label})</span>
             </div>
             {idx < sortedPhases.length - 1 && (
               <ChevronRight className="h-3 w-3 text-muted-foreground/40 mx-0.5 flex-shrink-0" />
