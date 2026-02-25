@@ -15,9 +15,10 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
-  MapPin, Building2, FileText
+  MapPin, Building2, FileText, Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 
 interface Order {
   id: string;
@@ -40,7 +41,18 @@ interface Customer {
   id: string;
   name: string;
   code: string;
+  email?: string;
+  phone?: string;
   company_name?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
+  tax_id?: string;
+  pec?: string;
+  sdi_code?: string;
+  shipping_address?: string;
 }
 
 interface Product {
@@ -114,8 +126,10 @@ export default function ZAppOrdiniPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
 
@@ -161,7 +175,10 @@ export default function ZAppOrdiniPage() {
 
   const loadCustomers = async () => {
     // @ts-ignore
-    const { data } = await supabase.from("customers").select("id, name, code, company_name").eq("is_active", true).order("name");
+    const { data } = await supabase.from("customers")
+      .select("id, name, code, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address")
+      .eq("is_active", true)
+      .order("name");
     if (data) setCustomers(data as any);
   };
 
@@ -198,7 +215,17 @@ export default function ZAppOrdiniPage() {
     return subs;
   };
 
-  const selectedCustomer = useMemo(() => customers.find(c => c.id === selectedCustomerId), [customers, selectedCustomerId]);
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers;
+    const s = customerSearch.toLowerCase();
+    return customers.filter(c =>
+      (c.name || '').toLowerCase().includes(s) ||
+      (c.company_name || '').toLowerCase().includes(s) ||
+      (c.email || '').toLowerCase().includes(s) ||
+      (c.phone || '').toLowerCase().includes(s) ||
+      (c.code || '').toLowerCase().includes(s)
+    );
+  }, [customers, customerSearch]);
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
   const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
 
@@ -222,7 +249,8 @@ export default function ZAppOrdiniPage() {
     loadCustomers();
     loadProducts();
     loadMaterials();
-    setSelectedCustomerId("");
+    setSelectedCustomer(null);
+    setCustomerSearch("");
     setOrderTypeCategory("");
     setIsWarranty(false);
     setDeliveryMode("");
@@ -263,7 +291,7 @@ export default function ZAppOrdiniPage() {
   };
 
   const canSubmit = () => {
-    if (!selectedCustomerId || !orderTypeCategory) return false;
+    if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
     // Need either text subject or product/material selection
     if (subjectMode === "text" && !orderSubject.trim()) return false;
@@ -298,7 +326,7 @@ export default function ZAppOrdiniPage() {
         .from("sales_orders")
         .insert([{
           number: "",
-          customer_id: selectedCustomerId,
+           customer_id: selectedCustomer!.id,
           order_date: formData.order_date || null,
           delivery_date: formData.delivery_date || null,
           status: "commissionato",
@@ -326,7 +354,7 @@ export default function ZAppOrdiniPage() {
             title: `Produzione ${productName} per ${customerName}`.trim(),
             description: subject || "",
             status: "da_fare",
-            customer_id: selectedCustomerId,
+             customer_id: selectedCustomer!.id,
             sales_order_id: salesOrder.id,
             priority: "medium",
             notes: formData.notes || null,
@@ -347,7 +375,7 @@ export default function ZAppOrdiniPage() {
             title: `${isInstallation ? "Installazione" : "Intervento"} ${productName} per ${customerName}`.trim(),
             description: subject || "",
             status: "da_programmare",
-            customer_id: selectedCustomerId,
+             customer_id: selectedCustomer!.id,
             sales_order_id: salesOrder.id,
             priority: "medium",
             notes: formData.notes || null,
@@ -363,14 +391,14 @@ export default function ZAppOrdiniPage() {
         const { data: custData } = await supabase
           .from("customers")
           .select("city, province, address, shipping_address")
-          .eq("id", selectedCustomerId)
+          .eq("id", selectedCustomer!.id)
           .single();
 
         const { data: so, error } = await supabase
           .from("shipping_orders")
           .insert([{
             number: "",
-            customer_id: selectedCustomerId,
+            customer_id: selectedCustomer!.id,
             status: "da_preparare",
             order_date: formData.order_date || new Date().toISOString().split("T")[0],
             notes: `${subject ? "Oggetto: " + subject + ". " : ""}${formData.notes || ""}`.trim() || null,
@@ -538,40 +566,80 @@ export default function ZAppOrdiniPage() {
 
             {/* 2. Cliente */}
             {orderTypeCategory && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Cliente *</Label>
-                <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full justify-between h-11">
-                      {selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.code})` : "Seleziona cliente..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Cerca cliente..." />
-                      <CommandList>
-                        <CommandEmpty>Nessun cliente trovato</CommandEmpty>
-                        <CommandGroup>
-                          {customers.map(c => (
-                            <CommandItem key={c.id} value={`${c.name} ${c.company_name || ""} ${c.code}`} onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}>
-                              <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                              <div>
-                                <p className="font-medium text-sm">{c.name}</p>
-                                <p className="text-xs text-muted-foreground">{c.code}</p>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <div className="flex gap-2">
+                  <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn("flex-1 justify-between h-11 rounded-xl text-sm", selectedCustomer && "border-primary/30 bg-primary/5")}
+                      >
+                        <span className="truncate">{selectedCustomer ? (selectedCustomer.company_name || selectedCustomer.name) : "Cerca cliente..."}</span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[calc(100vw-3rem)] p-0 z-[200]" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput placeholder="Cerca per nome, azienda, email, telefono..." value={customerSearch} onValueChange={setCustomerSearch} className="h-12" />
+                        <CommandList>
+                          <CommandEmpty>Nessun cliente trovato</CommandEmpty>
+                          <CommandGroup className="max-h-60 overflow-auto">
+                            {filteredCustomers.map(c => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.id}
+                                onSelect={() => { setSelectedCustomer(c); setCustomerOpen(false); setCustomerSearch(""); }}
+                                className="py-3"
+                              >
+                                <Check className={cn("mr-2 h-4 w-4 shrink-0", selectedCustomer?.id === c.id ? "opacity-100" : "opacity-0")} />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium truncate">{c.company_name || c.name}</span>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                                    {c.company_name && <span>{c.name}</span>}
+                                    {c.email && <span>✉️ {c.email}</span>}
+                                    {c.phone && <span>📞 {c.phone}</span>}
+                                    {c.city && <span>📍 {c.city}</span>}
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant="outline" size="icon" className="h-11 w-11 shrink-0 rounded-xl" onClick={() => setShowCreateCustomer(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {selectedCustomer && (
+                  <div className="bg-muted/50 rounded-xl p-3 text-xs space-y-1.5 border">
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-foreground truncate">{selectedCustomer.company_name || selectedCustomer.name}</p>
+                        {selectedCustomer.company_name && <p className="text-muted-foreground">{selectedCustomer.name}</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1 pt-1 border-t border-border/50">
+                      {selectedCustomer.address && (
+                        <p className="text-muted-foreground">📍 {selectedCustomer.address}{selectedCustomer.city ? `, ${selectedCustomer.city}` : ''}{selectedCustomer.province ? ` (${selectedCustomer.province})` : ''}</p>
+                      )}
+                      {selectedCustomer.phone && <p className="text-muted-foreground">📞 {selectedCustomer.phone}</p>}
+                      {selectedCustomer.email && <p className="text-muted-foreground">✉️ {selectedCustomer.email}</p>}
+                      {selectedCustomer.tax_id && <p className="text-muted-foreground">🏷️ P.IVA/CF: {selectedCustomer.tax_id}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* 3. Oggetto dell'ordine */}
-            {orderTypeCategory && selectedCustomerId && (
+            {orderTypeCategory && selectedCustomer && (
               <div className="bg-white rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Oggetto dell'ordine *</Label>
                 <div className="flex gap-1 bg-muted rounded-lg p-1">
@@ -670,7 +738,7 @@ export default function ZAppOrdiniPage() {
             )}
 
             {/* 4. Modalità di consegna (only for types that need it) */}
-            {needsDeliveryMode && selectedCustomerId && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
+            {needsDeliveryMode && selectedCustomer && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
               <div className="bg-white rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Modalità di consegna *</Label>
                 <div className="space-y-2">
@@ -701,7 +769,7 @@ export default function ZAppOrdiniPage() {
             )}
 
             {/* 5. Date */}
-            {orderTypeCategory && selectedCustomerId && (
+            {orderTypeCategory && selectedCustomer && (
               <div className="bg-white rounded-xl border border-border p-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -717,7 +785,7 @@ export default function ZAppOrdiniPage() {
             )}
 
             {/* 6. Note */}
-            {orderTypeCategory && selectedCustomerId && (
+            {orderTypeCategory && selectedCustomer && (
               <div className="bg-white rounded-xl border border-border p-4 space-y-2">
                 <Label className="text-xs text-muted-foreground">Note</Label>
                 <Textarea placeholder="Note sull'ordine..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
@@ -807,6 +875,16 @@ export default function ZAppOrdiniPage() {
           </div>
         )}
       </div>
+
+      <CreateCustomerDialog
+        open={showCreateCustomer}
+        onOpenChange={setShowCreateCustomer}
+        onCustomerCreated={(newCustomer: Customer) => {
+          setCustomers(prev => [...prev, newCustomer]);
+          setSelectedCustomer(newCustomer);
+          setShowCreateCustomer(false);
+        }}
+      />
     </div>
   );
 }
