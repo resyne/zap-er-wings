@@ -27,6 +27,8 @@ interface Material {
   suppliers?: { name: string } | null;
 }
 
+const ALLOWED_SUPPLIERS = ["COEM", "Clean Sud", "Grundfos"];
+
 interface StockMovement {
   id: string;
   movement_date: string;
@@ -83,6 +85,9 @@ export default function ZAppMagazzino() {
   // Filter materials
   const filteredMaterials = useMemo(() => {
     return materials.filter((m) => {
+      // Only show allowed suppliers
+      const supplierName = m.suppliers?.name || "";
+      if (!ALLOWED_SUPPLIERS.some(s => supplierName.toLowerCase() === s.toLowerCase())) return false;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.code.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = stockFilter === "all" ||
