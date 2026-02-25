@@ -4949,6 +4949,8 @@ export type Database = {
           current_stock: number | null
           description: string | null
           id: string
+          last_inventory_by: string | null
+          last_inventory_date: string | null
           location: string | null
           material_type: string
           maximum_stock: number | null
@@ -4967,6 +4969,8 @@ export type Database = {
           current_stock?: number | null
           description?: string | null
           id?: string
+          last_inventory_by?: string | null
+          last_inventory_date?: string | null
           location?: string | null
           material_type: string
           maximum_stock?: number | null
@@ -4985,6 +4989,8 @@ export type Database = {
           current_stock?: number | null
           description?: string | null
           id?: string
+          last_inventory_by?: string | null
+          last_inventory_date?: string | null
           location?: string | null
           material_type?: string
           maximum_stock?: number | null
