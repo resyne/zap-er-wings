@@ -475,7 +475,6 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
                 </div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-[10px] font-mono text-muted-foreground">{commessa.number}</span>
-                  <Badge className={`${overallStatus.color} text-[9px] px-1.5`}>{overallStatus.label}</Badge>
                   <Badge variant="outline" className="text-[9px] px-1.5">{typeLabels[commessa.type] || commessa.type}</Badge>
                 </div>
                 {commessa.article && commessa.article !== commessa.title && (
