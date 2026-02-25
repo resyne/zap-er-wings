@@ -234,22 +234,15 @@ export default function ZAppOrdiniPage() {
   // For installazione, it's always production + installation
   const needsProductSelection = ["produzione", "ricambi", "installazione", "misto"].includes(orderTypeCategory);
 
-  // Available delivery modes based on order type and selected product capabilities
+  // Available delivery modes based on selected product capabilities
   const availableDeliveryModes = useMemo(() => {
-    if (orderTypeCategory === "ricambi") {
-      // Ricambi: solo spedizione o ritiro, senza "Produzione +"
-      return [
-        { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Spedizione ricambi" },
-        { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro ricambi" },
-      ];
-    }
     if (!selectedProduct) return DELIVERY_MODES;
     return DELIVERY_MODES.filter(dm => {
       if (dm.value === "installazione") return selectedProduct.installation_possible;
       if (dm.value === "spedizione") return selectedProduct.shipping_possible;
       return true; // ritiro always available
     });
-  }, [selectedProduct, orderTypeCategory]);
+  }, [selectedProduct]);
 
   const openCreateForm = () => {
     loadCustomers();
