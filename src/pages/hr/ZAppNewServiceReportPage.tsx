@@ -130,6 +130,7 @@ export default function ZAppNewServiceReportPage() {
   const [customerSignature, setCustomerSignature] = useState('');
   const [technicianSignature, setTechnicianSignature] = useState('');
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
+  const [isQuotedOrder, setIsQuotedOrder] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return customers;
@@ -202,6 +203,7 @@ export default function ZAppNewServiceReportPage() {
   };
 
   useEffect(() => {
+    if (isQuotedOrder) return;
     const km = parseFloat(formData.kilometers) || 0;
     const calculatedAmount = calculateAmount(techniciansList, formData.start_time, formData.end_time, km, materialsTotalNetto);
     setFormData(prev => {
@@ -214,7 +216,7 @@ export default function ZAppNewServiceReportPage() {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
-      if (['kilometers', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate') {
+      if (!isQuotedOrder && (['kilometers', 'start_time', 'end_time'].includes(field) || field === 'amount' || field === 'vat_rate')) {
         const km = parseFloat(field === 'kilometers' ? value : newData.kilometers) || 0;
         const startTime = field === 'start_time' ? value : newData.start_time;
         const endTime = field === 'end_time' ? value : newData.end_time;
@@ -235,25 +237,29 @@ export default function ZAppNewServiceReportPage() {
     const newList = [...techniciansList, newTech];
     setTechniciansList(newList);
     setShowAddTechnician(false);
-    const km = parseFloat(formData.kilometers) || 0;
-    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
-    setFormData(prev => {
-      const vatRate = parseFloat(prev.vat_rate) || 0;
-      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
-      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
-    });
+    if (!isQuotedOrder) {
+      const km = parseFloat(formData.kilometers) || 0;
+      const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+      setFormData(prev => {
+        const vatRate = parseFloat(prev.vat_rate) || 0;
+        const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+        return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
+      });
+    }
   };
 
   const removeTechnician = (id: string) => {
     const newList = techniciansList.filter(t => t.id !== id);
     setTechniciansList(newList);
-    const km = parseFloat(formData.kilometers) || 0;
-    const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
-    setFormData(prev => {
-      const vatRate = parseFloat(prev.vat_rate) || 0;
-      const total = calculatedAmount + (calculatedAmount * vatRate / 100);
-      return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
-    });
+    if (!isQuotedOrder) {
+      const km = parseFloat(formData.kilometers) || 0;
+      const calculatedAmount = calculateAmount(newList, formData.start_time, formData.end_time, km);
+      setFormData(prev => {
+        const vatRate = parseFloat(prev.vat_rate) || 0;
+        const total = calculatedAmount + (calculatedAmount * vatRate / 100);
+        return { ...prev, amount: calculatedAmount.toFixed(2), total_amount: total.toFixed(2) };
+      });
+    }
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -303,7 +309,7 @@ export default function ZAppNewServiceReportPage() {
         description: formData.description || null,
         work_performed: formData.work_performed,
         materials_used: formData.materials_used,
-        notes: formData.notes,
+        notes: isQuotedOrder ? `[COMMESSA GIÀ QUOTATA] ${formData.notes || ''}`.trim() : formData.notes,
         technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : '',
         intervention_date: formData.intervention_date,
         start_time: formData.start_time || null,
@@ -582,6 +588,35 @@ export default function ZAppNewServiceReportPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Checkbox commessa già quotata */}
+              {formData.intervention_type && (
+                <div className="mt-3 flex items-start gap-3 p-3 rounded-xl bg-muted/50 border">
+                  <input
+                    type="checkbox"
+                    id="isQuotedOrder"
+                    checked={isQuotedOrder}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setIsQuotedOrder(checked);
+                      if (checked) {
+                        setFormData(prev => ({ ...prev, amount: '0', total_amount: '0' }));
+                      } else {
+                        const km = parseFloat(formData.kilometers) || 0;
+                        const calc = calculateAmount(techniciansList, formData.start_time, formData.end_time, km);
+                        const vatRate = parseFloat(formData.vat_rate) || 0;
+                        setFormData(prev => ({ ...prev, amount: calc.toFixed(2), total_amount: (calc + calc * vatRate / 100).toFixed(2) }));
+                      }
+                    }}
+                    className="mt-0.5 h-5 w-5 rounded border-primary text-primary accent-primary shrink-0"
+                  />
+                  <label htmlFor="isQuotedOrder" className="text-xs leading-snug">
+                    <span className="font-semibold">Oggetto di commessa già quotata</span>
+                    <br />
+                    <span className="text-muted-foreground">L'intervento è compreso in una commessa con importi già definiti. Non verranno generati importi aggiuntivi.</span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Customer & Work Order */}
@@ -764,6 +799,9 @@ export default function ZAppNewServiceReportPage() {
             {/* Materials */}
             <MobileSection title="Materiali" icon={FileText} defaultOpen={materialItems.length > 0} badge={materialItems.length > 0 ? `${materialItems.length}` : undefined}>
               <MaterialsLineItems items={materialItems} onChange={setMaterialItems} />
+              <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
+                <strong>Nota:</strong> I materiali non inclusi nel presente rapporto saranno quotati e fatturati separatamente secondo listino vigente.
+              </div>
             </MobileSection>
 
             {/* Economics */}
