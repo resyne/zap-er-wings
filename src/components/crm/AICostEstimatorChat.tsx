@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Send, Loader2, Sparkles, FileSpreadsheet, RotateCcw } from "lucide-react";
+import { Bot, Send, Loader2, Sparkles, FileSpreadsheet, RotateCcw, Save } from "lucide-react";
+import SaveEstimateChatDialog from "./SaveEstimateChatDialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +60,7 @@ export default function AICostEstimatorChat() {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -254,10 +256,16 @@ export default function AICostEstimatorChat() {
             Previsione AI Costi
           </CardTitle>
           {messages.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={resetChat}>
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Nuova
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setShowSaveDialog(true)}>
+                <Save className="h-4 w-4 mr-1" />
+                Salva
+              </Button>
+              <Button variant="ghost" size="sm" onClick={resetChat}>
+                <RotateCcw className="h-4 w-4 mr-1" />
+                Nuova
+              </Button>
+            </div>
           )}
         </div>
         <p className="text-xs text-muted-foreground">
@@ -320,6 +328,16 @@ export default function AICostEstimatorChat() {
           </Button>
         </div>
       </CardContent>
+
+      <SaveEstimateChatDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        messages={messages}
+        estimateData={(() => {
+          const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+          return lastAssistant ? extractEstimate(lastAssistant.content) : undefined;
+        })()}
+      />
     </Card>
   );
 }
