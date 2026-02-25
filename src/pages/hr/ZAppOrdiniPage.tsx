@@ -568,7 +568,7 @@ export default function ZAppOrdiniPage() {
               <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Cliente *</Label>
                 <div className="flex gap-2">
-                  <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                  <Popover open={customerOpen} onOpenChange={(open) => { setCustomerOpen(open); if (open && customers.length === 0) loadCustomers(); }}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
