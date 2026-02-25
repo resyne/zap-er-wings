@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Search, Loader2, Wrench, Truck, Settings,
@@ -138,7 +138,7 @@ const statusFlowSpedizione = [
 const completedStatuses = ["completato", "spedito", "completed", "closed"];
 
 // ─── Sub-component: Articles checklist (mobile) ─────────────
-function MobileArticlesChecklist({ workOrderId }: { workOrderId: string }) {
+const MobileArticlesChecklist = memo(function MobileArticlesChecklist({ workOrderId }: { workOrderId: string }) {
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -192,10 +192,10 @@ function MobileArticlesChecklist({ workOrderId }: { workOrderId: string }) {
       ))}
     </div>
   );
-}
+});
 
 // ─── Sub-component: Lead Photos ─────────────────────────────
-function MobileLeadPhotos({ leadId }: { leadId: string }) {
+const MobileLeadPhotos = memo(function MobileLeadPhotos({ leadId }: { leadId: string }) {
   const [photos, setPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; name: string; isVideo: boolean } | null>(null);
@@ -260,10 +260,10 @@ function MobileLeadPhotos({ leadId }: { leadId: string }) {
       />
     </div>
   );
-}
+});
 
 // ─── Phase Progress Indicator ─────────────────────────────────
-function PhasePipeline({ group }: { group: CustomerGroup }) {
+const PhasePipeline = memo(function PhasePipeline({ group }: { group: CustomerGroup }) {
   const phases = [
     { key: "produzione" as const, orders: group.production },
     { key: "spedizione" as const, orders: group.shipping },
@@ -303,10 +303,10 @@ function PhasePipeline({ group }: { group: CustomerGroup }) {
       })}
     </div>
   );
-}
+});
 
 // ─── Phase Order Card (compact) ──────────────────────────────
-function PhaseOrderCard({ order, onStatusChange, isPending, onSchedule }: {
+const PhaseOrderCard = memo(function PhaseOrderCard({ order, onStatusChange, isPending, onSchedule }: {
   order: UnifiedOrder;
   onStatusChange: (id: string, type: string, newStatus: string) => void;
   onSchedule: (order: UnifiedOrder) => void;
@@ -467,10 +467,10 @@ function PhaseOrderCard({ order, onStatusChange, isPending, onSchedule }: {
       </div>
     </Collapsible>
   );
-}
+});
 
 // ─── Customer Group Card ─────────────────────────────────────
-function CustomerGroupCard({ group, onStatusChange, onSchedule, isPending }: {
+const CustomerGroupCard = memo(function CustomerGroupCard({ group, onStatusChange, onSchedule, isPending }: {
   group: CustomerGroup;
   onStatusChange: (id: string, type: string, newStatus: string) => void;
   onSchedule: (order: UnifiedOrder) => void;
@@ -561,16 +561,24 @@ function CustomerGroupCard({ group, onStatusChange, onSchedule, isPending }: {
       </div>
     </Collapsible>
   );
-}
+});
 
 // ─── Main Component ─────────────────────────────────────────
 export default function ZAppCommesse() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [scheduleOrder, setScheduleOrder] = useState<UnifiedOrder | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(value), 250);
+  }, []);
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, type, newStatus }: { id: string; type: string; newStatus: string }) => {
@@ -587,14 +595,14 @@ export default function ZAppCommesse() {
     onError: (err: any) => toast.error("Errore: " + err.message),
   });
 
-  const handleStatusChange = (id: string, type: string, newStatus: string) => {
+  const handleStatusChange = useCallback((id: string, type: string, newStatus: string) => {
     updateStatus.mutate({ id, type, newStatus });
-  };
+  }, [updateStatus]);
 
-  const handleOpenSchedule = (order: UnifiedOrder) => {
+  const handleOpenSchedule = useCallback((order: UnifiedOrder) => {
     setScheduleOrder(order);
     setScheduleDate(order.scheduled_date ? new Date(order.scheduled_date) : undefined);
-  };
+  }, []);
 
   const scheduleOrderMutation = useMutation({
     mutationFn: async ({ id, type, date }: { id: string; type: string; date: string }) => {
@@ -613,14 +621,14 @@ export default function ZAppCommesse() {
     onError: (err: any) => toast.error("Errore: " + err.message),
   });
 
-  const handleConfirmSchedule = () => {
+  const handleConfirmSchedule = useCallback(() => {
     if (!scheduleOrder || !scheduleDate) return;
     scheduleOrderMutation.mutate({
       id: scheduleOrder.id,
       type: scheduleOrder.type,
       date: format(scheduleDate, "yyyy-MM-dd"),
     });
-  };
+  }, [scheduleOrder, scheduleDate, scheduleOrderMutation]);
 
   // ─── Data Fetching ──────────────────────────────────────
   const { data: workOrders = [], isLoading: loadingWO } = useQuery({
@@ -659,6 +667,7 @@ export default function ZAppCommesse() {
         sales_order_number: wo.sales_orders?.number, offer_number: wo.offers?.number,
       }));
     },
+    staleTime: 30_000,
   });
 
   const { data: serviceOrders = [], isLoading: loadingSWO } = useQuery({
@@ -691,6 +700,7 @@ export default function ZAppCommesse() {
         sales_order_number: so.sales_orders?.number,
       }));
     },
+    staleTime: 30_000,
   });
 
   const { data: shippingOrders = [], isLoading: loadingSO } = useQuery({
@@ -726,6 +736,7 @@ export default function ZAppCommesse() {
         sales_order_id: so.sales_order_id,
       }));
     },
+    staleTime: 30_000,
   });
 
   const isLoading = loadingWO || loadingSWO || loadingSO;
@@ -734,15 +745,15 @@ export default function ZAppCommesse() {
   // Filter orders
   const filteredOrders = useMemo(() => {
     return allOrders.filter((o) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch = o.title.toLowerCase().includes(q) || o.number.toLowerCase().includes(q) ||
+      const q = debouncedSearch.toLowerCase();
+      const matchesSearch = !q || o.title.toLowerCase().includes(q) || o.number.toLowerCase().includes(q) ||
         (o.customer_name || "").toLowerCase().includes(q) || (o.article || "").toLowerCase().includes(q);
       const matchesStatus = statusFilter === "all" ||
         (statusFilter === "active" && !completedStatuses.includes(o.status)) ||
         (statusFilter === "completed" && completedStatuses.includes(o.status));
       return matchesSearch && matchesStatus;
     });
-  }, [allOrders, searchTerm, statusFilter]);
+  }, [allOrders, debouncedSearch, statusFilter]);
 
   // Group by customer
   const customerGroups = useMemo((): CustomerGroup[] => {
@@ -805,7 +816,7 @@ export default function ZAppCommesse() {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cerca cliente, commessa..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 rounded-xl bg-background" />
+            <Input placeholder="Cerca cliente, commessa..." value={searchTerm} onChange={(e) => handleSearchChange(e.target.value)} className="pl-9 rounded-xl bg-background" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[110px] rounded-xl bg-background"><SelectValue /></SelectTrigger>
