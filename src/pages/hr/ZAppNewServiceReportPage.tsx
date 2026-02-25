@@ -713,18 +713,28 @@ export default function ZAppNewServiceReportPage() {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[calc(100vw-3rem)] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Cerca cliente..." value={customerSearch} onValueChange={setCustomerSearch} className="h-12" />
+                    <PopoverContent className="w-[calc(100vw-3rem)] p-0 z-[200]" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput placeholder="Cerca per nome, azienda, email, telefono..." value={customerSearch} onValueChange={setCustomerSearch} className="h-12" />
                         <CommandList>
                           <CommandEmpty>Nessun cliente trovato</CommandEmpty>
                           <CommandGroup className="max-h-60 overflow-auto">
                             {filteredCustomers.map(c => (
-                              <CommandItem key={c.id} value={c.id} onSelect={() => handleCustomerSelect(c.id)} className="py-3">
-                                <Check className={cn("mr-2 h-4 w-4", selectedCustomer?.id === c.id ? "opacity-100" : "opacity-0")} />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{c.company_name || c.name}</span>
-                                  {c.company_name && <span className="text-xs text-muted-foreground">{c.name}</span>}
+                              <CommandItem 
+                                key={c.id} 
+                                value={c.id} 
+                                onSelect={() => handleCustomerSelect(c.id)} 
+                                className="py-3"
+                              >
+                                <Check className={cn("mr-2 h-4 w-4 shrink-0", selectedCustomer?.id === c.id ? "opacity-100" : "opacity-0")} />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium truncate">{c.company_name || c.name}</span>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                                    {c.company_name && <span>{c.name}</span>}
+                                    {c.email && <span>✉️ {c.email}</span>}
+                                    {c.phone && <span>📞 {c.phone}</span>}
+                                    {c.city && <span>📍 {c.city}</span>}
+                                  </div>
                                 </div>
                               </CommandItem>
                             ))}
@@ -738,11 +748,29 @@ export default function ZAppNewServiceReportPage() {
                   </Button>
                 </div>
                 {selectedCustomer && (
-                  <div className="bg-muted/50 rounded-lg p-2.5 text-xs text-muted-foreground space-y-0.5">
-                    {selectedCustomer.company_name && <p className="font-medium text-foreground">{selectedCustomer.company_name}</p>}
-                    {selectedCustomer.address && <p>📍 {selectedCustomer.address}{selectedCustomer.city ? `, ${selectedCustomer.city}` : ''}</p>}
-                    {selectedCustomer.phone && <p>📞 {selectedCustomer.phone}</p>}
-                    {selectedCustomer.email && <p>✉️ {selectedCustomer.email}</p>}
+                  <div className="bg-muted/50 rounded-xl p-3 text-xs space-y-1.5 border">
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{selectedCustomer.company_name || selectedCustomer.name}</p>
+                        {selectedCustomer.company_name && <p className="text-muted-foreground">{selectedCustomer.name}</p>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1 pt-1 border-t border-border/50">
+                      {selectedCustomer.address && (
+                        <p className="text-muted-foreground">📍 {selectedCustomer.address}{selectedCustomer.city ? `, ${selectedCustomer.city}` : ''}{selectedCustomer.province ? ` (${selectedCustomer.province})` : ''}{selectedCustomer.postal_code ? ` - ${selectedCustomer.postal_code}` : ''}</p>
+                      )}
+                      {selectedCustomer.phone && <p className="text-muted-foreground">📞 {selectedCustomer.phone}</p>}
+                      {selectedCustomer.email && <p className="text-muted-foreground">✉️ {selectedCustomer.email}</p>}
+                      {selectedCustomer.pec && <p className="text-muted-foreground">📧 PEC: {selectedCustomer.pec}</p>}
+                      {selectedCustomer.tax_id && <p className="text-muted-foreground">🏷️ P.IVA/CF: {selectedCustomer.tax_id}</p>}
+                      {selectedCustomer.sdi_code && <p className="text-muted-foreground">📋 SDI: {selectedCustomer.sdi_code}</p>}
+                      {selectedCustomer.shipping_address && (
+                        <p className="text-muted-foreground">🚚 Spedizione: {selectedCustomer.shipping_address}</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
