@@ -888,7 +888,7 @@ export default function ZAppNewServiceReportPage() {
               <div className="bg-amber-50 rounded-xl p-2.5 flex items-start gap-2 border border-amber-200">
                 <span className="text-amber-600 text-sm mt-0.5">⚠️</span>
                 <span className="text-[11px] text-amber-800 leading-snug">
-                  <strong>Indicare solo il tempo effettivo dell'intervento</strong>, escluso il tragitto. Il tempo di viaggio non viene conteggiato nella quotazione.
+                  <strong>Indicare solo il tempo effettivo dell'intervento</strong>, escluso il tragitto.
                 </span>
               </div>
               {calculatedHours > 0 && (
