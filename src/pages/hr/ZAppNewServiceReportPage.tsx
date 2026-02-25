@@ -746,21 +746,28 @@ export default function ZAppNewServiceReportPage() {
       doc.text("Descrizione", 20, y); doc.text("Qtà", 120, y); doc.text("Prezzo", 140, y); doc.text("IVA", 165, y); doc.text("Totale", 180, y);
       y += 5; doc.line(20, y, 195, y); y += 3; doc.setFont(undefined!, "normal");
       let matNettoTotal = 0; let matIvaTotal = 0;
+      let hasUnpricedMaterials = false;
       materialItems.filter(m => m.description.trim()).forEach(item => {
         if (y > 270) { doc.addPage(); y = 20; }
         const netto = item.quantity * item.unit_price; const iva = netto * item.vat_rate / 100;
         matNettoTotal += netto; matIvaTotal += iva;
+        if (item.unit_price <= 0) hasUnpricedMaterials = true;
         const descText = doc.splitTextToSize(item.description, 95);
         doc.text(descText, 20, y); doc.text(String(item.quantity), 120, y);
-        doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : '-', 140, y);
+        doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : 'Da quotare', 140, y);
         doc.text(`${item.vat_rate}%`, 165, y);
-        doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+        doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : 'Da quotare', 180, y);
         y += descText.length * 5 + 2;
       });
       if (matNettoTotal > 0) {
         y += 2; doc.line(20, y, 195, y); y += 5; doc.setFont(undefined!, "bold");
         doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
         y += 5;
+      }
+      if (hasUnpricedMaterials) {
+        y += 3; doc.setFontSize(8); doc.setFont(undefined!, "bolditalic");
+        doc.text("* I materiali indicati con 'Da quotare' verranno quotati separatamente.", 20, y);
+        y += 4;
       }
       doc.setFontSize(12); doc.setFont(undefined!, "normal"); y += 5;
     }
@@ -781,7 +788,7 @@ export default function ZAppNewServiceReportPage() {
       "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
       "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
       "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
-      "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+      "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto. Eventuali materiali non indicati con relativo importo nel presente rapporto verranno quotati a parte.",
       "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
       "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
       "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
