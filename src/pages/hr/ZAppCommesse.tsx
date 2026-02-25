@@ -85,6 +85,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   da_fare: { label: "Da fare", color: "bg-amber-100 text-amber-700 border-amber-200" },
   da_preparare: { label: "Da preparare", color: "bg-amber-100 text-amber-700 border-amber-200" },
   da_programmare: { label: "Da programmare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  da_completare: { label: "Da completare", color: "bg-orange-100 text-orange-700 border-orange-200" },
   planned: { label: "Pianificato", color: "bg-blue-100 text-blue-700 border-blue-200" },
   in_lavorazione: { label: "In lavorazione", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
   in_test: { label: "In test", color: "bg-purple-100 text-purple-700 border-purple-200" },
@@ -117,10 +118,9 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
     { value: "da_fare", label: "Da fare" },
     { value: "in_lavorazione", label: "In lavorazione" },
     { value: "in_test", label: "In test" },
-    { value: "pronto", label: "Pronto" },
     { value: "standby", label: "Standby" },
     { value: "bloccato", label: "Bloccato" },
-    { value: "completato", label: "Completato" },
+    { value: "pronto", label: "Pronto" },
   ],
   spedizione: [
     { value: "da_preparare", label: "Da preparare" },
@@ -130,7 +130,7 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
   ],
   installazione: [
     { value: "da_programmare", label: "Da programmare" },
-    { value: "in_lavorazione", label: "In corso" },
+    { value: "da_completare", label: "Da completare" },
     { value: "completata", label: "Completata" },
   ],
   manutenzione: [
@@ -145,7 +145,7 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
   ],
 };
 
-const completedStatuses = ["completato", "completata", "spedito", "completed", "closed"];
+const completedStatuses = ["pronto", "completato", "completata", "spedito", "completed", "closed"];
 
 // ─── Sub-component: Articles checklist ─────────────
 const MobileArticlesChecklist = memo(function MobileArticlesChecklist({ commessaId, legacyWorkOrderId }: { commessaId: string; legacyWorkOrderId?: string }) {
