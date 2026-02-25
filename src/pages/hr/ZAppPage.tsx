@@ -6,8 +6,11 @@ import {
   Wrench, 
   CalendarDays, 
   MessageCircle,
-  Smartphone
+  Smartphone,
+  ShoppingCart
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 
 const sections = [
   {
@@ -52,10 +55,21 @@ const sections = [
     color: "bg-rose-500",
     url: "/hr/z-app/comunicazioni",
   },
+  {
+    title: "Ordini",
+    description: "Consulta e gestisci gli ordini",
+    icon: ShoppingCart,
+    color: "bg-teal-500",
+    url: "/hr/z-app/ordini",
+  },
 ];
 
 export default function ZAppPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPageVisible, loading } = usePageVisibility(user?.id);
+
+  const visibleSections = sections.filter(s => isPageVisible(s.url));
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -75,7 +89,7 @@ export default function ZAppPage() {
       {/* Grid di bottoni */}
       <div className="p-4 sm:p-6 max-w-2xl mx-auto">
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {sections.map((section) => (
+          {visibleSections.map((section) => (
             <button
               key={section.title}
               onClick={() => navigate(section.url)}
