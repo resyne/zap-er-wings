@@ -877,18 +877,24 @@ export default function ZAppNewServiceReportPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Ora Inizio</Label>
+                  <Label className="text-xs text-muted-foreground">Ora Inizio Intervento</Label>
                   <Input type="time" className="h-11 rounded-xl text-base" value={formData.start_time} onChange={(e) => handleInputChange('start_time', e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Ora Fine</Label>
+                  <Label className="text-xs text-muted-foreground">Ora Fine Intervento</Label>
                   <Input type="time" className="h-11 rounded-xl text-base" value={formData.end_time} onChange={(e) => handleInputChange('end_time', e.target.value)} />
                 </div>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-2.5 flex items-start gap-2 border border-amber-200">
+                <span className="text-amber-600 text-sm mt-0.5">⚠️</span>
+                <span className="text-[11px] text-amber-800 leading-snug">
+                  <strong>Indicare solo il tempo effettivo dell'intervento</strong>, escluso il tragitto. Il tempo di viaggio non viene conteggiato nella quotazione.
+                </span>
               </div>
               {calculatedHours > 0 && (
                 <div className="bg-blue-50 rounded-xl p-2.5 flex items-center gap-2">
                   <Clock className="h-4 w-4 text-blue-500" />
-                  <span className="text-xs font-medium text-blue-700">Durata: {calculatedHours} {calculatedHours === 1 ? 'ora' : 'ore'}</span>
+                  <span className="text-xs font-medium text-blue-700">Durata effettiva intervento: {calculatedHours} {calculatedHours === 1 ? 'ora' : 'ore'}</span>
                 </div>
               )}
               <div className="space-y-1.5">
