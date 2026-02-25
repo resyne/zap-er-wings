@@ -280,24 +280,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="active"
-                checked={formData.active}
-                onCheckedChange={(checked) => handleInputChange('active', checked)}
-              />
-              <Label htmlFor="active">Cliente attivo</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="incomplete_registry"
-                checked={formData.incomplete_registry}
-                onCheckedChange={(checked) => handleInputChange('incomplete_registry', checked as boolean)}
-              />
-              <Label htmlFor="incomplete_registry">Anagrafica da completare</Label>
-            </div>
-          </div>
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
