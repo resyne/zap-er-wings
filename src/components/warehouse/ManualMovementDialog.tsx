@@ -117,16 +117,19 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
         quantity: parseFloat(formData.quantity),
         unit: formData.unit,
         warehouse: formData.warehouse,
-        status: "proposto",
+        status: "confermato",
         notes: formData.notes || null,
         created_by: user?.id,
         supplier_id: formData.supplier_id || null,
+        material_id: formData.product_id || null,
       });
 
       if (error) throw error;
 
       toast({ title: "Movimento creato", description: `${movementType === "carico" ? "Carico" : "Scarico"} registrato con successo` });
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-movements"] });
       onOpenChange(false);
       setFormData({ item_description: "", quantity: "", unit: "pz", warehouse: "sede-principale", notes: "", supplier_id: "", product_id: "" });
       setSupplierSearch("");

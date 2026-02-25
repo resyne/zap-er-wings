@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
+import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -25,6 +26,7 @@ interface Material {
   category?: string;
   supplier_id?: string;
   suppliers?: { name: string } | null;
+  last_inventory_date?: string | null;
 }
 
 const ALLOWED_SUPPLIERS = ["COEM", "Clean Sud", "Grundfos"];
@@ -48,6 +50,7 @@ export default function ZAppMagazzino() {
   const [searchTerm, setSearchTerm] = useState("");
   const [caricoOpen, setCaricoOpen] = useState(false);
   const [scaricoOpen, setScaricoOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
 
@@ -57,7 +60,7 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, suppliers(name)")
+        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, last_inventory_date, suppliers(name)")
         .eq("active", true)
         .order("name");
       if (error) throw error;
@@ -170,20 +173,27 @@ export default function ZAppMagazzino() {
       </div>
 
       {/* Quick Actions */}
-      <div className="px-4 py-3 grid grid-cols-2 gap-3">
+      <div className="px-4 py-3 grid grid-cols-3 gap-2">
         <Button
           onClick={() => setCaricoOpen(true)}
-          className="h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-2"
+          className="h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
         >
           <TrendingUp className="h-5 w-5" />
-          <span className="font-semibold text-sm">Carico</span>
+          <span className="font-semibold text-xs">Carico</span>
         </Button>
         <Button
           onClick={() => setScaricoOpen(true)}
-          className="h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-2"
+          className="h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
         >
           <TrendingDown className="h-5 w-5" />
-          <span className="font-semibold text-sm">Scarico</span>
+          <span className="font-semibold text-xs">Scarico</span>
+        </Button>
+        <Button
+          onClick={() => setInventoryOpen(true)}
+          className="h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
+        >
+          <ClipboardCheck className="h-5 w-5" />
+          <span className="font-semibold text-xs">Inventario</span>
         </Button>
       </div>
 
@@ -295,6 +305,11 @@ export default function ZAppMagazzino() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-[13px] truncate">{m.name}</p>
                               <p className="text-[11px] text-muted-foreground">{m.code}</p>
+                              {m.last_inventory_date && (
+                                <p className="text-[10px] text-blue-500">
+                                  Inventario: {format(new Date(m.last_inventory_date), "dd/MM/yy", { locale: it })}
+                                </p>
+                              )}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="font-bold text-[13px]">{m.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{m.unit}</span></p>
@@ -359,6 +374,7 @@ export default function ZAppMagazzino() {
       {/* Dialogs */}
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />
       <ManualMovementDialog open={scaricoOpen} onOpenChange={setScaricoOpen} movementType="scarico" />
+      <InventoryDialog open={inventoryOpen} onOpenChange={setInventoryOpen} materials={filteredMaterials} />
     </div>
   );
 }
