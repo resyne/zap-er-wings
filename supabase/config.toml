@@ -158,3 +158,6 @@ verify_jwt = false
 
 [functions.ai-cost-estimator]
 verify_jwt = false
+
+[functions.notify-commessa-created]
+verify_jwt = false

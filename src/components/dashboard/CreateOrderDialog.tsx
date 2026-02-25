@@ -979,6 +979,22 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           .eq('id', newOrder.offer_id);
       }
 
+      // Notify technicians via WhatsApp (fire-and-forget)
+      const commessaTitle = productionWO?.title || serviceWO?.title || shippingOrder?.title || articlesString || "Nuova commessa";
+      const commessaType = production.enabled ? "fornitura" : service.enabled ? "intervento" : "ricambi";
+      const customerName = salesOrder.customers?.name || "";
+      supabase.functions.invoke("notify-commessa-created", {
+        body: {
+          commessa_title: commessaTitle,
+          commessa_type: commessaType,
+          deadline: newOrder.delivery_date || null,
+          customer_name: customerName,
+        },
+      }).then(res => {
+        if (res.error) console.error("WhatsApp notification error:", res.error);
+        else console.log("WhatsApp notification sent:", res.data);
+      });
+
       // Costruisci messaggio di successo
       const commissionMessages: string[] = [];
       if (productionWO) commissionMessages.push(`Commessa di Produzione: ${productionWO.number}`);
