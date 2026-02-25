@@ -70,7 +70,7 @@ const typeIcons: Record<string, any> = {
   ods: Truck,
 };
 
-type ViewMode = "list" | "detail" | "create";
+type ViewMode = "list" | "detail";
 
 export default function ZAppOrdiniPage() {
   const navigate = useNavigate();
@@ -79,6 +79,7 @@ export default function ZAppOrdiniPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Create form state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -163,7 +164,7 @@ export default function ZAppOrdiniPage() {
     setSelectedCustomerId("");
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "" });
     setCommesse({ produzione: false, lavoro: false, spedizione: false });
-    setViewMode("create");
+    setShowCreateForm(true);
   };
 
   const handleCreateOrder = async () => {
@@ -273,7 +274,7 @@ export default function ZAppOrdiniPage() {
       }
 
       toast.success(`Ordine ${salesOrder.number} creato!\n${createdCommesse.join(" • ")}`);
-      setViewMode("list");
+      setShowCreateForm(false);
       loadOrders();
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -283,151 +284,7 @@ export default function ZAppOrdiniPage() {
     }
   };
 
-  // ===== CREATE VIEW =====
-  if (viewMode === "create") {
-    return (
-      <div className="min-h-screen bg-muted/30">
-        <div className="bg-teal-600 text-white px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setViewMode("list")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold">Nuovo Ordine</h1>
-              <p className="text-teal-100 text-sm">Crea ordine con commesse</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 max-w-2xl mx-auto space-y-4">
-          {/* Cliente */}
-          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-            <Label className="font-semibold text-sm">Cliente *</Label>
-            <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between h-11">
-                  {selectedCustomer
-                    ? `${selectedCustomer.name} (${selectedCustomer.code})`
-                    : "Seleziona cliente..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Cerca cliente..." />
-                  <CommandList>
-                    <CommandEmpty>Nessun cliente trovato</CommandEmpty>
-                    <CommandGroup>
-                      {customers.map(c => (
-                        <CommandItem
-                          key={c.id}
-                          value={`${c.name} ${c.company_name || ""} ${c.code}`}
-                          onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                          <div>
-                            <p className="font-medium text-sm">{c.name}</p>
-                            <p className="text-xs text-muted-foreground">{c.code}</p>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Date */}
-          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs text-muted-foreground">Data Ordine</Label>
-                <Input
-                  type="date"
-                  value={formData.order_date}
-                  onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Data Consegna</Label>
-                <Input
-                  type="date"
-                  value={formData.delivery_date}
-                  onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Tipo Commesse */}
-          <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-            <Label className="font-semibold text-sm">Commesse da creare *</Label>
-            <div className="space-y-3 mt-2">
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                <Checkbox
-                  checked={commesse.produzione}
-                  onCheckedChange={v => setCommesse(p => ({ ...p, produzione: !!v }))}
-                />
-                <Package className="h-5 w-5 text-amber-600" />
-                <div>
-                  <p className="font-medium text-sm">Commessa di Produzione</p>
-                  <p className="text-xs text-muted-foreground">Ordine di produzione (CdP)</p>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                <Checkbox
-                  checked={commesse.lavoro}
-                  onCheckedChange={v => setCommesse(p => ({ ...p, lavoro: !!v }))}
-                />
-                <Wrench className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="font-medium text-sm">Commessa di Lavoro</p>
-                  <p className="text-xs text-muted-foreground">Installazione / Intervento (CdL)</p>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                <Checkbox
-                  checked={commesse.spedizione}
-                  onCheckedChange={v => setCommesse(p => ({ ...p, spedizione: !!v }))}
-                />
-                <Truck className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-medium text-sm">Commessa di Spedizione</p>
-                  <p className="text-xs text-muted-foreground">Ordine di spedizione (CdS)</p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Note */}
-          <div className="bg-white rounded-xl border border-border p-4 space-y-2">
-            <Label className="text-xs text-muted-foreground">Note</Label>
-            <Textarea
-              placeholder="Note sull'ordine..."
-              value={formData.notes}
-              onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
-              rows={3}
-            />
-          </div>
-
-          {/* Submit */}
-          <Button
-            onClick={handleCreateOrder}
-            disabled={saving || !selectedCustomerId || (!commesse.produzione && !commesse.lavoro && !commesse.spedizione)}
-            className="w-full h-12 text-base font-semibold bg-teal-600 hover:bg-teal-700"
-          >
-            {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
-            Crea Ordine con Commesse
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // (create form is now inline in list view)
 
   // ===== DETAIL VIEW =====
   if (viewMode === "detail" && selectedOrder) {
@@ -505,25 +362,119 @@ export default function ZAppOrdiniPage() {
             <h1 className="text-lg font-bold">Ordini</h1>
             <p className="text-teal-100 text-sm">{filteredOrders.length} ordini</p>
           </div>
-          <Button
-            size="icon"
-            className="bg-white/20 hover:bg-white/30 text-white h-10 w-10 rounded-xl"
-            onClick={openCreateForm}
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
         </div>
       </div>
 
       <div className="p-4 max-w-2xl mx-auto space-y-3">
+        {/* Nuovo Ordine - always on top */}
+        {!showCreateForm ? (
+          <Button
+            onClick={openCreateForm}
+            className="w-full h-12 text-base font-semibold bg-teal-600 hover:bg-teal-700 rounded-xl"
+          >
+            <Plus className="h-5 w-5 mr-2" /> Nuovo Ordine
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            {/* Cliente */}
+            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <Label className="font-semibold text-sm">Cliente *</Label>
+              <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full justify-between h-11">
+                    {selectedCustomer
+                      ? `${selectedCustomer.name} (${selectedCustomer.code})`
+                      : "Seleziona cliente..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Cerca cliente..." />
+                    <CommandList>
+                      <CommandEmpty>Nessun cliente trovato</CommandEmpty>
+                      <CommandGroup>
+                        {customers.map(c => (
+                          <CommandItem
+                            key={c.id}
+                            value={`${c.name} ${c.company_name || ""} ${c.code}`}
+                            onSelect={() => { setSelectedCustomerId(c.id); setCustomerOpen(false); }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
+                            <div>
+                              <p className="font-medium text-sm">{c.name}</p>
+                              <p className="text-xs text-muted-foreground">{c.code}</p>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Date */}
+            <div className="bg-white rounded-xl border border-border p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data Ordine</Label>
+                  <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data Consegna</Label>
+                  <Input type="date" value={formData.delivery_date} onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))} className="mt-1" />
+                </div>
+              </div>
+            </div>
+
+            {/* Commesse */}
+            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <Label className="font-semibold text-sm">Commesse da creare *</Label>
+              <div className="space-y-2 mt-2">
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <Checkbox checked={commesse.produzione} onCheckedChange={v => setCommesse(p => ({ ...p, produzione: !!v }))} />
+                  <Package className="h-5 w-5 text-amber-600" />
+                  <span className="font-medium text-sm">Produzione (CdP)</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <Checkbox checked={commesse.lavoro} onCheckedChange={v => setCommesse(p => ({ ...p, lavoro: !!v }))} />
+                  <Wrench className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-sm">Lavoro (CdL)</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <Checkbox checked={commesse.spedizione} onCheckedChange={v => setCommesse(p => ({ ...p, spedizione: !!v }))} />
+                  <Truck className="h-5 w-5 text-green-600" />
+                  <span className="font-medium text-sm">Spedizione (CdS)</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Note */}
+            <div className="bg-white rounded-xl border border-border p-4 space-y-2">
+              <Label className="text-xs text-muted-foreground">Note</Label>
+              <Textarea placeholder="Note sull'ordine..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 h-11" onClick={() => setShowCreateForm(false)}>Annulla</Button>
+              <Button
+                onClick={handleCreateOrder}
+                disabled={saving || !selectedCustomerId || (!commesse.produzione && !commesse.lavoro && !commesse.spedizione)}
+                className="flex-1 h-11 bg-teal-600 hover:bg-teal-700"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Crea Ordine
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca per numero, cliente..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9 bg-white"
-          />
+          <Input placeholder="Cerca per numero, cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 bg-white" />
         </div>
 
         {loading ? (
