@@ -110,6 +110,22 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
       const { error } = await supabase.from("stock_movements").insert(movements);
       if (error) throw error;
 
+      // Aggiorna current_stock e last_inventory_date su ogni materiale
+      const updatePromises = changedItems.map((m) => {
+        const newQty = parseFloat(quantities[m.id]);
+        return supabase
+          .from("materials")
+          .update({
+            current_stock: newQty,
+            last_inventory_date: new Date().toISOString(),
+          })
+          .eq("id", m.id);
+      });
+
+      const results = await Promise.all(updatePromises);
+      const updateError = results.find((r) => r.error);
+      if (updateError?.error) throw updateError.error;
+
       toast({
         title: "Inventario salvato",
         description: `${changedItems.length} articol${changedItems.length === 1 ? "o" : "i"} aggiornato${changedItems.length === 1 ? "" : "i"}`,
