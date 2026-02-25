@@ -1065,6 +1065,7 @@ export type Database = {
           created_by: string | null
           current_phase: number | null
           customer_id: string | null
+          deadline: string | null
           delivery_mode: string | null
           description: string | null
           diameter: string | null
@@ -1106,6 +1107,7 @@ export type Database = {
           created_by?: string | null
           current_phase?: number | null
           customer_id?: string | null
+          deadline?: string | null
           delivery_mode?: string | null
           description?: string | null
           diameter?: string | null
@@ -1147,6 +1149,7 @@ export type Database = {
           created_by?: string | null
           current_phase?: number | null
           customer_id?: string | null
+          deadline?: string | null
           delivery_mode?: string | null
           description?: string | null
           diameter?: string | null
@@ -8384,6 +8387,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           customer_id: string | null
+          deadline: string | null
           delivery_date: string | null
           delivery_mode: string | null
           id: string
@@ -8413,6 +8417,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
+          deadline?: string | null
           delivery_date?: string | null
           delivery_mode?: string | null
           id?: string
@@ -8442,6 +8447,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           customer_id?: string | null
+          deadline?: string | null
           delivery_date?: string | null
           delivery_mode?: string | null
           id?: string

@@ -152,7 +152,9 @@ export default function ZAppOrdiniPage() {
     notes: "",
     order_date: new Date().toISOString().split("T")[0],
     delivery_date: "",
+    deadline: "",
   });
+  const [selectedPriority, setSelectedPriority] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadOrders(); }, []);
@@ -256,7 +258,8 @@ export default function ZAppOrdiniPage() {
     setOrderSubject("");
     setSelectedProductId("");
     setSelectedMaterialId("");
-    setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "" });
+    setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
+    setSelectedPriority("");
     setSaving(false);
     setShowCreateForm(true);
   };
@@ -318,6 +321,7 @@ export default function ZAppOrdiniPage() {
            customer_id: selectedCustomer!.id,
           order_date: formData.order_date || null,
           delivery_date: formData.delivery_date || null,
+          deadline: formData.deadline || null,
           status: "commissionato",
           order_type: orderType,
           order_type_category: orderTypeCategory,
@@ -363,10 +367,11 @@ export default function ZAppOrdiniPage() {
           type: orderTypeCategory,
           delivery_mode: needsDeliveryMode ? deliveryMode : null,
           intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
-          priority: "medium",
+          priority: selectedPriority === "molto_urgente" ? "urgent" : selectedPriority === "urgente" ? "high" : selectedPriority === "normale" ? "low" : "medium",
           status: "da_fare",
           article: subject || null,
           notes: formData.notes || null,
+          deadline: formData.deadline || null,
           shipping_address: custData?.shipping_address || custData?.address || null,
           shipping_city: custData?.city || null,
           shipping_province: custData?.province || null,
@@ -805,6 +810,46 @@ export default function ZAppOrdiniPage() {
                     <Label className="text-xs text-muted-foreground">Data Consegna</Label>
                     <Input type="date" value={formData.delivery_date} onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))} className="mt-1" />
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* 5b. Scadenza e Priorità */}
+            {orderTypeCategory && selectedCustomer && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Scadenza Ordine</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: "molto_urgente", label: "🔴 Molto Urgente", desc: "entro 24h", days: 1 },
+                    { key: "urgente", label: "🟠 Urgente", desc: "entro 48h", days: 2 },
+                    { key: "media", label: "🟡 Media", desc: "entro 5 gg", days: 5 },
+                    { key: "normale", label: "🟢 Normale", desc: "entro 10 gg", days: 10 },
+                  ].map(p => {
+                    const isSelected = selectedPriority === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPriority(p.key);
+                          const d = new Date();
+                          d.setDate(d.getDate() + p.days);
+                          setFormData(prev => ({ ...prev, deadline: d.toISOString().split("T")[0] }));
+                        }}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border text-xs font-medium transition-all",
+                          isSelected ? "border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500" : "border-border bg-muted/30 text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <div>{p.label}</div>
+                        <div className="text-[10px] text-muted-foreground">{p.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Oppure scegli data scadenza</Label>
+                  <Input type="date" value={formData.deadline} onChange={e => { setFormData(p => ({ ...p, deadline: e.target.value })); setSelectedPriority(""); }} className="mt-1" />
                 </div>
               </div>
             )}

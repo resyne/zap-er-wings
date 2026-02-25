@@ -61,6 +61,7 @@ interface Commessa {
   shipping_province?: string;
   shipping_postal_code?: string;
   archived: boolean;
+  deadline?: string;
   created_at: string;
   sales_order_id?: string;
   customer_name?: string;
@@ -481,10 +482,21 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
                   <p className="text-[11px] text-muted-foreground truncate mb-1">{commessa.article}</p>
                 )}
                 <PhasePipeline phases={commessa.phases} />
-                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Inserita il {fmtDate(commessa.created_at)}
-                </p>
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Inserita il {fmtDate(commessa.created_at)}
+                  </p>
+                  {commessa.deadline && (
+                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
+                      new Date(commessa.deadline) < new Date() ? "text-red-600" :
+                      new Date(commessa.deadline) <= new Date(Date.now() + 2 * 86400000) ? "text-amber-600" :
+                      "text-muted-foreground"
+                    }`}>
+                      ⏰ Scadenza: {fmtDate(commessa.deadline)}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </button>
@@ -637,7 +649,7 @@ export default function ZAppCommesse() {
           priority, status, current_phase, article, notes, bom_id, lead_id,
           diameter, smoke_inlet, payment_on_delivery, payment_amount, is_warranty,
           shipping_address, shipping_city, shipping_country, shipping_province, shipping_postal_code,
-          archived, created_at, sales_order_id,
+          archived, deadline, created_at, sales_order_id,
           customers(name, code),
           boms(name, version),
           sales_orders(number),
@@ -673,6 +685,7 @@ export default function ZAppCommesse() {
         shipping_province: c.shipping_province,
         shipping_postal_code: c.shipping_postal_code,
         archived: c.archived,
+        deadline: c.deadline,
         created_at: c.created_at,
         sales_order_id: c.sales_order_id,
         customer_name: c.customers?.name,
