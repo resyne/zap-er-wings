@@ -673,28 +673,161 @@ export default function ZAppNewServiceReportPage() {
 
   const [overrideEmail, setOverrideEmail] = useState('');
 
+  const generatePdfBase64 = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!selectedCustomer || !selectedTechnician) { reject(new Error('Dati mancanti')); return; }
+      const doc = new jsPDF();
+      let y = 20;
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      logoImg.src = '/images/logo-zapper.png';
+      logoImg.onerror = () => {
+        // Continue without logo
+        buildPdfContent(doc, y);
+        resolve(doc.output('datauristring').split(',')[1]);
+      };
+      logoImg.onload = () => {
+        doc.addImage(logoImg, 'PNG', 15, 10, 40, 15);
+        buildPdfContent(doc, 35);
+        resolve(doc.output('datauristring').split(',')[1]);
+      };
+    });
+  };
+
+  const buildPdfContent = (doc: jsPDF, startY: number) => {
+    if (!selectedCustomer || !selectedTechnician) return;
+    let y = startY;
+    doc.setFontSize(18);
+    doc.setFont(undefined!, "bold");
+    doc.text("Rapporto di Intervento", 105, 20, { align: "center" });
+    y = Math.max(y, 35);
+    doc.setFontSize(12);
+    doc.setFont(undefined!, "bold");
+    doc.text("Cliente:", 20, y);
+    doc.setFont(undefined!, "normal");
+    y += 7;
+    doc.text(selectedCustomer.name, 20, y);
+    if (selectedCustomer.company_name) { y += 7; doc.text(selectedCustomer.company_name, 20, y); }
+    if (selectedCustomer.email) { y += 7; doc.text(`Email: ${selectedCustomer.email}`, 20, y); }
+    if (selectedCustomer.phone) { y += 7; doc.text(`Tel: ${selectedCustomer.phone}`, 20, y); }
+    if (selectedCustomer.address) { y += 7; doc.text(`Indirizzo: ${[selectedCustomer.address, selectedCustomer.city].filter(Boolean).join(', ')}`, 20, y); }
+    y += 10;
+    if (selectedWorkOrder) {
+      doc.setFont(undefined!, "bold");
+      doc.text("Commessa di Lavoro:", 20, y);
+      doc.setFont(undefined!, "normal");
+      y += 7;
+      doc.text(`${selectedWorkOrder.number} - ${selectedWorkOrder.title}`, 20, y);
+      y += 10;
+    }
+    doc.setFont(undefined!, "bold");
+    doc.text("Dettagli Intervento:", 20, y);
+    doc.setFont(undefined!, "normal");
+    y += 7;
+    doc.text(`Data: ${formData.intervention_date}`, 20, y); y += 7;
+    if (formData.start_time && formData.end_time) { doc.text(`Orario: ${formData.start_time} - ${formData.end_time}`, 20, y); y += 7; }
+    doc.text(`Tipo: ${formData.intervention_type}`, 20, y); y += 7;
+    doc.text(`Tecnico: ${selectedTechnician.first_name} ${selectedTechnician.last_name}`, 20, y); y += 7;
+    doc.text(`N. Tecnici presenti: ${techniciansList.length || 1}`, 20, y); y += 7;
+    if (parseFloat(formData.kilometers) > 0) { doc.text(`Km percorsi: ${formData.kilometers}`, 20, y); y += 7; }
+    y += 3;
+    if (formData.description) {
+      doc.setFont(undefined!, "bold"); doc.text("Descrizione Problema:", 20, y); doc.setFont(undefined!, "normal"); y += 7;
+      const lines = doc.splitTextToSize(formData.description, 170); doc.text(lines, 20, y); y += lines.length * 7 + 3;
+    }
+    if (formData.work_performed) {
+      doc.setFont(undefined!, "bold"); doc.text("Lavori Eseguiti:", 20, y); doc.setFont(undefined!, "normal"); y += 7;
+      const lines = doc.splitTextToSize(formData.work_performed, 170); doc.text(lines, 20, y); y += lines.length * 7 + 3;
+    }
+    if (materialItems.length > 0 && materialItems.some(m => m.description.trim())) {
+      if (y > 200) { doc.addPage(); y = 20; }
+      doc.setFont(undefined!, "bold"); doc.text("Materiali Utilizzati:", 20, y); y += 7;
+      doc.setFontSize(9); doc.setFont(undefined!, "bold");
+      doc.text("Descrizione", 20, y); doc.text("Qtà", 120, y); doc.text("Prezzo", 140, y); doc.text("IVA", 165, y); doc.text("Totale", 180, y);
+      y += 5; doc.line(20, y, 195, y); y += 3; doc.setFont(undefined!, "normal");
+      let matNettoTotal = 0; let matIvaTotal = 0;
+      materialItems.filter(m => m.description.trim()).forEach(item => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const netto = item.quantity * item.unit_price; const iva = netto * item.vat_rate / 100;
+        matNettoTotal += netto; matIvaTotal += iva;
+        const descText = doc.splitTextToSize(item.description, 95);
+        doc.text(descText, 20, y); doc.text(String(item.quantity), 120, y);
+        doc.text(item.unit_price > 0 ? `€${item.unit_price.toFixed(2)}` : '-', 140, y);
+        doc.text(`${item.vat_rate}%`, 165, y);
+        doc.text(item.unit_price > 0 ? `€${(netto + iva).toFixed(2)}` : '-', 180, y);
+        y += descText.length * 5 + 2;
+      });
+      if (matNettoTotal > 0) {
+        y += 2; doc.line(20, y, 195, y); y += 5; doc.setFont(undefined!, "bold");
+        doc.text(`Netto: €${matNettoTotal.toFixed(2)}  |  IVA: €${matIvaTotal.toFixed(2)}  |  Totale: €${(matNettoTotal + matIvaTotal).toFixed(2)}`, 20, y);
+        y += 5;
+      }
+      doc.setFontSize(12); doc.setFont(undefined!, "normal"); y += 5;
+    }
+    if (formData.notes) {
+      doc.setFont(undefined!, "bold"); doc.text("Note:", 20, y); doc.setFont(undefined!, "normal"); y += 7;
+      const lines = doc.splitTextToSize(formData.notes, 170); doc.text(lines, 20, y); y += lines.length * 7 + 3;
+    }
+    if (formData.amount) {
+      if (y > 220) { doc.addPage(); y = 20; }
+      y += 10; doc.setFont(undefined!, "bold"); doc.text("Dettagli Economici:", 20, y); doc.setFont(undefined!, "normal"); y += 7;
+      doc.text(`Importo: €${parseFloat(formData.amount).toFixed(2)}`, 20, y); y += 7;
+      doc.text(`IVA: ${parseFloat(formData.vat_rate).toFixed(2)}%`, 20, y); y += 7;
+      doc.setFont(undefined!, "bold"); doc.text(`Totale: €${parseFloat(formData.total_amount).toFixed(2)}`, 20, y); y += 10;
+    }
+    if (y > 210) { doc.addPage(); y = 20; }
+    y += 5; doc.setFontSize(8); doc.setFont(undefined!, "bold"); doc.text("TERMINI E CONDIZIONI", 20, y); y += 5; doc.setFont(undefined!, "normal");
+    const tcLines = [
+      "1. Costo manodopera: le tariffe orarie sono calcolate secondo il listino vigente, con minimo di 1 ora per intervento.",
+      "2. Costi chilometrici: il rimborso chilometrico viene calcolato dalla sede operativa al luogo dell'intervento (andata e ritorno).",
+      "3. Diritto di chiamata: ogni intervento prevede un diritto fisso di chiamata come da listino.",
+      "4. Materiali: i materiali utilizzati vengono fatturati separatamente secondo listino, salvo diverso accordo scritto.",
+      "5. Orari straordinari: interventi in orario notturno, festivo o prefestivo prevedono una maggiorazione secondo listino.",
+      "6. Pagamento: salvo diversi accordi, il pagamento è da effettuarsi entro 30 giorni dalla data di emissione della fattura.",
+      "7. Garanzia lavori: i lavori eseguiti sono garantiti per 12 mesi dalla data dell'intervento, salvo usura normale.",
+    ];
+    tcLines.forEach(line => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      const wrapped = doc.splitTextToSize(line, 170); doc.text(wrapped, 20, y); y += wrapped.length * 4 + 1;
+    });
+    doc.setFontSize(12);
+    if (y > 220) { doc.addPage(); y = 20; }
+    y += 10; doc.setFont(undefined!, "bold");
+    doc.text("Firma Cliente:", 20, y); doc.text("Firma Tecnico:", 110, y);
+    if (customerSignature) doc.addImage(customerSignature, "PNG", 20, y + 5, 70, 30);
+    if (technicianSignature) doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8); doc.setFont(undefined!, "normal");
+    doc.text("ZAPPER - marchio commerciale della ditta CLIMATEL di Elefante Pasquale", 105, pageHeight - 20, { align: "center" });
+    doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
+    doc.text("C.F. LFNPQL67L02I483U | P.IVA 03895390650", 105, pageHeight - 12, { align: "center" });
+    doc.text("www.abbattitorizapper.it | 08119968436", 105, pageHeight - 8, { align: "center" });
+  };
+
   const sendEmail = async () => {
     const emailToUse = overrideEmail.trim() || selectedCustomer?.email;
     if (!emailToUse) { toast.error("Inserisci un indirizzo email"); return; }
     setLoading(true);
     try {
-      // If user provided a new email, update the customer record
       if (overrideEmail.trim() && selectedCustomer && overrideEmail.trim() !== selectedCustomer.email) {
         await supabase.from('customers').update({ email: overrideEmail.trim() }).eq('id', selectedCustomer.id);
       }
+
+      toast.info("Generazione PDF in corso...");
+      const pdfBase64 = await generatePdfBase64();
+      const fileName = `Rapporto_Intervento_${formData.intervention_date}_${selectedCustomer?.name.replace(/\s+/g, '_')}.pdf`;
 
       const { data, error } = await supabase.functions.invoke('send-service-report-email', {
         body: {
           recipientEmail: emailToUse,
           recipientName: selectedCustomer?.name || 'Cliente',
-          customer: selectedCustomer,
-          technician: selectedTechnician,
-          techniciansList,
-          formData,
-          materialItems,
-          workOrder: selectedWorkOrder,
-          customerSignature,
-          technicianSignature,
+          customerName: selectedCustomer?.name || 'Cliente',
+          technicianName: `${selectedTechnician?.first_name} ${selectedTechnician?.last_name}`,
+          interventionDate: formData.intervention_date,
+          interventionType: formData.intervention_type,
+          workPerformed: formData.work_performed,
+          pdfBase64,
+          fileName,
         }
       });
 
