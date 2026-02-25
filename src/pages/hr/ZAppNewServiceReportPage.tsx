@@ -158,7 +158,7 @@ export default function ZAppNewServiceReportPage() {
           .eq('active', true).order('first_name'),
         supabase.from('service_work_orders')
           .select('id, number, title, description, customer_id')
-          .neq('status', 'completata')
+          .not('status', 'in', '("completata","archiviata","annullata")')
           .order('number', { ascending: false }),
         supabase.from('service_report_settings')
           .select('setting_key, setting_value')
