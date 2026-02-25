@@ -85,6 +85,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   da_fare: { label: "Da fare", color: "bg-amber-100 text-amber-700 border-amber-200" },
   da_preparare: { label: "Da preparare", color: "bg-amber-100 text-amber-700 border-amber-200" },
   da_programmare: { label: "Da programmare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  programmata: { label: "Programmata", color: "bg-blue-100 text-blue-700 border-blue-200" },
   da_completare: { label: "Da completare", color: "bg-orange-100 text-orange-700 border-orange-200" },
   planned: { label: "Pianificato", color: "bg-blue-100 text-blue-700 border-blue-200" },
   in_lavorazione: { label: "In lavorazione", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
@@ -130,6 +131,7 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
   ],
   installazione: [
     { value: "da_programmare", label: "Da programmare" },
+    { value: "programmata", label: "Programmata" },
     { value: "da_completare", label: "Da completare" },
     { value: "completata", label: "Completata" },
   ],
@@ -589,8 +591,13 @@ export default function ZAppCommesse() {
   });
 
   const schedulePhseMutation = useMutation({
-    mutationFn: async ({ phaseId, date }: { phaseId: string; date: string }) => {
-      const { error } = await supabase.from("commessa_phases").update({ scheduled_date: date }).eq("id", phaseId);
+    mutationFn: async ({ phaseId, date, phaseType }: { phaseId: string; date: string; phaseType?: string }) => {
+      const updateData: any = { scheduled_date: date };
+      // Se è un'installazione con stato "da_programmare", passa automaticamente a "programmata"
+      if (phaseType === "installazione") {
+        updateData.status = "programmata";
+      }
+      const { error } = await supabase.from("commessa_phases").update(updateData).eq("id", phaseId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -615,6 +622,7 @@ export default function ZAppCommesse() {
     schedulePhseMutation.mutate({
       phaseId: schedulePhase.phase.id,
       date: format(scheduleDate, "yyyy-MM-dd"),
+      phaseType: schedulePhase.phase.phase_type,
     });
   }, [schedulePhase, scheduleDate, schedulePhseMutation]);
 
