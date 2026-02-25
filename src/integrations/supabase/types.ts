@@ -8179,6 +8179,7 @@ export type Database = {
           delivery_date: string | null
           delivery_mode: string | null
           id: string
+          intervention_type: string | null
           invoice_date: string | null
           invoice_number: string | null
           invoiced: boolean | null
@@ -8207,6 +8208,7 @@ export type Database = {
           delivery_date?: string | null
           delivery_mode?: string | null
           id?: string
+          intervention_type?: string | null
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
@@ -8235,6 +8237,7 @@ export type Database = {
           delivery_date?: string | null
           delivery_mode?: string | null
           id?: string
+          intervention_type?: string | null
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
