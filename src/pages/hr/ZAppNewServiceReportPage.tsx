@@ -50,6 +50,7 @@ interface WorkOrder {
   title: string;
   description?: string;
   customer_id?: string;
+  customer_name?: string;
   type: 'service' | 'production';
 }
 
@@ -151,7 +152,7 @@ export default function ZAppNewServiceReportPage() {
 
   const loadInitialData = async () => {
     try {
-      const [customersRes, techniciansRes, serviceOrdersRes, settingsRes] = await Promise.all([
+      const [customersRes, techniciansRes, serviceOrdersRes, productionOrdersRes, settingsRes] = await Promise.all([
         supabase.from('customers')
           .select('id, name, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address')
           .order('company_name', { ascending: true, nullsFirst: false }).order('name'),
@@ -163,12 +164,37 @@ export default function ZAppNewServiceReportPage() {
           .eq('archived', false)
           .not('status', 'in', '("completata","archiviata","annullata")')
           .order('number', { ascending: false }),
+        supabase.from('work_orders')
+          .select('id, number, title, description, customer_id, customers(name, company_name)')
+          .eq('archived', false)
+          .order('number', { ascending: false }),
         supabase.from('service_report_settings')
           .select('setting_key, setting_value')
       ]);
       setCustomers(customersRes.data || []);
       setTechnicians(techniciansRes.data || []);
-      setWorkOrders((serviceOrdersRes.data || []).map(wo => ({ ...wo, type: 'service' as const })));
+
+      const serviceOrders: WorkOrder[] = (serviceOrdersRes.data || []).map((wo: any) => ({
+        id: wo.id,
+        number: wo.number,
+        title: wo.title,
+        description: wo.description,
+        customer_id: wo.customer_id,
+        customer_name: wo.customers?.company_name || wo.customers?.name || '',
+        type: 'service' as const,
+      }));
+
+      const productionOrders: WorkOrder[] = (productionOrdersRes.data || []).map((wo: any) => ({
+        id: wo.id,
+        number: wo.number,
+        title: wo.title,
+        description: wo.description,
+        customer_id: wo.customer_id,
+        customer_name: wo.customers?.company_name || wo.customers?.name || '',
+        type: 'production' as const,
+      }));
+
+      setWorkOrders([...serviceOrders, ...productionOrders]);
       if (settingsRes.data) {
         const newSettings: Record<string, number> = {};
         settingsRes.data.forEach((s: { setting_key: string; setting_value: number }) => {
@@ -665,14 +691,11 @@ export default function ZAppNewServiceReportPage() {
                 <Select onValueChange={handleWorkOrderSelect}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleziona commessa..." /></SelectTrigger>
                   <SelectContent>
-                    {workOrders.map(wo => {
-                      const customerName = (wo as any).customers?.company_name || (wo as any).customers?.name || '';
-                      return (
-                        <SelectItem key={wo.id} value={wo.id}>
-                          {customerName ? `${customerName} - ` : ''}{wo.title || wo.number}
-                        </SelectItem>
-                      );
-                    })}
+                    {workOrders.map(wo => (
+                      <SelectItem key={wo.id} value={wo.id}>
+                        {wo.customer_name ? `${wo.customer_name} - ` : ''}{wo.title || wo.number}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
