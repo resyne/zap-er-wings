@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +32,9 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
     unit_of_measure: "pz",
     material_id: "",
     bom_id: "",
+    requires_production: true,
+    installation_possible: false,
+    shipping_possible: true,
   });
 
   useEffect(() => {
@@ -42,6 +46,9 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
         unit_of_measure: product.unit_of_measure || "pz",
         material_id: product.material_id || "",
         bom_id: product.bom_id || "",
+        requires_production: product.requires_production ?? true,
+        installation_possible: product.installation_possible ?? false,
+        shipping_possible: product.shipping_possible ?? true,
       });
     }
   }, [product]);
@@ -105,6 +112,9 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
           unit_of_measure: formData.unit_of_measure,
           material_id: formData.material_id || null,
           bom_id: formData.bom_id || null,
+          requires_production: formData.requires_production,
+          installation_possible: formData.installation_possible,
+          shipping_possible: formData.shipping_possible,
         })
         .eq("id", product.id);
 
@@ -188,6 +198,38 @@ export function EditProductDialog({ open, onOpenChange, product, onSuccess }: Ed
               onChange={(e) => setFormData({ ...formData, unit_of_measure: e.target.value })}
               placeholder="pz"
             />
+          </div>
+
+          <div className="space-y-4 p-4 bg-blue-50/50 rounded-lg border">
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold">Capacità Prodotto</Label>
+              <p className="text-xs text-muted-foreground">
+                Definisce cosa è tecnicamente possibile per questo prodotto
+              </p>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={formData.requires_production}
+                  onCheckedChange={(v) => setFormData({ ...formData, requires_production: !!v })}
+                />
+                <span className="text-sm">Richiede produzione</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={formData.installation_possible}
+                  onCheckedChange={(v) => setFormData({ ...formData, installation_possible: !!v })}
+                />
+                <span className="text-sm">Installazione possibile</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={formData.shipping_possible}
+                  onCheckedChange={(v) => setFormData({ ...formData, shipping_possible: !!v })}
+                />
+                <span className="text-sm">Spedizione possibile</span>
+              </label>
+            </div>
           </div>
 
           <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
