@@ -314,9 +314,9 @@ export default function ZAppNewServiceReportPage() {
         intervention_date: formData.intervention_date,
         start_time: formData.start_time || null,
         end_time: formData.end_time || null,
-        amount: formData.amount ? parseFloat(formData.amount) : null,
-        vat_rate: formData.vat_rate ? parseFloat(formData.vat_rate) : null,
-        total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+        amount: isQuotedOrder ? 0 : (formData.amount ? parseFloat(formData.amount) : null),
+        vat_rate: isQuotedOrder ? 0 : (formData.vat_rate ? parseFloat(formData.vat_rate) : null),
+        total_amount: isQuotedOrder ? 0 : (formData.total_amount ? parseFloat(formData.total_amount) : null),
         customer_signature: customerSignature,
         technician_signature: technicianSignature,
         status: 'completed' as const,
@@ -806,57 +806,67 @@ export default function ZAppNewServiceReportPage() {
 
             {/* Economics */}
             <MobileSection title="Riepilogo Economico" icon={Euro}>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Importo (€)</Label>
-                  <Input type="number" step="0.01" className="h-11 rounded-xl text-base" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" inputMode="decimal" />
+              {isQuotedOrder ? (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center space-y-1">
+                  <CheckCircle2 className="h-8 w-8 text-primary mx-auto" />
+                  <p className="text-sm font-semibold">Commessa già quotata</p>
+                  <p className="text-xs text-muted-foreground">Nessun importo verrà generato per questo intervento. Gli importi sono già inclusi nella commessa di riferimento.</p>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">IVA (%)</Label>
-                  <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
-                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-                      <SelectItem value="4">4%</SelectItem>
-                      <SelectItem value="10">10%</SelectItem>
-                      <SelectItem value="22">22%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Totale (€)</Label>
-                  <div className="h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center">
-                    <span className="text-base font-bold text-blue-700">€{formData.total_amount || '0.00'}</span>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Importo (€)</Label>
+                      <Input type="number" step="0.01" className="h-11 rounded-xl text-base" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" inputMode="decimal" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">IVA (%)</Label>
+                      <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
+                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0%</SelectItem>
+                          <SelectItem value="4">4%</SelectItem>
+                          <SelectItem value="10">10%</SelectItem>
+                          <SelectItem value="22">22%</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Totale (€)</Label>
+                      <div className="h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center">
+                        <span className="text-base font-bold text-blue-700">€{formData.total_amount || '0.00'}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              {(calculatedHours > 0 || parseFloat(formData.kilometers) > 0) && (
-                <div className="bg-muted/50 rounded-xl p-3 space-y-1 text-xs text-muted-foreground">
-                  {techniciansList.filter(t => t.type === 'head').length > 0 && (
-                    <div className="flex justify-between">
-                      <span>Capi Tecnici ({techniciansList.filter(t => t.type === 'head').length}x {calculatedHours}h)</span>
-                      <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'head').length * pricingSettings.head_technician_hourly_rate).toFixed(2)}</span>
+                  {(calculatedHours > 0 || parseFloat(formData.kilometers) > 0) && (
+                    <div className="bg-muted/50 rounded-xl p-3 space-y-1 text-xs text-muted-foreground">
+                      {techniciansList.filter(t => t.type === 'head').length > 0 && (
+                        <div className="flex justify-between">
+                          <span>Capi Tecnici ({techniciansList.filter(t => t.type === 'head').length}x {calculatedHours}h)</span>
+                          <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'head').length * pricingSettings.head_technician_hourly_rate).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {techniciansList.filter(t => t.type === 'specialized').length > 0 && (
+                        <div className="flex justify-between">
+                          <span>Specializzati ({techniciansList.filter(t => t.type === 'specialized').length}x {calculatedHours}h)</span>
+                          <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'specialized').length * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {parseFloat(formData.kilometers) > 0 && (
+                        <div className="flex justify-between">
+                          <span>Km ({formData.kilometers} km)</span>
+                          <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {materialsTotalNetto > 0 && (
+                        <div className="flex justify-between">
+                          <span>Materiali (netto)</span>
+                          <span className="font-medium text-foreground">€{materialsTotalNetto.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {techniciansList.filter(t => t.type === 'specialized').length > 0 && (
-                    <div className="flex justify-between">
-                      <span>Specializzati ({techniciansList.filter(t => t.type === 'specialized').length}x {calculatedHours}h)</span>
-                      <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'specialized').length * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {parseFloat(formData.kilometers) > 0 && (
-                    <div className="flex justify-between">
-                      <span>Km ({formData.kilometers} km)</span>
-                      <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * pricingSettings.head_technician_km_rate).toFixed(2)}</span>
-                    </div>
-                  )}
-                  {materialsTotalNetto > 0 && (
-                    <div className="flex justify-between">
-                      <span>Materiali (netto)</span>
-                      <span className="font-medium text-foreground">€{materialsTotalNetto.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
+                </>
               )}
             </MobileSection>
           </>
