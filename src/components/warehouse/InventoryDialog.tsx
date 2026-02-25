@@ -95,7 +95,7 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
       const movements = changedItems.map((m) => ({
         movement_date: new Date().toISOString(),
         movement_type: "carico",
-        origin_type: "Inventario",
+        origin_type: "inventario",
         item_description: `Inventario: ${m.name}`,
         quantity: parseFloat(quantities[m.id]),
         unit: m.unit,
