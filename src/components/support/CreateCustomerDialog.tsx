@@ -295,41 +295,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox
-              id="same_billing"
-              checked={sameBillingAddress}
-              onCheckedChange={(checked) => {
-                setSameBillingAddress(checked as boolean);
-                if (checked) {
-                  handleInputChange('shipping_address', '');
-                }
-              }}
-            />
-            <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
-          </div>
-
-          {!sameBillingAddress && (
-            <div className="space-y-2">
-              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
-              <Textarea
-                id="shipping_address"
-                value={formData.shipping_address}
-                onChange={(e) => handleInputChange('shipping_address', e.target.value)}
-                placeholder="Via, numero civico"
-                rows={2}
-              />
-            </div>
-          )}
-
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch
-              id="active"
-              checked={formData.active}
-              onCheckedChange={(checked) => handleInputChange('active', checked)}
-            />
-            <Label htmlFor="active">Cliente attivo</Label>
-          </div>
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
