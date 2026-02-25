@@ -592,13 +592,20 @@ export default function ZAppNewServiceReportPage() {
     };
   };
 
+  const [overrideEmail, setOverrideEmail] = useState('');
+
   const sendEmail = async () => {
-    if (!selectedCustomer?.email) { toast.error("Il cliente non ha un indirizzo email"); return; }
+    const emailToUse = overrideEmail.trim() || selectedCustomer?.email;
+    if (!emailToUse) { toast.error("Inserisci un indirizzo email"); return; }
     setLoading(true);
     try {
+      // If user provided a new email, update the customer record
+      if (overrideEmail.trim() && selectedCustomer && overrideEmail.trim() !== selectedCustomer.email) {
+        await supabase.from('customers').update({ email: overrideEmail.trim() }).eq('id', selectedCustomer.id);
+      }
       const { error } = await supabase.functions.invoke('send-customer-emails', {
         body: {
-          to: selectedCustomer.email,
+          to: emailToUse,
           subject: `Rapporto di Intervento - ${formData.intervention_date}`,
           recipientName: selectedCustomer.name,
           message: `Gentile ${selectedCustomer.name},\n\nin allegato trovi il rapporto di intervento del ${formData.intervention_date}.\n\nTipo intervento: ${formData.intervention_type}\nTecnico: ${selectedTechnician?.first_name} ${selectedTechnician?.last_name}\n\n${formData.work_performed ? `Lavori eseguiti:\n${formData.work_performed}\n\n` : ''}Cordiali saluti`,
@@ -606,7 +613,7 @@ export default function ZAppNewServiceReportPage() {
         }
       });
       if (error) throw error;
-      toast.success(`Email inviata a ${selectedCustomer.email}`);
+      toast.success(`Email inviata a ${emailToUse}`);
     } catch (error) {
       console.error('Error sending email:', error);
       toast.error("Errore nell'invio dell'email");
@@ -1146,9 +1153,27 @@ export default function ZAppNewServiceReportPage() {
               <Button onClick={generatePDF} variant="outline" className="w-full h-14 text-base rounded-xl active:scale-95 transition-transform" disabled={loading}>
                 <Download className="h-5 w-5 mr-3" /> Scarica PDF
               </Button>
-              <Button onClick={sendEmail} variant="outline" className="w-full h-14 text-base rounded-xl active:scale-95 transition-transform" disabled={loading || !selectedCustomer?.email}>
-                {loading ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <Mail className="h-5 w-5 mr-3" />} Invia Email al Cliente
-              </Button>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="email"
+                    placeholder={selectedCustomer?.email || "Email del cliente..."}
+                    value={overrideEmail}
+                    onChange={e => setOverrideEmail(e.target.value)}
+                    className="h-12 pl-10 rounded-xl text-sm"
+                  />
+                  {!selectedCustomer?.email && !overrideEmail && (
+                    <p className="text-xs text-amber-600 mt-1 px-1">⚠️ Nessuna email in anagrafica — inseriscine una</p>
+                  )}
+                  {overrideEmail && selectedCustomer?.email && overrideEmail.trim() !== selectedCustomer.email && (
+                    <p className="text-xs text-blue-600 mt-1 px-1">L'anagrafica cliente verrà aggiornata</p>
+                  )}
+                </div>
+                <Button onClick={sendEmail} variant="outline" className="w-full h-14 text-base rounded-xl active:scale-95 transition-transform" disabled={loading || (!selectedCustomer?.email && !overrideEmail.trim())}>
+                  {loading ? <Loader2 className="h-5 w-5 mr-3 animate-spin" /> : <Mail className="h-5 w-5 mr-3" />} Invia Email al Cliente
+                </Button>
+              </div>
               <Button onClick={() => navigate("/hr/z-app/rapporti")} className="w-full h-14 text-base bg-blue-600 hover:bg-blue-700 rounded-xl active:scale-95 transition-transform">
                 Torna ai Rapporti
               </Button>
