@@ -499,6 +499,20 @@ const CustomerGroupCard = memo(function CustomerGroupCard({ group, onStatusChang
                   <p className="text-[10px] text-muted-foreground mb-1.5">Cod. {group.customerCode}</p>
                 )}
                 <PhasePipeline group={group} />
+                {/* Show earliest created_at date */}
+                {(() => {
+                  const allOrders = [...group.production, ...group.shipping, ...group.service];
+                  const earliest = allOrders.reduce((min, o) => !min || o.created_at < min ? o.created_at : min, "");
+                  if (!earliest) return null;
+                  try {
+                    return (
+                      <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Inserita il {format(new Date(earliest), "dd MMM yyyy", { locale: it })}
+                      </p>
+                    );
+                  } catch { return null; }
+                })()}
               </div>
             </div>
           </button>
@@ -784,10 +798,19 @@ export default function ZAppCommesse() {
       else if (order.type === "servizio") group.service.push(order);
     });
 
-    // Sort: groups with active work first, then by customer name
+    const priorityWeight = (p?: string) => p === 'urgent' ? 4 : p === 'high' ? 3 : p === 'medium' ? 2 : p === 'low' ? 1 : 0;
+
+    // Sort: by highest priority order in the group, then active first, then by customer name
     return Array.from(groupMap.values()).sort((a, b) => {
-      const aActive = [...a.production, ...a.shipping, ...a.service].some(o => !completedStatuses.includes(o.status));
-      const bActive = [...b.production, ...b.shipping, ...b.service].some(o => !completedStatuses.includes(o.status));
+      const allA = [...a.production, ...a.shipping, ...a.service];
+      const allB = [...b.production, ...b.shipping, ...b.service];
+      // Highest priority in group
+      const maxPriorityA = Math.max(...allA.map(o => priorityWeight(o.priority)), 0);
+      const maxPriorityB = Math.max(...allB.map(o => priorityWeight(o.priority)), 0);
+      if (maxPriorityA !== maxPriorityB) return maxPriorityB - maxPriorityA;
+      // Active groups first
+      const aActive = allA.some(o => !completedStatuses.includes(o.status));
+      const bActive = allB.some(o => !completedStatuses.includes(o.status));
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
       return a.customerName.localeCompare(b.customerName);
