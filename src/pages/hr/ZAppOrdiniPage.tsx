@@ -72,16 +72,15 @@ interface Material {
 }
 
 const ORDER_TYPE_CATEGORIES = [
-  { value: "produzione", label: "Produzione", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
+  { value: "fornitura", label: "Fornitura", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
   { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
   { value: "ricambi", label: "Ricambi", icon: Settings, color: "text-purple-600 bg-purple-50 border-purple-200" },
-  { value: "installazione", label: "Installazione", icon: MapPin, color: "text-green-600 bg-green-50 border-green-200" },
 ];
 
-const DELIVERY_MODES_PRODUZIONE = [
-  { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Produzione + Spedizione" },
-  { value: "installazione", label: "Installazione", icon: MapPin, desc: "Produzione + Installazione" },
-  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Solo Produzione" },
+const DELIVERY_MODES_FORNITURA = [
+  { value: "produzione_spedizione", label: "Produzione e Spedizione", icon: Truck, desc: "Produzione + Spedizione" },
+  { value: "produzione_installazione", label: "Produzione e Installazione", icon: MapPin, desc: "Produzione + Installazione" },
+  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro in sede" },
 ];
 
 const DELIVERY_MODES_RICAMBI = [
@@ -113,10 +112,11 @@ const statusLabels: Record<string, string> = {
 };
 
 const categoryLabels: Record<string, string> = {
-  produzione: "Produzione",
+  fornitura: "Fornitura",
+  produzione: "Fornitura", // backward compat for old orders
   intervento: "Intervento",
   ricambi: "Ricambi",
-  installazione: "Installazione",
+  installazione: "Installazione", // backward compat for old orders
 };
 
 type ViewMode = "list" | "detail";
@@ -237,13 +237,13 @@ export default function ZAppOrdiniPage() {
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
   const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
 
-  const needsDeliveryMode = ["produzione", "ricambi"].includes(orderTypeCategory);
+  const needsDeliveryMode = ["fornitura", "ricambi"].includes(orderTypeCategory);
   const needsInterventionType = orderTypeCategory === "intervento";
-  const needsProductSelection = ["produzione", "ricambi"].includes(orderTypeCategory);
+  const needsProductSelection = ["fornitura", "ricambi"].includes(orderTypeCategory);
 
   const availableDeliveryModes = useMemo(() => {
     if (orderTypeCategory === "ricambi") return DELIVERY_MODES_RICAMBI;
-    return DELIVERY_MODES_PRODUZIONE;
+    return DELIVERY_MODES_FORNITURA;
   }, [orderTypeCategory]);
 
   const openCreateForm = () => {
@@ -269,18 +269,15 @@ export default function ZAppOrdiniPage() {
   const computeCommesse = () => {
     const commesse: string[] = [];
 
-    if (orderTypeCategory === "produzione") {
+    if (orderTypeCategory === "fornitura") {
       commesse.push("Produzione");
-      if (deliveryMode === "installazione") commesse.push("Installazione");
-      if (deliveryMode === "spedizione") commesse.push("Spedizione");
+      if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
+      if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
       const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Intervento";
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
-    } else if (orderTypeCategory === "installazione") {
-      commesse.push("Produzione");
-      commesse.push("Installazione");
     }
 
     return commesse;
