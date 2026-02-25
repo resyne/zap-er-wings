@@ -661,10 +661,10 @@ export default function ZAppNewServiceReportPage() {
       if (technicianSignature) doc.addImage(technicianSignature, "PNG", 110, y + 5, 70, 30);
       const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8); doc.setFont(undefined!, "normal");
-      doc.text("CLIMATEL DI ELEFANTE Pasquale", 105, pageHeight - 20, { align: "center" });
+      doc.text("ZAPPER - marchio commerciale della ditta CLIMATEL di Elefante Pasquale", 105, pageHeight - 20, { align: "center" });
       doc.text("Via G. Ferraris n° 24 - 84018 SCAFATI (SA) - Italia", 105, pageHeight - 16, { align: "center" });
-      doc.text("C.F. LFNPQL67L02I483U P.Iva 03895390650", 105, pageHeight - 12, { align: "center" });
-      doc.text("www.abbattitorizapper.it  08119968436", 105, pageHeight - 8, { align: "center" });
+      doc.text("C.F. LFNPQL67L02I483U | P.IVA 03895390650", 105, pageHeight - 12, { align: "center" });
+      doc.text("www.abbattitorizapper.it | 08119968436", 105, pageHeight - 8, { align: "center" });
       const fileName = `rapporto_${formData.intervention_date}_${selectedCustomer.name.replace(/\s+/g, '_')}.pdf`;
       doc.save(fileName);
       toast.success("PDF scaricato");
@@ -683,70 +683,28 @@ export default function ZAppNewServiceReportPage() {
         await supabase.from('customers').update({ email: overrideEmail.trim() }).eq('id', selectedCustomer.id);
       }
 
-      const emailSubject = `Rapporto di Intervento - ${formData.intervention_date}`;
-      const techName = `${selectedTechnician?.first_name || ''} ${selectedTechnician?.last_name || ''}`.trim();
-      const emailMessage = `Gentile ${selectedCustomer?.name || 'Cliente'},\n\nin allegato trovi il rapporto di intervento del ${formData.intervention_date}.\n\nTipo intervento: ${formData.intervention_type}\nTecnico: ${techName}\n\n${formData.work_performed ? `Lavori eseguiti:\n${formData.work_performed}\n\n` : ''}Cordiali saluti,\nIl Team Zapper`;
+      const { data, error } = await supabase.functions.invoke('send-service-report-email', {
+        body: {
+          recipientEmail: emailToUse,
+          recipientName: selectedCustomer?.name || 'Cliente',
+          customer: selectedCustomer,
+          technician: selectedTechnician,
+          techniciansList,
+          formData,
+          materialItems,
+          workOrder: selectedWorkOrder,
+          customerSignature,
+          technicianSignature,
+        }
+      });
 
-      const emailHtml = `
-        <!DOCTYPE html>
-        <html lang="it">
-        <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-        <body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f4f4f4;">
-          <table role="presentation" style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:40px 20px;">
-              <table role="presentation" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                <tr><td style="background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);padding:30px;text-align:center;">
-                  <h2 style="color:#ffffff;margin:0;font-size:22px;font-weight:600;">Zapper - Assistenza Tecnica</h2>
-                  <p style="color:#ffffff;margin:5px 0 0;font-size:14px;opacity:0.95;">Rapporto di Intervento</p>
-                </td></tr>
-                <tr><td style="padding:40px 30px;">
-                  <div style="color:#333333;font-size:15px;line-height:1.6;">
-                    ${emailMessage.replace(/\n/g, '<br>')}
-                  </div>
-                </td></tr>
-                <tr><td style="background-color:#f8f8f8;padding:30px;border-top:3px solid #2563eb;">
-                  <div style="text-align:center;">
-                    <p style="margin:0;font-size:12px;color:#888888;line-height:1.5;">
-                      <strong>Zapper S.r.l.</strong><br>
-                      📧 <a href="mailto:info@abbattitorizapper.it" style="color:#2563eb;text-decoration:none;">info@abbattitorizapper.it</a>
-                    </p>
-                  </div>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
-        </body>
-        </html>
-      `;
-
-      // Insert email to customer into the queue
-      const { error: queueError } = await supabase.from('email_queue').insert([
-        {
-          recipient_email: emailToUse,
-          recipient_name: selectedCustomer?.name || 'Cliente',
-          subject: emailSubject,
-          message: emailMessage,
-          html_content: emailHtml,
-          sender_email: 'noreply@erp.abbattitorizapper.it',
-          sender_name: 'Zapper Assistenza',
-          metadata: { type: 'service_report', customer_id: selectedCustomer?.id },
-        },
-        {
-          recipient_email: 'info@abbattitorizapper.it',
-          recipient_name: 'Zapper Info',
-          subject: `[CC] ${emailSubject} - ${selectedCustomer?.name || 'Cliente'}`,
-          message: emailMessage,
-          html_content: emailHtml,
-          sender_email: 'noreply@erp.abbattitorizapper.it',
-          sender_name: 'Zapper Assistenza',
-          metadata: { type: 'service_report_cc', customer_id: selectedCustomer?.id, original_recipient: emailToUse },
-        },
-      ]);
-      if (queueError) throw queueError;
-      toast.success(`Email inviata a ${emailToUse} (CC: info@abbattitorizapper.it)`);
-    } catch (error) {
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error || 'Errore invio email');
+      
+      toast.success(`Email con PDF inviata a ${emailToUse} (CC: info@abbattitorizapper.it)`);
+    } catch (error: any) {
       console.error('Error sending email:', error);
-      toast.error("Errore nell'invio dell'email");
+      toast.error(error.message || "Errore nell'invio dell'email");
     } finally {
       setLoading(false);
     }

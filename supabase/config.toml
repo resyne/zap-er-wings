@@ -153,5 +153,8 @@ verify_jwt = false
 [functions.analyze-competitor-pricelist]
 verify_jwt = false
 
+[functions.send-service-report-email]
+verify_jwt = false
+
 [functions.ai-cost-estimator]
 verify_jwt = false
