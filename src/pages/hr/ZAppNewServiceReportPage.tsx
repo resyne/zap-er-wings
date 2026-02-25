@@ -152,9 +152,9 @@ export default function ZAppNewServiceReportPage() {
       try {
         // Geocode cities with resilient fallbacks (Nominatim -> Photon)
         const normalizeCity = (city: string) => {
+          // Just use the city name without province code for better geocoding
           const cleanCity = city.replace(/\s*\([^)]*\)\s*/g, '').trim();
-          const province = city.match(/\(([^)]+)\)/)?.[1] || '';
-          return province ? `${cleanCity}, ${province}, Italia` : `${cleanCity}, Italia`;
+          return `${cleanCity}, Italia`;
         };
 
         const geocode = async (city: string) => {
