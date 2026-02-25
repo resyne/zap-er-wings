@@ -1,13 +1,15 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, Settings, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useQuery } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
@@ -29,7 +31,12 @@ interface Material {
   last_inventory_date?: string | null;
 }
 
-const ALLOWED_SUPPLIERS = ["COEM", "Clean Sud", "Grundfos"];
+interface Supplier {
+  id: string;
+  name: string;
+  code: string;
+  show_in_warehouse: boolean;
+}
 
 interface StockMovement {
   id: string;
@@ -47,12 +54,48 @@ interface StockMovement {
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [caricoOpen, setCaricoOpen] = useState(false);
   const [scaricoOpen, setScaricoOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
+
+  // Fetch all suppliers for settings
+  const { data: allSuppliers = [] } = useQuery({
+    queryKey: ["zapp-all-suppliers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id, name, code, show_in_warehouse")
+        .eq("active", true)
+        .order("name");
+      if (error) throw error;
+      return (data || []) as Supplier[];
+    },
+  });
+
+  // Toggle supplier visibility
+  const toggleSupplierMutation = useMutation({
+    mutationFn: async ({ id, show }: { id: string; show: boolean }) => {
+      const { error } = await supabase
+        .from("suppliers")
+        .update({ show_in_warehouse: show })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["zapp-all-suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
+    },
+  });
+
+  // Get enabled supplier IDs
+  const enabledSupplierIds = useMemo(() => {
+    return new Set(allSuppliers.filter(s => s.show_in_warehouse).map(s => s.id));
+  }, [allSuppliers]);
 
   // Fetch materials with supplier name
   const { data: materials = [], isLoading: loadingMaterials } = useQuery({
@@ -85,12 +128,10 @@ export default function ZAppMagazzino() {
     },
   });
 
-  // Filter materials
+  // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
     return materials.filter((m) => {
-      // Only show allowed suppliers
-      const supplierName = m.suppliers?.name || "";
-      if (!ALLOWED_SUPPLIERS.some(s => supplierName.toLowerCase() === s.toLowerCase())) return false;
+      if (!m.supplier_id || !enabledSupplierIds.has(m.supplier_id)) return false;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.code.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = stockFilter === "all" ||
@@ -99,7 +140,7 @@ export default function ZAppMagazzino() {
         (stockFilter === "excess" && m.current_stock >= m.maximum_stock);
       return matchesSearch && matchesFilter;
     });
-  }, [materials, searchTerm, stockFilter]);
+  }, [materials, searchTerm, stockFilter, enabledSupplierIds]);
 
   // Group by supplier
   const groupedBySupplier = useMemo(() => {
@@ -107,12 +148,9 @@ export default function ZAppMagazzino() {
     for (const m of filteredMaterials) {
       const key = m.supplier_id || "__no_supplier__";
       const supplierName = m.suppliers?.name || "Senza fornitore";
-      if (!groups[key]) {
-        groups[key] = { supplierName, materials: [] };
-      }
+      if (!groups[key]) groups[key] = { supplierName, materials: [] };
       groups[key].materials.push(m);
     }
-    // Sort groups: named suppliers first alphabetically, "Senza fornitore" last
     return Object.entries(groups).sort(([keyA, a], [keyB, b]) => {
       if (keyA === "__no_supplier__") return 1;
       if (keyB === "__no_supplier__") return -1;
@@ -120,10 +158,15 @@ export default function ZAppMagazzino() {
     });
   }, [filteredMaterials]);
 
-  const lowStockCount = materials.filter((m) => m.current_stock <= m.minimum_stock).length;
+  const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 
-  const toggleSupplier = (key: string) => {
+  const toggleSupplierExpand = (key: string) => {
     setExpandedSuppliers((prev) => {
+      if (prev.has("__all__")) {
+        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
+        allKeys.delete(key);
+        return allKeys;
+      }
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -131,7 +174,6 @@ export default function ZAppMagazzino() {
     });
   };
 
-  // Expand all on first load
   const isAllExpanded = expandedSuppliers.has("__all__");
   const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
 
@@ -151,6 +193,8 @@ export default function ZAppMagazzino() {
     }
   };
 
+  const enabledCount = allSuppliers.filter(s => s.show_in_warehouse).length;
+
   return (
     <div className="min-h-screen bg-muted/30 pb-24">
       {/* Header */}
@@ -163,6 +207,9 @@ export default function ZAppMagazzino() {
             <h1 className="text-lg font-bold">Magazzino</h1>
             <p className="text-amber-100 text-xs">Scorte e movimenti</p>
           </div>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setSettingsOpen(true)}>
+            <Settings className="h-5 w-5" />
+          </Button>
           {lowStockCount > 0 && (
             <div className="flex items-center gap-1 bg-red-500/80 rounded-full px-2.5 py-1">
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -174,24 +221,15 @@ export default function ZAppMagazzino() {
 
       {/* Quick Actions */}
       <div className="px-4 py-3 grid grid-cols-3 gap-2">
-        <Button
-          onClick={() => setCaricoOpen(true)}
-          className="h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
-        >
+        <Button onClick={() => setCaricoOpen(true)} className="h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5">
           <TrendingUp className="h-5 w-5" />
           <span className="font-semibold text-xs">Carico</span>
         </Button>
-        <Button
-          onClick={() => setScaricoOpen(true)}
-          className="h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
-        >
+        <Button onClick={() => setScaricoOpen(true)} className="h-14 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5">
           <TrendingDown className="h-5 w-5" />
           <span className="font-semibold text-xs">Scarico</span>
         </Button>
-        <Button
-          onClick={() => setInventoryOpen(true)}
-          className="h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5"
-        >
+        <Button onClick={() => setInventoryOpen(true)} className="h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5">
           <ClipboardCheck className="h-5 w-5" />
           <span className="font-semibold text-xs">Inventario</span>
         </Button>
@@ -212,16 +250,10 @@ export default function ZAppMagazzino() {
 
         {/* Stock Tab */}
         <TabsContent value="scorte" className="mt-3 space-y-3">
-          {/* Search + Filter */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca materiale..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 rounded-xl bg-white"
-              />
+              <Input placeholder="Cerca materiale..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 rounded-xl bg-white" />
             </div>
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger className="w-[110px] rounded-xl bg-white">
@@ -237,38 +269,29 @@ export default function ZAppMagazzino() {
             </Select>
           </div>
 
-          {/* Count */}
           <p className="text-xs text-muted-foreground">
             {filteredMaterials.length} articoli in {groupedBySupplier.length} fornitori
+            {enabledCount === 0 && " · Attiva almeno un fornitore dalle impostazioni ⚙️"}
           </p>
 
           {loadingMaterials ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : groupedBySupplier.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              Nessun materiale trovato
+          ) : enabledCount === 0 ? (
+            <div className="text-center py-12 space-y-3">
+              <Settings className="h-10 w-10 mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground text-sm">Nessun fornitore attivato</p>
+              <Button variant="outline" onClick={() => setSettingsOpen(true)}>Configura fornitori</Button>
             </div>
+          ) : groupedBySupplier.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Nessun materiale trovato</div>
           ) : (
             <div className="space-y-3">
               {groupedBySupplier.map(([key, group]) => {
                 const groupLowStock = group.materials.filter((m) => m.current_stock <= m.minimum_stock).length;
                 return (
-                  <Collapsible
-                    key={key}
-                    open={isExpanded(key)}
-                    onOpenChange={() => {
-                      // If first interaction, remove __all__ flag
-                      if (isAllExpanded) {
-                        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
-                        allKeys.delete(key); // toggle this one off
-                        setExpandedSuppliers(allKeys);
-                      } else {
-                        toggleSupplier(key);
-                      }
-                    }}
-                  >
+                  <Collapsible key={key} open={isExpanded(key)} onOpenChange={() => toggleSupplierExpand(key)}>
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm border border-border hover:bg-muted/50 transition-colors">
                         <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -281,26 +304,15 @@ export default function ZAppMagazzino() {
                         {groupLowStock > 0 && (
                           <Badge variant="destructive" className="text-[10px] px-1.5 mr-1">{groupLowStock} ⚠</Badge>
                         )}
-                        {isExpanded(key) ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        )}
+                        {isExpanded(key) ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-amber-200 pl-2">
                         {group.materials.map((m) => (
-                          <div
-                            key={m.id}
-                            className="bg-white rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5"
-                          >
-                            <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
-                              m.current_stock <= m.minimum_stock ? "bg-red-50" : "bg-green-50"
-                            }`}>
-                              <Package className={`h-4 w-4 ${
-                                m.current_stock <= m.minimum_stock ? "text-red-500" : "text-green-500"
-                              }`} />
+                          <div key={m.id} className="bg-white rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
+                            <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-red-50" : "bg-green-50"}`}>
+                              <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-red-500" : "text-green-500"}`} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-[13px] truncate">{m.name}</p>
@@ -333,27 +345,17 @@ export default function ZAppMagazzino() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : movements.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              Nessun movimento registrato
-            </div>
+            <div className="text-center py-12 text-muted-foreground text-sm">Nessun movimento registrato</div>
           ) : (
             movements.map((mov) => (
               <div key={mov.id} className="bg-white rounded-xl p-3 shadow-sm border border-border">
                 <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    mov.movement_type === "carico" ? "bg-green-100" : "bg-red-100"
-                  }`}>
-                    {mov.movement_type === "carico" ? (
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                    )}
+                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${mov.movement_type === "carico" ? "bg-green-100" : "bg-red-100"}`}>
+                    {mov.movement_type === "carico" ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-red-600" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{mov.item_description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(mov.created_at), "dd MMM yyyy HH:mm", { locale: it })}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{format(new Date(mov.created_at), "dd MMM yyyy HH:mm", { locale: it })}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className={`font-bold text-sm ${mov.movement_type === "carico" ? "text-green-600" : "text-red-600"}`}>
@@ -362,14 +364,46 @@ export default function ZAppMagazzino() {
                     {getStatusBadge(mov.status)}
                   </div>
                 </div>
-                {mov.notes && (
-                  <p className="text-xs text-muted-foreground mt-2 pl-12 truncate">{mov.notes}</p>
-                )}
+                {mov.notes && <p className="text-xs text-muted-foreground mt-2 pl-12 truncate">{mov.notes}</p>}
               </div>
             ))
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Supplier Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Fornitori in Magazzino
+            </DialogTitle>
+            <DialogDescription>
+              Attiva o disattiva i fornitori da visualizzare nel magazzino
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-1 max-h-[500px]">
+            {allSuppliers.map((supplier) => (
+              <div key={supplier.id} className="flex items-center justify-between rounded-lg border border-border p-3 bg-white">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${supplier.show_in_warehouse ? "bg-green-100" : "bg-muted"}`}>
+                    {supplier.show_in_warehouse ? <Eye className="h-4 w-4 text-green-600" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{supplier.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{supplier.code}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={supplier.show_in_warehouse}
+                  onCheckedChange={(checked) => toggleSupplierMutation.mutate({ id: supplier.id, show: checked })}
+                />
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialogs */}
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />

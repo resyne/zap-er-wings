@@ -12,8 +12,6 @@ import { TrendingUp, TrendingDown, Loader2, Search } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const ALLOWED_SUPPLIERS = ["COEM", "Clean Sud", "Grundfos"];
-
 interface ManualMovementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,25 +36,33 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
     supplier_id: "",
   });
 
-  // Fetch materials with supplier - same query as ZAppMagazzino
+  // Fetch materials from suppliers with show_in_warehouse=true
   const { data: materials = [] } = useQuery({
     queryKey: ["materials-for-movement"],
     queryFn: async () => {
+      // First get enabled supplier IDs
+      const { data: suppliers, error: sErr } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("active", true)
+        .eq("show_in_warehouse", true);
+      if (sErr) throw sErr;
+      const supplierIds = (suppliers || []).map(s => s.id);
+      if (supplierIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("materials")
         .select("id, code, name, unit, current_stock, supplier_id, suppliers(name)")
         .eq("active", true)
+        .in("supplier_id", supplierIds)
         .order("name");
       if (error) throw error;
-      return (data || []).filter((m: any) => {
-        const supplierName = m.suppliers?.name || "";
-        return ALLOWED_SUPPLIERS.some(s => supplierName.toLowerCase() === s.toLowerCase());
-      });
+      return data || [];
     },
     enabled: open,
   });
 
-  // Group materials by supplier for display
+  // Group materials by supplier
   const groupedMaterials = useMemo(() => {
     const groups: Record<string, { supplierName: string; items: typeof materials }> = {};
     for (const m of materials) {
@@ -67,7 +73,6 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [materials]);
 
-  // Filter based on search
   const filteredGrouped = useMemo(() => {
     if (!materialSearch) return groupedMaterials;
     const term = materialSearch.toLowerCase();
@@ -78,7 +83,6 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
 
   const selectedMaterial = materials.find((m: any) => m.id === formData.material_id) as any;
 
-  // Auto-fill when material is selected
   useEffect(() => {
     if (selectedMaterial) {
       setFormData((prev) => ({
@@ -92,16 +96,13 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!formData.material_id || !formData.quantity) {
       toast({ title: "Errore", description: "Seleziona un materiale e inserisci la quantità", variant: "destructive" });
       return;
     }
-
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       const { error } = await supabase.from("stock_movements").insert({
         movement_date: new Date().toISOString(),
         movement_type: movementType,
@@ -116,9 +117,7 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
         material_id: formData.material_id,
         supplier_id: formData.supplier_id || null,
       });
-
       if (error) throw error;
-
       toast({ title: "Movimento creato", description: `${movementType === "carico" ? "Carico" : "Scarico"} registrato con successo` });
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
@@ -152,17 +151,11 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Material Selection */}
           <div className="space-y-2">
             <Label>Materiale *</Label>
             <Popover open={materialOpen} onOpenChange={setMaterialOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={materialOpen}
-                  className="w-full justify-between font-normal"
-                >
+                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
                   {selectedMaterial ? (
                     <span className="truncate">{selectedMaterial.name} ({selectedMaterial.code})</span>
                   ) : (
@@ -173,11 +166,7 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0" align="start">
                 <Command>
-                  <CommandInput
-                    placeholder="Cerca materiale..."
-                    value={materialSearch}
-                    onValueChange={setMaterialSearch}
-                  />
+                  <CommandInput placeholder="Cerca materiale..." value={materialSearch} onValueChange={setMaterialSearch} />
                   <CommandList>
                     <CommandEmpty>Nessun materiale trovato</CommandEmpty>
                     {filteredGrouped.map(([key, group]) => (
@@ -213,22 +202,12 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantità *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                placeholder="1"
-              />
+              <Input id="quantity" type="number" min="0.01" step="0.01" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} placeholder="1" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">Unità di Misura</Label>
               <Select value={formData.unit} onValueChange={(v) => setFormData({ ...formData, unit: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pz">Pezzi</SelectItem>
                   <SelectItem value="kg">Kg</SelectItem>
@@ -242,19 +221,11 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
 
           <div className="space-y-2">
             <Label htmlFor="notes">Note</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Note aggiuntive sul movimento..."
-              rows={2}
-            />
+            <Textarea id="notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Note aggiuntive..." rows={2} />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
             <Button type="submit" disabled={loading} className={movementType === "carico" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Registra {movementType === "carico" ? "Carico" : "Scarico"}

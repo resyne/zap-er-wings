@@ -9792,6 +9792,7 @@ export type Database = {
           notify_whatsapp: boolean | null
           payment_terms: number | null
           phone: string | null
+          show_in_warehouse: boolean
           tax_id: string | null
           updated_at: string | null
         }
@@ -9813,6 +9814,7 @@ export type Database = {
           notify_whatsapp?: boolean | null
           payment_terms?: number | null
           phone?: string | null
+          show_in_warehouse?: boolean
           tax_id?: string | null
           updated_at?: string | null
         }
@@ -9834,6 +9836,7 @@ export type Database = {
           notify_whatsapp?: boolean | null
           payment_terms?: number | null
           phone?: string | null
+          show_in_warehouse?: boolean
           tax_id?: string | null
           updated_at?: string | null
         }
