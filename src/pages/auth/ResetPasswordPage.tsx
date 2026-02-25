@@ -27,7 +27,10 @@ export default function ResetPasswordPage() {
     return new URLSearchParams(raw || "");
   }, [location.hash]);
 
-  const isRecoveryLink = hashParams.get("type") === "recovery";
+  const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+
+  // PKCE flow uses ?code= query param; implicit flow uses #type=recovery
+  const isRecoveryLink = hashParams.get("type") === "recovery" || queryParams.has("code");
 
   useEffect(() => {
     // Se il link contiene il token di recovery, Supabase (detectSessionInUrl=true)
