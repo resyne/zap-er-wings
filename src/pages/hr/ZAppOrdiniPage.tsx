@@ -800,16 +800,10 @@ export default function ZAppOrdiniPage() {
 
             {/* 5. Date */}
             {orderTypeCategory && selectedCustomer && (
-              <div className="bg-white rounded-xl border border-border p-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Data Ordine</Label>
-                    <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Data Consegna</Label>
-                    <Input type="date" value={formData.delivery_date} onChange={e => setFormData(p => ({ ...p, delivery_date: e.target.value }))} className="mt-1" />
-                  </div>
+               <div className="bg-white rounded-xl border border-border p-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data Ordine</Label>
+                  <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
                 </div>
               </div>
             )}
