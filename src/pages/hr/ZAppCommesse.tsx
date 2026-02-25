@@ -599,14 +599,28 @@ export default function ZAppCommesse() {
       const table = type === "produzione" ? "work_orders" : type === "servizio" ? "service_work_orders" : "shipping_orders";
       const { error } = await supabase.from(table).update({ status: newStatus }).eq("id", id);
       if (error) throw error;
+      return { id, type, newStatus };
+    },
+    onMutate: async ({ id, type, newStatus }) => {
+      // Optimistic update: update local cache immediately
+      const queryKey = type === "produzione" ? "zapp-work-orders" : type === "servizio" ? "zapp-service-work-orders" : "zapp-shipping-orders";
+      await queryClient.cancelQueries({ queryKey: [queryKey] });
+      const previousData = queryClient.getQueryData<UnifiedOrder[]>([queryKey]);
+      queryClient.setQueryData<UnifiedOrder[]>([queryKey], (old) =>
+        old?.map(o => o.id === id ? { ...o, status: newStatus } : o) || []
+      );
+      return { previousData, queryKey };
     },
     onSuccess: () => {
       toast.success("Stato aggiornato");
-      queryClient.invalidateQueries({ queryKey: ["zapp-work-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["zapp-service-work-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["zapp-shipping-orders"] });
     },
-    onError: (err: any) => toast.error("Errore: " + err.message),
+    onError: (err: any, _vars, context) => {
+      // Rollback on error
+      if (context?.previousData && context?.queryKey) {
+        queryClient.setQueryData([context.queryKey], context.previousData);
+      }
+      toast.error("Errore: " + err.message);
+    },
   });
 
   const handleStatusChange = useCallback((id: string, type: string, newStatus: string) => {
@@ -692,14 +706,27 @@ export default function ZAppCommesse() {
         .select(`
           id, number, title, status, priority, scheduled_date, actual_start_date, actual_end_date,
           estimated_hours, actual_hours, location, article, created_at, description, notes,
-          equipment_needed, lead_id, sales_order_id,
+          equipment_needed, lead_id, sales_order_id, assigned_to,
           customers(name, code),
-          profiles!service_work_orders_assigned_to_fkey(first_name, last_name),
           sales_orders(number)
         `)
         .eq("archived", false)
         .not("status", "in", '("completata")')
         .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      // Fetch assigned_to names separately
+      const assignedIds = (data || []).map(d => d.assigned_to).filter(Boolean);
+      let profilesMap: Record<string, { first_name: string; last_name: string }> = {};
+      if (assignedIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", assignedIds);
+        if (profiles) {
+          profiles.forEach(p => { profilesMap[p.id] = p; });
+        }
+      }
       if (error) throw error;
       return (data || []).map((so: any): UnifiedOrder => ({
         id: so.id, number: so.number, title: so.title || so.article || so.number,
@@ -709,7 +736,7 @@ export default function ZAppCommesse() {
         actual_hours: so.actual_hours, location: so.location, article: so.article,
         customer_name: so.customers?.name, customer_code: so.customers?.code,
         created_at: so.created_at, description: so.description,
-        assigned_to_name: so.profiles ? `${so.profiles.first_name || ""} ${so.profiles.last_name || ""}`.trim() : undefined,
+        assigned_to_name: so.assigned_to && profilesMap[so.assigned_to] ? `${profilesMap[so.assigned_to].first_name || ""} ${profilesMap[so.assigned_to].last_name || ""}`.trim() : undefined,
         notes: so.notes, equipment_needed: so.equipment_needed, lead_id: so.lead_id,
         sales_order_id: so.sales_order_id,
         sales_order_number: so.sales_orders?.number,
