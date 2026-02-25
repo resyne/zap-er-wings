@@ -94,6 +94,7 @@ import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
 import SupportPage from "./pages/support/SupportPage";
 import ServiceReportsPage from "./pages/support/ServiceReportsPage";
 import ServiceOrdersPage from "./pages/support/ServiceOrdersPage";
+import ServiceReportSettingsPage from "./pages/support/ServiceReportSettingsPage";
 import TicketsPage from "./pages/support/TicketsPage";
 import CostEstimatorPage from "./pages/crm/CostEstimatorPage";
 import MaterialsPage from "./pages/warehouse/MaterialsPage";
@@ -243,6 +244,7 @@ const App = () => (
                 <Route path="support/service-reports" element={<ServiceReportsPage />} />
                 <Route path="support/work-orders" element={<ServiceOrdersPage />} />
                 <Route path="support/tickets" element={<TicketsPage />} />
+                <Route path="support/service-report-settings" element={<ServiceReportSettingsPage />} />
                 <Route path="crm/cost-estimator" element={<CostEstimatorPage />} />
                 <Route path="marketing/archive" element={<ArchivePage />} />
                 <Route path="marketing/content-creation" element={<ContentCreationPage />} />

@@ -48,10 +48,10 @@ export default function SupportPage() {
       color: "text-orange-600"
     },
     {
-      title: "Impostazioni",
-      description: "Configurazioni per l'assistenza tecnica",
+      title: "Impostazioni Rapporti",
+      description: "Tariffe orarie, rimborsi km e parametri di fatturazione",
       icon: Settings,
-      href: "/support/settings",
+      href: "/support/service-report-settings",
       color: "text-purple-600"
     }
   ];
