@@ -3506,6 +3506,62 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_logs: {
+        Row: {
+          created_at: string
+          difference: number
+          id: string
+          material_code: string | null
+          material_id: string | null
+          material_name: string | null
+          new_quantity: number
+          notes: string | null
+          old_quantity: number
+          supplier_name: string | null
+          unit: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          difference?: number
+          id?: string
+          material_code?: string | null
+          material_id?: string | null
+          material_name?: string | null
+          new_quantity?: number
+          notes?: string | null
+          old_quantity?: number
+          supplier_name?: string | null
+          unit?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          difference?: number
+          id?: string
+          material_code?: string | null
+          material_id?: string | null
+          material_name?: string | null
+          new_quantity?: number
+          notes?: string | null
+          old_quantity?: number
+          supplier_name?: string | null
+          unit?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_logs_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_registry: {
         Row: {
           account_splits: Json | null

@@ -92,6 +92,19 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Ottieni il nome utente dal profilo
+      let userName = "Utente";
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, email")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile) {
+          userName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.email || "Utente";
+        }
+      }
+
       const movements = changedItems.map((m) => ({
         movement_date: new Date().toISOString(),
         movement_type: "carico",
@@ -125,6 +138,26 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
       const results = await Promise.all(updatePromises);
       const updateError = results.find((r) => r.error);
       if (updateError?.error) throw updateError.error;
+
+      // Registra log inventario
+      const inventoryLogs = changedItems.map((m) => {
+        const newQty = parseFloat(quantities[m.id]);
+        return {
+          user_id: user?.id,
+          user_name: userName,
+          material_id: m.id,
+          material_code: m.code,
+          material_name: m.name,
+          old_quantity: m.current_stock,
+          new_quantity: newQty,
+          difference: newQty - m.current_stock,
+          unit: m.unit,
+          supplier_name: m.suppliers?.name || null,
+          notes: `Inventario manuale`,
+        };
+      });
+
+      await supabase.from("inventory_logs").insert(inventoryLogs);
 
       toast({
         title: "Inventario salvato",
