@@ -8622,6 +8622,8 @@ export type Database = {
           invoice_date: string | null
           invoice_number: string | null
           invoiced: boolean
+          is_maintenance_contract: boolean
+          is_warranty: boolean
           kilometers: number | null
           materials_used: string | null
           notes: string | null
@@ -8659,6 +8661,8 @@ export type Database = {
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean
+          is_maintenance_contract?: boolean
+          is_warranty?: boolean
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
@@ -8696,6 +8700,8 @@ export type Database = {
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean
+          is_maintenance_contract?: boolean
+          is_warranty?: boolean
           kilometers?: number | null
           materials_used?: string | null
           notes?: string | null
