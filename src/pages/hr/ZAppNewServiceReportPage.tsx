@@ -150,12 +150,20 @@ export default function ZAppNewServiceReportPage() {
     const timer = setTimeout(async () => {
       setCalculatingKm(true);
       try {
-        // Geocode both cities using Nominatim
+        // Geocode both cities using Nominatim with better precision
         const geocode = async (city: string) => {
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', Italia')}&format=json&limit=1`);
+          // Strip province notation like "(SA)" for cleaner geocoding
+          const cleanCity = city.replace(/\s*\([^)]*\)\s*/g, '').trim();
+          const province = city.match(/\(([^)]+)\)/)?.[1] || '';
+          const searchQuery = province 
+            ? `${cleanCity}, ${province}, Campania, Italia`
+            : `${cleanCity}, Campania, Italia`;
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=5&countrycodes=it`);
           const data = await res.json();
           if (data.length === 0) throw new Error(`Città "${city}" non trovata`);
-          return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+          // Prefer results that are cities/towns/villages
+          const best = data.find((r: any) => ['city', 'town', 'village', 'municipality'].includes(r.type)) || data[0];
+          return { lat: parseFloat(best.lat), lon: parseFloat(best.lon), name: best.display_name };
         };
         const [from, to] = await Promise.all([geocode(departureCity), geocode(destinationCity)]);
         // Calculate route distance using OSRM
