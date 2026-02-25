@@ -198,17 +198,10 @@ export default function AICostEstimatorChat() {
         </Table>
 
         <div className="border-t pt-3 space-y-1 text-sm">
-          <div className="flex justify-between"><span>Subtotale:</span><span>€{estimate.subtotal.toFixed(2)}</span></div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>Margine ({estimate.margin_percent}%):</span><span>€{estimate.margin_amount.toFixed(2)}</span>
+          <div className="flex justify-between font-bold text-base">
+            <span>Costo Totale Vivo:</span><span className="text-primary">€{estimate.subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between font-semibold"><span>Totale Netto:</span><span>€{estimate.total_net.toFixed(2)}</span></div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>IVA ({estimate.vat_percent}%):</span><span>€{estimate.vat_amount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-base border-t pt-2">
-            <span>Totale Lordo:</span><span className="text-primary">€{estimate.total_gross.toFixed(2)}</span>
-          </div>
+          <p className="text-xs text-muted-foreground italic mt-1">Costo puro sostenuto dall'azienda, escluso margine e IVA</p>
         </div>
 
         {estimate.notes?.length > 0 && (
