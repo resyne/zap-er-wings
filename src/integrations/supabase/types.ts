@@ -1000,6 +1000,214 @@ export type Database = {
         }
         Relationships: []
       }
+      commessa_phases: {
+        Row: {
+          assigned_to: string | null
+          commessa_id: string
+          completed_date: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          phase_order: number
+          phase_type: string
+          scheduled_date: string | null
+          started_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          commessa_id: string
+          completed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phase_order: number
+          phase_type: string
+          scheduled_date?: string | null
+          started_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          commessa_id?: string
+          completed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phase_order?: number
+          phase_type?: string
+          scheduled_date?: string | null
+          started_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commessa_phases_commessa_id_fkey"
+            columns: ["commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commesse: {
+        Row: {
+          archived: boolean | null
+          article: string | null
+          assigned_to: string | null
+          attachments: Json | null
+          back_office_manager: string | null
+          bom_id: string | null
+          created_at: string
+          created_by: string | null
+          current_phase: number | null
+          customer_id: string | null
+          delivery_mode: string | null
+          description: string | null
+          diameter: string | null
+          id: string
+          intervention_type: string | null
+          is_warranty: boolean | null
+          lead_id: string | null
+          legacy_service_order_id: string | null
+          legacy_shipping_order_id: string | null
+          legacy_work_order_id: string | null
+          notes: string | null
+          number: string
+          payment_amount: number | null
+          payment_on_delivery: boolean | null
+          priority: string | null
+          production_responsible_id: string | null
+          sales_order_id: string | null
+          service_responsible_id: string | null
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_postal_code: string | null
+          shipping_province: string | null
+          shipping_responsible_id: string | null
+          smoke_inlet: string | null
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean | null
+          article?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          back_office_manager?: string | null
+          bom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_phase?: number | null
+          customer_id?: string | null
+          delivery_mode?: string | null
+          description?: string | null
+          diameter?: string | null
+          id?: string
+          intervention_type?: string | null
+          is_warranty?: boolean | null
+          lead_id?: string | null
+          legacy_service_order_id?: string | null
+          legacy_shipping_order_id?: string | null
+          legacy_work_order_id?: string | null
+          notes?: string | null
+          number?: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
+          priority?: string | null
+          production_responsible_id?: string | null
+          sales_order_id?: string | null
+          service_responsible_id?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
+          shipping_responsible_id?: string | null
+          smoke_inlet?: string | null
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean | null
+          article?: string | null
+          assigned_to?: string | null
+          attachments?: Json | null
+          back_office_manager?: string | null
+          bom_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_phase?: number | null
+          customer_id?: string | null
+          delivery_mode?: string | null
+          description?: string | null
+          diameter?: string | null
+          id?: string
+          intervention_type?: string | null
+          is_warranty?: boolean | null
+          lead_id?: string | null
+          legacy_service_order_id?: string | null
+          legacy_shipping_order_id?: string | null
+          legacy_work_order_id?: string | null
+          notes?: string | null
+          number?: string
+          payment_amount?: number | null
+          payment_on_delivery?: boolean | null
+          priority?: string | null
+          production_responsible_id?: string | null
+          sales_order_id?: string | null
+          service_responsible_id?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_postal_code?: string | null
+          shipping_province?: string | null
+          shipping_responsible_id?: string | null
+          smoke_inlet?: string | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commesse_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "boms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commesse_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commesse_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commesse_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -12158,6 +12366,7 @@ export type Database = {
           phone: string
         }[]
       }
+      generate_commessa_number: { Args: never; Returns: string }
       generate_configurator_code: { Args: never; Returns: string }
       generate_conformity_serial: { Args: never; Returns: string }
       generate_cost_draft_number: { Args: never; Returns: string }

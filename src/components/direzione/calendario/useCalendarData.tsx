@@ -38,53 +38,48 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
         })));
       }
 
-      // Carica commesse di produzione
-      const { data: workOrders, error: woError } = await supabase
-        .from('work_orders')
-        .select('id, number, title, status, scheduled_date, actual_start_date, actual_end_date')
+      // Carica fasi commesse calendarizzate
+      const { data: phases, error: phasesError } = await supabase
+        .from('commessa_phases')
+        .select(`
+          id, phase_type, phase_order, status, scheduled_date, started_date, completed_date,
+          commesse(id, number, title, type, customer_id, customers(name))
+        `)
         .gte('scheduled_date', startISO)
         .lte('scheduled_date', endISO)
         .not('scheduled_date', 'is', null);
 
-      if (woError) console.error('Error loading work orders:', woError);
-      if (workOrders) {
-        allItems.push(...workOrders.map((wo: any) => ({
-          ...wo,
-          item_type: 'work_order' as const,
-          type: 'production'
-        })));
-      }
-
-      // Carica ordini di assistenza
-      const { data: serviceOrders, error: soError } = await supabase
-        .from('service_work_orders')
-        .select('id, number, title, status, scheduled_date, completed_date')
-        .gte('scheduled_date', startISO)
-        .lte('scheduled_date', endISO)
-        .not('scheduled_date', 'is', null);
-
-      if (soError) console.error('Error loading service orders:', soError);
-      if (serviceOrders) {
-        allItems.push(...serviceOrders.map((so: any) => ({
-          ...so,
-          item_type: 'service_order' as const
-        })));
-      }
-
-      // Carica commesse di spedizione
-      const { data: shippingOrders, error: shipError } = await supabase
-        .from('shipping_orders')
-        .select('id, number, status, order_date, preparation_date, ready_date, shipped_date')
-        .gte('order_date', startISO)
-        .lte('order_date', endISO)
-        .not('order_date', 'is', null);
-
-      if (shipError) console.error('Error loading shipping orders:', shipError);
-      if (shippingOrders) {
-        allItems.push(...shippingOrders.map((ship: any) => ({
-          ...ship,
-          item_type: 'shipping_order' as const
-        })));
+      if (phasesError) console.error('Error loading commessa phases:', phasesError);
+      if (phases) {
+        phases.forEach((phase: any) => {
+          const commessa = phase.commesse;
+          if (!commessa) return;
+          const phaseLabels: Record<string, string> = {
+            produzione: "Produzione", spedizione: "Spedizione", installazione: "Installazione",
+            manutenzione: "Manutenzione", riparazione: "Riparazione"
+          };
+          if (phase.phase_type === "produzione" || phase.phase_type === "manutenzione" || phase.phase_type === "riparazione" || phase.phase_type === "installazione") {
+            allItems.push({
+              id: phase.id,
+              number: commessa.number,
+              title: `${phaseLabels[phase.phase_type] || phase.phase_type} - ${commessa.title}`,
+              status: phase.status,
+              type: phase.phase_type === "produzione" ? "production" : "service",
+              scheduled_date: phase.scheduled_date,
+              actual_start_date: phase.started_date,
+              actual_end_date: phase.completed_date,
+              item_type: phase.phase_type === "produzione" ? 'work_order' as const : 'service_order' as const,
+            });
+          } else if (phase.phase_type === "spedizione") {
+            allItems.push({
+              id: phase.id,
+              number: commessa.number,
+              status: phase.status,
+              order_date: phase.scheduled_date,
+              item_type: 'shipping_order' as const,
+            });
+          }
+        });
       }
 
       // Carica eventi calendario

@@ -32,9 +32,7 @@ interface Order {
   notes: string | null;
   order_subject: string | null;
   customers?: { name: string; code: string } | null;
-  work_orders?: Array<{ id: string; number: string; status: string }>;
-  service_work_orders?: Array<{ id: string; number: string; status: string }>;
-  shipping_orders?: Array<{ id: string; number: string; status: string }>;
+  commesse?: Array<{ id: string; number: string; status: string; type: string }>;
 }
 
 interface Customer {
@@ -166,9 +164,7 @@ export default function ZAppOrdiniPage() {
         .select(`
           id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject,
           customers(name, code),
-          work_orders(id, number, status),
-          service_work_orders(id, number, status),
-          shipping_orders(id, number, status)
+          commesse(id, number, status, type)
         `)
         .eq("archived", false)
         .order("created_at", { ascending: false })
@@ -216,11 +212,11 @@ export default function ZAppOrdiniPage() {
   });
 
   const getSubOrders = (order: Order) => {
-    const subs: Array<{ type: string; number: string; status: string }> = [];
-    order.work_orders?.forEach(wo => subs.push({ type: "Produzione", number: wo.number, status: wo.status }));
-    order.service_work_orders?.forEach(so => subs.push({ type: "Intervento/Installazione", number: so.number, status: so.status }));
-    order.shipping_orders?.forEach(sh => subs.push({ type: "Spedizione", number: sh.number, status: sh.status }));
-    return subs;
+    return (order.commesse || []).map(c => ({
+      type: c.type === 'fornitura' ? 'Fornitura' : c.type === 'intervento' ? 'Intervento' : 'Ricambi',
+      number: c.number,
+      status: c.status,
+    }));
   };
 
   const filteredCustomers = useMemo(() => {
@@ -336,79 +332,80 @@ export default function ZAppOrdiniPage() {
         .single();
 
       if (soError) throw soError;
-      const createdCommesse: string[] = [];
-
-      // 2. Auto-create commesse based on type + delivery mode
-      // Production
-      if (commesseToCreate.some(c => c === "Produzione")) {
-        const { data: wo, error } = await supabase
-          .from("work_orders")
-          .insert([{
-            number: "",
-            title: `Produzione ${productName} per ${customerName}`.trim(),
-            description: subject || "",
-            status: "da_fare",
-             customer_id: selectedCustomer!.id,
-            sales_order_id: salesOrder.id,
-            priority: "medium",
-            notes: formData.notes || null,
-          }])
-          .select()
-          .single();
-        if (error) throw error;
-        if (wo) createdCommesse.push(`Produzione: ${wo.number}`);
-      }
-
-      // Service/Intervento/Installation work order
-      if (commesseToCreate.some(c => c.includes("Lavoro") || c.includes("Installazione") || c.includes("Manutenzione") || c.includes("Riparazione"))) {
-        const isInstallation = commesseToCreate.some(c => c.includes("Installazione"));
-        const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : isInstallation ? "Installazione" : "Intervento";
-        const { data: swo, error } = await supabase
-          .from("service_work_orders")
-          .insert([{
-            number: "",
-            title: `${typeLabel} ${productName} per ${customerName}`.trim(),
-            description: subject || "",
-            status: "da_programmare",
-             customer_id: selectedCustomer!.id,
-            sales_order_id: salesOrder.id,
-            priority: "medium",
-            notes: `${interventionType ? `Tipo: ${typeLabel}. ` : ""}${formData.notes || ""}`.trim() || null,
-          }])
-          .select()
-          .single();
-        if (error) throw error;
-        if (swo) createdCommesse.push(`${typeLabel}: ${swo.number}`);
-      }
-
-      // Shipping
-      if (commesseToCreate.some(c => c === "Spedizione")) {
-        const { data: custData } = await supabase
+      // 2. Create single commessa with phases
+      const phasesConfig = computeCommesse();
+      
+      // Get customer shipping data if needed
+      let custData: any = null;
+      if (phasesConfig.some(c => c === "Spedizione")) {
+        const { data } = await supabase
           .from("customers")
           .select("city, province, address, shipping_address")
           .eq("id", selectedCustomer!.id)
           .single();
-
-        const { data: so, error } = await supabase
-          .from("shipping_orders")
-          .insert([{
-            number: "",
-            customer_id: selectedCustomer!.id,
-            status: "da_preparare",
-            order_date: formData.order_date || new Date().toISOString().split("T")[0],
-            notes: `${subject ? "Oggetto: " + subject + ". " : ""}${formData.notes || ""}`.trim() || null,
-            sales_order_id: salesOrder.id,
-            shipping_address: custData?.shipping_address || custData?.address || null,
-            shipping_city: custData?.city || null,
-            shipping_province: custData?.province || null,
-          }])
-          .select()
-          .single();
-        if (error) throw error;
-        if (so) createdCommesse.push(`Spedizione: ${so.number}`);
+        custData = data;
       }
 
-      toast.success(`Ordine ${salesOrder.number} creato!\n${createdCommesse.join(" • ")}`);
+      const commessaTitle = orderTypeCategory === "fornitura"
+        ? `Fornitura ${productName} per ${customerName}`.trim()
+        : orderTypeCategory === "intervento"
+        ? `${interventionType === "manutenzione" ? "Manutenzione" : "Riparazione"} per ${customerName}`.trim()
+        : `Ricambi per ${customerName}`.trim();
+
+      const { data: commessa, error: commError } = await supabase
+        .from("commesse")
+        .insert([{
+          number: "",
+          sales_order_id: salesOrder.id,
+          customer_id: selectedCustomer!.id,
+          title: commessaTitle,
+          description: subject || "",
+          type: orderTypeCategory,
+          delivery_mode: needsDeliveryMode ? deliveryMode : null,
+          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
+          priority: "medium",
+          status: "da_fare",
+          article: subject || null,
+          notes: formData.notes || null,
+          shipping_address: custData?.shipping_address || custData?.address || null,
+          shipping_city: custData?.city || null,
+          shipping_province: custData?.province || null,
+          is_warranty: isWarranty,
+        }] as any)
+        .select()
+        .single();
+      if (commError) throw commError;
+
+      // 3. Create phases
+      const phases: Array<{ commessa_id: string; phase_type: string; phase_order: number; status: string }> = [];
+      let order = 1;
+      for (const phase of phasesConfig) {
+        const phaseType = phase === "Produzione" ? "produzione"
+          : phase === "Spedizione" ? "spedizione"
+          : phase === "Installazione" ? "installazione"
+          : phase.includes("Manutenzione") ? "manutenzione"
+          : phase.includes("Riparazione") ? "riparazione"
+          : "produzione";
+        
+        const initialStatus = phaseType === "spedizione" ? "da_preparare"
+          : (phaseType === "installazione" || phaseType === "manutenzione" || phaseType === "riparazione") ? "da_programmare"
+          : "da_fare";
+
+        phases.push({
+          commessa_id: commessa.id,
+          phase_type: phaseType,
+          phase_order: order++,
+          status: initialStatus,
+        });
+      }
+
+      if (phases.length > 0) {
+        const { error: phaseError } = await supabase.from("commessa_phases").insert(phases as any);
+        if (phaseError) throw phaseError;
+      }
+
+      const phaseLabels = phasesConfig.join(" → ");
+
       setShowCreateForm(false);
       loadOrders();
     } catch (error: any) {
@@ -870,7 +867,7 @@ export default function ZAppOrdiniPage() {
             {filteredOrders.map(order => {
               const catIcon = ORDER_TYPE_CATEGORIES.find(c => c.value === order.order_type_category)?.icon || ShoppingCart;
               const CatIcon = catIcon;
-              const subsCount = (order.work_orders?.length || 0) + (order.service_work_orders?.length || 0) + (order.shipping_orders?.length || 0);
+              const subsCount = order.commesse?.length || 0;
               return (
                 <button
                   key={order.id}
