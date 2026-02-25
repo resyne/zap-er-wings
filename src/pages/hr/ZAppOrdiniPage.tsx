@@ -75,14 +75,22 @@ const ORDER_TYPE_CATEGORIES = [
   { value: "produzione", label: "Produzione", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
   { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
   { value: "ricambi", label: "Ricambi", icon: Settings, color: "text-purple-600 bg-purple-50 border-purple-200" },
-  { value: "installazione", label: "Installazione", icon: MapPin, color: "text-green-600 bg-green-50 border-green-200" },
-  { value: "misto", label: "Misto", icon: Zap, color: "text-orange-600 bg-orange-50 border-orange-200" },
 ];
 
-const DELIVERY_MODES = [
-  { value: "installazione", label: "Installazione presso cliente", icon: MapPin, desc: "Produzione + Installazione" },
+const DELIVERY_MODES_PRODUZIONE = [
   { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Produzione + Spedizione" },
+  { value: "installazione", label: "Installazione", icon: MapPin, desc: "Produzione + Installazione" },
   { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Solo Produzione" },
+];
+
+const DELIVERY_MODES_RICAMBI = [
+  { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Spedizione ricambi" },
+  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro ricambi in sede" },
+];
+
+const INTERVENTION_TYPES = [
+  { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
+  { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
 ];
 
 const statusColors: Record<string, string> = {
@@ -107,8 +115,6 @@ const categoryLabels: Record<string, string> = {
   produzione: "Produzione",
   intervento: "Intervento",
   ricambi: "Ricambi",
-  installazione: "Installazione",
-  misto: "Misto",
 };
 
 type ViewMode = "list" | "detail";
@@ -134,6 +140,7 @@ export default function ZAppOrdiniPage() {
   const [materialOpen, setMaterialOpen] = useState(false);
 
   const [orderTypeCategory, setOrderTypeCategory] = useState("");
+  const [interventionType, setInterventionType] = useState("");
   const [isWarranty, setIsWarranty] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState("");
   const [subjectMode, setSubjectMode] = useState<"text" | "product" | "material">("text");
@@ -228,21 +235,14 @@ export default function ZAppOrdiniPage() {
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
   const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
 
-  // Determine if delivery mode is needed (only for types that involve a physical product)
-  const needsDeliveryMode = ["produzione", "ricambi", "misto"].includes(orderTypeCategory);
-  // For intervento, it's always service work order
-  // For installazione, it's always production + installation
-  const needsProductSelection = ["produzione", "ricambi", "installazione", "misto"].includes(orderTypeCategory);
+  const needsDeliveryMode = ["produzione", "ricambi"].includes(orderTypeCategory);
+  const needsInterventionType = orderTypeCategory === "intervento";
+  const needsProductSelection = ["produzione", "ricambi"].includes(orderTypeCategory);
 
-  // Available delivery modes based on selected product capabilities
   const availableDeliveryModes = useMemo(() => {
-    if (!selectedProduct) return DELIVERY_MODES;
-    return DELIVERY_MODES.filter(dm => {
-      if (dm.value === "installazione") return selectedProduct.installation_possible;
-      if (dm.value === "spedizione") return selectedProduct.shipping_possible;
-      return true; // ritiro always available
-    });
-  }, [selectedProduct]);
+    if (orderTypeCategory === "ricambi") return DELIVERY_MODES_RICAMBI;
+    return DELIVERY_MODES_PRODUZIONE;
+  }, [orderTypeCategory]);
 
   const openCreateForm = () => {
     loadCustomers();
@@ -251,6 +251,7 @@ export default function ZAppOrdiniPage() {
     setSelectedCustomer(null);
     setCustomerSearch("");
     setOrderTypeCategory("");
+    setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
     setSubjectMode("text");
@@ -271,19 +272,11 @@ export default function ZAppOrdiniPage() {
       if (deliveryMode === "installazione") commesse.push("Installazione");
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
-      commesse.push("Intervento (Lavoro)");
+      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Intervento";
+      commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
-      if (deliveryMode === "installazione") commesse.push("Installazione");
-      // ricambi may not need production if from stock
-    } else if (orderTypeCategory === "installazione") {
-      commesse.push("Produzione");
-      commesse.push("Installazione");
-    } else if (orderTypeCategory === "misto") {
-      commesse.push("Produzione");
-      commesse.push("Intervento (Lavoro)");
-      if (deliveryMode === "installazione") commesse.push("Installazione");
-      if (deliveryMode === "spedizione") commesse.push("Spedizione");
+      // ritiro = no shipping commessa needed
     }
 
     return commesse;
@@ -292,7 +285,7 @@ export default function ZAppOrdiniPage() {
   const canSubmit = () => {
     if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
-    // Need either text subject or product/material selection
+    if (needsInterventionType && !interventionType) return false;
     if (subjectMode === "text" && !orderSubject.trim()) return false;
     if (subjectMode === "product" && !selectedProductId) return false;
     if (subjectMode === "material" && !selectedMaterialId) return false;
@@ -331,7 +324,8 @@ export default function ZAppOrdiniPage() {
           status: "commissionato",
           order_type: orderType,
           order_type_category: orderTypeCategory,
-          delivery_mode: needsDeliveryMode ? deliveryMode : (orderTypeCategory === "installazione" ? "installazione" : null),
+          delivery_mode: needsDeliveryMode ? deliveryMode : null,
+          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
           is_warranty: isWarranty,
           order_subject: subject,
           notes: formData.notes || null,
@@ -365,24 +359,25 @@ export default function ZAppOrdiniPage() {
       }
 
       // Service/Intervento/Installation work order
-      if (commesseToCreate.some(c => c.includes("Intervento") || c.includes("Installazione"))) {
+      if (commesseToCreate.some(c => c.includes("Lavoro") || c.includes("Installazione") || c.includes("Manutenzione") || c.includes("Riparazione"))) {
         const isInstallation = commesseToCreate.some(c => c.includes("Installazione"));
+        const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : isInstallation ? "Installazione" : "Intervento";
         const { data: swo, error } = await supabase
           .from("service_work_orders")
           .insert([{
             number: "",
-            title: `${isInstallation ? "Installazione" : "Intervento"} ${productName} per ${customerName}`.trim(),
+            title: `${typeLabel} ${productName} per ${customerName}`.trim(),
             description: subject || "",
             status: "da_programmare",
              customer_id: selectedCustomer!.id,
             sales_order_id: salesOrder.id,
             priority: "medium",
-            notes: formData.notes || null,
+            notes: `${interventionType ? `Tipo: ${typeLabel}. ` : ""}${formData.notes || ""}`.trim() || null,
           }])
           .select()
           .single();
         if (error) throw error;
-        if (swo) createdCommesse.push(`${isInstallation ? "Installazione" : "Intervento"}: ${swo.number}`);
+        if (swo) createdCommesse.push(`${typeLabel}: ${swo.number}`);
       }
 
       // Shipping
@@ -540,6 +535,7 @@ export default function ZAppOrdiniPage() {
                       onClick={() => {
                         setOrderTypeCategory(cat.value);
                         setDeliveryMode("");
+                        setInterventionType("");
                         setIsWarranty(false);
                       }}
                       className={cn(
@@ -758,6 +754,38 @@ export default function ZAppOrdiniPage() {
                         <div className="flex-1">
                           <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{dm.label}</p>
                           <p className="text-xs text-muted-foreground">{dm.desc}</p>
+                        </div>
+                        {isSelected && <Check className="h-5 w-5 text-teal-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+
+            {/* 4b. Tipo di intervento (only for intervento) */}
+            {needsInterventionType && selectedCustomer && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
+                <Label className="font-semibold text-sm">Tipo di intervento *</Label>
+                <div className="space-y-2">
+                  {INTERVENTION_TYPES.map(it => {
+                    const Icon = it.icon;
+                    const isSelected = interventionType === it.value;
+                    return (
+                      <button
+                        key={it.value}
+                        type="button"
+                        onClick={() => setInterventionType(it.value)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all",
+                          isSelected ? "border-teal-500 bg-teal-50 shadow-sm" : "border-border hover:bg-muted/50"
+                        )}
+                      >
+                        <Icon className={cn("h-5 w-5 shrink-0", isSelected ? "text-teal-600" : "text-muted-foreground")} />
+                        <div className="flex-1">
+                          <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{it.label}</p>
+                          <p className="text-xs text-muted-foreground">{it.desc}</p>
                         </div>
                         {isSelected && <Check className="h-5 w-5 text-teal-600" />}
                       </button>
