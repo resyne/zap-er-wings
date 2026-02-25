@@ -48,6 +48,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     address: "",
     shipping_address: "",
     city: "",
+    postal_code: "",
+    province: "",
     country: "",
     active: true
   });
@@ -112,6 +114,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         address: "",
         shipping_address: "",
         city: "",
+        postal_code: "",
+        province: "",
         country: "",
         active: true
       });
@@ -137,6 +141,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Intestazione */}
           <div className="space-y-2">
             <Label htmlFor="company_name">Intestazione *</Label>
             <Input
@@ -148,6 +153,95 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             />
           </div>
 
+          {/* Indirizzo di Fatturazione */}
+          <div className="space-y-2">
+            <Label htmlFor="address">Indirizzo di Fatturazione</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange('address', e.target.value)}
+              placeholder="Via, numero civico"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">Città</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Milano"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="postal_code">CAP</Label>
+              <Input
+                id="postal_code"
+                value={formData.postal_code}
+                onChange={(e) => handleInputChange('postal_code', e.target.value)}
+                placeholder="20100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="province">Provincia</Label>
+              <Input
+                id="province"
+                value={formData.province}
+                onChange={(e) => handleInputChange('province', e.target.value)}
+                placeholder="MI"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="country">Paese</Label>
+            <Input
+              id="country"
+              value={formData.country}
+              onChange={(e) => handleInputChange('country', e.target.value)}
+              placeholder="Italia"
+            />
+          </div>
+
+          {/* P.IVA */}
+          <div className="space-y-2">
+            <Label htmlFor="tax_id">Partita IVA</Label>
+            <Input
+              id="tax_id"
+              value={formData.tax_id}
+              onChange={(e) => handleInputChange('tax_id', e.target.value)}
+              placeholder="IT12345678901"
+            />
+          </div>
+
+          {/* Indirizzo di spedizione */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="same_billing"
+              checked={sameBillingAddress}
+              onCheckedChange={(checked) => {
+                setSameBillingAddress(checked as boolean);
+                if (checked) handleInputChange('shipping_address', '');
+              }}
+            />
+            <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
+          </div>
+
+          {!sameBillingAddress && (
+            <div className="space-y-2">
+              <Label htmlFor="shipping_address">Indirizzo di Spedizione</Label>
+              <Textarea
+                id="shipping_address"
+                value={formData.shipping_address}
+                onChange={(e) => handleInputChange('shipping_address', e.target.value)}
+                placeholder="Via, numero civico"
+                rows={2}
+              />
+            </div>
+          )}
+
+          {/* Referente e contatti */}
           <div className="space-y-2">
             <Label htmlFor="referent_name">Nome Referente</Label>
             <Input
@@ -157,7 +251,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
               placeholder="Nome e cognome referente"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -180,16 +274,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tax_id">Partita IVA</Label>
-            <Input
-              id="tax_id"
-              value={formData.tax_id}
-              onChange={(e) => handleInputChange('tax_id', e.target.value)}
-              placeholder="IT12345678901"
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pec">PEC</Label>
@@ -208,38 +292,6 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
                 value={formData.sdi_code}
                 onChange={(e) => handleInputChange('sdi_code', e.target.value)}
                 placeholder="XXXXXXX"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo di Fatturazione</Label>
-            <Textarea
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="Via, numero civico"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">Città</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                placeholder="Milano"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="country">Paese</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => handleInputChange('country', e.target.value)}
-                placeholder="Italia"
               />
             </div>
           </div>
