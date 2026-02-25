@@ -2,12 +2,12 @@ import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ClipboardCheck, Loader2, Save, Search } from "lucide-react";
+import { ClipboardCheck, Loader2, Save, Building2, ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Material {
   id: string;
@@ -32,17 +32,42 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
 
-  const filteredMaterials = useMemo(() => {
-    return materials.filter(
-      (m) =>
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [materials, searchTerm]);
+  // Group by supplier
+  const groupedBySupplier = useMemo(() => {
+    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+    for (const m of materials) {
+      const key = m.supplier_id || "__no_supplier__";
+      const supplierName = m.suppliers?.name || "Senza fornitore";
+      if (!groups[key]) groups[key] = { supplierName, materials: [] };
+      groups[key].materials.push(m);
+    }
+    return Object.entries(groups).sort(([kA, a], [kB, b]) => {
+      if (kA === "__no_supplier__") return 1;
+      if (kB === "__no_supplier__") return -1;
+      return a.supplierName.localeCompare(b.supplierName);
+    });
+  }, [materials]);
+
+  const isAllExpanded = expandedSuppliers.has("__all__");
+  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
+
+  const toggleSupplier = (key: string) => {
+    setExpandedSuppliers((prev) => {
+      if (isAllExpanded) {
+        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
+        allKeys.delete(key);
+        return allKeys;
+      }
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleQuantityChange = (materialId: string, value: string) => {
     setQuantities((prev) => ({ ...prev, [materialId]: value }));
@@ -96,7 +121,6 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
       onOpenChange(false);
       setQuantities({});
       setTouched(new Set());
-      setSearchTerm("");
     } catch (error) {
       console.error("Error saving inventory:", error);
       toast({ title: "Errore", description: "Impossibile salvare l'inventario", variant: "destructive" });
@@ -118,57 +142,63 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca materiale..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
         {changedItems.length > 0 && (
           <Badge className="bg-blue-100 text-blue-700 border-blue-200 w-fit">
             {changedItems.length} articol{changedItems.length === 1 ? "o" : "i"} da aggiornare
           </Badge>
         )}
 
-        <div className="flex-1 overflow-y-auto space-y-1 max-h-[400px] pr-1">
-          {filteredMaterials.map((m) => {
-            const currentValue = quantities[m.id];
-            const isTouched = touched.has(m.id);
-            const newQty = parseFloat(currentValue || "");
-            const isChanged = isTouched && !isNaN(newQty) && newQty !== m.current_stock;
+        <div className="flex-1 overflow-y-auto space-y-2 max-h-[450px] pr-1">
+          {groupedBySupplier.map(([key, group]) => (
+            <Collapsible key={key} open={isExpanded(key)} onOpenChange={() => toggleSupplier(key)}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border border-border hover:bg-muted transition-colors">
+                  <Building2 className="h-4 w-4 text-amber-700" />
+                  <span className="font-semibold text-sm flex-1 text-left">{group.supplierName}</span>
+                  <span className="text-xs text-muted-foreground">{group.materials.length} articoli</span>
+                  {isExpanded(key) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-1 mt-1 ml-2 border-l-2 border-amber-200 pl-2">
+                  {group.materials.map((m) => {
+                    const currentValue = quantities[m.id];
+                    const isTouched = touched.has(m.id);
+                    const newQty = parseFloat(currentValue || "");
+                    const isChanged = isTouched && !isNaN(newQty) && newQty !== m.current_stock;
 
-            return (
-              <div
-                key={m.id}
-                className={`flex items-center gap-3 rounded-lg p-2.5 border transition-colors ${
-                  isChanged ? "bg-blue-50 border-blue-200" : "bg-white border-border"
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-[13px] truncate">{m.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {m.code} · {m.suppliers?.name || "N/A"} · Attuale: <strong>{m.current_stock}</strong> {m.unit}
-                  </p>
+                    return (
+                      <div
+                        key={m.id}
+                        className={`flex items-center gap-2 rounded-lg p-2 border transition-colors ${
+                          isChanged ? "bg-blue-50 border-blue-200" : "bg-white border-border"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-[13px] truncate">{m.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {m.code} · Attuale: <strong>{m.current_stock}</strong> {m.unit}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder={m.current_stock.toString()}
+                            value={currentValue ?? ""}
+                            onChange={(e) => handleQuantityChange(m.id, e.target.value)}
+                            className="w-20 text-center h-8"
+                          />
+                          <span className="text-[11px] text-muted-foreground w-5">{m.unit}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder={m.current_stock.toString()}
-                    value={currentValue ?? ""}
-                    onChange={(e) => handleQuantityChange(m.id, e.target.value)}
-                    className="w-20 text-center"
-                  />
-                  <span className="text-xs text-muted-foreground w-6">{m.unit}</span>
-                </div>
-              </div>
-            );
-          })}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
         </div>
 
         <DialogFooter>
