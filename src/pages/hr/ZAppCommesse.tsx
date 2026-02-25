@@ -621,7 +621,6 @@ export default function ZAppCommesse() {
       date: format(scheduleDate, "yyyy-MM-dd"),
     });
   };
-  };
 
   // ─── Data Fetching ──────────────────────────────────────
   const { data: workOrders = [], isLoading: loadingWO } = useQuery({
