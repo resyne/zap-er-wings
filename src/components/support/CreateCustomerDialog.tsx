@@ -39,6 +39,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
   const [formData, setFormData] = useState({
     name: "",
     company_name: "",
+    referent_name: "",
     email: "",
     phone: "",
     tax_id: "",
@@ -59,10 +60,10 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    if (!formData.company_name.trim()) {
       toast({
         title: "Errore",
-        description: "Il nome è obbligatorio",
+        description: "L'intestazione è obbligatoria",
         variant: "destructive",
       });
       return;
@@ -73,9 +74,9 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
       const { data, error } = await supabase
         .from('customers')
         .insert({
-          name: formData.name,
-          code: '', // Verrà generato automaticamente dal trigger
-          company_name: formData.company_name || null,
+          name: formData.company_name,
+          code: '',
+          company_name: formData.company_name,
           email: formData.email || null,
           phone: formData.phone || null,
           tax_id: formData.tax_id || null,
@@ -102,6 +103,7 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
       setFormData({
         name: "",
         company_name: "",
+        referent_name: "",
         email: "",
         phone: "",
         tax_id: "",
@@ -136,23 +138,23 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome *</Label>
+            <Label htmlFor="company_name">Intestazione *</Label>
             <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Nome cliente"
+              id="company_name"
+              value={formData.company_name}
+              onChange={(e) => handleInputChange('company_name', e.target.value)}
+              placeholder="Es. Mari SRL"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company_name">Nome Azienda</Label>
+            <Label htmlFor="referent_name">Nome Referente</Label>
             <Input
-              id="company_name"
-              value={formData.company_name}
-              onChange={(e) => handleInputChange('company_name', e.target.value)}
-              placeholder="Nome dell'azienda"
+              id="referent_name"
+              value={formData.referent_name}
+              onChange={(e) => handleInputChange('referent_name', e.target.value)}
+              placeholder="Nome e cognome referente"
             />
           </div>
           
