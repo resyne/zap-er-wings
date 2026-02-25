@@ -71,27 +71,10 @@ interface Material {
   code: string;
 }
 
-const ORDER_TYPE_CATEGORIES = [
-  { value: "produzione", label: "Produzione", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
-  { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
-  { value: "ricambi", label: "Ricambi", icon: Settings, color: "text-purple-600 bg-purple-50 border-purple-200" },
-  { value: "installazione", label: "Installazione", icon: MapPin, color: "text-green-600 bg-green-50 border-green-200" },
-];
-
-const DELIVERY_MODES_PRODUZIONE = [
-  { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Produzione + Spedizione" },
-  { value: "installazione", label: "Installazione", icon: MapPin, desc: "Produzione + Installazione" },
-  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Solo Produzione" },
-];
-
-const DELIVERY_MODES_RICAMBI = [
-  { value: "spedizione", label: "Spedizione", icon: Truck, desc: "Spedizione ricambi" },
-  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro ricambi in sede" },
-];
-
-const INTERVENTION_TYPES = [
-  { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
-  { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
+const DELIVERY_MODES_FORNITURA = [
+  { value: "produzione_spedizione", label: "Produzione e Spedizione", icon: Truck, desc: "Produzione + Spedizione al cliente" },
+  { value: "produzione_installazione", label: "Produzione e Installazione", icon: MapPin, desc: "Produzione + Installazione in loco" },
+  { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Produzione con ritiro del cliente" },
 ];
 
 const statusColors: Record<string, string> = {
@@ -113,6 +96,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const categoryLabels: Record<string, string> = {
+  fornitura: "Fornitura",
   produzione: "Produzione",
   intervento: "Intervento",
   ricambi: "Ricambi",
@@ -141,7 +125,7 @@ export default function ZAppOrdiniPage() {
   const [productOpen, setProductOpen] = useState(false);
   const [materialOpen, setMaterialOpen] = useState(false);
 
-  const [orderTypeCategory, setOrderTypeCategory] = useState("");
+  const [orderTypeCategory, setOrderTypeCategory] = useState("fornitura");
   const [interventionType, setInterventionType] = useState("");
   const [isWarranty, setIsWarranty] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState("");
@@ -237,14 +221,11 @@ export default function ZAppOrdiniPage() {
   const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
   const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
 
-  const needsDeliveryMode = ["produzione", "ricambi"].includes(orderTypeCategory);
-  const needsInterventionType = orderTypeCategory === "intervento";
-  const needsProductSelection = ["produzione", "ricambi"].includes(orderTypeCategory);
+  const needsDeliveryMode = orderTypeCategory === "fornitura";
+  const needsInterventionType = false;
+  const needsProductSelection = orderTypeCategory === "fornitura";
 
-  const availableDeliveryModes = useMemo(() => {
-    if (orderTypeCategory === "ricambi") return DELIVERY_MODES_RICAMBI;
-    return DELIVERY_MODES_PRODUZIONE;
-  }, [orderTypeCategory]);
+  const availableDeliveryModes = DELIVERY_MODES_FORNITURA;
 
   const openCreateForm = () => {
     loadCustomers();
@@ -252,7 +233,7 @@ export default function ZAppOrdiniPage() {
     loadMaterials();
     setSelectedCustomer(null);
     setCustomerSearch("");
-    setOrderTypeCategory("");
+    setOrderTypeCategory("fornitura");
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
@@ -269,18 +250,10 @@ export default function ZAppOrdiniPage() {
   const computeCommesse = () => {
     const commesse: string[] = [];
 
-    if (orderTypeCategory === "produzione") {
+    if (orderTypeCategory === "fornitura") {
       commesse.push("Produzione");
-      if (deliveryMode === "installazione") commesse.push("Installazione");
-      if (deliveryMode === "spedizione") commesse.push("Spedizione");
-    } else if (orderTypeCategory === "intervento") {
-      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Intervento";
-      commesse.push(`${typeLabel} (Lavoro)`);
-    } else if (orderTypeCategory === "ricambi") {
-      if (deliveryMode === "spedizione") commesse.push("Spedizione");
-    } else if (orderTypeCategory === "installazione") {
-      commesse.push("Produzione");
-      commesse.push("Installazione");
+      if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
+      if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
     }
 
     return commesse;
@@ -308,14 +281,8 @@ export default function ZAppOrdiniPage() {
         : orderSubject;
 
       // Determine order_type for backward compatibility
-      let orderType = "";
+      let orderType = "odp";
       const commesseToCreate = computeCommesse();
-      const hasProd = commesseToCreate.some(c => c.includes("Produzione"));
-      const hasLavoro = commesseToCreate.some(c => c.includes("Lavoro") || c.includes("Intervento"));
-      if (hasProd && hasLavoro) orderType = "odpel";
-      else if (hasProd) orderType = "odp";
-      else if (hasLavoro) orderType = "odl";
-      else orderType = "ods";
 
       // 1. Create sales order
       const { data: salesOrder, error: soError } = await supabase
@@ -525,42 +492,12 @@ export default function ZAppOrdiniPage() {
           </Button>
         ) : (
           <div className="space-y-3">
-            {/* 1. Tipo Ordine */}
-            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-              <Label className="font-semibold text-sm">Tipo Ordine *</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {ORDER_TYPE_CATEGORIES.map(cat => {
-                  const Icon = cat.icon;
-                  const isSelected = orderTypeCategory === cat.value;
-                  return (
-                    <button
-                      key={cat.value}
-                      type="button"
-                      onClick={() => {
-                        setOrderTypeCategory(cat.value);
-                        setDeliveryMode("");
-                        setInterventionType("");
-                        setIsWarranty(false);
-                      }}
-                      className={cn(
-                        "flex items-center gap-2 p-3 rounded-lg border-2 text-left transition-all text-sm font-medium",
-                        isSelected ? cat.color + " border-current shadow-sm" : "border-border hover:bg-muted/50"
-                      )}
-                    >
-                      <Icon className="h-5 w-5 shrink-0" />
-                      {cat.label}
-                    </button>
-                  );
-                })}
+            {/* 1. Tipo: Fornitura (header info) */}
+            <div className="bg-white rounded-xl border border-border p-4">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-teal-600" />
+                <Label className="font-semibold text-sm">Nuovo Ordine di Fornitura</Label>
               </div>
-              {/* Warranty toggle for Ricambi */}
-              {orderTypeCategory === "ricambi" && (
-                <label className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 cursor-pointer">
-                  <Shield className="h-5 w-5 text-amber-600" />
-                  <span className="text-sm font-medium flex-1">In garanzia</span>
-                  <Switch checked={isWarranty} onCheckedChange={setIsWarranty} />
-                </label>
-              )}
             </div>
 
             {/* 2. Cliente */}
@@ -768,37 +705,6 @@ export default function ZAppOrdiniPage() {
             )}
 
 
-            {/* 4b. Tipo di intervento (only for intervento) */}
-            {needsInterventionType && selectedCustomer && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
-              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
-                <Label className="font-semibold text-sm">Tipo di intervento *</Label>
-                <div className="space-y-2">
-                  {INTERVENTION_TYPES.map(it => {
-                    const Icon = it.icon;
-                    const isSelected = interventionType === it.value;
-                    return (
-                      <button
-                        key={it.value}
-                        type="button"
-                        onClick={() => setInterventionType(it.value)}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all",
-                          isSelected ? "border-teal-500 bg-teal-50 shadow-sm" : "border-border hover:bg-muted/50"
-                        )}
-                      >
-                        <Icon className={cn("h-5 w-5 shrink-0", isSelected ? "text-teal-600" : "text-muted-foreground")} />
-                        <div className="flex-1">
-                          <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{it.label}</p>
-                          <p className="text-xs text-muted-foreground">{it.desc}</p>
-                        </div>
-                        {isSelected && <Check className="h-5 w-5 text-teal-600" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* 5. Date */}
             {orderTypeCategory && selectedCustomer && (
               <div className="bg-white rounded-xl border border-border p-4">
@@ -871,8 +777,7 @@ export default function ZAppOrdiniPage() {
         ) : (
           <div className="space-y-2">
             {filteredOrders.map(order => {
-              const catIcon = ORDER_TYPE_CATEGORIES.find(c => c.value === order.order_type_category)?.icon || ShoppingCart;
-              const CatIcon = catIcon;
+              const CatIcon = Package;
               const subsCount = (order.work_orders?.length || 0) + (order.service_work_orders?.length || 0) + (order.shipping_orders?.length || 0);
               return (
                 <button
