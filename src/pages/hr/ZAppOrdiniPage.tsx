@@ -71,12 +71,20 @@ interface Material {
 
 interface OrderItem {
   id: string;
-  mode: "text" | "product" | "material";
+  mode: "text" | "product" | "material" | "service";
   text: string;
   productId: string;
   materialId: string;
+  serviceType: string;
+  details: string;
   quantity: number;
 }
+
+const SERVICE_TYPES = [
+  { value: "manutenzione_straordinaria", label: "Manutenzione Straordinaria" },
+  { value: "manutenzione_ordinaria", label: "Manutenzione Ordinaria" },
+  { value: "altro", label: "Altro" },
+];
 
 const ORDER_TYPE_CATEGORIES = [
   { value: "fornitura", label: "Fornitura", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
@@ -151,7 +159,7 @@ export default function ZAppOrdiniPage() {
   const [isWarranty, setIsWarranty] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
-    { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }
+    { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }
   ]);
 
   const [formData, setFormData] = useState({
@@ -242,6 +250,7 @@ export default function ZAppOrdiniPage() {
     if (item.mode === "text") return item.text.trim().length > 0;
     if (item.mode === "product") return !!item.productId;
     if (item.mode === "material") return !!item.materialId;
+    if (item.mode === "service") return !!item.serviceType;
     return false;
   });
 
@@ -254,11 +263,15 @@ export default function ZAppOrdiniPage() {
       const m = materials.find(ma => ma.id === item.materialId);
       return m ? `${m.code} - ${m.name}` : "";
     }
+    if (item.mode === "service") {
+      const s = SERVICE_TYPES.find(st => st.value === item.serviceType);
+      return s ? s.label : "";
+    }
     return item.text;
   };
 
   const addOrderItem = () => {
-    setOrderItems(prev => [...prev, { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }]);
+    setOrderItems(prev => [...prev, { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
   };
 
   const removeOrderItem = (id: string) => {
@@ -288,7 +301,7 @@ export default function ZAppOrdiniPage() {
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
-    setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }]);
+    setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
     setSelectedPriority("");
     setSaving(false);
@@ -331,7 +344,10 @@ export default function ZAppOrdiniPage() {
       const subjectParts = orderItems
         .map(item => {
           const label = getItemLabel(item);
-          return label ? (item.quantity > 1 ? `${label} (x${item.quantity})` : label) : null;
+          if (!label) return null;
+          let part = item.quantity > 1 ? `${label} (x${item.quantity})` : label;
+          if (item.details.trim()) part += ` [${item.details.trim()}]`;
+          return part;
         })
         .filter(Boolean);
       const subject = subjectParts.join(", ");
@@ -695,17 +711,21 @@ export default function ZAppOrdiniPage() {
                     
                     {/* Mode selector */}
                     <div className="flex gap-1 bg-muted rounded-lg p-1">
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "text", productId: "", materialId: "" })}
-                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "text", productId: "", materialId: "", serviceType: "" })}
+                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
                         <FileText className="h-3 w-3" /> Testo
                       </button>
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "product", text: "", materialId: "" })}
-                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "product", text: "", materialId: "", serviceType: "" })}
+                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
                         <Package className="h-3 w-3" /> Prodotto
                       </button>
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "material", text: "", productId: "" })}
-                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "material", text: "", productId: "", serviceType: "" })}
+                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
                         <Settings className="h-3 w-3" /> Materiale
+                      </button>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "service", text: "", productId: "", materialId: "" })}
+                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "service" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                        <Wrench className="h-3 w-3" /> Servizio
                       </button>
                     </div>
 
@@ -774,13 +794,32 @@ export default function ZAppOrdiniPage() {
                             </PopoverContent>
                           </Popover>
                         )}
+                        {item.mode === "service" && (
+                          <Select value={item.serviceType} onValueChange={val => updateOrderItem(item.id, { serviceType: val })}>
+                            <SelectTrigger className="h-10 text-sm">
+                              <SelectValue placeholder="Seleziona servizio..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SERVICE_TYPES.map(s => (
+                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
-                      <div className="w-16">
-                        <Input type="number" min={1} value={item.quantity}
-                          onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                          className="h-10 text-sm text-center" placeholder="Qtà" />
-                      </div>
+                      {item.mode !== "service" && (
+                        <div className="w-16">
+                          <Input type="number" min={1} value={item.quantity}
+                            onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                            className="h-10 text-sm text-center" placeholder="Qtà" />
+                        </div>
+                      )}
                     </div>
+
+                    {/* Details field */}
+                    <Input placeholder="Dettagli aggiuntivi (opzionale)..." value={item.details}
+                      onChange={e => updateOrderItem(item.id, { details: e.target.value })}
+                      className="h-9 text-xs" />
                   </div>
                 ))}
               </div>
