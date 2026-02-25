@@ -38,6 +38,14 @@ interface Customer {
   company_name?: string;
 }
 
+interface BomModel {
+  id: string;
+  name: string;
+  machinery_model: string | null;
+  version: string;
+  parent_id: string | null;
+}
+
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
   commissionato: "bg-blue-100 text-blue-800",
@@ -96,6 +104,11 @@ export default function ZAppOrdiniPage() {
     spedizione: false,
   });
   const [saving, setSaving] = useState(false);
+  const [bomModels, setBomModels] = useState<BomModel[]>([]);
+  const [selectedBomLavoro, setSelectedBomLavoro] = useState("");
+  const [includeProduzioneLavoro, setIncludeProduzioneLavoro] = useState(false);
+  const [selectedBomSpedizione, setSelectedBomSpedizione] = useState("");
+  const [needsProductionForShipping, setNeedsProductionForShipping] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -135,6 +148,16 @@ export default function ZAppOrdiniPage() {
     if (data) setCustomers(data as any);
   };
 
+  const loadBomModels = async () => {
+    const { data } = await supabase
+      .from("boms")
+      .select("id, name, machinery_model, version, parent_id")
+      .eq("level", 0)
+      .is("parent_id", null)
+      .order("name");
+    if (data) setBomModels(data as BomModel[]);
+  };
+
   const filteredOrders = orders.filter(o => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -161,29 +184,38 @@ export default function ZAppOrdiniPage() {
 
   const openCreateForm = () => {
     loadCustomers();
+    loadBomModels();
     setSelectedCustomerId("");
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "" });
     setCommesse({ produzione: false, lavoro: false, spedizione: false });
+    setSelectedBomLavoro("");
+    setIncludeProduzioneLavoro(false);
+    setSelectedBomSpedizione("");
+    setNeedsProductionForShipping(false);
     setShowCreateForm(true);
   };
 
   const handleCreateOrder = async () => {
     if (!selectedCustomerId) { toast.error("Seleziona un cliente"); return; }
-    if (!commesse.produzione && !commesse.lavoro && !commesse.spedizione) {
+    const needsProd = commesse.produzione || includeProduzioneLavoro || needsProductionForShipping;
+    const needsLavoro = commesse.lavoro;
+    const needsSpedizione = commesse.spedizione;
+    if (!needsProd && !needsLavoro && !needsSpedizione) {
       toast.error("Seleziona almeno un tipo di commessa");
       return;
     }
 
     setSaving(true);
     try {
-      // Determine order type
       let orderType = "";
-      if (commesse.produzione && commesse.lavoro) orderType = "odpel";
-      else if (commesse.produzione) orderType = "odp";
-      else if (commesse.lavoro) orderType = "odl";
-      else if (commesse.spedizione) orderType = "ods";
+      if (needsProd && needsLavoro) orderType = "odpel";
+      else if (needsProd) orderType = "odp";
+      else if (needsLavoro) orderType = "odl";
+      else if (needsSpedizione) orderType = "ods";
 
       const customerName = selectedCustomer?.name || "Cliente";
+      const selectedBomNameLavoro = bomModels.find(b => b.id === selectedBomLavoro)?.name;
+      const selectedBomNameSpedizione = bomModels.find(b => b.id === selectedBomSpedizione)?.name;
 
       // 1. Create sales order
       const { data: salesOrder, error: soError } = await supabase
@@ -202,36 +234,40 @@ export default function ZAppOrdiniPage() {
         .single();
 
       if (soError) throw soError;
-
       const createdCommesse: string[] = [];
 
-      // 2. Create production work order
-      if (commesse.produzione) {
+      // 2. Create production work order (standalone, or for lavoro, or for shipping)
+      if (needsProd) {
+        const bomId = commesse.produzione ? undefined : 
+                      includeProduzioneLavoro ? selectedBomLavoro : selectedBomSpedizione;
+        const bomName = commesse.produzione ? "" : 
+                       includeProduzioneLavoro ? selectedBomNameLavoro : selectedBomNameSpedizione;
         const { data: wo, error } = await supabase
           .from("work_orders")
           .insert([{
             number: "",
-            title: `Produzione per ${customerName}`,
+            title: `Produzione ${bomName || ""} per ${customerName}`.trim(),
             description: formData.notes || "",
             status: "da_fare",
             customer_id: selectedCustomerId,
             sales_order_id: salesOrder.id,
             priority: "medium",
             notes: formData.notes || null,
+            bom_id: bomId || null,
           }])
           .select()
           .single();
         if (error) throw error;
-        if (wo) createdCommesse.push(`CdP: ${wo.number}`);
+        if (wo) createdCommesse.push(`Produzione: ${wo.number}`);
       }
 
       // 3. Create service work order
-      if (commesse.lavoro) {
+      if (needsLavoro) {
         const { data: swo, error } = await supabase
           .from("service_work_orders")
           .insert([{
             number: "",
-            title: `Lavoro per ${customerName}`,
+            title: `Lavoro ${selectedBomNameLavoro ? selectedBomNameLavoro + " " : ""}per ${customerName}`,
             description: formData.notes || "",
             status: "da_programmare",
             customer_id: selectedCustomerId,
@@ -242,12 +278,11 @@ export default function ZAppOrdiniPage() {
           .select()
           .single();
         if (error) throw error;
-        if (swo) createdCommesse.push(`CdL: ${swo.number}`);
+        if (swo) createdCommesse.push(`Lavoro: ${swo.number}`);
       }
 
       // 4. Create shipping order
-      if (commesse.spedizione) {
-        // Get customer address
+      if (needsSpedizione) {
         const { data: custData } = await supabase
           .from("customers")
           .select("city, province, address, shipping_address")
@@ -261,7 +296,7 @@ export default function ZAppOrdiniPage() {
             customer_id: selectedCustomerId,
             status: "da_preparare",
             order_date: formData.order_date || new Date().toISOString().split("T")[0],
-            notes: formData.notes || null,
+            notes: `${selectedBomNameSpedizione ? "Prodotto: " + selectedBomNameSpedizione + ". " : ""}${formData.notes || ""}`.trim() || null,
             sales_order_id: salesOrder.id,
             shipping_address: custData?.shipping_address || custData?.address || null,
             shipping_city: custData?.city || null,
@@ -270,7 +305,7 @@ export default function ZAppOrdiniPage() {
           .select()
           .single();
         if (error) throw error;
-        if (so) createdCommesse.push(`CdS: ${so.number}`);
+        if (so) createdCommesse.push(`Spedizione: ${so.number}`);
       }
 
       toast.success(`Ordine ${salesOrder.number} creato!\n${createdCommesse.join(" • ")}`);
@@ -432,21 +467,88 @@ export default function ZAppOrdiniPage() {
             <div className="bg-white rounded-xl border border-border p-4 space-y-3">
               <Label className="font-semibold text-sm">Commesse da creare *</Label>
               <div className="space-y-2 mt-2">
+                {/* Produzione */}
                 <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                  <Checkbox checked={commesse.produzione} onCheckedChange={v => setCommesse(p => ({ ...p, produzione: !!v }))} />
+                  <Checkbox checked={commesse.produzione} onCheckedChange={v => {
+                    setCommesse(p => ({ ...p, produzione: !!v }));
+                    if (!v) setIncludeProduzioneLavoro(false);
+                  }} />
                   <Package className="h-5 w-5 text-amber-600" />
-                  <span className="font-medium text-sm">Produzione (CdP)</span>
+                  <span className="font-medium text-sm">Produzione</span>
                 </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                  <Checkbox checked={commesse.lavoro} onCheckedChange={v => setCommesse(p => ({ ...p, lavoro: !!v }))} />
-                  <Wrench className="h-5 w-5 text-blue-600" />
-                  <span className="font-medium text-sm">Lavoro (CdL)</span>
-                </label>
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                  <Checkbox checked={commesse.spedizione} onCheckedChange={v => setCommesse(p => ({ ...p, spedizione: !!v }))} />
-                  <Truck className="h-5 w-5 text-green-600" />
-                  <span className="font-medium text-sm">Spedizione (CdS)</span>
-                </label>
+
+                {/* Lavoro */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                    <Checkbox checked={commesse.lavoro} onCheckedChange={v => {
+                      setCommesse(p => ({ ...p, lavoro: !!v }));
+                      if (!v) { setIncludeProduzioneLavoro(false); setSelectedBomLavoro(""); }
+                    }} />
+                    <Wrench className="h-5 w-5 text-blue-600" />
+                    <span className="font-medium text-sm">Lavoro</span>
+                  </label>
+                  {commesse.lavoro && (
+                    <div className="ml-10 space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={includeProduzioneLavoro} onCheckedChange={v => {
+                          setIncludeProduzioneLavoro(!!v);
+                          if (!v) setSelectedBomLavoro("");
+                          if (v) setCommesse(p => ({ ...p, produzione: false }));
+                        }} />
+                        <span className="text-sm text-muted-foreground">Include produzione macchinario</span>
+                      </label>
+                      {includeProduzioneLavoro && (
+                        <Select value={selectedBomLavoro} onValueChange={setSelectedBomLavoro}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Seleziona macchinario..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {bomModels.map(b => (
+                              <SelectItem key={b.id} value={b.id}>{b.machinery_model || b.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Spedizione */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                    <Checkbox checked={commesse.spedizione} onCheckedChange={v => {
+                      setCommesse(p => ({ ...p, spedizione: !!v }));
+                      if (!v) { setSelectedBomSpedizione(""); setNeedsProductionForShipping(false); }
+                    }} />
+                    <Truck className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-sm">Spedizione</span>
+                  </label>
+                  {commesse.spedizione && (
+                    <div className="ml-10 space-y-2">
+                      <Select value={selectedBomSpedizione} onValueChange={v => {
+                        setSelectedBomSpedizione(v);
+                      }}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Cosa spedire..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bomModels.map(b => (
+                            <SelectItem key={b.id} value={b.id}>{b.machinery_model || b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedBomSpedizione && (
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={needsProductionForShipping} onCheckedChange={v => {
+                            setNeedsProductionForShipping(!!v);
+                            if (v) setCommesse(p => ({ ...p, produzione: false }));
+                          }} />
+                          <span className="text-sm text-muted-foreground">Va prodotto (non disponibile)</span>
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
