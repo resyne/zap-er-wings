@@ -69,6 +69,15 @@ interface Material {
   code: string;
 }
 
+interface OrderItem {
+  id: string;
+  mode: "text" | "product" | "material";
+  text: string;
+  productId: string;
+  materialId: string;
+  quantity: number;
+}
+
 const ORDER_TYPE_CATEGORIES = [
   { value: "fornitura", label: "Fornitura", icon: Factory, color: "text-amber-600 bg-amber-50 border-amber-200" },
   { value: "intervento", label: "Intervento", icon: Wrench, color: "text-blue-600 bg-blue-50 border-blue-200" },
@@ -136,17 +145,14 @@ export default function ZAppOrdiniPage() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
-  const [productOpen, setProductOpen] = useState(false);
-  const [materialOpen, setMaterialOpen] = useState(false);
 
   const [orderTypeCategory, setOrderTypeCategory] = useState("");
   const [interventionType, setInterventionType] = useState("");
   const [isWarranty, setIsWarranty] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState("");
-  const [subjectMode, setSubjectMode] = useState<"text" | "product" | "material">("text");
-  const [orderSubject, setOrderSubject] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedMaterialId, setSelectedMaterialId] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([
+    { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }
+  ]);
 
   const [formData, setFormData] = useState({
     notes: "",
@@ -232,12 +238,40 @@ export default function ZAppOrdiniPage() {
       (c.code || '').toLowerCase().includes(s)
     );
   }, [customers, customerSearch]);
-  const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
-  const selectedMaterial = useMemo(() => materials.find(m => m.id === selectedMaterialId), [materials, selectedMaterialId]);
+  const hasValidItems = orderItems.some(item => {
+    if (item.mode === "text") return item.text.trim().length > 0;
+    if (item.mode === "product") return !!item.productId;
+    if (item.mode === "material") return !!item.materialId;
+    return false;
+  });
+
+  const getItemLabel = (item: OrderItem) => {
+    if (item.mode === "product") {
+      const p = products.find(pr => pr.id === item.productId);
+      return p ? `${p.code} - ${p.name}` : "";
+    }
+    if (item.mode === "material") {
+      const m = materials.find(ma => ma.id === item.materialId);
+      return m ? `${m.code} - ${m.name}` : "";
+    }
+    return item.text;
+  };
+
+  const addOrderItem = () => {
+    setOrderItems(prev => [...prev, { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }]);
+  };
+
+  const removeOrderItem = (id: string) => {
+    setOrderItems(prev => prev.length > 1 ? prev.filter(i => i.id !== id) : prev);
+  };
+
+  const updateOrderItem = (id: string, updates: Partial<OrderItem>) => {
+    setOrderItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+  };
 
   const needsDeliveryMode = ["fornitura", "ricambi"].includes(orderTypeCategory);
   const needsInterventionType = orderTypeCategory === "intervento";
-  const needsProductSelection = ["fornitura", "ricambi"].includes(orderTypeCategory);
+  
 
   const availableDeliveryModes = useMemo(() => {
     if (orderTypeCategory === "ricambi") return DELIVERY_MODES_RICAMBI;
@@ -254,10 +288,7 @@ export default function ZAppOrdiniPage() {
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
-    setSubjectMode("text");
-    setOrderSubject("");
-    setSelectedProductId("");
-    setSelectedMaterialId("");
+    setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
     setSelectedPriority("");
     setSaving(false);
@@ -286,9 +317,7 @@ export default function ZAppOrdiniPage() {
     if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
     if (needsInterventionType && !interventionType) return false;
-    if (subjectMode === "text" && !orderSubject.trim()) return false;
-    if (subjectMode === "product" && !selectedProductId) return false;
-    if (subjectMode === "material" && !selectedMaterialId) return false;
+    if (!hasValidItems) return false;
     return true;
   };
 
@@ -298,10 +327,15 @@ export default function ZAppOrdiniPage() {
 
     try {
       const customerName = selectedCustomer?.name || "Cliente";
-      const productName = selectedProduct?.name || selectedMaterial?.name || orderSubject || "";
-      const subject = subjectMode === "product" ? `${selectedProduct?.code} - ${selectedProduct?.name}`
-        : subjectMode === "material" ? `${selectedMaterial?.code} - ${selectedMaterial?.name}`
-        : orderSubject;
+      // Build combined subject from all items
+      const subjectParts = orderItems
+        .map(item => {
+          const label = getItemLabel(item);
+          return label ? (item.quantity > 1 ? `${label} (x${item.quantity})` : label) : null;
+        })
+        .filter(Boolean);
+      const subject = subjectParts.join(", ");
+      const productName = subjectParts[0] || "";
 
       // Determine order_type for backward compatibility
       let orderType = "";
@@ -636,107 +670,124 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
-            {/* 3. Oggetto dell'ordine */}
+            {/* 3. Voci dell'ordine (multi-item) */}
             {orderTypeCategory && selectedCustomer && (
               <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-                <Label className="font-semibold text-sm">Oggetto dell'ordine *</Label>
-                <div className="flex gap-1 bg-muted rounded-lg p-1">
-                  <button
-                    type="button"
-                    onClick={() => { setSubjectMode("text"); setSelectedProductId(""); setSelectedMaterialId(""); }}
-                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
-                  >
-                    <FileText className="h-3.5 w-3.5" /> Testo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setSubjectMode("product"); setOrderSubject(""); setSelectedMaterialId(""); }}
-                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
-                  >
-                    <Package className="h-3.5 w-3.5" /> Prodotto
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setSubjectMode("material"); setOrderSubject(""); setSelectedProductId(""); }}
-                    className={cn("flex-1 text-xs py-2 px-3 rounded-md transition-all flex items-center justify-center gap-1", subjectMode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}
-                  >
-                    <Settings className="h-3.5 w-3.5" /> Materiale
-                  </button>
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-sm">Voci dell'ordine *</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={addOrderItem} className="h-7 text-xs gap-1">
+                    <Plus className="h-3.5 w-3.5" /> Aggiungi voce
+                  </Button>
                 </div>
 
-                {subjectMode === "text" && (
-                  <Input
-                    placeholder="Es: Forno rotativo mod. X per panificio..."
-                    value={orderSubject}
-                    onChange={e => setOrderSubject(e.target.value)}
-                    className="h-11"
-                  />
-                )}
+                {orderItems.map((item, idx) => (
+                  <div key={item.id} className="border border-border rounded-lg p-3 space-y-2 relative">
+                    {orderItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOrderItem(item.id)}
+                        className="absolute top-2 right-2 text-muted-foreground hover:text-destructive text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Voce {idx + 1}</p>
+                    
+                    {/* Mode selector */}
+                    <div className="flex gap-1 bg-muted rounded-lg p-1">
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "text", productId: "", materialId: "" })}
+                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                        <FileText className="h-3 w-3" /> Testo
+                      </button>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "product", text: "", materialId: "" })}
+                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                        <Package className="h-3 w-3" /> Prodotto
+                      </button>
+                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "material", text: "", productId: "" })}
+                        className={cn("flex-1 text-xs py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1", item.mode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
+                        <Settings className="h-3 w-3" /> Materiale
+                      </button>
+                    </div>
 
-                {subjectMode === "product" && (
-                  <Popover open={productOpen} onOpenChange={setProductOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full justify-between h-11">
-                        {selectedProduct ? `${selectedProduct.code} - ${selectedProduct.name}` : "Seleziona prodotto..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Cerca prodotto..." />
-                        <CommandList>
-                          <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
-                          <CommandGroup>
-                            {products.map(p => (
-                              <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => { setSelectedProductId(p.id); setProductOpen(false); setDeliveryMode(""); }}>
-                                <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                                <div>
-                                  <p className="font-medium text-sm">{p.name}</p>
-                                  <p className="text-xs text-muted-foreground">{p.code}</p>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                )}
-
-                {subjectMode === "material" && (
-                  <Popover open={materialOpen} onOpenChange={setMaterialOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="w-full justify-between h-11">
-                        {selectedMaterial ? `${selectedMaterial.code} - ${selectedMaterial.name}` : "Seleziona materiale..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Cerca materiale..." />
-                        <CommandList>
-                          <CommandEmpty>Nessun materiale trovato</CommandEmpty>
-                          <CommandGroup>
-                            {materials.map(m => (
-                              <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => { setSelectedMaterialId(m.id); setMaterialOpen(false); }}>
-                                <Check className={cn("mr-2 h-4 w-4", selectedMaterialId === m.id ? "opacity-100" : "opacity-0")} />
-                                <div>
-                                  <p className="font-medium text-sm">{m.name}</p>
-                                  <p className="text-xs text-muted-foreground">{m.code}</p>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                )}
+                    {/* Input based on mode */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        {item.mode === "text" && (
+                          <Input placeholder="Es: Forno rotativo mod. X..." value={item.text}
+                            onChange={e => updateOrderItem(item.id, { text: e.target.value })} className="h-10 text-sm" />
+                        )}
+                        {item.mode === "product" && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                {item.productId ? (() => { const p = products.find(pr => pr.id === item.productId); return p ? `${p.code} - ${p.name}` : "..."; })() : "Seleziona prodotto..."}
+                                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Cerca prodotto..." />
+                                <CommandList>
+                                  <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
+                                  <CommandGroup>
+                                    {products.map(p => (
+                                      <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => updateOrderItem(item.id, { productId: p.id })}>
+                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                        <div>
+                                          <p className="font-medium text-sm">{p.name}</p>
+                                          <p className="text-xs text-muted-foreground">{p.code}</p>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        {item.mode === "material" && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                {item.materialId ? (() => { const m = materials.find(ma => ma.id === item.materialId); return m ? `${m.code} - ${m.name}` : "..."; })() : "Seleziona materiale..."}
+                                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Cerca materiale..." />
+                                <CommandList>
+                                  <CommandEmpty>Nessun materiale trovato</CommandEmpty>
+                                  <CommandGroup>
+                                    {materials.map(m => (
+                                      <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => updateOrderItem(item.id, { materialId: m.id })}>
+                                        <Check className={cn("mr-2 h-4 w-4", item.materialId === m.id ? "opacity-100" : "opacity-0")} />
+                                        <div>
+                                          <p className="font-medium text-sm">{m.name}</p>
+                                          <p className="text-xs text-muted-foreground">{m.code}</p>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                      <div className="w-16">
+                        <Input type="number" min={1} value={item.quantity}
+                          onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                          className="h-10 text-sm text-center" placeholder="Qtà" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
             {/* 4. Modalità di consegna (only for types that need it) */}
-            {needsDeliveryMode && selectedCustomer && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
+            {needsDeliveryMode && selectedCustomer && hasValidItems && (
               <div className="bg-white rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Modalità di consegna *</Label>
                 <div className="space-y-2">
@@ -768,7 +819,7 @@ export default function ZAppOrdiniPage() {
 
 
             {/* 4b. Tipo di intervento (only for intervento) */}
-            {needsInterventionType && selectedCustomer && (subjectMode === "text" ? orderSubject.trim() : (selectedProductId || selectedMaterialId)) && (
+            {needsInterventionType && selectedCustomer && hasValidItems && (
               <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Tipo di intervento *</Label>
                 <div className="space-y-2">
