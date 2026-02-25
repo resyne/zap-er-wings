@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, Settings, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
+import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -60,6 +61,7 @@ export default function ZAppMagazzino() {
   const [scaricoOpen, setScaricoOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
 
@@ -220,7 +222,7 @@ export default function ZAppMagazzino() {
       </div>
 
       {/* Quick Actions */}
-      <div className="px-4 py-3 grid grid-cols-3 gap-2">
+      <div className="px-4 py-3 grid grid-cols-4 gap-2">
         <Button onClick={() => setCaricoOpen(true)} className="h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5">
           <TrendingUp className="h-5 w-5" />
           <span className="font-semibold text-xs">Carico</span>
@@ -232,6 +234,10 @@ export default function ZAppMagazzino() {
         <Button onClick={() => setInventoryOpen(true)} className="h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm flex items-center justify-center gap-1.5">
           <ClipboardCheck className="h-5 w-5" />
           <span className="font-semibold text-xs">Inventario</span>
+        </Button>
+        <Button onClick={() => setLogOpen(true)} variant="outline" className="h-14 rounded-xl shadow-sm flex items-center justify-center gap-1.5">
+          <ClipboardList className="h-5 w-5" />
+          <span className="font-semibold text-xs">Storico</span>
         </Button>
       </div>
 
@@ -409,6 +415,7 @@ export default function ZAppMagazzino() {
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />
       <ManualMovementDialog open={scaricoOpen} onOpenChange={setScaricoOpen} movementType="scarico" />
       <InventoryDialog open={inventoryOpen} onOpenChange={setInventoryOpen} materials={filteredMaterials} />
+      <InventoryLogDialog open={logOpen} onOpenChange={setLogOpen} />
     </div>
   );
 }
