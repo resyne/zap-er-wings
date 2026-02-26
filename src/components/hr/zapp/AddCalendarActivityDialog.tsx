@@ -15,15 +15,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ACTIVITY_TYPES = [
-  { value: "sopralluogo", label: "Sopralluogo", icon: "🔍", color: "#f59e0b" },
   { value: "installazione", label: "Installazione", icon: "🔧", color: "#3b82f6" },
-  { value: "manutenzione", label: "Manutenzione", icon: "🛠️", color: "#8b5cf6" },
+  { value: "intervento", label: "Intervento", icon: "🛠️", color: "#8b5cf6" },
+  { value: "produzione", label: "Produzione", icon: "⚙️", color: "#f59e0b" },
+  { value: "sopralluogo", label: "Sopralluogo", icon: "🔍", color: "#10b981" },
   { value: "riunione", label: "Riunione", icon: "👥", color: "#06b6d4" },
-  { value: "formazione", label: "Formazione", icon: "📚", color: "#10b981" },
   { value: "altro", label: "Altro", icon: "📌", color: "#6b7280" },
 ];
 
-const TYPES_WITH_COMMESSA = ["installazione", "manutenzione"];
+const TYPES_WITH_COMMESSA = ["installazione", "intervento", "produzione"];
 
 interface AddCalendarActivityDialogProps {
   open: boolean;
@@ -42,7 +42,7 @@ interface CommessaOption {
 }
 
 export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onSuccess }: AddCalendarActivityDialogProps) => {
-  const [activityType, setActivityType] = useState("sopralluogo");
+  const [activityType, setActivityType] = useState("installazione");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [activityDate, setActivityDate] = useState<Date | undefined>(defaultDate || new Date());
@@ -164,7 +164,7 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
   };
 
   const resetForm = () => {
-    setActivityType("sopralluogo");
+    setActivityType("installazione");
     setTitle("");
     setDescription("");
     setAssignedTo("");
