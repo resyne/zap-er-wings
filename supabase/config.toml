@@ -161,3 +161,6 @@ verify_jwt = false
 
 [functions.notify-commessa-created]
 verify_jwt = false
+
+[functions.notify-commessa-status-change]
+verify_jwt = false

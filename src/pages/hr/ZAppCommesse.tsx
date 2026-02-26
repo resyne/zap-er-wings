@@ -566,7 +566,7 @@ export default function ZAppCommesse() {
 
   // ─── Mutations ──────────────────────────────────────
   const updatePhaseStatus = useMutation({
-    mutationFn: async ({ phaseId, newStatus }: { phaseId: string; newStatus: string }) => {
+    mutationFn: async ({ phaseId, newStatus, commessa }: { phaseId: string; newStatus: string; commessa?: Commessa }) => {
       const updates: any = { status: newStatus };
       if (newStatus === "in_lavorazione" || newStatus === "in_corso") {
         updates.started_date = new Date().toISOString();
@@ -576,7 +576,7 @@ export default function ZAppCommesse() {
       }
       const { error } = await supabase.from("commessa_phases").update(updates).eq("id", phaseId);
       if (error) throw error;
-      return { phaseId, newStatus };
+      return { phaseId, newStatus, commessa };
     },
     onMutate: async ({ phaseId, newStatus }) => {
       await queryClient.cancelQueries({ queryKey: ["zapp-commesse"] });
@@ -589,10 +589,25 @@ export default function ZAppCommesse() {
       );
       return { previousData };
     },
-    onSuccess: () => {
+    onSuccess: (_data) => {
       toast.success("Stato fase aggiornato");
-      // Refetch to get updated commessa status from trigger
       queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+      // Send WhatsApp notification for status change (fire and forget)
+      if (_data.commessa) {
+        const c = _data.commessa;
+        supabase.functions.invoke("notify-commessa-status-change", {
+          body: {
+            commessa_id: c.id,
+            commessa_title: c.title,
+            commessa_type: c.type,
+            new_status: _data.newStatus,
+            customer_name: c.customer_name,
+            deadline: c.deadline,
+          },
+        }).then(({ error }) => {
+          if (error) console.error("Notification error:", error);
+        });
+      }
     },
     onError: (err: any, _vars, context) => {
       if (context?.previousData) {
@@ -621,8 +636,11 @@ export default function ZAppCommesse() {
   });
 
   const handlePhaseStatusChange = useCallback((phaseId: string, newStatus: string) => {
-    updatePhaseStatus.mutate({ phaseId, newStatus });
-  }, [updatePhaseStatus]);
+    // Find the commessa that owns this phase to pass context for notifications
+    const allCommesse = queryClient.getQueryData<Commessa[]>(["zapp-commesse"]);
+    const commessa = allCommesse?.find(c => c.phases.some(p => p.id === phaseId));
+    updatePhaseStatus.mutate({ phaseId, newStatus, commessa });
+  }, [updatePhaseStatus, queryClient]);
 
   const handleOpenSchedule = useCallback((phase: CommessaPhase, commessa: Commessa) => {
     setSchedulePhase({ phase, commessa });
