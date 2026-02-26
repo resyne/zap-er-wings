@@ -9,9 +9,10 @@ import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings
 import { PasswordChange } from "@/components/settings/PasswordChange";
 import { ProfileEdit } from "@/components/settings/ProfileEdit";
 import { ERPDocumentationMap } from "@/components/settings/ERPDocumentationMap";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Users, Shield, Settings, AlertCircle, Lock, Zap, BookOpen } from "lucide-react";
+import { Users, Shield, Settings, AlertCircle, Lock, Zap, BookOpen, Bell } from "lucide-react";
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -45,7 +46,7 @@ export function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Profilo</span>
@@ -53,6 +54,10 @@ export function SettingsPage() {
           <TabsTrigger value="password" className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
             <span className="hidden sm:inline">Password</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2" disabled={!isAdmin}>
+            <Bell className="h-4 w-4" />
+            <span className="hidden sm:inline">Notifiche</span>
           </TabsTrigger>
           <TabsTrigger value="roles" className="flex items-center gap-2" disabled={!isAdmin}>
             <Shield className="h-4 w-4" />
@@ -87,6 +92,34 @@ export function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <UserManagement />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4">
+          {!isAdmin ? (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-6">
+                <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  Solo gli amministratori possono gestire le notifiche
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Impostazioni Notifiche
+                </CardTitle>
+                <CardDescription>
+                  Gestisci i destinatari delle notifiche per ogni evento
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <NotificationSettings />
               </CardContent>
             </Card>
           )}
