@@ -164,3 +164,6 @@ verify_jwt = false
 
 [functions.notify-commessa-status-change]
 verify_jwt = false
+
+[functions.notify-commessa-urgent]
+verify_jwt = false
