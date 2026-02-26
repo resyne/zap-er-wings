@@ -74,7 +74,8 @@ import {
   Archive,
   Trash2,
   Pencil,
-  Save
+  Save,
+  History
 } from "lucide-react";
 
 interface PurchaseOrder {
@@ -102,6 +103,7 @@ interface PurchaseOrder {
   purchase_order_comments?: any[];
   purchase_order_attachments?: any[];
   purchase_order_change_requests?: any[];
+  purchase_order_logs?: any[];
 }
 
 const priorityConfig = {
@@ -144,6 +146,43 @@ export default function PurchaseOrdersPage() {
     items: [] as Array<{ id?: string; material_id: string; quantity: number; unit_price: number; _deleted?: boolean; _new?: boolean }>
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [orderLogs, setOrderLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  const fetchOrderLogs = async (orderId: string) => {
+    setIsLoadingLogs(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('purchase_order_logs')
+        .select('*')
+        .eq('purchase_order_id', orderId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setOrderLogs(data || []);
+    } catch (err) {
+      console.error('Error fetching PO logs:', err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  const insertPOLog = async (orderId: string, eventType: string, description: string, opts?: { oldValue?: string; newValue?: string; metadata?: any; performerLabel?: string }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await (supabase as any).from('purchase_order_logs').insert({
+        purchase_order_id: orderId,
+        event_type: eventType,
+        description,
+        old_value: opts?.oldValue || null,
+        new_value: opts?.newValue || null,
+        metadata: opts?.metadata || null,
+        performed_by: user?.id || 'system',
+        performer_label: opts?.performerLabel || user?.email || 'Sistema',
+      });
+    } catch (err) {
+      console.error('Error inserting PO log:', err);
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -305,6 +344,7 @@ export default function PurchaseOrdersPage() {
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
+      const oldStatus = selectedOrder?.production_status || orders.find(o => o.id === orderId)?.production_status || '';
       const { error } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -315,12 +355,22 @@ export default function PurchaseOrdersPage() {
 
       if (error) throw error;
       
+      const statusLabels: Record<string, string> = {
+        pending: 'In Attesa', confirmed: 'Confermato', in_production: 'In Produzione',
+        ready_to_ship: 'Pronto', shipped: 'Spedito', delivered: 'Consegnato', cancelled: 'Annullato',
+      };
+      await insertPOLog(orderId, 'status_changed', `Stato aggiornato: ${statusLabels[oldStatus] || oldStatus} → ${statusLabels[newStatus] || newStatus}`, {
+        oldValue: oldStatus,
+        newValue: newStatus,
+      });
+
       toast.success("Stato aggiornato con successo");
       fetchOrders();
       
       // Update selected order if open
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, production_status: newStatus });
+        fetchOrderLogs(orderId);
       }
     } catch (error: any) {
       console.error('Error updating status:', error);
@@ -579,6 +629,16 @@ export default function PurchaseOrdersPage() {
 
       toast.success("Ordine aggiornato e fornitore notificato");
       setIsEditing(false);
+
+      // Log the edit
+      await insertPOLog(selectedOrder.id, 'edited', 'Ordine modificato dall\'utente', {
+        metadata: {
+          delivery_changed: editData.expected_delivery_date !== (selectedOrder.expected_delivery_date || ''),
+          notes_changed: editData.notes !== (selectedOrder.notes || ''),
+          priority_changed: editData.priority !== (selectedOrder.priority || 'media'),
+        },
+      });
+
       fetchOrders();
 
       // Refresh selected order
@@ -844,6 +904,7 @@ export default function PurchaseOrdersPage() {
                             onClick={() => {
                               setSelectedOrder(order);
                               setDetailsDialogOpen(true);
+                              fetchOrderLogs(order.id);
                             }}
                             title="Visualizza dettagli"
                           >
@@ -938,7 +999,7 @@ export default function PurchaseOrdersPage() {
           </DialogHeader>
 
           <Tabs defaultValue="details" className="flex-1 overflow-hidden flex flex-col">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="details">Dettagli</TabsTrigger>
               <TabsTrigger value="comments">
                 Commenti ({selectedOrder?.purchase_order_comments?.length || 0})
@@ -948,6 +1009,10 @@ export default function PurchaseOrdersPage() {
               </TabsTrigger>
               <TabsTrigger value="changes">
                 Modifiche ({selectedOrder?.purchase_order_change_requests?.filter(r => r.status === 'pending').length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="logs">
+                <History className="h-3 w-3 mr-1" />
+                Cronologia
               </TabsTrigger>
             </TabsList>
 
@@ -1314,6 +1379,40 @@ export default function PurchaseOrdersPage() {
                     </div>
                   ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="logs" className="space-y-4 mt-0">
+                {isLoadingLogs ? (
+                  <p className="text-center text-muted-foreground py-8">Caricamento cronologia...</p>
+                ) : orderLogs.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Nessun evento registrato</p>
+                ) : (
+                  <div className="space-y-3">
+                    {orderLogs.map((log: any) => {
+                      const iconMap: Record<string, string> = {
+                        created: '📝', confirmed: '✅', status_changed: '🔄', edited: '✏️',
+                        email_sent: '📧', whatsapp_sent: '💬', items_modified: '📦',
+                        delivery_confirmed: '🚚', supplier_confirmed: '✅',
+                      };
+                      return (
+                        <div key={log.id} className="flex gap-3 p-3 border rounded-lg bg-muted/20">
+                          <div className="text-lg mt-0.5">{iconMap[log.event_type] || '📌'}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="text-sm font-medium">{log.description}</p>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(log.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} {new Date(log.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {log.performer_label || 'Sistema'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </TabsContent>
             </ScrollArea>
           </Tabs>
