@@ -14,6 +14,7 @@ const zAppPages = [
   { title: "Calendario Lavori", url: "/hr/z-app/calendario" },
   { title: "Comunicazioni", url: "/hr/z-app/comunicazioni" },
   { title: "Ordini", url: "/hr/z-app/ordini" },
+  { title: "Ordini Fornitori", url: "/hr/z-app/ordini-fornitori" },
 ];
 
 interface ZAppVisibilityDialogProps {
