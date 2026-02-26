@@ -72,6 +72,8 @@ export const useCalendarData = (startDate: Date, endDate: Date, options?: { excl
               scheduled_date: phase.scheduled_date,
               actual_start_date: phase.started_date,
               actual_end_date: phase.completed_date,
+              customer_name: commessa.customers?.name,
+              commessa_id: commessa.id,
               item_type: phase.phase_type === "produzione" ? 'work_order' as const : 'service_order' as const,
             });
           } else if (phase.phase_type === "spedizione") {
@@ -80,6 +82,8 @@ export const useCalendarData = (startDate: Date, endDate: Date, options?: { excl
               number: commessa.number,
               status: phase.status,
               order_date: phase.scheduled_date,
+              customer_name: commessa.customers?.name,
+              commessa_id: commessa.id,
               item_type: 'shipping_order' as const,
             });
           }
