@@ -18,6 +18,8 @@ export interface WorkOrder {
   scheduled_date?: string;
   actual_start_date?: string;
   actual_end_date?: string;
+  customer_name?: string;
+  commessa_id?: string;
 }
 
 export interface ServiceOrder {
@@ -27,6 +29,8 @@ export interface ServiceOrder {
   status: string;
   scheduled_date?: string;
   completed_date?: string;
+  customer_name?: string;
+  commessa_id?: string;
 }
 
 export interface ShippingOrder {
@@ -37,6 +41,8 @@ export interface ShippingOrder {
   preparation_date?: string;
   ready_date?: string;
   shipped_date?: string;
+  customer_name?: string;
+  commessa_id?: string;
 }
 
 export interface CalendarEvent {

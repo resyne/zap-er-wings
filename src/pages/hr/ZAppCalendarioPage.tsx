@@ -1,7 +1,11 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,11 +14,13 @@ import {
   Wrench,
   Truck,
   CalendarDays,
+  CalendarIcon,
   CheckSquare,
   Clock,
   FileText,
   Plus,
   MapPin,
+  User,
 } from "lucide-react";
 import {
   format,
@@ -221,7 +227,7 @@ export default function ZAppCalendarioPage() {
       {/* Detail Sheet */}
       <Sheet open={!!selectedItem} onOpenChange={(o) => !o && setSelectedItem(null)}>
         <SheetContent side="bottom" className="max-h-[85vh] rounded-t-2xl overflow-y-auto">
-          {selectedItem && <ItemDetailSheet item={selectedItem} />}
+          {selectedItem && <ItemDetailSheet item={selectedItem} onDateChanged={() => { setSelectedItem(null); refetch(); }} />}
         </SheetContent>
       </Sheet>
 
@@ -236,9 +242,11 @@ export default function ZAppCalendarioPage() {
   );
 }
 
-function ItemDetailSheet({ item }: { item: CalendarItem }) {
+function ItemDetailSheet({ item, onDateChanged }: { item: CalendarItem; onDateChanged: () => void }) {
   const cfg = typeConfig[item.item_type] || typeConfig.work_order;
   const Icon = cfg.icon;
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
 
   const formatDate = (d?: string | null) => {
     if (!d) return "–";
@@ -248,7 +256,7 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
   const Row = ({ icon: RowIcon, label, value }: { icon: any; label: string; value?: string | null }) => {
     if (!value) return null;
     return (
-      <div className="flex items-start gap-3 py-2 border-b border-border/50 last:border-0">
+      <div className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
         <RowIcon className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
         <div className="min-w-0">
           <p className="text-[11px] text-muted-foreground">{label}</p>
@@ -258,6 +266,37 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
     );
   };
 
+  const customerName = "customer_name" in item ? (item as any).customer_name : null;
+  const commessaNumber = "number" in item ? (item as any).number : null;
+
+  const handleReschedule = async (newDate: Date | undefined) => {
+    if (!newDate) return;
+    setSaving(true);
+    try {
+      if (item.item_type === "event") {
+        const { error } = await supabase
+          .from("calendar_events")
+          .update({ event_date: newDate.toISOString() })
+          .eq("id", item.id);
+        if (error) throw error;
+      } else {
+        // commessa_phases
+        const { error } = await supabase
+          .from("commessa_phases")
+          .update({ scheduled_date: newDate.toISOString() })
+          .eq("id", item.id);
+        if (error) throw error;
+      }
+      toast.success("Data aggiornata");
+      onDateChanged();
+    } catch (e) {
+      console.error(e);
+      toast.error("Errore nell'aggiornamento della data");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       <SheetHeader className="pb-3">
@@ -265,21 +304,37 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
           <div className={`p-2 rounded-xl ${cfg.bg} ${cfg.text}`}>
             <Icon className="h-5 w-5" />
           </div>
-          <div>
-            <SheetTitle className="text-left">{getItemTitle(item)}</SheetTitle>
-            <Badge variant="outline" className="mt-1 text-xs">{cfg.label}</Badge>
+          <div className="flex-1 min-w-0">
+            <SheetTitle className="text-left text-base">{getItemTitle(item)}</SheetTitle>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-xs">{cfg.label}</Badge>
+              {"status" in item && item.status && (
+                <Badge variant="secondary" className="text-xs">
+                  {statusLabels[item.status as keyof typeof statusLabels] || item.status}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </SheetHeader>
 
-      <div className="divide-y-0">
+      <div className="divide-y-0 mt-1">
+        {/* Customer */}
+        {customerName && (
+          <Row icon={User} label="Cliente" value={customerName} />
+        )}
+
+        {/* Commessa number */}
+        {commessaNumber && (
+          <Row icon={FileText} label="Commessa" value={`#${commessaNumber}`} />
+        )}
+
         {"status" in item && item.status && (
           <Row icon={CheckSquare} label="Stato" value={statusLabels[item.status as keyof typeof statusLabels] || item.status} />
         )}
 
         {item.item_type === "work_order" && (
           <>
-            <Row icon={FileText} label="Titolo" value={item.title} />
             <Row icon={Clock} label="Data pianificata" value={formatDate(item.scheduled_date)} />
             <Row icon={Clock} label="Inizio effettivo" value={formatDate(item.actual_start_date)} />
             <Row icon={Clock} label="Fine effettiva" value={formatDate(item.actual_end_date)} />
@@ -288,7 +343,6 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
 
         {item.item_type === "service_order" && (
           <>
-            <Row icon={FileText} label="Titolo" value={item.title} />
             <Row icon={Clock} label="Data pianificata" value={formatDate(item.scheduled_date)} />
             <Row icon={Clock} label="Completato" value={formatDate(item.completed_date)} />
           </>
@@ -306,8 +360,44 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
         {item.item_type === "event" && (
           <>
             <Row icon={Clock} label="Data" value={formatDate(item.event_date)} />
+            {item.event_type && (
+              <Row icon={MapPin} label="Tipo" value={item.event_type.charAt(0).toUpperCase() + item.event_type.slice(1)} />
+            )}
             <Row icon={FileText} label="Descrizione" value={item.description} />
           </>
+        )}
+      </div>
+
+      {/* Reschedule */}
+      <div className="mt-4 pt-3 border-t border-border">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+          Sposta data
+        </label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-start text-left font-normal h-11 rounded-xl" disabled={saving}>
+              <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500" />
+              {rescheduleDate ? format(rescheduleDate, "EEEE d MMMM yyyy", { locale: it }) : "Seleziona nuova data"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={rescheduleDate}
+              onSelect={(d) => { setRescheduleDate(d); }}
+              locale={it}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+        {rescheduleDate && (
+          <Button
+            className="w-full mt-2 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700"
+            onClick={() => handleReschedule(rescheduleDate)}
+            disabled={saving}
+          >
+            {saving ? "Salvataggio..." : "Conferma spostamento"}
+          </Button>
         )}
       </div>
     </>
