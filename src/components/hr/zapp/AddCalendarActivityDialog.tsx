@@ -46,7 +46,7 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [activityDate, setActivityDate] = useState<Date | undefined>(defaultDate || new Date());
-  const [assignedTo, setAssignedTo] = useState("");
+  const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<Array<{ id: string; label: string }>>([]);
 
@@ -139,15 +139,19 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
         ? `${description ? description + '\n\n' : ''}Commessa: ${commessaRef.number} - ${commessaRef.title}${commessaRef.customer_name ? ` (${commessaRef.customer_name})` : ''}`
         : description;
 
-      const { error } = await supabase.from('calendar_events').insert({
+      const targetUsers = assignedTo.length > 0 ? assignedTo : [user.id];
+
+      const inserts = targetUsers.map(uid => ({
         title: eventTitle,
         description: eventDescription,
         event_date: activityDate.toISOString(),
         event_type: activityType,
         color: selectedType?.color || "#6b7280",
         all_day: true,
-        user_id: assignedTo || user.id,
-      });
+        user_id: uid,
+      }));
+
+      const { error } = await supabase.from('calendar_events').insert(inserts);
 
       if (error) throw error;
 
@@ -167,7 +171,7 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
     setActivityType("installazione");
     setTitle("");
     setDescription("");
-    setAssignedTo("");
+    setAssignedTo([]);
     setSelectedCommessa("");
     setCommessaSearch("");
   };
@@ -356,18 +360,33 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
               </Popover>
             </div>
 
-            {/* Assign */}
+            {/* Assign multi-select */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5" />
                 Assegna a
               </label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
+              {assignedTo.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {assignedTo.map(uid => {
+                    const u = users.find(u => u.id === uid);
+                    return (
+                      <span key={uid} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                        {u?.label || uid}
+                        <button type="button" onClick={() => setAssignedTo(prev => prev.filter(id => id !== uid))} className="hover:text-indigo-900">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <Select value="" onValueChange={(val) => { if (val && !assignedTo.includes(val)) setAssignedTo(prev => [...prev, val]); }}>
                 <SelectTrigger className="h-11 rounded-xl">
-                  <SelectValue placeholder="Utente corrente" />
+                  <SelectValue placeholder={assignedTo.length === 0 ? "Utente corrente" : "Aggiungi utente..."} />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map(u => (
+                  {users.filter(u => !assignedTo.includes(u.id)).map(u => (
                     <SelectItem key={u.id} value={u.id}>{u.label}</SelectItem>
                   ))}
                 </SelectContent>
