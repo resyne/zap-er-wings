@@ -12540,6 +12540,8 @@ export type Database = {
         | "cambio_stato_commessa"
         | "nuovo_ordine"
         | "scadenza_imminente"
+        | "nuovo_ordine_acquisto"
+        | "cambio_stato_ordine_acquisto"
       payment_method_type: "BANCA" | "CASSA" | "CARTA"
       recurrence_type: "none" | "daily" | "weekly" | "monthly" | "yearly"
       rma_status: "open" | "analysis" | "repaired" | "closed"
@@ -12739,6 +12741,8 @@ export const Constants = {
         "cambio_stato_commessa",
         "nuovo_ordine",
         "scadenza_imminente",
+        "nuovo_ordine_acquisto",
+        "cambio_stato_ordine_acquisto",
       ],
       payment_method_type: ["BANCA", "CASSA", "CARTA"],
       recurrence_type: ["none", "daily", "weekly", "monthly", "yearly"],
