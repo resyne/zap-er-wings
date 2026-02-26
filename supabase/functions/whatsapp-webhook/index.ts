@@ -508,33 +508,22 @@ async function sendNotifications(
   conversationId?: string
 ) {
   try {
-    // Get notification recipients for this account
-    const { data: recipients, error } = await supabase
-      .rpc("get_whatsapp_notification_recipients", { p_account_id: account.id });
-
-    if (error) {
-      console.error("Error getting notification recipients:", error);
-      return;
-    }
-
-    if (!recipients || recipients.length === 0) {
-      console.log("No notification recipients configured for account:", account.id);
-      return;
-    }
-
-    console.log(`Found ${recipients.length} notification recipients`);
-
     // Fetch lead data and recent messages for email context
     let leadData: any = null;
     let recentMessages: any[] = [];
+    let assignedUserId: string | null = null;
 
     if (conversationId) {
-      // Get conversation with lead info
+      // Get conversation with lead info and assigned user
       const { data: conversation } = await supabase
         .from("whatsapp_conversations")
-        .select("lead_id, customer_name")
+        .select("lead_id, customer_name, assigned_user_id")
         .eq("id", conversationId)
         .single();
+
+      if (conversation?.assigned_user_id) {
+        assignedUserId = conversation.assigned_user_id;
+      }
 
       if (conversation?.lead_id) {
         const { data: lead } = await supabase
@@ -566,6 +555,49 @@ async function sendNotifications(
       }
     }
 
+    // Determine recipients: if assigned user exists, notify only them;
+    // otherwise fall back to the account-level notification settings
+    let recipients: any[] = [];
+
+    if (assignedUserId) {
+      // Get presence info for assigned user
+      const { data: presence } = await supabase
+        .from("user_presence")
+        .select("is_online")
+        .eq("user_id", assignedUserId)
+        .single();
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", assignedUserId)
+        .single();
+
+      recipients = [{
+        user_id: assignedUserId,
+        email: profile?.email,
+        is_online: presence?.is_online || false
+      }];
+      console.log(`Notifying assigned user ${assignedUserId}`);
+    } else {
+      // Fallback to account-level notification recipients
+      const { data: accountRecipients, error } = await supabase
+        .rpc("get_whatsapp_notification_recipients", { p_account_id: account.id });
+
+      if (error) {
+        console.error("Error getting notification recipients:", error);
+        return;
+      }
+      recipients = accountRecipients || [];
+    }
+
+    if (recipients.length === 0) {
+      console.log("No notification recipients for this conversation/account");
+      return;
+    }
+
+    console.log(`Sending notifications to ${recipients.length} recipient(s)`);
+
     for (const recipient of recipients) {
       if (recipient.is_online) {
         // User is online - create in-app notification
@@ -581,18 +613,23 @@ async function sendNotifications(
           is_read: false,
         });
       } else {
-        // User is offline - check if email notification is enabled
-        const { data: setting } = await supabase
-          .from("whatsapp_notification_settings")
-          .select("email_when_offline")
-          .eq("account_id", account.id)
-          .eq("user_id", recipient.user_id)
-          .single();
+        // User is offline - check email preference
+        let shouldSendEmail = true;
 
-        if (setting?.email_when_offline) {
+        if (!assignedUserId) {
+          // For account-level recipients, check their email_when_offline setting
+          const { data: setting } = await supabase
+            .from("whatsapp_notification_settings")
+            .select("email_when_offline")
+            .eq("account_id", account.id)
+            .eq("user_id", recipient.user_id)
+            .single();
+          shouldSendEmail = setting?.email_when_offline ?? false;
+        }
+
+        if (shouldSendEmail && recipient.email) {
           console.log(`Sending email notification to ${recipient.email} with lead context`);
           
-          // Call the email notification edge function with enriched data
           const response = await fetch(
             `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp-notification-email`,
             {
