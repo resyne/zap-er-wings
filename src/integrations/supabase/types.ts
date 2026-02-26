@@ -1000,6 +1000,56 @@ export type Database = {
         }
         Relationships: []
       }
+      commessa_communications: {
+        Row: {
+          commessa_id: string
+          communication_type: string
+          content: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_value: string | null
+          old_value: string | null
+          sent_by: string | null
+          sent_to: string[] | null
+          sent_via: string[] | null
+        }
+        Insert: {
+          commessa_id: string
+          communication_type: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          sent_by?: string | null
+          sent_to?: string[] | null
+          sent_via?: string[] | null
+        }
+        Update: {
+          commessa_id?: string
+          communication_type?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          sent_by?: string | null
+          sent_to?: string[] | null
+          sent_via?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commessa_communications_commessa_id_fkey"
+            columns: ["commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commessa_phases: {
         Row: {
           assigned_to: string | null

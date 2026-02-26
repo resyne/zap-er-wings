@@ -4,7 +4,8 @@ import {
   ArrowLeft, Search, Loader2, Wrench, Truck, Settings,
   Calendar, MapPin, User, Package, Clock, ChevronDown,
   FileText, AlertTriangle, CheckCircle2, Image, Boxes,
-  CreditCard, ChevronRight, Building2, CalendarPlus, Factory
+  CreditCard, ChevronRight, Building2, CalendarPlus, Factory,
+  Megaphone, Send, MessageSquare, History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -427,10 +429,12 @@ const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onS
 });
 
 // ─── Commessa Card ─────────────
-const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange, onSchedulePhase, isPending }: {
+const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange, onSchedulePhase, onPriorityChange, onSendUrgent, isPending }: {
   commessa: Commessa;
   onPhaseStatusChange: (phaseId: string, newStatus: string) => void;
   onSchedulePhase: (phase: CommessaPhase, commessa: Commessa) => void;
+  onPriorityChange: (commessa: Commessa, newPriority: string) => void;
+  onSendUrgent: (commessa: Commessa) => void;
   isPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -443,7 +447,6 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
     try { return format(new Date(d), "dd MMM yyyy", { locale: it }); } catch { return d; }
   };
 
-  // Determine which phases are locked (sequential blocking)
   const isPhseLocked = (phase: CommessaPhase): boolean => {
     if (phase.phase_order === 1) return false;
     const prevPhase = sortedPhases.find(p => p.phase_order === phase.phase_order - 1);
@@ -451,11 +454,10 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
   };
 
   const typeLabels: Record<string, string> = {
-    fornitura: "Fornitura",
-    intervento: "Intervento",
-    ricambi: "Ricambi",
-    produzione: "Fornitura",
+    fornitura: "Fornitura", intervento: "Intervento", ricambi: "Ricambi", produzione: "Fornitura",
   };
+
+  const priorities = ["low", "medium", "high", "urgent"] as const;
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -504,6 +506,47 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 
         <CollapsibleContent>
           <div className="border-t border-border/50 p-3 space-y-2">
+            {/* Priority Change */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Priorità</p>
+              <div className="flex flex-wrap gap-1.5">
+                {priorities.map(p => {
+                  const info = priorityLabels[p];
+                  const isActive = commessa.priority === p;
+                  const colorMap: Record<string, string> = {
+                    low: "bg-gray-100 text-gray-600 border-gray-200",
+                    medium: "bg-amber-100 text-amber-700 border-amber-200",
+                    high: "bg-orange-100 text-orange-700 border-orange-200",
+                    urgent: "bg-red-100 text-red-700 border-red-200",
+                  };
+                  return (
+                    <button
+                      key={p}
+                      disabled={isActive || isPending}
+                      onClick={(e) => { e.stopPropagation(); onPriorityChange(commessa, p); }}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all active:scale-95 ${
+                        isActive
+                          ? `${colorMap[p]} ring-1 ring-offset-1 ring-current/20`
+                          : "bg-background border-border text-muted-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      {isActive && <CheckCircle2 className="h-2.5 w-2.5 inline mr-0.5 -mt-0.5" />}
+                      {info.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Urgent Communication Button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onSendUrgent(commessa); }}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
+            >
+              <Megaphone className="h-4 w-4" />
+              Invia Comunicazione Urgente
+            </button>
+
             {/* Commessa details */}
             {(commessa.diameter || commessa.smoke_inlet) && (
               <div className="space-y-0.5 text-[11px]">
@@ -556,6 +599,9 @@ export default function ZAppCommesse() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [schedulePhase, setSchedulePhase] = useState<{ phase: CommessaPhase; commessa: Commessa } | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
+  const [urgentDialog, setUrgentDialog] = useState<Commessa | null>(null);
+  const [urgentMessage, setUrgentMessage] = useState("");
+  const [sendingUrgent, setSendingUrgent] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearchChange = useCallback((value: string) => {
@@ -655,6 +701,69 @@ export default function ZAppCommesse() {
       phaseType: schedulePhase.phase.phase_type,
     });
   }, [schedulePhase, scheduleDate, schedulePhseMutation]);
+
+  // ─── Priority Change ──────────────────────────────────────
+  const handlePriorityChange = useCallback(async (commessa: Commessa, newPriority: string) => {
+    const oldPriority = commessa.priority || "medium";
+    if (oldPriority === newPriority) return;
+
+    // Optimistic update
+    queryClient.setQueryData<Commessa[]>(["zapp-commesse"], (old) =>
+      old?.map(c => c.id === commessa.id ? { ...c, priority: newPriority } : c) || []
+    );
+
+    const { error } = await supabase.from("commesse").update({ priority: newPriority }).eq("id", commessa.id);
+    if (error) {
+      queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+      toast.error("Errore aggiornamento priorità");
+      return;
+    }
+
+    toast.success(`Priorità aggiornata: ${priorityLabels[newPriority]?.label || newPriority}`);
+    queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+
+    // Send notification (fire and forget)
+    supabase.functions.invoke("notify-commessa-urgent", {
+      body: {
+        type: "priority_change",
+        commessa_id: commessa.id,
+        commessa_number: commessa.number,
+        commessa_title: commessa.title,
+        commessa_type: commessa.type,
+        customer_name: commessa.customer_name,
+        deadline: commessa.deadline,
+        old_priority: oldPriority,
+        new_priority: newPriority,
+      },
+    }).then(({ error: e }) => { if (e) console.error("Priority notification error:", e); });
+  }, [queryClient]);
+
+  // ─── Urgent Message ──────────────────────────────────────
+  const handleSendUrgent = useCallback(async () => {
+    if (!urgentDialog || !urgentMessage.trim()) return;
+    setSendingUrgent(true);
+    try {
+      const { error } = await supabase.functions.invoke("notify-commessa-urgent", {
+        body: {
+          type: "urgent_message",
+          commessa_id: urgentDialog.id,
+          commessa_number: urgentDialog.number,
+          commessa_title: urgentDialog.title,
+          commessa_type: urgentDialog.type,
+          customer_name: urgentDialog.customer_name,
+          deadline: urgentDialog.deadline,
+          message: urgentMessage.trim(),
+        },
+      });
+      if (error) throw error;
+      toast.success("Comunicazione urgente inviata!");
+      setUrgentDialog(null);
+      setUrgentMessage("");
+    } catch (err: any) {
+      toast.error("Errore invio: " + err.message);
+    }
+    setSendingUrgent(false);
+  }, [urgentDialog, urgentMessage]);
 
   // ─── Data Fetching ──────────────────────────────────────
   const { data: commesse = [], isLoading } = useQuery({
@@ -791,6 +900,8 @@ export default function ZAppCommesse() {
               commessa={commessa}
               onPhaseStatusChange={handlePhaseStatusChange}
               onSchedulePhase={handleOpenSchedule}
+              onPriorityChange={handlePriorityChange}
+              onSendUrgent={(c) => { setUrgentDialog(c); setUrgentMessage(""); }}
               isPending={updatePhaseStatus.isPending}
             />
           ))
@@ -824,6 +935,43 @@ export default function ZAppCommesse() {
             <Button variant="outline" onClick={() => setSchedulePhase(null)}>Annulla</Button>
             <Button onClick={handleConfirmSchedule} disabled={!scheduleDate || schedulePhseMutation.isPending}>
               {schedulePhseMutation.isPending ? "Salvataggio..." : "Conferma"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Urgent Communication Dialog */}
+      <Dialog open={!!urgentDialog} onOpenChange={(o) => { if (!o) { setUrgentDialog(null); setUrgentMessage(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-red-600" />
+              Comunicazione Urgente
+            </DialogTitle>
+            <DialogDescription>
+              {urgentDialog && `${urgentDialog.number} — ${urgentDialog.customer_name || urgentDialog.title}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              placeholder="Scrivi il messaggio urgente..."
+              value={urgentMessage}
+              onChange={(e) => setUrgentMessage(e.target.value)}
+              rows={4}
+              className="resize-none"
+              maxLength={500}
+            />
+            <p className="text-[10px] text-muted-foreground text-right">{urgentMessage.length}/500</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUrgentDialog(null)}>Annulla</Button>
+            <Button
+              onClick={handleSendUrgent}
+              disabled={!urgentMessage.trim() || sendingUrgent}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {sendingUrgent ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+              Invia
             </Button>
           </DialogFooter>
         </DialogContent>
