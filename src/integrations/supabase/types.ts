@@ -11658,6 +11658,7 @@ export type Database = {
         Row: {
           account_id: string | null
           ai_enabled: boolean | null
+          assigned_user_id: string | null
           conversation_type: string | null
           created_at: string
           customer_id: string | null
@@ -11677,6 +11678,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           ai_enabled?: boolean | null
+          assigned_user_id?: string | null
           conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
@@ -11696,6 +11698,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           ai_enabled?: boolean | null
+          assigned_user_id?: string | null
           conversation_type?: string | null
           created_at?: string
           customer_id?: string | null
