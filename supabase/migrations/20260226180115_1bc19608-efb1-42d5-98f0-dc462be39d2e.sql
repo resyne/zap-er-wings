@@ -1,0 +1,2 @@
+ALTER TABLE public.offers DROP CONSTRAINT offers_language_check;
+ALTER TABLE public.offers ADD CONSTRAINT offers_language_check CHECK (language = ANY (ARRAY['it'::text, 'en'::text, 'fr'::text, 'es'::text]));
