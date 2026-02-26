@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarItem } from "./types";
 
-export const useCalendarData = (startDate: Date, endDate: Date, options?: { excludeLeadActivities?: boolean }) => {
+export const useCalendarData = (startDate: Date, endDate: Date, options?: { excludeLeadActivities?: boolean; calendarScope?: "all" | "crm" | "operational" }) => {
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -11,10 +11,14 @@ export const useCalendarData = (startDate: Date, endDate: Date, options?: { excl
   // Memoizza le stringhe ISO per evitare loop infiniti
   const startISO = useMemo(() => startDate.toISOString(), [startDate.getTime()]);
   const endISO = useMemo(() => endDate.toISOString(), [endDate.getTime()]);
+  const calendarScope = useMemo(() => {
+    if (options?.calendarScope) return options.calendarScope;
+    return options?.excludeLeadActivities ? "operational" : "all";
+  }, [options?.calendarScope, options?.excludeLeadActivities]);
 
   useEffect(() => {
     loadAllItems();
-  }, [startISO, endISO]);
+  }, [startISO, endISO, calendarScope]);
 
   const loadAllItems = async () => {
     setLoading(true);
@@ -91,14 +95,21 @@ export const useCalendarData = (startDate: Date, endDate: Date, options?: { excl
 
       if (eventsError) console.error('Error loading events:', eventsError);
       if (events) {
-        allItems.push(...events.map((event: any) => ({
+        const filteredEvents = calendarScope === 'operational'
+          ? events.filter((event: any) =>
+              event.event_type !== 'lead_activity' &&
+              !String(event.title || '').toLowerCase().startsWith('lead activity:')
+            )
+          : events;
+
+        allItems.push(...filteredEvents.map((event: any) => ({
           ...event,
           item_type: 'event' as const
         })));
       }
 
-      // Carica lead activities (solo se non escluse)
-      if (!options?.excludeLeadActivities) {
+      // Carica lead activities (solo su calendario CRM/all)
+      if (calendarScope !== 'operational') {
         const { data: leadActivities, error: leadError } = await supabase
           .from('lead_activities')
           .select(`

@@ -45,7 +45,7 @@ export default function CalendarioAziendaleNew() {
   };
 
   const { start, end, days } = getDateRange();
-  const { items, loading } = useCalendarData(start, end);
+  const { items, loading } = useCalendarData(start, end, { calendarScope: 'crm' });
 
   const getItemsForDay = (day: Date) => {
     return items.filter(item => {

@@ -81,7 +81,7 @@ export default function ZAppCalendarioPage() {
   const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate.toISOString()]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
 
-  const { items, loading, refetch } = useCalendarData(weekStart, weekEnd, { excludeLeadActivities: true });
+  const { items, loading, refetch } = useCalendarData(weekStart, weekEnd, { calendarScope: "operational" });
 
   // Show work orders + calendar events
   const VISIBLE_TYPES = [...WORK_ORDER_TYPES, "event"];
