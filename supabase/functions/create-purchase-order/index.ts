@@ -393,6 +393,20 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Log creation event
+    try {
+      await supabase.from('purchase_order_logs').insert({
+        purchase_order_id: purchaseOrder.id,
+        event_type: 'created',
+        description: `Ordine ${purchaseOrder.number} creato per ${supplier.name}`,
+        metadata: { items_count: items.length, total_amount: totalAmount },
+        performed_by: userData.user.id,
+        performer_label: userData.user.email || 'Utente',
+      });
+    } catch (logErr) {
+      console.error("Error logging PO creation:", logErr);
+    }
+
     // Notify internal team about new purchase order (fire-and-forget)
     try {
       await fetch(`${supabaseUrl}/functions/v1/notify-ordine-acquisto`, {
@@ -407,6 +421,36 @@ const handler = async (req: Request): Promise<Response> => {
       });
     } catch (notifyErr) {
       console.error("Internal notification error:", notifyErr);
+    }
+
+    // Log email sent
+    if (recipientEmail) {
+      try {
+        await supabase.from('purchase_order_logs').insert({
+          purchase_order_id: purchaseOrder.id,
+          event_type: 'email_sent',
+          description: `Email inviata a ${recipientEmail}`,
+          performed_by: 'system',
+          performer_label: 'Sistema',
+        });
+      } catch (logErr) {
+        console.error("Error logging email:", logErr);
+      }
+    }
+
+    // Log WhatsApp sent
+    if (whatsappSent) {
+      try {
+        await supabase.from('purchase_order_logs').insert({
+          purchase_order_id: purchaseOrder.id,
+          event_type: 'whatsapp_sent',
+          description: `WhatsApp inviato a ${supplier.contact_phone || supplier.name}`,
+          performed_by: 'system',
+          performer_label: 'Sistema',
+        });
+      } catch (logErr) {
+        console.error("Error logging whatsapp:", logErr);
+      }
     }
 
     return new Response(

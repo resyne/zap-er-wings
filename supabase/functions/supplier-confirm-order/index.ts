@@ -70,6 +70,25 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Log the supplier confirmation
+    await supabase.from('purchase_order_logs').insert({
+      purchase_order_id: orderId,
+      event_type: 'supplier_confirmed',
+      description: `Ordine confermato dal fornitore ${order.suppliers?.name || ''}. Consegna prevista: ${new Date(deliveryDate).toLocaleDateString('it-IT')}`,
+      new_value: deliveryDate,
+      metadata: { supplier_notes: supplierNotes || null },
+      performed_by: 'supplier',
+      performer_label: order.suppliers?.name || 'Fornitore',
+    });
+
+    if (updateError) {
+      console.error("Error updating order:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Errore durante la conferma dell'ordine" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Send notification email
     try {
       const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
