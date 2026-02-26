@@ -13,6 +13,8 @@ import {
   CheckSquare,
   Clock,
   FileText,
+  Plus,
+  MapPin,
 } from "lucide-react";
 import {
   format,
@@ -37,6 +39,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { AddCalendarActivityDialog } from "@/components/hr/zapp/AddCalendarActivityDialog";
 
 const WORK_ORDER_TYPES = ["work_order", "service_order", "shipping_order"];
 
@@ -44,6 +47,7 @@ const typeConfig: Record<string, { label: string; icon: any; bg: string; border:
   work_order: { label: "Produzione", icon: Package, bg: "bg-purple-50", border: "border-l-purple-500", text: "text-purple-700" },
   service_order: { label: "Assistenza", icon: Wrench, bg: "bg-orange-50", border: "border-l-orange-500", text: "text-orange-700" },
   shipping_order: { label: "Spedizione", icon: Truck, bg: "bg-green-50", border: "border-l-green-500", text: "text-green-700" },
+  event: { label: "Attività", icon: MapPin, bg: "bg-amber-50", border: "border-l-amber-500", text: "text-amber-700" },
 };
 
 function getItemDate(item: CalendarItem): Date | null {
@@ -51,6 +55,7 @@ function getItemDate(item: CalendarItem): Date | null {
     case "work_order":
     case "service_order": return item.scheduled_date ? parseISO(item.scheduled_date) : null;
     case "shipping_order": return item.order_date ? parseISO(item.order_date) : null;
+    case "event": return item.event_date ? parseISO(item.event_date) : null;
     default: return null;
   }
 }
@@ -60,6 +65,7 @@ function getItemTitle(item: CalendarItem): string {
     case "work_order": return item.title || `OP ${item.number}`;
     case "service_order": return item.title || `Assistenza ${item.number}`;
     case "shipping_order": return `Spedizione ${item.number}`;
+    case "event": return item.title;
     default: return "Commessa";
   }
 }
@@ -69,21 +75,23 @@ export default function ZAppCalendarioPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date>(new Date());
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
+  const [showAddActivity, setShowAddActivity] = useState(false);
 
   const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate.toISOString()]);
   const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate.toISOString()]);
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd]);
 
-  const { items, loading } = useCalendarData(weekStart, weekEnd);
+  const { items, loading, refetch } = useCalendarData(weekStart, weekEnd);
 
-  // Filter only work orders (production, service, shipping)
-  const workOrderItems = useMemo(() => 
-    items.filter((item) => WORK_ORDER_TYPES.includes(item.item_type)), 
+  // Show work orders + calendar events
+  const VISIBLE_TYPES = [...WORK_ORDER_TYPES, "event"];
+  const visibleItems = useMemo(() => 
+    items.filter((item) => VISIBLE_TYPES.includes(item.item_type)), 
     [items]
   );
 
   const getItemsForDay = (day: Date) =>
-    workOrderItems.filter((item) => {
+    visibleItems.filter((item) => {
       const d = getItemDate(item);
       return d && isSameDay(d, day);
     });
@@ -139,16 +147,21 @@ export default function ZAppCalendarioPage() {
         </div>
       </div>
 
-      {/* Today button */}
+      {/* Today button + Add */}
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
         <h2 className="font-semibold text-foreground">
           {format(selectedDay, "EEEE d MMMM", { locale: it })}
         </h2>
-        {!isToday(selectedDay) && (
-          <Button variant="outline" size="sm" onClick={() => { setCurrentDate(new Date()); setSelectedDay(new Date()); }}>
-            Oggi
+        <div className="flex items-center gap-2">
+          {!isToday(selectedDay) && (
+            <Button variant="outline" size="sm" onClick={() => { setCurrentDate(new Date()); setSelectedDay(new Date()); }}>
+              Oggi
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setShowAddActivity(true)} className="gap-1">
+            <Plus className="h-4 w-4" /> Attività
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Items list */}
@@ -162,7 +175,10 @@ export default function ZAppCalendarioPage() {
         ) : selectedDayItems.length === 0 ? (
           <div className="text-center py-12">
             <CalendarDays className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground text-sm">Nessuna commessa per questo giorno</p>
+            <p className="text-muted-foreground text-sm">Nessuna attività per questo giorno</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowAddActivity(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Aggiungi attività
+            </Button>
           </div>
         ) : (
           selectedDayItems.map((item) => {
@@ -208,6 +224,14 @@ export default function ZAppCalendarioPage() {
           {selectedItem && <ItemDetailSheet item={selectedItem} />}
         </SheetContent>
       </Sheet>
+
+      {/* Add Activity Dialog */}
+      <AddCalendarActivityDialog
+        open={showAddActivity}
+        onOpenChange={setShowAddActivity}
+        defaultDate={selectedDay}
+        onSuccess={refetch}
+      />
     </div>
   );
 }
@@ -276,6 +300,13 @@ function ItemDetailSheet({ item }: { item: CalendarItem }) {
             <Row icon={Clock} label="Preparazione" value={formatDate(item.preparation_date)} />
             <Row icon={Clock} label="Pronto" value={formatDate(item.ready_date)} />
             <Row icon={Truck} label="Spedito" value={formatDate(item.shipped_date)} />
+          </>
+        )}
+
+        {item.item_type === "event" && (
+          <>
+            <Row icon={Clock} label="Data" value={formatDate(item.event_date)} />
+            <Row icon={FileText} label="Descrizione" value={item.description} />
           </>
         )}
       </div>
