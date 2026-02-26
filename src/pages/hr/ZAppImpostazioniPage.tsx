@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Plus, Trash2, Loader2, Settings, Mail, MessageSquare } from "lucide-react";
+import { ArrowLeft, Bell, Plus, Trash2, Loader2, Settings, Mail, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
+
+interface Profile {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
 
 type NotificationEventType = "nuova_commessa" | "cambio_stato_commessa" | "nuovo_ordine" | "scadenza_imminente";
 type NotificationChannel = "whatsapp" | "email";
@@ -62,14 +69,17 @@ export default function ZAppImpostazioniPage() {
   // Form state
   const [formEventType, setFormEventType] = useState<NotificationEventType>("nuova_commessa");
   const [formChannel, setFormChannel] = useState<NotificationChannel>("whatsapp");
+  const [formSelectedUser, setFormSelectedUser] = useState<string>("");
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
   const isAdmin = userRole === "admin";
 
   useEffect(() => {
     loadRules();
+    loadProfiles();
   }, []);
 
   const loadRules = async () => {
@@ -89,17 +99,21 @@ export default function ZAppImpostazioniPage() {
     setLoading(false);
   };
 
+  const loadProfiles = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, first_name, last_name")
+      .order("email");
+    if (data) setProfiles(data);
+  };
+
   const handleAdd = async () => {
     if (!formName.trim()) {
       toast.error("Inserisci un nome destinatario");
       return;
     }
-    if (formChannel === "whatsapp" && !formPhone.trim()) {
-      toast.error("Inserisci un numero di telefono per WhatsApp");
-      return;
-    }
-    if (formChannel === "email" && !formEmail.trim()) {
-      toast.error("Inserisci un'email");
+    if (!formPhone.trim() && !formEmail.trim()) {
+      toast.error("Inserisci almeno un numero WhatsApp o un'email");
       return;
     }
 
@@ -154,9 +168,20 @@ export default function ZAppImpostazioniPage() {
   const resetForm = () => {
     setFormEventType("nuova_commessa");
     setFormChannel("whatsapp");
+    setFormSelectedUser("");
     setFormName("");
     setFormPhone("");
     setFormEmail("");
+  };
+
+  const handleUserSelect = (userId: string) => {
+    setFormSelectedUser(userId);
+    const profile = profiles.find((p) => p.id === userId);
+    if (profile) {
+      const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
+      setFormName(name || profile.email);
+      setFormEmail(profile.email);
+    }
   };
 
   // Group rules by event_type
@@ -321,23 +346,36 @@ export default function ZAppImpostazioniPage() {
             </div>
 
             <div>
+              <Label className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Seleziona Utente</Label>
+              <Select value={formSelectedUser} onValueChange={handleUserSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un utente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {[p.first_name, p.last_name].filter(Boolean).join(" ") || p.email}{" "}
+                      <span className="text-muted-foreground">({p.email})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Nome Destinatario</Label>
               <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="es. Pasquale" />
             </div>
 
-            {formChannel === "whatsapp" && (
-              <div>
-                <Label>Numero WhatsApp</Label>
-                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="es. +39 333 1234567" />
-              </div>
-            )}
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="es. nome@azienda.it" />
+            </div>
 
-            {formChannel === "email" && (
-              <div>
-                <Label>Email</Label>
-                <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="es. nome@azienda.it" />
-              </div>
-            )}
+            <div>
+              <Label>Numero WhatsApp</Label>
+              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="es. +39 333 1234567" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Annulla</Button>
