@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarItem } from "./types";
 
-export const useCalendarData = (startDate: Date, endDate: Date) => {
+export const useCalendarData = (startDate: Date, endDate: Date, options?: { excludeLeadActivities?: boolean }) => {
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -97,23 +97,25 @@ export const useCalendarData = (startDate: Date, endDate: Date) => {
         })));
       }
 
-      // Carica lead activities
-      const { data: leadActivities, error: leadError } = await supabase
-        .from('lead_activities')
-        .select(`
-          *,
-          leads (company_name, contact_name)
-        `)
-        .gte('activity_date', startISO)
-        .lte('activity_date', endISO)
-        .order('activity_date', { ascending: true });
+      // Carica lead activities (solo se non escluse)
+      if (!options?.excludeLeadActivities) {
+        const { data: leadActivities, error: leadError } = await supabase
+          .from('lead_activities')
+          .select(`
+            *,
+            leads (company_name, contact_name)
+          `)
+          .gte('activity_date', startISO)
+          .lte('activity_date', endISO)
+          .order('activity_date', { ascending: true });
 
-      if (leadError) console.error('Error loading lead activities:', leadError);
-      if (leadActivities) {
-        allItems.push(...leadActivities.map((activity: any) => ({
-          ...activity,
-          item_type: 'lead_activity' as const
-        })));
+        if (leadError) console.error('Error loading lead activities:', leadError);
+        if (leadActivities) {
+          allItems.push(...leadActivities.map((activity: any) => ({
+            ...activity,
+            item_type: 'lead_activity' as const
+          })));
+        }
       }
 
       setItems(allItems);
