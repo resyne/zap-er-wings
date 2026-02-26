@@ -83,7 +83,7 @@ export default function ZAppImpostazioniPage() {
     setLoading(true);
     const [rulesRes, profilesRes] = await Promise.all([
       supabase.from("zapp_notification_rules").select("*").order("event_type").order("channel"),
-      supabase.from("profiles").select("id, email, first_name, last_name").order("email"),
+      supabase.from("profiles").select("id, email, first_name, last_name, phone").order("email"),
     ]);
     if (rulesRes.data) setRules(rulesRes.data);
     if (profilesRes.data) setProfiles(profilesRes.data);
@@ -114,6 +114,7 @@ export default function ZAppImpostazioniPage() {
     if (profile) {
       setFormName([profile.first_name, profile.last_name].filter(Boolean).join(" ") || profile.email);
       setFormEmail(profile.email);
+      setFormPhone((profile as any).phone || "");
     }
   };
 

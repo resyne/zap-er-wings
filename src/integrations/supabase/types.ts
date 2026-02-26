@@ -7226,6 +7226,7 @@ export type Database = {
           hide_amounts: boolean | null
           id: string
           last_name: string | null
+          phone: string | null
           site_origin: string | null
           updated_at: string
           user_type: string | null
@@ -7238,6 +7239,7 @@ export type Database = {
           hide_amounts?: boolean | null
           id: string
           last_name?: string | null
+          phone?: string | null
           site_origin?: string | null
           updated_at?: string
           user_type?: string | null
@@ -7250,6 +7252,7 @@ export type Database = {
           hide_amounts?: boolean | null
           id?: string
           last_name?: string | null
+          phone?: string | null
           site_origin?: string | null
           updated_at?: string
           user_type?: string | null

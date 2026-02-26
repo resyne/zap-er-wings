@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, Eye, EyeOff, Smartphone, LayoutGrid } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Eye, EyeOff, Smartphone, LayoutGrid, Phone } from "lucide-react";
 import { ZAppVisibilityDialog } from "./ZAppVisibilityDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { UserPageVisibilityDialog } from "./UserPageVisibilityDialog";
@@ -22,6 +22,7 @@ interface UserWithRole {
   email: string;
   first_name?: string;
   last_name?: string;
+  phone?: string;
   role: "admin" | "moderator" | "user";
   user_type: "erp" | "website";
   created_at: string;
@@ -39,6 +40,8 @@ export function UserManagement() {
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedUserType, setSelectedUserType] = useState("erp"); // Default to ERP users only
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPhoneUserId, setEditingPhoneUserId] = useState<string | null>(null);
+  const [editingPhoneValue, setEditingPhoneValue] = useState("");
   const [visibilityDialogOpen, setVisibilityDialogOpen] = useState(false);
   const [zappVisibilityDialogOpen, setZappVisibilityDialogOpen] = useState(false);
   const [selectedUserForVisibility, setSelectedUserForVisibility] = useState<UserWithRole | null>(null);
@@ -48,6 +51,7 @@ export function UserManagement() {
     password: "",
     firstName: "",
     lastName: "",
+    phone: "",
     role: "user" as "admin" | "moderator" | "user"
   });
 
@@ -60,7 +64,7 @@ export function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, user_type, created_at, hide_amounts, z_app_only");
+        .select("id, email, first_name, last_name, phone, user_type, created_at, hide_amounts, z_app_only");
 
       if (profilesError) throw profilesError;
 
@@ -77,6 +81,7 @@ export function UserManagement() {
         email: profile.email,
         first_name: profile.first_name || "",
         last_name: profile.last_name || "",
+        phone: (profile as any).phone || "",
         user_type: (profile.user_type as "erp" | "website") || "website",
         role: (roles?.find(r => r.user_id === profile.id)?.role || "user") as "admin" | "moderator" | "user",
         created_at: profile.created_at,
@@ -189,6 +194,30 @@ export function UserManagement() {
     }
   };
 
+  const updateUserPhone = async (userId: string, phone: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: phone || null } as any)
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Successo",
+        description: "Numero di telefono aggiornato",
+      });
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating phone:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare il telefono",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteUser = async (userId: string) => {
     try {
       // First delete user role
@@ -271,6 +300,7 @@ export function UserManagement() {
         password: "",
         firstName: "",
         lastName: "",
+        phone: "",
         role: "user"
       });
       setIsDialogOpen(false);
@@ -434,6 +464,16 @@ export function UserManagement() {
                       </div>
                     </div>
                     <div className="grid gap-2">
+                      <Label htmlFor="new-phone">Telefono</Label>
+                      <Input
+                        id="new-phone"
+                        type="tel"
+                        value={newUserForm.phone || ""}
+                        onChange={(e) => setNewUserForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+39 338 1234567"
+                      />
+                    </div>
+                    <div className="grid gap-2">
                       <Label htmlFor="new-role">Ruolo</Label>
                       <Select 
                         value={newUserForm.role} 
@@ -472,6 +512,7 @@ export function UserManagement() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Telefono</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Ruolo</TableHead>
                 <TableHead>Nascondi Importi</TableHead>
@@ -490,6 +531,57 @@ export function UserManagement() {
                     }
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    {isAdmin && editingPhoneUserId === user.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="tel"
+                          value={editingPhoneValue}
+                          onChange={(e) => setEditingPhoneValue(e.target.value)}
+                          placeholder="+39..."
+                          className="h-7 w-36 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateUserPhone(user.id, editingPhoneValue);
+                              setEditingPhoneUserId(null);
+                            }
+                            if (e.key === "Escape") setEditingPhoneUserId(null);
+                          }}
+                          autoFocus
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => {
+                            updateUserPhone(user.id, editingPhoneValue);
+                            setEditingPhoneUserId(null);
+                          }}
+                        >
+                          ✓
+                        </Button>
+                      </div>
+                    ) : (
+                      <span
+                        className={`flex items-center gap-1 text-sm ${isAdmin ? "cursor-pointer hover:underline" : ""}`}
+                        onClick={() => {
+                          if (isAdmin) {
+                            setEditingPhoneUserId(user.id);
+                            setEditingPhoneValue(user.phone || "");
+                          }
+                        }}
+                      >
+                        {user.phone ? (
+                          <>
+                            <Phone className="h-3 w-3 text-muted-foreground" />
+                            {user.phone}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">{isAdmin ? "Aggiungi..." : "—"}</span>
+                        )}
+                      </span>
+                    )}
+                  </TableCell>
                    <TableCell>
                     <Badge variant={getUserTypeBadgeVariant(user.user_type)}>
                       {user.user_type === "erp" ? "ERP" : "Web"}
