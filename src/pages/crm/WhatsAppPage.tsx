@@ -113,6 +113,7 @@ interface WhatsAppConversation {
   rating?: number | null;
   has_customer_reply?: boolean | null;
   ai_enabled?: boolean | null;
+  assigned_user_id?: string | null;
   leads?: { pipeline: string | null } | null;
 }
 
@@ -1851,8 +1852,67 @@ const syncTemplatesMutation = useMutation({
                           <CardTitle className="text-lg truncate">
                             {selectedConversation.customer_name || selectedConversation.customer_phone}
                           </CardTitle>
-                          <CardDescription className="truncate">{selectedConversation.customer_phone}</CardDescription>
+                          <CardDescription className="truncate flex items-center gap-2">
+                            {selectedConversation.customer_phone}
+                            {selectedConversation.assigned_user_id && (
+                              <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                                <User className="h-3 w-3" />
+                                {getUserName(selectedConversation.assigned_user_id) || 'Assegnato'}
+                              </span>
+                            )}
+                          </CardDescription>
                         </div>
+                        {/* Reassign user dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" title="Assegna utente">
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {profiles?.map(p => (
+                              <DropdownMenuItem
+                                key={p.id}
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from('whatsapp_conversations')
+                                    .update({ assigned_user_id: p.id })
+                                    .eq('id', selectedConversation.id);
+                                  if (error) {
+                                    toast.error('Errore nell\'assegnazione');
+                                  } else {
+                                    toast.success(`Chat assegnata a ${p.first_name || p.email}`);
+                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                    setSelectedConversation({ ...selectedConversation, assigned_user_id: p.id });
+                                  }
+                                }}
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email}
+                                {p.id === selectedConversation.assigned_user_id && <Check className="h-4 w-4 ml-auto" />}
+                              </DropdownMenuItem>
+                            ))}
+                            {selectedConversation.assigned_user_id && (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from('whatsapp_conversations')
+                                    .update({ assigned_user_id: null })
+                                    .eq('id', selectedConversation.id);
+                                  if (!error) {
+                                    toast.success('Assegnazione rimossa');
+                                    queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+                                    setSelectedConversation({ ...selectedConversation, assigned_user_id: null });
+                                  }
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Rimuovi assegnazione
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {/* Toggle AI Sales per conversazione */}
                         {selectedAccount?.ai_chat_enabled && (
                           <div className="flex items-center gap-2 shrink-0">
