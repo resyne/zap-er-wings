@@ -8,8 +8,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Search, Truck, Clock, CheckCircle, Package,
-  ChevronRight, Calendar, History, AlertCircle
+  ChevronRight, Calendar, History, AlertCircle, Plus
 } from "lucide-react";
+import { CreatePurchaseOrderSheet } from "@/components/hr/zapp/CreatePurchaseOrderSheet";
 
 interface PurchaseOrder {
   id: string;
@@ -63,6 +64,7 @@ export default function ZAppOrdiniFornitoriPage() {
   const [logs, setLogs] = useState<POLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -264,6 +266,7 @@ export default function ZAppOrdiniFornitoriPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
       <div className="bg-orange-600 text-white px-4 py-4">
@@ -271,10 +274,17 @@ export default function ZAppOrdiniFornitoriPage() {
           <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => navigate("/hr/z-app")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold">Ordini Fornitori</h1>
             <p className="text-orange-100 text-sm">Ordini di acquisto ai fornitori</p>
           </div>
+          <Button
+            size="icon"
+            className="bg-white/20 hover:bg-white/30 text-white rounded-full h-10 w-10"
+            onClick={() => setShowCreate(true)}
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -377,5 +387,12 @@ export default function ZAppOrdiniFornitoriPage() {
         )}
       </div>
     </div>
+
+    <CreatePurchaseOrderSheet
+      open={showCreate}
+      onClose={() => setShowCreate(false)}
+      onCreated={() => { setLoading(true); loadOrders(); }}
+    />
+    </>
   );
 }
