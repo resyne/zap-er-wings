@@ -470,8 +470,19 @@ export default function ZAppOrdiniPage() {
           customer_name: customerName,
         },
       }).then(res => {
-        if (res.error) console.error("WhatsApp notification error:", res.error);
-        else console.log("WhatsApp notification sent:", res.data);
+        if (res.error) console.error("Commessa notification error:", res.error);
+      });
+
+      // Notify about new sales order (fire-and-forget)
+      supabase.functions.invoke("notify-nuovo-ordine", {
+        body: {
+          order_number: salesOrder.number,
+          customer_name: customerName,
+          total_amount: salesOrder.total_amount,
+          order_date: formData.order_date || new Date().toISOString(),
+        },
+      }).then(res => {
+        if (res.error) console.error("Order notification error:", res.error);
       });
 
       setShowCreateForm(false);

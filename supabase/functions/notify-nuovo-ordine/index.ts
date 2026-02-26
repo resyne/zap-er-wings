@@ -16,15 +16,14 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { commessa_id, commessa_title, commessa_type, new_status, customer_name, deadline } = await req.json();
+    const { order_number, customer_name, total_amount, order_date } = await req.json();
 
-    console.log("Notifying about commessa status change:", { commessa_id, commessa_title, new_status });
+    console.log("Notifying about new sales order:", { order_number, customer_name, total_amount });
 
-    // Get notification rules for cambio_stato_commessa event (both channels)
     const { data: rules, error: rulesError } = await supabase
       .from("zapp_notification_rules")
       .select("*")
-      .eq("event_type", "cambio_stato_commessa")
+      .eq("event_type", "nuovo_ordine")
       .eq("is_active", true);
 
     if (rulesError) throw rulesError;
@@ -35,7 +34,6 @@ serve(async (req) => {
       );
     }
 
-    // Get first active Zapper WhatsApp account
     const { data: waAccount } = await supabase
       .from("whatsapp_accounts")
       .select("id")
@@ -44,23 +42,12 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    const statusLabels: Record<string, string> = {
-      da_fare: "Da Fare", in_lavorazione: "In Lavorazione", in_test: "In Test",
-      standby: "Standby", bloccato: "Bloccato", pronto: "Pronto",
-      da_programmare: "Da Programmare", programmato: "Programmato",
-      in_corso: "In Corso", completato: "Completato", annullato: "Annullato",
-      in_preparazione: "In Preparazione", spedito: "Spedito", consegnato: "Consegnato",
-    };
-
-    const typeLabels: Record<string, string> = {
-      fornitura: "Fornitura", intervento: "Intervento", ricambi: "Ricambi",
-    };
-
-    const statusLabel = statusLabels[new_status] || new_status || "N/D";
-    const typeLabel = typeLabels[commessa_type] || commessa_type || "N/D";
-    const deadlineFormatted = deadline
-      ? new Date(deadline).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
-      : "Non specificata";
+    const amountFormatted = total_amount
+      ? new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(total_amount)
+      : "N/D";
+    const dateFormatted = order_date
+      ? new Date(order_date).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
+      : new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
 
     const results: { name: string; success: boolean; error?: string }[] = [];
 
@@ -73,15 +60,6 @@ serve(async (req) => {
           continue;
         }
         try {
-          const templateParams = [
-            rule.recipient_name,
-            commessa_title || "Commessa",
-            statusLabel,
-            typeLabel,
-            customer_name || "N/D",
-            deadlineFormatted,
-          ];
-
           const waResponse = await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${supabaseServiceKey}` },
@@ -89,12 +67,11 @@ serve(async (req) => {
               account_id: waAccount.id,
               to: rule.recipient_phone,
               type: "template",
-              template_name: "cambio_stato_commessa",
+              template_name: "nuovo_ordine_vendita",
               template_language: "it",
-              template_params: templateParams,
+              template_params: [rule.recipient_name, order_number || "Nuovo ordine", customer_name || "N/D", amountFormatted, dateFormatted],
             }),
           });
-
           const waResult = await waResponse.json();
           results.push({ name: rule.recipient_name, success: !!waResult.success, error: waResult.error });
         } catch (err) {
@@ -110,16 +87,16 @@ serve(async (req) => {
         await supabase.from("email_queue").insert({
           recipient_email: rule.recipient_email,
           recipient_name: rule.recipient_name,
-          subject: `Cambio Stato Commessa: ${commessa_title || "Commessa"} → ${statusLabel}`,
-          message: `La commessa ${commessa_title} è passata a: ${statusLabel}`,
+          subject: `Nuovo Ordine di Vendita: ${order_number || ""}`,
+          message: `Nuovo ordine: ${order_number}\nCliente: ${customer_name}\nImporto: ${amountFormatted}`,
           html_content: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-            <h2 style="color:#f59e0b;">🔄 Cambio Stato Commessa</h2>
-            <p><strong>${commessa_title || "Commessa"}</strong></p>
-            <ul><li>🔄 Nuovo stato: ${statusLabel}</li><li>📌 Tipologia: ${typeLabel}</li><li>👤 Cliente: ${customer_name || "N/D"}</li><li>📅 Scadenza: ${deadlineFormatted}</li></ul>
+            <h2 style="color:#10b981;">🛒 Nuovo Ordine di Vendita</h2>
+            <p><strong>${order_number || "Nuovo ordine"}</strong></p>
+            <ul><li>👤 Cliente: ${customer_name || "N/D"}</li><li>💰 Importo: ${amountFormatted}</li><li>📅 Data: ${dateFormatted}</li></ul>
             <p>Controlla il gestionale per i dettagli.</p></div>`,
           sender_email: "noreply@abbattitorizapper.it",
           sender_name: "ERP Zapper",
-          metadata: { type: "cambio_stato_commessa" },
+          metadata: { type: "nuovo_ordine" },
         });
         results.push({ name: rule.recipient_name, success: true });
       } catch (err) {
@@ -127,15 +104,9 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ success: true, results }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, results }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    console.error("Error in notify-commessa-status-change:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("Error in notify-nuovo-ordine:", error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

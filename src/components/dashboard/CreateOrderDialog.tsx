@@ -991,8 +991,21 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
           customer_name: customerName,
         },
       }).then(res => {
-        if (res.error) console.error("WhatsApp notification error:", res.error);
-        else console.log("WhatsApp notification sent:", res.data);
+        if (res.error) console.error("Commessa notification error:", res.error);
+        else console.log("Commessa notification sent:", res.data);
+      });
+
+      // Notify about new sales order (fire-and-forget)
+      supabase.functions.invoke("notify-nuovo-ordine", {
+        body: {
+          order_number: salesOrder.number,
+          customer_name: customerName,
+          total_amount: calculatedTotal,
+          order_date: newOrder.order_date || new Date().toISOString(),
+        },
+      }).then(res => {
+        if (res.error) console.error("Order notification error:", res.error);
+        else console.log("Order notification sent:", res.data);
       });
 
       // Costruisci messaggio di successo
