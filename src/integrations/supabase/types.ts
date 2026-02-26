@@ -11890,6 +11890,7 @@ export type Database = {
           id: string
           notify_on_message: boolean
           user_id: string
+          whatsapp_when_offline: boolean | null
         }
         Insert: {
           account_id: string
@@ -11898,6 +11899,7 @@ export type Database = {
           id?: string
           notify_on_message?: boolean
           user_id: string
+          whatsapp_when_offline?: boolean | null
         }
         Update: {
           account_id?: string
@@ -11906,6 +11908,7 @@ export type Database = {
           id?: string
           notify_on_message?: boolean
           user_id?: string
+          whatsapp_when_offline?: boolean | null
         }
         Relationships: [
           {

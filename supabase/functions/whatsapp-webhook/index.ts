@@ -613,18 +613,30 @@ async function sendNotifications(
           is_read: false,
         });
       } else {
-        // User is offline - check email preference
+        // User is offline - check email and whatsapp preferences
         let shouldSendEmail = true;
+        let shouldSendWhatsApp = false;
 
         if (!assignedUserId) {
-          // For account-level recipients, check their email_when_offline setting
+          // For account-level recipients, check their settings
           const { data: setting } = await supabase
             .from("whatsapp_notification_settings")
-            .select("email_when_offline")
+            .select("email_when_offline, whatsapp_when_offline")
             .eq("account_id", account.id)
             .eq("user_id", recipient.user_id)
             .single();
           shouldSendEmail = setting?.email_when_offline ?? false;
+          shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
+        } else {
+          // For assigned user, check their notification settings for this account
+          const { data: setting } = await supabase
+            .from("whatsapp_notification_settings")
+            .select("email_when_offline, whatsapp_when_offline")
+            .eq("account_id", account.id)
+            .eq("user_id", recipient.user_id)
+            .single();
+          shouldSendEmail = setting?.email_when_offline ?? true;
+          shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
         }
 
         if (shouldSendEmail && recipient.email) {
@@ -654,6 +666,59 @@ async function sendNotifications(
 
           if (!response.ok) {
             console.error("Error sending notification email:", await response.text());
+          }
+        }
+
+        // Send WhatsApp notification to the user if enabled
+        if (shouldSendWhatsApp) {
+          // Get user phone from profile
+          const { data: userProfile } = await supabase
+            .from("profiles")
+            .select("phone, first_name")
+            .eq("id", recipient.user_id)
+            .single();
+
+          if (userProfile?.phone) {
+            console.log(`Sending WhatsApp notification to ${userProfile.phone}`);
+            
+            const displayName = leadData?.contact_name || customerName || customerPhone;
+            const truncatedMessage = messageContent.substring(0, 200);
+
+            try {
+              const waResponse = await fetch(
+                `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                  },
+                  body: JSON.stringify({
+                    account_id: account.id,
+                    to: userProfile.phone,
+                    type: "template",
+                    template_name: "nuovo_messaggio_chat",
+                    template_language: "it",
+                    template_params: [
+                      userProfile.first_name || "Operatore",
+                      displayName,
+                      customerPhone,
+                      truncatedMessage,
+                    ],
+                  }),
+                }
+              );
+
+              if (!waResponse.ok) {
+                console.error("Error sending WhatsApp notification:", await waResponse.text());
+              } else {
+                console.log("WhatsApp notification sent successfully");
+              }
+            } catch (waError) {
+              console.error("Error sending WhatsApp notification:", waError);
+            }
+          } else {
+            console.log(`User ${recipient.user_id} has no phone number configured for WhatsApp notifications`);
           }
         }
       }

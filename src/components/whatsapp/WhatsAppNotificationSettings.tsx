@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, Mail, Loader2, Plus, Trash2, Users } from "lucide-react";
+import { Bell, Mail, MessageCircle, Loader2, Plus, Trash2, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -28,6 +28,7 @@ interface NotificationSetting {
   user_id: string;
   notify_on_message: boolean;
   email_when_offline: boolean;
+  whatsapp_when_offline: boolean;
 }
 
 interface WhatsAppNotificationSettingsProps {
@@ -121,7 +122,7 @@ export function WhatsAppNotificationSettings({ accountId }: WhatsAppNotification
 
   const updateSetting = async (
     settingId: string,
-    field: "notify_on_message" | "email_when_offline",
+    field: "notify_on_message" | "email_when_offline" | "whatsapp_when_offline",
     value: boolean
   ) => {
     setSaving(true);
@@ -267,6 +268,23 @@ export function WhatsAppNotificationSettings({ accountId }: WhatsAppNotification
                     </Label>
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`whatsapp-${setting.id}`}
+                      checked={setting.whatsapp_when_offline}
+                      onCheckedChange={(checked) =>
+                        updateSetting(setting.id, "whatsapp_when_offline", !!checked)
+                      }
+                    />
+                    <Label
+                      htmlFor={`whatsapp-${setting.id}`}
+                      className="text-xs flex items-center gap-1 cursor-pointer"
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      WhatsApp
+                    </Label>
+                  </div>
+
                   <Button
                     variant="ghost"
                     size="icon"
@@ -292,6 +310,7 @@ export function WhatsAppNotificationSettings({ accountId }: WhatsAppNotification
         <ul className="text-xs text-muted-foreground space-y-0.5 ml-5">
           <li>• <strong>In-app:</strong> notifica istantanea se l'utente ha l'ERP aperto</li>
           <li>• <strong>Email:</strong> email con messaggio e traduzione se l'utente è offline</li>
+          <li>• <strong>WhatsApp:</strong> messaggio WhatsApp con il template "nuovo_messaggio_chat" se offline</li>
         </ul>
       </div>
     </div>
