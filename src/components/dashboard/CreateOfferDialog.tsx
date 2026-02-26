@@ -118,7 +118,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     valid_until: '',
     status: defaultStatus,
     template: 'zapper' as 'zapper' | 'vesuviano' | 'zapperpro',
-    language: 'it' as 'it' | 'en' | 'fr',
+    language: 'it' as 'it' | 'en' | 'fr' | 'es',
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
@@ -688,7 +688,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               <Label className="text-xs">Lingua</Label>
               <Select 
                 value={newOffer.language} 
-                onValueChange={(value: 'it' | 'en' | 'fr') => 
+                onValueChange={(value: 'it' | 'en' | 'fr' | 'es') => 
                   setNewOffer({ ...newOffer, language: value })
                 }
               >
@@ -699,6 +699,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                   <SelectItem value="it">🇮🇹 Italiano</SelectItem>
                   <SelectItem value="en">🇬🇧 Inglese</SelectItem>
                   <SelectItem value="fr">🇫🇷 Francese</SelectItem>
+                  <SelectItem value="es">🇪🇸 Spagnolo</SelectItem>
                 </SelectContent>
               </Select>
             </div>

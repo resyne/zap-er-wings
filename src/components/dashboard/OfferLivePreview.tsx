@@ -18,7 +18,7 @@ interface OfferLivePreviewProps {
   title: string;
   description: string;
   template: 'zapper' | 'vesuviano' | 'zapperpro';
-  language: 'it' | 'en' | 'fr';
+  language: 'it' | 'en' | 'fr' | 'es';
   companyEntity: 'climatel' | 'unita1';
   validUntil: string;
   products: OfferProduct[];
