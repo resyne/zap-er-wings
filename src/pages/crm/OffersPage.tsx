@@ -136,7 +136,7 @@ export default function OffersPage() {
     valid_until: string;
     status: 'offerta_pronta' | 'offerta_inviata' | 'negoziazione' | 'offerta_accettata' | 'offerta_rifiutata';
     template: 'zapper' | 'vesuviano' | 'zapperpro';
-    language?: 'it' | 'en' | 'fr';
+    language?: 'it' | 'en' | 'fr' | 'es';
     timeline_produzione?: string;
     timeline_consegna?: string;
     timeline_installazione?: string;
@@ -1780,12 +1780,13 @@ export default function OffersPage() {
                               </div>
                               <div className="space-y-2">
                                 <label className="text-sm font-medium">Lingua</label>
-                                <Select value={newOffer.language || 'it'} onValueChange={(value: 'it' | 'en' | 'fr') => setNewOffer(prev => ({ ...prev, language: value }))}>
+                                <Select value={newOffer.language || 'it'} onValueChange={(value: 'it' | 'en' | 'fr' | 'es') => setNewOffer(prev => ({ ...prev, language: value }))}>
                                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="it">🇮🇹 Italiano</SelectItem>
                                     <SelectItem value="en">🇬🇧 Inglese</SelectItem>
                                     <SelectItem value="fr">🇫🇷 Francese</SelectItem>
+                                    <SelectItem value="es">🇪🇸 Spagnolo</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
