@@ -1,27 +1,26 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Link2 } from "lucide-react";
+import { CalendarIcon, Plus, Link2, Search, ChevronRight, X, Check, User, StickyNote, ClipboardList } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ACTIVITY_TYPES = [
-  { value: "sopralluogo", label: "Sopralluogo", color: "#f59e0b" },
-  { value: "installazione", label: "Installazione", color: "#3b82f6" },
-  { value: "manutenzione", label: "Manutenzione", color: "#8b5cf6" },
-  { value: "riunione", label: "Riunione", color: "#06b6d4" },
-  { value: "formazione", label: "Formazione", color: "#10b981" },
-  { value: "altro", label: "Altro", color: "#6b7280" },
+  { value: "sopralluogo", label: "Sopralluogo", icon: "🔍", color: "#f59e0b" },
+  { value: "installazione", label: "Installazione", icon: "🔧", color: "#3b82f6" },
+  { value: "manutenzione", label: "Manutenzione", icon: "🛠️", color: "#8b5cf6" },
+  { value: "riunione", label: "Riunione", icon: "👥", color: "#06b6d4" },
+  { value: "formazione", label: "Formazione", icon: "📚", color: "#10b981" },
+  { value: "altro", label: "Altro", icon: "📌", color: "#6b7280" },
 ];
 
 const TYPES_WITH_COMMESSA = ["installazione", "manutenzione"];
@@ -51,8 +50,6 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<Array<{ id: string; label: string }>>([]);
 
-  // Commessa linking
-  const [commessaMode, setCommessaMode] = useState<"none" | "existing" | "new">("none");
   const [commesse, setCommesse] = useState<CommessaOption[]>([]);
   const [selectedCommessa, setSelectedCommessa] = useState("");
   const [commessaSearch, setCommessaSearch] = useState("");
@@ -68,11 +65,8 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
   }, [open, defaultDate]);
 
   useEffect(() => {
-    if (needsCommessa && open) {
-      loadCommesse();
-    }
+    if (needsCommessa && open) loadCommesse();
     if (!needsCommessa) {
-      setCommessaMode("none");
       setSelectedCommessa("");
     }
   }, [activityType, open]);
@@ -174,7 +168,6 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
     setTitle("");
     setDescription("");
     setAssignedTo("");
-    setCommessaMode("none");
     setSelectedCommessa("");
     setCommessaSearch("");
   };
@@ -183,146 +176,194 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
     setShowCreateOrder(false);
     loadCommesse();
     toast.success("Ordine creato! Ora puoi collegarlo all'attività.");
-    setCommessaMode("existing");
   };
+
+  const selectedTypeObj = ACTIVITY_TYPES.find(t => t.value === activityType);
+  const selectedCommessaObj = selectedCommessa ? commesse.find(c => c.id === selectedCommessa) : null;
 
   return (
     <>
-      <Dialog open={open && !showCreateOrder} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Aggiungi Attività</DialogTitle>
-            <DialogDescription>Pianifica un'attività nel calendario</DialogDescription>
-          </DialogHeader>
+      <Sheet open={open && !showCreateOrder} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[92vh] rounded-t-2xl overflow-y-auto p-0">
+          {/* Header indigo */}
+          <div className="bg-indigo-600 text-white px-5 py-4 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-white text-lg font-bold">Nuova Attività</SheetTitle>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 -mr-2" onClick={() => onOpenChange(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <p className="text-indigo-200 text-xs mt-0.5">
+              {activityDate ? format(activityDate, "EEEE d MMMM yyyy", { locale: it }) : "Seleziona una data"}
+            </p>
+          </div>
 
-          <div className="space-y-4">
+          <div className="px-5 py-4 space-y-5">
+            {/* Activity type chips */}
             <div>
-              <Label>Tipo Attività *</Label>
-              <Select value={activityType} onValueChange={setActivityType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACTIVITY_TYPES.map(t => (
-                    <SelectItem key={t.value} value={t.value}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }} />
-                        {t.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+                Tipo attività
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {ACTIVITY_TYPES.map(t => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setActivityType(t.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 transition-all text-center active:scale-95",
+                      activityType === t.value
+                        ? "border-indigo-500 bg-indigo-50 shadow-sm"
+                        : "border-border bg-background hover:border-muted-foreground/30"
+                    )}
+                  >
+                    <span className="text-xl">{t.icon}</span>
+                    <span className={cn(
+                      "text-xs font-medium",
+                      activityType === t.value ? "text-indigo-700" : "text-muted-foreground"
+                    )}>
+                      {t.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Commessa section - only for installazione/manutenzione */}
+            {/* Commessa section */}
             {needsCommessa && (
-              <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
-                <Label className="text-sm font-medium">Commessa di riferimento</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={commessaMode === "existing" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 gap-1"
-                    onClick={() => setCommessaMode("existing")}
-                  >
-                    <Link2 className="h-3.5 w-3.5" />
-                    Collega esistente
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={commessaMode === "new" ? "default" : "outline"}
-                    size="sm"
-                    className="flex-1 gap-1"
-                    onClick={() => {
-                      setCommessaMode("new");
-                      setShowCreateOrder(true);
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Nuovo ordine
-                  </Button>
+              <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-indigo-600" />
+                  <label className="text-sm font-semibold text-indigo-900">Commessa di riferimento</label>
                 </div>
 
-                {commessaMode === "existing" && (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Cerca commessa per numero, titolo o cliente..."
-                      value={commessaSearch}
-                      onChange={(e) => setCommessaSearch(e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                    <div className="max-h-40 overflow-y-auto space-y-1">
+                {/* Selected commessa preview */}
+                {selectedCommessaObj && (
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-indigo-200">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{selectedCommessaObj.number}</p>
+                      <p className="text-xs text-muted-foreground truncate">{selectedCommessaObj.title}</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedCommessa("")} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {!selectedCommessaObj && (
+                  <>
+                    {/* Search */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Cerca per numero, titolo o cliente..."
+                        value={commessaSearch}
+                        onChange={(e) => setCommessaSearch(e.target.value)}
+                        className="pl-9 h-10 rounded-lg text-sm bg-white"
+                      />
+                    </div>
+
+                    {/* Commessa list */}
+                    <div className="max-h-44 overflow-y-auto space-y-1.5 -mx-1 px-1">
                       {filteredCommesse.length === 0 ? (
-                        <p className="text-xs text-muted-foreground text-center py-2">Nessuna commessa trovata</p>
+                        <p className="text-xs text-muted-foreground text-center py-4">Nessuna commessa trovata</p>
                       ) : (
                         filteredCommesse.map(c => (
                           <button
                             key={c.id}
                             type="button"
                             onClick={() => setSelectedCommessa(c.id)}
-                            className={cn(
-                              "w-full text-left px-2 py-1.5 rounded text-sm transition-colors",
-                              selectedCommessa === c.id
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted"
-                            )}
+                            className="w-full text-left px-3 py-2.5 rounded-lg bg-white border border-border hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors active:scale-[0.98] flex items-center gap-3"
                           >
-                            <div className="font-medium text-xs">{c.number}</div>
-                            <div className="text-[11px] opacity-80 truncate">
-                              {c.title}{c.customer_name ? ` · ${c.customer_name}` : ''}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground">{c.number}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {c.title}{c.customer_name ? ` · ${c.customer_name}` : ''}
+                              </p>
                             </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           </button>
                         ))
                       )}
                     </div>
-                  </div>
+
+                    {/* New order button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2 border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700"
+                      onClick={() => setShowCreateOrder(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Crea nuovo ordine
+                    </Button>
+                  </>
                 )}
               </div>
             )}
 
-            <div>
-              <Label>Dettagli Attività *</Label>
+            {/* Title */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Dettagli attività *
+              </label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Es. Sopralluogo presso cliente XYZ"
+                className="h-11 rounded-xl text-sm"
               />
             </div>
 
-            <div>
-              <Label>Note (opzionale)</Label>
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <StickyNote className="h-3.5 w-3.5" />
+                Note
+              </label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Dettagli aggiuntivi..."
-                rows={3}
+                rows={2}
+                className="rounded-xl text-sm resize-none"
               />
             </div>
 
-            <div>
-              <Label>Data *</Label>
+            {/* Date */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Data *
+              </label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !activityDate && "text-muted-foreground")}
+                    className={cn(
+                      "w-full justify-start text-left font-normal h-11 rounded-xl",
+                      !activityDate && "text-muted-foreground"
+                    )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {activityDate ? format(activityDate, "dd MMM yyyy", { locale: it }) : "Seleziona data"}
+                    <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500" />
+                    {activityDate ? format(activityDate, "EEEE d MMMM yyyy", { locale: it }) : "Seleziona data"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={activityDate} onSelect={setActivityDate} locale={it} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div>
-              <Label>Assegna a</Label>
+            {/* Assign */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Assegna a
+              </label>
               <Select value={assignedTo} onValueChange={setAssignedTo}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 rounded-xl">
                   <SelectValue placeholder="Utente corrente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -334,21 +375,31 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Annulla</Button>
-            <Button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Salvataggio..." : "Aggiungi"}
+          {/* Sticky footer */}
+          <div className="sticky bottom-0 bg-background border-t border-border px-5 py-4 flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 h-12 rounded-xl text-sm font-medium"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Annulla
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <Button
+              className="flex-1 h-12 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700"
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? "Salvataggio..." : "Aggiungi attività"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
-      {/* Full Create Order Dialog */}
       <CreateOrderDialog
         open={showCreateOrder}
         onOpenChange={(o) => {
           setShowCreateOrder(o);
-          if (!o) setCommessaMode("existing");
         }}
         onSuccess={handleOrderCreated}
       />
