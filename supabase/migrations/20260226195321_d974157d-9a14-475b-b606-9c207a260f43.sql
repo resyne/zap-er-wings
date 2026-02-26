@@ -1,0 +1,1 @@
+DELETE FROM whatsapp_templates WHERE name = 'nuovo_messaggio_chat' AND language = 'en';
