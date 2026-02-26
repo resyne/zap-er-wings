@@ -64,6 +64,13 @@ const sections = [
     url: "/hr/z-app/ordini",
   },
   {
+    title: "Ordini Fornitori",
+    description: "Ordini di acquisto ai fornitori",
+    icon: Package2,
+    color: "bg-orange-500",
+    url: "/hr/z-app/ordini-fornitori",
+  },
+  {
     title: "Impostazioni",
     description: "Configura notifiche e preferenze",
     icon: Settings,
