@@ -393,6 +393,22 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Notify internal team about new purchase order (fire-and-forget)
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/notify-ordine-acquisto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${supabaseServiceKey}` },
+        body: JSON.stringify({
+          order_number: purchaseOrder.number,
+          supplier_name: supplier.name,
+          total_amount: totalAmount,
+          order_date: order_date,
+        }),
+      });
+    } catch (notifyErr) {
+      console.error("Internal notification error:", notifyErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

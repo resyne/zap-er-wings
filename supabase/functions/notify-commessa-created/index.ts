@@ -9,13 +9,6 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Technician IDs to notify
-const TECHNICIAN_IDS = [
-  "315e7063-f29b-490e-b6af-b7404446f124", // Pasquale
-  "10b28d44-46d9-4e11-a0e3-d39069ed128b", // Antonio
-  "e8015672-517f-4fd0-8c24-7e8db4dcc583", // Stefano
-];
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,17 +18,26 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { commessa_title, commessa_type, deadline, customer_name } = await req.json();
 
-    console.log("Notifying technicians about new commessa:", { commessa_title, commessa_type, deadline, customer_name });
+    console.log("Notifying about new commessa:", { commessa_title, commessa_type, deadline, customer_name });
 
-    // Get technicians with phone numbers
-    const { data: technicians, error: techError } = await supabase
-      .from("technicians")
-      .select("id, first_name, last_name, phone, mobile")
-      .in("id", TECHNICIAN_IDS);
+    // Get notification rules for nuova_commessa event
+    const { data: rules, error: rulesError } = await supabase
+      .from("zapp_notification_rules")
+      .select("*")
+      .eq("event_type", "nuova_commessa")
+      .eq("is_active", true);
 
-    if (techError) {
-      console.error("Error fetching technicians:", techError);
-      throw techError;
+    if (rulesError) {
+      console.error("Error fetching notification rules:", rulesError);
+      throw rulesError;
+    }
+
+    if (!rules || rules.length === 0) {
+      console.log("No active notification rules for nuova_commessa");
+      return new Response(
+        JSON.stringify({ success: true, message: "No active rules", results: [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Get first active Zapper WhatsApp account
@@ -55,9 +57,6 @@ serve(async (req) => {
       );
     }
 
-    const results: { name: string; success: boolean; error?: string }[] = [];
-
-    // Map commessa type to Italian label
     const typeLabels: Record<string, string> = {
       fornitura: "Fornitura",
       intervento: "Intervento",
@@ -68,20 +67,20 @@ serve(async (req) => {
       ? new Date(deadline).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "Non specificata";
 
-    for (const tech of technicians || []) {
-      const phone = tech.mobile || tech.phone;
+    const results: { name: string; success: boolean; error?: string }[] = [];
+
+    // Process WhatsApp rules
+    const waRules = rules.filter(r => r.channel === "whatsapp");
+    for (const rule of waRules) {
+      const phone = rule.recipient_phone;
       if (!phone) {
-        console.warn(`No phone for technician ${tech.first_name} ${tech.last_name}`);
-        results.push({ name: `${tech.first_name} ${tech.last_name}`, success: false, error: "Nessun numero di telefono" });
+        results.push({ name: rule.recipient_name, success: false, error: "Nessun numero di telefono" });
         continue;
       }
 
-      const techName = `${tech.first_name} ${tech.last_name}`;
-
       try {
-        // Template params: {{1}} = tech name, {{2}} = commessa title, {{3}} = type, {{4}} = deadline, {{5}} = customer
         const templateParams = [
-          techName,
+          rule.recipient_name,
           commessa_title || "Nuova commessa",
           typeLabel,
           deadlineFormatted,
@@ -109,15 +108,50 @@ serve(async (req) => {
 
         const waResult = await waResponse.json();
         if (waResult.success) {
-          console.log(`WhatsApp sent to ${techName} (${phone})`);
-          results.push({ name: techName, success: true });
+          console.log(`WhatsApp sent to ${rule.recipient_name} (${phone})`);
+          results.push({ name: rule.recipient_name, success: true });
         } else {
-          console.error(`WhatsApp failed for ${techName}:`, waResult.error);
-          results.push({ name: techName, success: false, error: waResult.error });
+          console.error(`WhatsApp failed for ${rule.recipient_name}:`, waResult.error);
+          results.push({ name: rule.recipient_name, success: false, error: waResult.error });
         }
       } catch (err) {
-        console.error(`Error sending to ${techName}:`, err);
-        results.push({ name: techName, success: false, error: err.message });
+        console.error(`Error sending to ${rule.recipient_name}:`, err);
+        results.push({ name: rule.recipient_name, success: false, error: err.message });
+      }
+    }
+
+    // Process Email rules
+    const emailRules = rules.filter(r => r.channel === "email");
+    for (const rule of emailRules) {
+      const email = rule.recipient_email;
+      if (!email) {
+        results.push({ name: rule.recipient_name, success: false, error: "Nessuna email" });
+        continue;
+      }
+
+      try {
+        await supabase.from("email_queue").insert({
+          recipient_email: email,
+          recipient_name: rule.recipient_name,
+          subject: `Nuova Commessa: ${commessa_title || "Nuova commessa"}`,
+          message: `È stata inserita una nuova commessa: ${commessa_title}\nTipologia: ${typeLabel}\nScadenza: ${deadlineFormatted}\nCliente: ${customer_name || "N/D"}`,
+          html_content: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+            <h2 style="color:#667eea;">📋 Nuova Commessa</h2>
+            <p><strong>${commessa_title || "Nuova commessa"}</strong></p>
+            <ul>
+              <li>📌 Tipologia: ${typeLabel}</li>
+              <li>📅 Scadenza: ${deadlineFormatted}</li>
+              <li>👤 Cliente: ${customer_name || "N/D"}</li>
+            </ul>
+            <p>Controlla il gestionale per i dettagli.</p>
+          </div>`,
+          sender_email: "noreply@abbattitorizapper.it",
+          sender_name: "ERP Zapper",
+          metadata: { type: "nuova_commessa" },
+        });
+        results.push({ name: rule.recipient_name, success: true });
+      } catch (err) {
+        results.push({ name: rule.recipient_name, success: false, error: err.message });
       }
     }
 

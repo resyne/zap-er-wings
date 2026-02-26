@@ -527,6 +527,18 @@ export default function OrdersPage() {
         successMessage += ` - Commessa di Spedizione: ${shippingOrder.number}`;
       }
 
+      // Notify about new sales order (fire-and-forget)
+      supabase.functions.invoke("notify-nuovo-ordine", {
+        body: {
+          order_number: salesOrder.number,
+          customer_name: salesOrder.customers?.name || "",
+          total_amount: salesOrder.total_amount,
+          order_date: newOrder.order_date || new Date().toISOString(),
+        },
+      }).then(res => {
+        if (res.error) console.error("Order notification error:", res.error);
+      });
+
       toast({
         title: "Successo",
         description: successMessage,
