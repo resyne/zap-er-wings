@@ -7,7 +7,8 @@ import {
   CalendarDays, 
   MessageCircle,
   Smartphone,
-  ShoppingCart
+  ShoppingCart,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
@@ -61,6 +62,13 @@ const sections = [
     icon: ShoppingCart,
     color: "bg-teal-500",
     url: "/hr/z-app/ordini",
+  },
+  {
+    title: "Impostazioni",
+    description: "Configura notifiche e preferenze",
+    icon: Settings,
+    color: "bg-gray-500",
+    url: "/hr/z-app/impostazioni",
   },
 ];
 

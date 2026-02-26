@@ -12337,6 +12337,45 @@ export type Database = {
           },
         ]
       }
+      zapp_notification_rules: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          created_by: string | null
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          id: string
+          is_active: boolean
+          recipient_email: string | null
+          recipient_name: string
+          recipient_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          created_by?: string | null
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          id?: string
+          is_active?: boolean
+          recipient_email?: string | null
+          recipient_name: string
+          recipient_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          created_by?: string | null
+          event_type?: Database["public"]["Enums"]["notification_event_type"]
+          id?: string
+          is_active?: boolean
+          recipient_email?: string | null
+          recipient_name?: string
+          recipient_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -12495,6 +12534,12 @@ export type Database = {
         | "CESSIONE_EXTRA_UE_NON_IMPONIBILE"
         | "VENDITA_RC_EDILE"
         | "ACQUISTO_RC_EDILE"
+      notification_channel: "whatsapp" | "email"
+      notification_event_type:
+        | "nuova_commessa"
+        | "cambio_stato_commessa"
+        | "nuovo_ordine"
+        | "scadenza_imminente"
       payment_method_type: "BANCA" | "CASSA" | "CARTA"
       recurrence_type: "none" | "daily" | "weekly" | "monthly" | "yearly"
       rma_status: "open" | "analysis" | "repaired" | "closed"
@@ -12687,6 +12732,13 @@ export const Constants = {
         "CESSIONE_EXTRA_UE_NON_IMPONIBILE",
         "VENDITA_RC_EDILE",
         "ACQUISTO_RC_EDILE",
+      ],
+      notification_channel: ["whatsapp", "email"],
+      notification_event_type: [
+        "nuova_commessa",
+        "cambio_stato_commessa",
+        "nuovo_ordine",
+        "scadenza_imminente",
       ],
       payment_method_type: ["BANCA", "CASSA", "CARTA"],
       recurrence_type: ["none", "daily", "weekly", "monthly", "yearly"],
