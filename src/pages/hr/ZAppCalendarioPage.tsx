@@ -86,7 +86,7 @@ export default function ZAppCalendarioPage() {
   // Show work orders + calendar events
   const VISIBLE_TYPES = [...WORK_ORDER_TYPES, "event"];
   const visibleItems = useMemo(() => 
-    items.filter((item) => VISIBLE_TYPES.includes(item.item_type)), 
+    items.filter((item) => VISIBLE_TYPES.includes(item.item_type) && item.item_type !== 'lead_activity' && item.item_type !== 'task'), 
     [items]
   );
 
