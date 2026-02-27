@@ -5,7 +5,7 @@ import {
   Calendar, MapPin, User, Package, Clock, ChevronDown,
   FileText, AlertTriangle, CheckCircle2, Image, Boxes,
   CreditCard, ChevronRight, Building2, CalendarPlus, Factory,
-  Megaphone, Send, MessageSquare, History
+  Megaphone, Send, MessageSquare, History, Trash2, Pencil, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MediaPreviewModal } from "@/components/ui/media-preview-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 
 // ─── Types ───────────────────────────────────────────────────
 interface CommessaPhase {
@@ -429,13 +431,16 @@ const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onS
 });
 
 // ─── Commessa Card ─────────────
-const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange, onSchedulePhase, onPriorityChange, onSendUrgent, isPending }: {
+const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange, onSchedulePhase, onPriorityChange, onSendUrgent, onDelete, onEditNotes, isPending, isAdmin }: {
   commessa: Commessa;
   onPhaseStatusChange: (phaseId: string, newStatus: string) => void;
   onSchedulePhase: (phase: CommessaPhase, commessa: Commessa) => void;
   onPriorityChange: (commessa: Commessa, newPriority: string) => void;
   onSendUrgent: (commessa: Commessa) => void;
+  onDelete: (commessa: Commessa) => void;
+  onEditNotes: (commessa: Commessa) => void;
   isPending: boolean;
+  isAdmin: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sortedPhases = [...commessa.phases].sort((a, b) => a.phase_order - b.phase_order);
@@ -547,6 +552,26 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
               Invia Comunicazione Urgente
             </button>
 
+            {/* Admin Actions */}
+            {isAdmin && (
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEditNotes(commessa); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-blue-50 text-blue-700 border border-blue-200 active:scale-[0.98] transition-all"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Modifica
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(commessa); }}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Elimina
+                </button>
+              </div>
+            )}
+
             {/* Commessa details */}
             {(commessa.diameter || commessa.smoke_inlet) && (
               <div className="space-y-0.5 text-[11px]">
@@ -594,6 +619,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 export default function ZAppCommesse() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isAdmin } = useUserRole();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
@@ -602,6 +628,11 @@ export default function ZAppCommesse() {
   const [urgentDialog, setUrgentDialog] = useState<Commessa | null>(null);
   const [urgentMessage, setUrgentMessage] = useState("");
   const [sendingUrgent, setSendingUrgent] = useState(false);
+  const [deleteCommessa, setDeleteCommessa] = useState<Commessa | null>(null);
+  const [deletingCommessa, setDeletingCommessa] = useState(false);
+  const [editCommessa, setEditCommessa] = useState<Commessa | null>(null);
+  const [editCommessaData, setEditCommessaData] = useState({ notes: "", title: "", article: "" });
+  const [savingCommessa, setSavingCommessa] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearchChange = useCallback((value: string) => {
@@ -765,6 +796,54 @@ export default function ZAppCommesse() {
     setSendingUrgent(false);
   }, [urgentDialog, urgentMessage]);
 
+  // ─── Admin: Delete Commessa ──────────────────────────────
+  const handleDeleteCommessa = useCallback(async () => {
+    if (!deleteCommessa) return;
+    setDeletingCommessa(true);
+    try {
+      await supabase.from("commessa_phases").delete().eq("commessa_id", deleteCommessa.id);
+      await supabase.from("commessa_communications").delete().eq("commessa_id", deleteCommessa.id);
+      const { error } = await supabase.from("commesse").delete().eq("id", deleteCommessa.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+      setDeleteCommessa(null);
+      toast.success("Commessa eliminata");
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    } finally {
+      setDeletingCommessa(false);
+    }
+  }, [deleteCommessa, queryClient]);
+
+  const handleOpenEditCommessa = useCallback((commessa: Commessa) => {
+    setEditCommessaData({
+      notes: commessa.notes || "",
+      title: commessa.title || "",
+      article: commessa.article || "",
+    });
+    setEditCommessa(commessa);
+  }, []);
+
+  const handleSaveCommessa = useCallback(async () => {
+    if (!editCommessa) return;
+    setSavingCommessa(true);
+    try {
+      const { error } = await supabase.from("commesse").update({
+        notes: editCommessaData.notes || null,
+        title: editCommessaData.title,
+        article: editCommessaData.article || null,
+      }).eq("id", editCommessa.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+      setEditCommessa(null);
+      toast.success("Commessa aggiornata");
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    } finally {
+      setSavingCommessa(false);
+    }
+  }, [editCommessa, editCommessaData, queryClient]);
+
   // ─── Data Fetching ──────────────────────────────────────
   const { data: commesse = [], isLoading } = useQuery({
     queryKey: ["zapp-commesse"],
@@ -902,7 +981,10 @@ export default function ZAppCommesse() {
               onSchedulePhase={handleOpenSchedule}
               onPriorityChange={handlePriorityChange}
               onSendUrgent={(c) => { setUrgentDialog(c); setUrgentMessage(""); }}
+              onDelete={(c) => setDeleteCommessa(c)}
+              onEditNotes={handleOpenEditCommessa}
               isPending={updatePhaseStatus.isPending}
+              isAdmin={isAdmin}
             />
           ))
         )}
@@ -972,6 +1054,55 @@ export default function ZAppCommesse() {
             >
               {sendingUrgent ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
               Invia
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Commessa Confirmation */}
+      <AlertDialog open={!!deleteCommessa} onOpenChange={(o) => !o && setDeleteCommessa(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina Commessa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare la commessa {deleteCommessa?.number}? Verranno eliminate anche tutte le fasi e comunicazioni collegate. Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCommessa} disabled={deletingCommessa} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingCommessa ? "Eliminazione..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Commessa Dialog */}
+      <Dialog open={!!editCommessa} onOpenChange={(o) => !o && setEditCommessa(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Modifica Commessa</DialogTitle>
+            <DialogDescription>{editCommessa?.number}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Titolo</Label>
+              <Input value={editCommessaData.title} onChange={e => setEditCommessaData(p => ({ ...p, title: e.target.value }))} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Articolo</Label>
+              <Input value={editCommessaData.article} onChange={e => setEditCommessaData(p => ({ ...p, article: e.target.value }))} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Note</Label>
+              <Textarea value={editCommessaData.notes} onChange={e => setEditCommessaData(p => ({ ...p, notes: e.target.value }))} rows={3} className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCommessa(null)}>Annulla</Button>
+            <Button onClick={handleSaveCommessa} disabled={savingCommessa}>
+              {savingCommessa ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+              Salva
             </Button>
           </DialogFooter>
         </DialogContent>
