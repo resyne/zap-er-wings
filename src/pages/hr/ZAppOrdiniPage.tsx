@@ -191,6 +191,7 @@ export default function ZAppOrdiniPage() {
   });
   const [selectedPriority, setSelectedPriority] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedOfferIdForOrder, setSelectedOfferIdForOrder] = useState<string | null>(null);
 
   useEffect(() => { loadOrders(); loadAcceptedOffers(); }, []);
 
@@ -225,6 +226,7 @@ export default function ZAppOrdiniPage() {
           if (data) setSelectedCustomer(data as any);
         });
     }
+    setSelectedOfferIdForOrder(offer.id);
     setOrderTypeCategory("fornitura");
     setInterventionType("");
     setIsWarranty(false);
@@ -392,6 +394,7 @@ export default function ZAppOrdiniPage() {
     setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
     setSelectedPriority("");
+    setSelectedOfferIdForOrder(null);
     setSaving(false);
     setShowCreateForm(true);
   };
@@ -469,6 +472,7 @@ export default function ZAppOrdiniPage() {
           order_subject: subject,
           notes: formData.notes || null,
           order_source: "sale",
+          offer_id: selectedOfferIdForOrder || null,
         }] as any)
         .select()
         .single();
@@ -572,6 +576,12 @@ export default function ZAppOrdiniPage() {
       }).then(res => {
         if (res.error) console.error("Order notification error:", res.error);
       });
+
+      // Archive offer if created from one
+      if (selectedOfferIdForOrder) {
+        await supabase.from("offers").update({ archived: true }).eq("id", selectedOfferIdForOrder);
+        setSelectedOfferIdForOrder(null);
+      }
 
       setShowCreateForm(false);
       loadOrders();
