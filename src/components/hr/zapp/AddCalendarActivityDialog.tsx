@@ -155,6 +155,20 @@ export const AddCalendarActivityDialog = ({ open, onOpenChange, defaultDate, onS
 
       if (error) throw error;
 
+      // Send scheduling notification if linked to a commessa
+      if (commessaRef) {
+        supabase.functions.invoke("notify-commessa-scheduled", {
+          body: {
+            commessa_title: commessaRef.title,
+            commessa_number: commessaRef.number,
+            phase_type: activityType,
+            scheduled_date: activityDate.toISOString(),
+            customer_name: commessaRef.customer_name || "N/D",
+            is_reschedule: false,
+          },
+        }).catch(err => console.error("Error sending schedule notification:", err));
+      }
+
       toast.success("Attività aggiunta al calendario");
       onSuccess();
       onOpenChange(false);
