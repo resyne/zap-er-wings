@@ -751,23 +751,37 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
               </div>
             )}
 
-            {/* 6. Dettagli tecnici */}
-            {(commessa.diameter || commessa.smoke_inlet || commessa.bom_name || commessa.payment_on_delivery) && (
-              <div className="space-y-1 p-2 rounded-lg bg-muted/30 border border-border/50">
-                {commessa.diameter && <p className="text-[11px]"><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
-                {commessa.smoke_inlet && <p className="text-[11px]"><span className="text-muted-foreground">Fumi:</span> {commessa.smoke_inlet}</p>}
-                {commessa.bom_name && <p className="text-[11px]"><span className="text-muted-foreground">BOM:</span> {commessa.bom_name} (v{commessa.bom_version})</p>}
-                {commessa.payment_on_delivery && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
-                    <CreditCard className="h-3 w-3" />
-                    Pagamento alla consegna{commessa.payment_amount ? `: €${commessa.payment_amount.toLocaleString("it-IT")}` : ""}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* 6. Dettagli tecnici e informazioni */}
+            <div className="space-y-1 p-2 rounded-lg bg-muted/30 border border-border/50">
+              {commessa.article && <p className="text-[11px]"><span className="text-muted-foreground">Articolo:</span> <span className="font-medium">{commessa.article}</span></p>}
+              {commessa.description && <p className="text-[11px]"><span className="text-muted-foreground">Descrizione:</span> {commessa.description}</p>}
+              {commessa.diameter && <p className="text-[11px]"><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
+              {commessa.smoke_inlet && <p className="text-[11px]"><span className="text-muted-foreground">Innesto Fumi:</span> {commessa.smoke_inlet}</p>}
+              {commessa.delivery_mode && <p className="text-[11px]"><span className="text-muted-foreground">Consegna:</span> {commessa.delivery_mode === "spedizione" ? "Spedizione" : commessa.delivery_mode === "ritiro" ? "Ritiro" : commessa.delivery_mode === "installazione" ? "Installazione" : commessa.delivery_mode}</p>}
+              {commessa.intervention_type && <p className="text-[11px]"><span className="text-muted-foreground">Tipo Intervento:</span> {commessa.intervention_type}</p>}
+              {commessa.bom_name && <p className="text-[11px]"><span className="text-muted-foreground">BOM:</span> {commessa.bom_name} (v{commessa.bom_version})</p>}
+              {commessa.is_warranty && (
+                <div className="flex items-center gap-1.5 text-[11px] text-blue-700 font-medium">
+                  <Settings className="h-3 w-3" />
+                  In Garanzia
+                </div>
+              )}
+              {commessa.payment_on_delivery && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
+                  <CreditCard className="h-3 w-3" />
+                  Pagamento alla consegna{commessa.payment_amount ? `: €${commessa.payment_amount.toLocaleString("it-IT")}` : ""}
+                </div>
+              )}
+              {commessa.shipping_address && (
+                <p className="text-[11px]"><span className="text-muted-foreground">Indirizzo:</span> {[commessa.shipping_address, commessa.shipping_postal_code, commessa.shipping_city, commessa.shipping_province, commessa.shipping_country].filter(Boolean).join(", ")}</p>
+              )}
+            </div>
 
             {commessa.notes && (
-              <p className="text-[11px] text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{commessa.notes}</p>
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Note Cliente</p>
+                <p className="text-[11px] text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{commessa.notes}</p>
+              </div>
             )}
 
             {/* 7. Foto cliente */}
