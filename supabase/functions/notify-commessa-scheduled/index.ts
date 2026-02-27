@@ -73,8 +73,10 @@ serve(async (req) => {
         }
 
         try {
-          // Template: calendarizzazione_commessa
-          // Params: {{1}} nome destinatario, {{2}} numero commessa, {{3}} fase, {{4}} data, {{5}} cliente
+          // Use different template based on reschedule vs first scheduling
+          // data_calendarizzata: {{1}} nome, {{2}} commessa, {{3}} fase, {{4}} data, {{5}} cliente
+          // data_ricalendarizzata: {{1}} nome, {{2}} commessa, {{3}} fase, {{4}} data, {{5}} cliente
+          const templateName = is_reschedule ? "data_ricalendarizzata" : "data_calendarizzata";
           const templateParams = [
             rule.recipient_name,
             commessa_number || commessa_title || "N/D",
@@ -95,7 +97,7 @@ serve(async (req) => {
                 account_id: waAccount.id,
                 to: phone,
                 type: "template",
-                template_name: "calendarizzazione_commessa",
+                template_name: templateName,
                 template_language: "it",
                 template_params: templateParams,
               }),
