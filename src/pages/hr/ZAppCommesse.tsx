@@ -68,6 +68,7 @@ interface Commessa {
   deadline?: string;
   created_at: string;
   sales_order_id?: string;
+  legacy_work_order_id?: string;
   customer_name?: string;
   customer_code?: string;
   assigned_to_name?: string;
@@ -154,64 +155,98 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
 
 const completedStatuses = ["pronto", "completato", "completata", "spedito", "completed", "closed"];
 
-// ─── Sub-component: Articles checklist ─────────────
-const MobileArticlesChecklist = memo(function MobileArticlesChecklist({ commessaId, legacyWorkOrderId }: { commessaId: string; legacyWorkOrderId?: string }) {
-  const [articles, setArticles] = useState<any[]>([]);
+// ─── Sub-component: Products to produce/prepare checklist ─────────────
+const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrderId }: { salesOrderId: string }) {
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadArticles(); }, [commessaId]);
+  useEffect(() => { loadItems(); }, [salesOrderId]);
 
-  const loadArticles = async () => {
-    if (!legacyWorkOrderId) { setLoading(false); return; }
+  const loadItems = async () => {
     try {
       const { data, error } = await supabase
-        .from("work_order_article_items")
-        .select("*")
-        .eq("work_order_id", legacyWorkOrderId)
-        .order("position", { ascending: true });
+        .from("sales_order_items")
+        .select("id, product_name, description, quantity, is_completed, completed_at")
+        .eq("sales_order_id", salesOrderId)
+        .order("created_at", { ascending: true });
       if (error) throw error;
-      setArticles(data || []);
+      setItems(data || []);
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
-  const toggleComplete = async (article: any) => {
-    const newCompleted = !article.is_completed;
+  const toggleComplete = async (item: any) => {
+    const newCompleted = !item.is_completed;
     const { error } = await supabase
-      .from("work_order_article_items")
+      .from("sales_order_items")
       .update({ is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null })
-      .eq("id", article.id);
-    if (error) { toast.error("Errore"); return; }
-    setArticles(prev => prev.map(a => a.id === article.id ? { ...a, is_completed: newCompleted } : a));
+      .eq("id", item.id);
+    if (error) { toast.error("Errore aggiornamento"); return; }
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : i));
     toast.success(newCompleted ? "Completato ✓" : "Riaperto");
   };
 
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />;
-  if (articles.length === 0) return null;
+  if (items.length === 0) return null;
 
-  const completed = articles.filter(a => a.is_completed).length;
+  const completed = items.filter(i => i.is_completed).length;
+  const progressPercent = Math.round((completed / items.length) * 100);
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2 border border-indigo-200 rounded-lg p-3 bg-indigo-50/30">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Da assemblare</p>
-        <Badge variant="outline" className="text-[10px]">{completed}/{articles.length}</Badge>
+        <p className="text-[12px] font-bold text-indigo-700 uppercase tracking-wide flex items-center gap-1.5">
+          <Boxes className="h-3.5 w-3.5" />
+          Da Produrre / Preparare
+        </p>
+        <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[10px] font-bold">
+          {completed}/{items.length}
+        </Badge>
       </div>
-      {articles.map(article => (
-        <button
-          key={article.id}
-          onClick={() => toggleComplete(article)}
-          className="flex items-start gap-2 w-full text-left p-1.5 rounded-lg hover:bg-muted/50 active:bg-muted transition-colors"
-        >
-          <Checkbox checked={article.is_completed} className="mt-0.5 pointer-events-none" />
-          <span className={`text-[12px] flex-1 whitespace-pre-wrap ${article.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {article.description}
-          </span>
-        </button>
-      ))}
+      
+      {/* Progress bar */}
+      <div className="w-full h-2 bg-indigo-100 rounded-full overflow-hidden">
+        <div 
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{ 
+            width: `${progressPercent}%`,
+            background: progressPercent === 100 
+              ? 'linear-gradient(90deg, #10b981, #059669)' 
+              : 'linear-gradient(90deg, #6366f1, #818cf8)'
+          }}
+        />
+      </div>
+
+      <div className="space-y-1">
+        {items.map(item => (
+          <button
+            key={item.id}
+            onClick={() => toggleComplete(item)}
+            className={`flex items-start gap-2.5 w-full text-left p-2 rounded-lg border transition-all active:scale-[0.98] ${
+              item.is_completed 
+                ? "bg-green-50 border-green-200" 
+                : "bg-background border-border hover:border-indigo-300 hover:bg-indigo-50/50"
+            }`}
+          >
+            <Checkbox checked={item.is_completed} className="mt-0.5 pointer-events-none" />
+            <div className="flex-1 min-w-0">
+              <span className={`text-[12px] font-medium block ${item.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                {item.quantity > 1 ? `${item.quantity}x ` : ""}{item.product_name || "Articolo"}
+              </span>
+              {item.description && (
+                <span className={`text-[10px] block mt-0.5 ${item.is_completed ? "line-through text-muted-foreground/60" : "text-muted-foreground"}`}>
+                  {item.description.length > 120 ? item.description.substring(0, 120) + "..." : item.description}
+                </span>
+              )}
+            </div>
+            {item.is_completed && (
+              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 });
-
 // ─── Lead Photos ─────────────
 const MobileLeadPhotos = memo(function MobileLeadPhotos({ leadId }: { leadId: string }) {
   const [photos, setPhotos] = useState<Array<{ url: string; name: string; type: string }>>([]);
@@ -591,6 +626,10 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
             {commessa.notes && (
               <p className="text-[11px] text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{commessa.notes}</p>
             )}
+
+            {/* Products checklist */}
+            {commessa.sales_order_id && <MobileProductsChecklist salesOrderId={commessa.sales_order_id} />}
+
             {commessa.lead_id && <MobileLeadPhotos leadId={commessa.lead_id} />}
 
             {/* Phases */}
