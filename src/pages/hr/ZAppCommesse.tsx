@@ -160,7 +160,6 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [bomData, setBomData] = useState<Record<string, { level1: any[]; level2: any[] }>>({});
-  const [expandedBoms, setExpandedBoms] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadItems(); }, [salesOrderId]);
 
@@ -245,13 +244,6 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
     toast.success(newCompleted ? "Completato ✓" : "Riaperto");
   };
 
-  const toggleBom = (itemId: string) => {
-    setExpandedBoms(prev => {
-      const next = new Set(prev);
-      next.has(itemId) ? next.delete(itemId) : next.add(itemId);
-      return next;
-    });
-  };
 
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />;
   if (items.length === 0) return null;
@@ -287,7 +279,6 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
       <div className="space-y-1">
         {items.map(item => {
           const hasBom = !!bomData[item.id];
-          const isExpanded = expandedBoms.has(item.id);
           const itemBoms = bomData[item.id];
 
           return (
@@ -316,19 +307,8 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
                 )}
               </button>
 
-              {/* BOM toggle button */}
-              {hasBom && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleBom(item.id); }}
-                  className="ml-7 mt-0.5 flex items-center gap-1 text-[10px] text-amber-700 font-medium hover:text-amber-900 transition-colors"
-                >
-                  <Package className="h-3 w-3" />
-                  {isExpanded ? "Nascondi" : "Mostra"} BOM ({(itemBoms?.level1.length || 0) + (itemBoms?.level2.length || 0)} componenti)
-                </button>
-              )}
-
-              {/* BOM details */}
-              {hasBom && isExpanded && itemBoms && (
+              {/* BOM details - always visible */}
+              {hasBom && itemBoms && (
                 <div className="ml-7 mt-1 mb-1 p-2 rounded-md bg-amber-50/60 border border-amber-200/60 space-y-1.5">
                   {itemBoms.level1.length > 0 && (
                     <div className="space-y-0.5">
