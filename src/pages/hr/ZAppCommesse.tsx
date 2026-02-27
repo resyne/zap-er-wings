@@ -767,8 +767,23 @@ export default function ZAppCommesse() {
   const [deleteCommessa, setDeleteCommessa] = useState<Commessa | null>(null);
   const [deletingCommessa, setDeletingCommessa] = useState(false);
   const [editCommessa, setEditCommessa] = useState<Commessa | null>(null);
-  const [editCommessaData, setEditCommessaData] = useState({ notes: "", title: "", article: "" });
+  const [editCommessaData, setEditCommessaData] = useState<{
+    title: string; article: string; notes: string; description: string;
+    priority: string; type: string; delivery_mode: string; intervention_type: string;
+    diameter: string; smoke_inlet: string; deadline: string;
+    payment_on_delivery: boolean; payment_amount: string; is_warranty: boolean;
+    shipping_address: string; shipping_city: string; shipping_province: string;
+    shipping_postal_code: string; shipping_country: string;
+  }>({
+    title: "", article: "", notes: "", description: "",
+    priority: "medium", type: "fornitura", delivery_mode: "", intervention_type: "",
+    diameter: "", smoke_inlet: "", deadline: "",
+    payment_on_delivery: false, payment_amount: "", is_warranty: false,
+    shipping_address: "", shipping_city: "", shipping_province: "",
+    shipping_postal_code: "", shipping_country: "",
+  });
   const [savingCommessa, setSavingCommessa] = useState(false);
+  const [editSection, setEditSection] = useState<string>("general");
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSearchChange = useCallback((value: string) => {
@@ -974,7 +989,24 @@ export default function ZAppCommesse() {
       notes: commessa.notes || "",
       title: commessa.title || "",
       article: commessa.article || "",
+      description: commessa.description || "",
+      priority: commessa.priority || "medium",
+      type: commessa.type || "fornitura",
+      delivery_mode: commessa.delivery_mode || "",
+      intervention_type: commessa.intervention_type || "",
+      diameter: commessa.diameter || "",
+      smoke_inlet: commessa.smoke_inlet || "",
+      deadline: commessa.deadline || "",
+      payment_on_delivery: commessa.payment_on_delivery || false,
+      payment_amount: commessa.payment_amount?.toString() || "",
+      is_warranty: commessa.is_warranty || false,
+      shipping_address: commessa.shipping_address || "",
+      shipping_city: commessa.shipping_city || "",
+      shipping_province: commessa.shipping_province || "",
+      shipping_postal_code: commessa.shipping_postal_code || "",
+      shipping_country: commessa.shipping_country || "",
     });
+    setEditSection("general");
     setEditCommessa(commessa);
   }, []);
 
@@ -983,9 +1015,25 @@ export default function ZAppCommesse() {
     setSavingCommessa(true);
     try {
       const { error } = await supabase.from("commesse").update({
-        notes: editCommessaData.notes || null,
         title: editCommessaData.title,
         article: editCommessaData.article || null,
+        notes: editCommessaData.notes || null,
+        description: editCommessaData.description || null,
+        priority: editCommessaData.priority || null,
+        type: editCommessaData.type,
+        delivery_mode: editCommessaData.delivery_mode || null,
+        intervention_type: editCommessaData.intervention_type || null,
+        diameter: editCommessaData.diameter || null,
+        smoke_inlet: editCommessaData.smoke_inlet || null,
+        deadline: editCommessaData.deadline || null,
+        payment_on_delivery: editCommessaData.payment_on_delivery,
+        payment_amount: editCommessaData.payment_amount ? parseFloat(editCommessaData.payment_amount) : null,
+        is_warranty: editCommessaData.is_warranty,
+        shipping_address: editCommessaData.shipping_address || null,
+        shipping_city: editCommessaData.shipping_city || null,
+        shipping_province: editCommessaData.shipping_province || null,
+        shipping_postal_code: editCommessaData.shipping_postal_code || null,
+        shipping_country: editCommessaData.shipping_country || null,
       }).eq("id", editCommessa.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
@@ -1233,32 +1281,215 @@ export default function ZAppCommesse() {
 
       {/* Edit Commessa Dialog */}
       <Dialog open={!!editCommessa} onOpenChange={(o) => !o && setEditCommessa(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Modifica Commessa</DialogTitle>
-            <DialogDescription>{editCommessa?.number}</DialogDescription>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b shrink-0">
+            <DialogTitle className="text-base">Modifica Commessa</DialogTitle>
+            <DialogDescription className="text-xs">{editCommessa?.number} • {editCommessa?.customer_name}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs">Titolo</Label>
-              <Input value={editCommessaData.title} onChange={e => setEditCommessaData(p => ({ ...p, title: e.target.value }))} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Articolo</Label>
-              <Input value={editCommessaData.article} onChange={e => setEditCommessaData(p => ({ ...p, article: e.target.value }))} className="mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">Note</Label>
-              <Textarea value={editCommessaData.notes} onChange={e => setEditCommessaData(p => ({ ...p, notes: e.target.value }))} rows={3} className="mt-1" />
-            </div>
+
+          {/* Section tabs - scrollable horizontally */}
+          <div className="flex gap-1 px-3 py-2 overflow-x-auto border-b shrink-0 bg-muted/30">
+            {[
+              { key: "general", icon: <FileText className="h-3.5 w-3.5" />, label: "Generale" },
+              { key: "product", icon: <Package className="h-3.5 w-3.5" />, label: "Prodotto" },
+              { key: "shipping", icon: <Truck className="h-3.5 w-3.5" />, label: "Spedizione" },
+              { key: "payment", icon: <CreditCard className="h-3.5 w-3.5" />, label: "Pagamento" },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setEditSection(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
+                  editSection === tab.key
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-background text-muted-foreground border border-border hover:bg-accent"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCommessa(null)}>Annulla</Button>
-            <Button onClick={handleSaveCommessa} disabled={savingCommessa}>
+
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {/* GENERAL section */}
+            {editSection === "general" && (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Titolo *</Label>
+                  <Input value={editCommessaData.title} onChange={e => setEditCommessaData(p => ({ ...p, title: e.target.value }))} className="mt-1 h-9" placeholder="Titolo commessa" />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Descrizione</Label>
+                  <Textarea value={editCommessaData.description} onChange={e => setEditCommessaData(p => ({ ...p, description: e.target.value }))} rows={2} className="mt-1" placeholder="Descrizione..." />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Tipologia</Label>
+                    <Select value={editCommessaData.type} onValueChange={v => setEditCommessaData(p => ({ ...p, type: v }))}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fornitura">🔧 Fornitura</SelectItem>
+                        <SelectItem value="intervento">🛠️ Intervento</SelectItem>
+                        <SelectItem value="ricambi">📦 Ricambi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Priorità</Label>
+                    <Select value={editCommessaData.priority} onValueChange={v => setEditCommessaData(p => ({ ...p, priority: v }))}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">🟢 Bassa</SelectItem>
+                        <SelectItem value="medium">🟡 Media</SelectItem>
+                        <SelectItem value="high">🟠 Alta</SelectItem>
+                        <SelectItem value="urgent">🔴 Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {editCommessaData.type === "intervento" && (
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Tipo Intervento</Label>
+                    <Select value={editCommessaData.intervention_type || ""} onValueChange={v => setEditCommessaData(p => ({ ...p, intervention_type: v }))}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="installazione">Installazione</SelectItem>
+                        <SelectItem value="manutenzione">Manutenzione</SelectItem>
+                        <SelectItem value="riparazione">Riparazione</SelectItem>
+                        <SelectItem value="collaudo">Collaudo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Scadenza</Label>
+                  <Input 
+                    type="date" 
+                    value={editCommessaData.deadline ? editCommessaData.deadline.substring(0, 10) : ""} 
+                    onChange={e => setEditCommessaData(p => ({ ...p, deadline: e.target.value || "" }))} 
+                    className="mt-1 h-9" 
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Note</Label>
+                  <Textarea value={editCommessaData.notes} onChange={e => setEditCommessaData(p => ({ ...p, notes: e.target.value }))} rows={3} className="mt-1" placeholder="Note interne..." />
+                </div>
+              </>
+            )}
+
+            {/* PRODUCT section */}
+            {editSection === "product" && (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Articolo</Label>
+                  <Input value={editCommessaData.article} onChange={e => setEditCommessaData(p => ({ ...p, article: e.target.value }))} className="mt-1 h-9" placeholder="es. ZPZ - 250mm" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Diametro</Label>
+                    <Input value={editCommessaData.diameter} onChange={e => setEditCommessaData(p => ({ ...p, diameter: e.target.value }))} className="mt-1 h-9" placeholder="es. 250mm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Innesto Fumi</Label>
+                    <Input value={editCommessaData.smoke_inlet} onChange={e => setEditCommessaData(p => ({ ...p, smoke_inlet: e.target.value }))} className="mt-1 h-9" placeholder="es. Laterale" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+                  <Checkbox 
+                    checked={editCommessaData.is_warranty} 
+                    onCheckedChange={c => setEditCommessaData(p => ({ ...p, is_warranty: !!c }))} 
+                    id="edit-warranty"
+                  />
+                  <label htmlFor="edit-warranty" className="text-sm font-medium cursor-pointer">
+                    🛡️ In Garanzia
+                  </label>
+                </div>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Modalità Consegna</Label>
+                  <Select value={editCommessaData.delivery_mode || ""} onValueChange={v => setEditCommessaData(p => ({ ...p, delivery_mode: v }))}>
+                    <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="corriere">📦 Corriere</SelectItem>
+                      <SelectItem value="ritiro">🏭 Ritiro in sede</SelectItem>
+                      <SelectItem value="installazione">🔧 Consegna + Installazione</SelectItem>
+                      <SelectItem value="container">🚢 Container</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {/* SHIPPING section */}
+            {editSection === "shipping" && (
+              <>
+                <div>
+                  <Label className="text-xs font-semibold text-muted-foreground">Indirizzo</Label>
+                  <Input value={editCommessaData.shipping_address} onChange={e => setEditCommessaData(p => ({ ...p, shipping_address: e.target.value }))} className="mt-1 h-9" placeholder="Via/Piazza..." />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Città</Label>
+                    <Input value={editCommessaData.shipping_city} onChange={e => setEditCommessaData(p => ({ ...p, shipping_city: e.target.value }))} className="mt-1 h-9" placeholder="Città" />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Provincia</Label>
+                    <Input value={editCommessaData.shipping_province} onChange={e => setEditCommessaData(p => ({ ...p, shipping_province: e.target.value }))} className="mt-1 h-9" placeholder="NA" maxLength={2} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">CAP</Label>
+                    <Input value={editCommessaData.shipping_postal_code} onChange={e => setEditCommessaData(p => ({ ...p, shipping_postal_code: e.target.value }))} className="mt-1 h-9" placeholder="80100" maxLength={5} />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Paese</Label>
+                    <Input value={editCommessaData.shipping_country} onChange={e => setEditCommessaData(p => ({ ...p, shipping_country: e.target.value }))} className="mt-1 h-9" placeholder="Italia" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* PAYMENT section */}
+            {editSection === "payment" && (
+              <>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                  <Checkbox 
+                    checked={editCommessaData.payment_on_delivery} 
+                    onCheckedChange={c => setEditCommessaData(p => ({ ...p, payment_on_delivery: !!c }))} 
+                    id="edit-payment-delivery"
+                  />
+                  <label htmlFor="edit-payment-delivery" className="text-sm font-medium cursor-pointer">
+                    💰 Pagamento alla Consegna
+                  </label>
+                </div>
+                {editCommessaData.payment_on_delivery && (
+                  <div>
+                    <Label className="text-xs font-semibold text-muted-foreground">Importo (€)</Label>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={editCommessaData.payment_amount} 
+                      onChange={e => setEditCommessaData(p => ({ ...p, payment_amount: e.target.value }))} 
+                      className="mt-1 h-9" 
+                      placeholder="0.00" 
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Fixed footer */}
+          <div className="flex gap-2 px-4 py-3 border-t bg-background shrink-0">
+            <Button variant="outline" className="flex-1 h-10" onClick={() => setEditCommessa(null)}>
+              Annulla
+            </Button>
+            <Button className="flex-1 h-10 bg-indigo-600 hover:bg-indigo-700" onClick={handleSaveCommessa} disabled={savingCommessa || !editCommessaData.title.trim()}>
               {savingCommessa ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
               Salva
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
