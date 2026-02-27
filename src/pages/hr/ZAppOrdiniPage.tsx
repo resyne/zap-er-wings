@@ -11,14 +11,16 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
-  MapPin, Building2, FileText, Pencil
+  MapPin, Building2, FileText, Pencil, Trash2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Order {
   id: string;
@@ -138,12 +140,18 @@ type ViewMode = "list" | "detail";
 
 export default function ZAppOrdiniPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({ notes: "", order_subject: "", status: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Create form state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -495,6 +503,67 @@ export default function ZAppOrdiniPage() {
     }
   };
 
+  // ===== Admin handlers =====
+  const startEditing = () => {
+    if (!selectedOrder) return;
+    setEditData({
+      notes: selectedOrder.notes || "",
+      order_subject: selectedOrder.order_subject || "",
+      status: selectedOrder.status || "commissionato",
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedOrder) return;
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase.from("sales_orders")
+        .update({
+          notes: editData.notes || null,
+          order_subject: editData.order_subject || null,
+          status: editData.status,
+        })
+        .eq("id", selectedOrder.id);
+      if (error) throw error;
+      const updated = { ...selectedOrder, notes: editData.notes || null, order_subject: editData.order_subject || null, status: editData.status };
+      setSelectedOrder(updated);
+      setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+      setIsEditing(false);
+      toast.success("Ordine aggiornato");
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deleteOrderId) return;
+    setDeleting(true);
+    try {
+      // Delete related commesse phases first, then commesse, then the order
+      const { data: relatedCommesse } = await supabase.from("commesse").select("id").eq("sales_order_id", deleteOrderId);
+      if (relatedCommesse && relatedCommesse.length > 0) {
+        const commessaIds = relatedCommesse.map(c => c.id);
+        await supabase.from("commessa_phases").delete().in("commessa_id", commessaIds);
+        await supabase.from("commessa_communications").delete().in("commessa_id", commessaIds);
+        await supabase.from("commesse").delete().eq("sales_order_id", deleteOrderId);
+      }
+      const { error } = await supabase.from("sales_orders").delete().eq("id", deleteOrderId);
+      if (error) throw error;
+      setOrders(prev => prev.filter(o => o.id !== deleteOrderId));
+      setDeleteOrderId(null);
+      setSelectedOrder(null);
+      setViewMode("list");
+      toast.success("Ordine eliminato");
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // ===== DETAIL VIEW =====
   if (viewMode === "detail" && selectedOrder) {
     const subs = getSubOrders(selectedOrder);
@@ -502,13 +571,32 @@ export default function ZAppOrdiniPage() {
       <div className="min-h-screen bg-muted/30">
         <div className="bg-teal-600 text-white px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => { setSelectedOrder(null); setViewMode("list"); }}>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => { setSelectedOrder(null); setViewMode("list"); setIsEditing(false); }}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-lg font-bold">Ordine {selectedOrder.number}</h1>
               <p className="text-teal-100 text-sm">{selectedOrder.customers?.name || "—"}</p>
             </div>
+            {isAdmin && !isEditing && (
+              <div className="flex gap-1">
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={startEditing}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-red-500/30" onClick={() => setDeleteOrderId(selectedOrder.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {isAdmin && isEditing && (
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 text-xs" onClick={() => setIsEditing(false)}>Annulla</Button>
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 text-xs" onClick={handleSaveEdit} disabled={savingEdit}>
+                  {savingEdit ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                  Salva
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -516,9 +604,21 @@ export default function ZAppOrdiniPage() {
           <div className="bg-white rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Stato</span>
-              <Badge className={statusColors[selectedOrder.status || ""] || "bg-muted text-foreground"}>
-                {statusLabels[selectedOrder.status || ""] || selectedOrder.status || "—"}
-              </Badge>
+              {isEditing ? (
+                <Select value={editData.status} onValueChange={v => setEditData(p => ({ ...p, status: v }))}>
+                  <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="commissionato">Commissionato</SelectItem>
+                    <SelectItem value="in_lavorazione">In Lavorazione</SelectItem>
+                    <SelectItem value="in_progress">In Lavorazione</SelectItem>
+                    <SelectItem value="completato">Completato</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge className={statusColors[selectedOrder.status || ""] || "bg-muted text-foreground"}>
+                  {statusLabels[selectedOrder.status || ""] || selectedOrder.status || "—"}
+                </Badge>
+              )}
             </div>
             {selectedOrder.order_type_category && (
               <div className="flex items-center justify-between">
@@ -532,12 +632,17 @@ export default function ZAppOrdiniPage() {
                 <span className="text-sm font-medium capitalize">{selectedOrder.delivery_mode}</span>
               </div>
             )}
-            {selectedOrder.order_subject && (
+            {isEditing ? (
+              <div>
+                <span className="text-sm text-muted-foreground">Oggetto</span>
+                <Input value={editData.order_subject} onChange={e => setEditData(p => ({ ...p, order_subject: e.target.value }))} className="mt-1 text-sm" />
+              </div>
+            ) : selectedOrder.order_subject ? (
               <div>
                 <span className="text-sm text-muted-foreground">Oggetto</span>
                 <p className="text-sm mt-1 font-medium">{selectedOrder.order_subject}</p>
               </div>
-            )}
+            ) : null}
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Data Ordine</span>
               <span className="text-sm">{selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString("it-IT") : "—"}</span>
@@ -546,12 +651,17 @@ export default function ZAppOrdiniPage() {
               <span className="text-sm text-muted-foreground">Consegna Prevista</span>
               <span className="text-sm">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString("it-IT") : "—"}</span>
             </div>
-            {selectedOrder.notes && (
+            {isEditing ? (
+              <div>
+                <span className="text-sm text-muted-foreground">Note</span>
+                <Textarea value={editData.notes} onChange={e => setEditData(p => ({ ...p, notes: e.target.value }))} rows={3} className="mt-1 text-sm" />
+              </div>
+            ) : selectedOrder.notes ? (
               <div>
                 <span className="text-sm text-muted-foreground">Note</span>
                 <p className="text-sm mt-1 bg-muted/50 p-2 rounded-lg">{selectedOrder.notes}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
           {subs.length > 0 && (
@@ -569,6 +679,24 @@ export default function ZAppOrdiniPage() {
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={!!deleteOrderId} onOpenChange={(o) => !o && setDeleteOrderId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Elimina Ordine</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sei sicuro di voler eliminare questo ordine e tutte le commesse collegate? Questa azione non può essere annullata.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteOrder} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? "Eliminazione..." : "Elimina"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
