@@ -30,7 +30,6 @@ interface AcceptedOffer {
   customer_id?: string;
   customer_name?: string;
   lead_id?: string;
-  notes?: string;
   customers?: { name: string; code: string } | null;
 }
 
@@ -199,7 +198,7 @@ export default function ZAppOrdiniPage() {
     try {
       const { data, error } = await supabase
         .from("offers")
-        .select("id, number, title, description, customer_id, customer_name, lead_id, notes, customers(name, code)")
+        .select("id, number, title, description, customer_id, customer_name, lead_id, customers(name, code)")
         .eq("status", "accettata")
         .eq("archived", false)
         .order("created_at", { ascending: false });
@@ -242,7 +241,7 @@ export default function ZAppOrdiniPage() {
       quantity: 1,
     }]);
     setFormData({
-      notes: offer.notes ? `Da offerta ${offer.number}: ${offer.notes}` : `Da offerta ${offer.number}`,
+      notes: `Da offerta ${offer.number}`,
       order_date: new Date().toISOString().split("T")[0],
       delivery_date: "",
       deadline: "",
