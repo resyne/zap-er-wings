@@ -191,6 +191,7 @@ export default function ZAppOrdiniPage() {
   const [selectedPriority, setSelectedPriority] = useState("");
   const [saving, setSaving] = useState(false);
   const [selectedOfferIdForOrder, setSelectedOfferIdForOrder] = useState<string | null>(null);
+  const [selectedLeadIdForOrder, setSelectedLeadIdForOrder] = useState<string | null>(null);
 
   useEffect(() => { loadOrders(); loadAcceptedOffers(); }, []);
 
@@ -226,6 +227,7 @@ export default function ZAppOrdiniPage() {
         });
     }
     setSelectedOfferIdForOrder(offer.id);
+    setSelectedLeadIdForOrder(offer.lead_id || null);
     setOrderTypeCategory("fornitura");
     setInterventionType("");
     setIsWarranty(false);
@@ -416,6 +418,7 @@ export default function ZAppOrdiniPage() {
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
     setSelectedPriority("");
     setSelectedOfferIdForOrder(null);
+    setSelectedLeadIdForOrder(null);
     setSaving(false);
     setShowCreateForm(true);
   };
@@ -494,6 +497,7 @@ export default function ZAppOrdiniPage() {
           notes: formData.notes || null,
           order_source: "sale",
           offer_id: selectedOfferIdForOrder || null,
+          lead_id: selectedLeadIdForOrder || null,
         }] as any)
         .select()
         .single();
@@ -539,6 +543,7 @@ export default function ZAppOrdiniPage() {
           shipping_city: custData?.city || null,
           shipping_province: custData?.province || null,
           is_warranty: isWarranty,
+          lead_id: selectedLeadIdForOrder || null,
         }] as any)
         .select()
         .single();
@@ -602,6 +607,7 @@ export default function ZAppOrdiniPage() {
       if (selectedOfferIdForOrder) {
         await supabase.from("offers").update({ archived: true }).eq("id", selectedOfferIdForOrder);
         setSelectedOfferIdForOrder(null);
+        setSelectedLeadIdForOrder(null);
       }
 
       setShowCreateForm(false);
