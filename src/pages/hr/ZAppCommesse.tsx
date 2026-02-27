@@ -159,6 +159,8 @@ const completedStatuses = ["pronto", "completato", "completata", "spedito", "com
 const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrderId }: { salesOrderId: string }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bomData, setBomData] = useState<Record<string, { level1: any[]; level2: any[] }>>({});
+  const [expandedBoms, setExpandedBoms] = useState<Set<string>>(new Set());
 
   useEffect(() => { loadItems(); }, [salesOrderId]);
 
@@ -166,12 +168,70 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
     try {
       const { data, error } = await supabase
         .from("sales_order_items")
-        .select("id, product_name, description, quantity, is_completed, completed_at")
+        .select("id, product_name, description, quantity, is_completed, completed_at, product_id")
         .eq("sales_order_id", salesOrderId)
         .order("created_at", { ascending: true });
       if (error) throw error;
       setItems(data || []);
+      // Load BOM data for items with product_id
+      if (data) await loadBomData(data);
     } catch { /* silent */ } finally { setLoading(false); }
+  };
+
+  const loadBomData = async (itemsList: any[]) => {
+    const map: Record<string, { level1: any[]; level2: any[] }> = {};
+    for (const item of itemsList) {
+      if (!item.product_id) continue;
+      try {
+        // Find BOM Level 1 linked to this product
+        const { data: bomProducts } = await supabase
+          .from("bom_products")
+          .select("bom_id, boms!inner(id, name, version, level)")
+          .eq("product_id", item.product_id);
+
+        const level1: any[] = [];
+        const level2: any[] = [];
+
+        if (bomProducts) {
+          for (const bp of bomProducts) {
+            const bom = bp.boms as any;
+            if (bom?.level === 1) {
+              level1.push({ id: bom.id, name: bom.name, version: bom.version });
+              // Find Level 2 inclusions
+              const { data: inclusions } = await supabase
+                .from("bom_inclusions")
+                .select("quantity, boms!bom_inclusions_included_bom_id_fkey(id, name, version, level, material_id)")
+                .eq("parent_bom_id", bom.id);
+
+              if (inclusions) {
+                for (const inc of inclusions) {
+                  const incBom = inc.boms as any;
+                  if (incBom?.level === 2) {
+                    let stock: number | undefined;
+                    if (incBom.material_id) {
+                      const { data: mat } = await supabase
+                        .from("materials")
+                        .select("current_stock")
+                        .eq("id", incBom.material_id)
+                        .single();
+                      if (mat) stock = mat.current_stock;
+                    }
+                    level2.push({
+                      id: incBom.id, name: incBom.name, version: incBom.version,
+                      quantity: inc.quantity, current_stock: stock
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (level1.length > 0 || level2.length > 0) {
+          map[item.id] = { level1, level2 };
+        }
+      } catch { /* silent */ }
+    }
+    setBomData(map);
   };
 
   const toggleComplete = async (item: any) => {
@@ -183,6 +243,14 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
     if (error) { toast.error("Errore aggiornamento"); return; }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : i));
     toast.success(newCompleted ? "Completato ✓" : "Riaperto");
+  };
+
+  const toggleBom = (itemId: string) => {
+    setExpandedBoms(prev => {
+      const next = new Set(prev);
+      next.has(itemId) ? next.delete(itemId) : next.add(itemId);
+      return next;
+    });
   };
 
   if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />;
@@ -217,32 +285,81 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
       </div>
 
       <div className="space-y-1">
-        {items.map(item => (
-          <button
-            key={item.id}
-            onClick={() => toggleComplete(item)}
-            className={`flex items-start gap-2.5 w-full text-left p-2 rounded-lg border transition-all active:scale-[0.98] ${
-              item.is_completed 
-                ? "bg-green-50 border-green-200" 
-                : "bg-background border-border hover:border-indigo-300 hover:bg-indigo-50/50"
-            }`}
-          >
-            <Checkbox checked={item.is_completed} className="mt-0.5 pointer-events-none" />
-            <div className="flex-1 min-w-0">
-              <span className={`text-[12px] font-medium block ${item.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                {item.quantity > 1 ? `${item.quantity}x ` : ""}{item.product_name || "Articolo"}
-              </span>
-              {item.description && (
-                <span className={`text-[10px] block mt-0.5 ${item.is_completed ? "line-through text-muted-foreground/60" : "text-muted-foreground"}`}>
-                  {item.description.length > 120 ? item.description.substring(0, 120) + "..." : item.description}
-                </span>
+        {items.map(item => {
+          const hasBom = !!bomData[item.id];
+          const isExpanded = expandedBoms.has(item.id);
+          const itemBoms = bomData[item.id];
+
+          return (
+            <div key={item.id} className="space-y-0">
+              <button
+                onClick={() => toggleComplete(item)}
+                className={`flex items-start gap-2.5 w-full text-left p-2 rounded-lg border transition-all active:scale-[0.98] ${
+                  item.is_completed 
+                    ? "bg-green-50 border-green-200" 
+                    : "bg-background border-border hover:border-indigo-300 hover:bg-indigo-50/50"
+                }`}
+              >
+                <Checkbox checked={item.is_completed} className="mt-0.5 pointer-events-none" />
+                <div className="flex-1 min-w-0">
+                  <span className={`text-[12px] font-medium block ${item.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                    {item.quantity > 1 ? `${item.quantity}x ` : ""}{item.product_name || "Articolo"}
+                  </span>
+                  {item.description && (
+                    <span className={`text-[10px] block mt-0.5 ${item.is_completed ? "line-through text-muted-foreground/60" : "text-muted-foreground"}`}>
+                      {item.description.length > 120 ? item.description.substring(0, 120) + "..." : item.description}
+                    </span>
+                  )}
+                </div>
+                {item.is_completed && (
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                )}
+              </button>
+
+              {/* BOM toggle button */}
+              {hasBom && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleBom(item.id); }}
+                  className="ml-7 mt-0.5 flex items-center gap-1 text-[10px] text-amber-700 font-medium hover:text-amber-900 transition-colors"
+                >
+                  <Package className="h-3 w-3" />
+                  {isExpanded ? "Nascondi" : "Mostra"} BOM ({(itemBoms?.level1.length || 0) + (itemBoms?.level2.length || 0)} componenti)
+                </button>
+              )}
+
+              {/* BOM details */}
+              {hasBom && isExpanded && itemBoms && (
+                <div className="ml-7 mt-1 mb-1 p-2 rounded-md bg-amber-50/60 border border-amber-200/60 space-y-1.5">
+                  {itemBoms.level1.length > 0 && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold text-amber-800 uppercase">BOM Livello 1</p>
+                      {itemBoms.level1.map((b: any) => (
+                        <div key={b.id} className="text-[11px] pl-2 border-l-2 border-amber-400/50 text-foreground">
+                          {b.name} <span className="text-muted-foreground">(v{b.version})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {itemBoms.level2.length > 0 && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold text-amber-800 uppercase">Componenti (Livello 2)</p>
+                      {itemBoms.level2.map((b: any) => (
+                        <div key={b.id} className="text-[11px] pl-2 border-l-2 border-orange-400/50 flex items-center justify-between">
+                          <span>{b.quantity}x {b.name} <span className="text-muted-foreground">(v{b.version})</span></span>
+                          {b.current_stock !== undefined && (
+                            <span className={`text-[10px] font-bold ${b.current_stock >= b.quantity ? "text-green-600" : "text-red-600"}`}>
+                              Stock: {b.current_stock}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            {item.is_completed && (
-              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-            )}
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
