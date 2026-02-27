@@ -560,27 +560,41 @@ async function sendNotifications(
     let recipients: any[] = [];
 
     if (assignedUserId) {
-      // Get presence info for assigned user
-      const { data: presence } = await supabase
-        .from("user_presence")
-        .select("is_online")
+      // Check if the assigned user has notifications enabled for this account
+      const { data: notifSetting } = await supabase
+        .from("whatsapp_notification_settings")
+        .select("notify_on_message")
+        .eq("account_id", account.id)
         .eq("user_id", assignedUserId)
         .single();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", assignedUserId)
-        .single();
+      // Only notify if notify_on_message is explicitly enabled (or no setting exists = default enabled)
+      const shouldNotify = notifSetting?.notify_on_message ?? true;
 
-      recipients = [{
-        user_id: assignedUserId,
-        email: profile?.email,
-        is_online: presence?.is_online || false
-      }];
-      console.log(`Notifying assigned user ${assignedUserId}`);
+      if (shouldNotify) {
+        const { data: presence } = await supabase
+          .from("user_presence")
+          .select("is_online")
+          .eq("user_id", assignedUserId)
+          .single();
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", assignedUserId)
+          .single();
+
+        recipients = [{
+          user_id: assignedUserId,
+          email: profile?.email,
+          is_online: presence?.is_online || false
+        }];
+        console.log(`Notifying assigned user ${assignedUserId} (notify_on_message: true)`);
+      } else {
+        console.log(`Assigned user ${assignedUserId} has notify_on_message disabled, skipping notifications`);
+      }
     } else {
-      // Fallback to account-level notification recipients
+      // Fallback to account-level notification recipients (already filtered by notify_on_message=true via RPC)
       const { data: accountRecipients, error } = await supabase
         .rpc("get_whatsapp_notification_recipients", { p_account_id: account.id });
 
@@ -618,25 +632,14 @@ async function sendNotifications(
 
       if (!recipient.is_online) {
         // User is offline - check preferences for email and whatsapp
-        if (!assignedUserId) {
-          const { data: setting } = await supabase
-            .from("whatsapp_notification_settings")
-            .select("email_when_offline, whatsapp_when_offline")
-            .eq("account_id", account.id)
-            .eq("user_id", recipient.user_id)
-            .single();
-          shouldSendEmail = setting?.email_when_offline ?? false;
-          shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
-        } else {
-          const { data: setting } = await supabase
-            .from("whatsapp_notification_settings")
-            .select("email_when_offline, whatsapp_when_offline")
-            .eq("account_id", account.id)
-            .eq("user_id", recipient.user_id)
-            .single();
-          shouldSendEmail = setting?.email_when_offline ?? true;
-          shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
-        }
+        const { data: setting } = await supabase
+          .from("whatsapp_notification_settings")
+          .select("email_when_offline, whatsapp_when_offline")
+          .eq("account_id", account.id)
+          .eq("user_id", recipient.user_id)
+          .single();
+        shouldSendEmail = setting?.email_when_offline ?? false;
+        shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
       } else {
         // User is online - still send WhatsApp if enabled (always)
         const { data: setting } = await supabase
