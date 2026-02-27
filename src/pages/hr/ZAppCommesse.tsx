@@ -671,14 +671,25 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
               </div>
             </div>
 
-            {/* 2. Comunicazione urgente */}
-            <button
-              onClick={(e) => { e.stopPropagation(); onSendUrgent(commessa); }}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
-            >
-              <Megaphone className="h-4 w-4" />
-              Invia Comunicazione Urgente
-            </button>
+            {/* 2. Scadenza evidenziata */}
+            {commessa.deadline && (
+              <div className={`flex items-center gap-2 p-2.5 rounded-lg border ${
+                new Date(commessa.deadline) < new Date() 
+                  ? "bg-red-50 border-red-300 text-red-700" 
+                  : new Date(commessa.deadline) <= new Date(Date.now() + 2 * 86400000) 
+                    ? "bg-amber-50 border-amber-300 text-amber-700"
+                    : "bg-blue-50 border-blue-200 text-blue-700"
+              }`}>
+                <Clock className="h-4 w-4 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Completare entro</p>
+                  <p className="text-[13px] font-bold">
+                    {format(new Date(commessa.deadline), "dd MMMM yyyy", { locale: it })}
+                    {new Date(commessa.deadline) < new Date() && " — SCADUTA"}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* 3. Gestione fase attiva */}
             {activePhase && (
@@ -746,20 +757,29 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 
             {/* 8. Modifica / Elimina */}
             {isAdmin && (
-              <div className="flex gap-2">
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEditNotes(commessa); }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-blue-50 text-blue-700 border border-blue-200 active:scale-[0.98] transition-all"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Modifica
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(commessa); }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Elimina
+                  </button>
+                </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); onEditNotes(commessa); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-blue-50 text-blue-700 border border-blue-200 active:scale-[0.98] transition-all"
+                  onClick={(e) => { e.stopPropagation(); onSendUrgent(commessa); }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
                 >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Modifica
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(commessa); }}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Elimina
+                  <Megaphone className="h-4 w-4" />
+                  Invia Comunicazione Urgente
                 </button>
               </div>
             )}
