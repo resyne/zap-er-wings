@@ -236,20 +236,25 @@ export default function ZAppOrdiniPage() {
     // Load offer items (products) from offer_items table
     const { data: offerItems } = await supabase
       .from("offer_items")
-      .select("product_id, description, quantity, products(name, code)")
+      .select("product_id, description, product_name, quantity, products(name, code)")
       .eq("offer_id", offer.id);
 
     if (offerItems && offerItems.length > 0) {
-      const items: OrderItem[] = offerItems.map((oi: any) => ({
-        id: crypto.randomUUID(),
-        mode: oi.product_id ? "product" as const : "text" as const,
-        text: oi.product_id ? "" : (oi.description || ""),
-        productId: oi.product_id || "",
-        materialId: "",
-        serviceType: "",
-        details: oi.product_id ? (oi.description || "") : "",
-        quantity: oi.quantity || 1,
-      }));
+      const items: OrderItem[] = offerItems.map((oi: any) => {
+        const hasProduct = !!oi.product_id;
+        // For text items, use product_name first (custom text entries), then description
+        const textValue = oi.product_name || oi.description || "";
+        return {
+          id: crypto.randomUUID(),
+          mode: hasProduct ? "product" as const : "text" as const,
+          text: hasProduct ? "" : textValue,
+          productId: oi.product_id || "",
+          materialId: "",
+          serviceType: "",
+          details: hasProduct ? (oi.description || "") : "",
+          quantity: oi.quantity || 1,
+        };
+      });
       setOrderItems(items);
     } else {
       setOrderItems([{
