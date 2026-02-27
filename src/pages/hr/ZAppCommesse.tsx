@@ -576,19 +576,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 }) {
   const [expanded, setExpanded] = useState(false);
   const sortedPhases = [...commessa.phases].sort((a, b) => a.phase_order - b.phase_order);
-  const overallStatus = commessaStatusLabels[commessa.status] || commessaStatusLabels.da_fare;
   const priorityInfo = commessa.priority ? priorityLabels[commessa.priority] : null;
-
-  const fmtDate = (d?: string | null) => {
-    if (!d) return null;
-    try { return format(new Date(d), "dd MMM yyyy", { locale: it }); } catch { return d; }
-  };
-
-  const isPhseLocked = (phase: CommessaPhase): boolean => {
-    if (phase.phase_order === 1) return false;
-    const prevPhase = sortedPhases.find(p => p.phase_order === phase.phase_order - 1);
-    return prevPhase ? !completedStatuses.includes(prevPhase.status) : false;
-  };
 
   const typeLabels: Record<string, string> = {
     fornitura: "Fornitura", intervento: "Intervento", ricambi: "Ricambi", produzione: "Fornitura",
@@ -596,54 +584,63 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 
   const priorities = ["low", "medium", "high", "urgent"] as const;
 
+  const activePhase = sortedPhases.find(p => !completedStatuses.includes(p.status));
+  const remainingPhases = activePhase 
+    ? sortedPhases.filter(p => p.phase_order > activePhase.phase_order)
+    : [];
+
+  const isPhseLocked = (phase: CommessaPhase): boolean => {
+    if (phase.phase_order === 1) return false;
+    const prevPhase = sortedPhases.find(p => p.phase_order === phase.phase_order - 1);
+    return prevPhase ? !completedStatuses.includes(prevPhase.status) : false;
+  };
+
+  const locationParts = [commessa.shipping_city, commessa.shipping_province].filter(Boolean);
+  const locationStr = locationParts.length > 0 ? locationParts.join(", ") : null;
+
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
       <div className="bg-background rounded-xl shadow-sm border border-border overflow-hidden">
         <CollapsibleTrigger asChild>
           <button className="w-full text-left p-3 active:bg-muted/30 transition-colors">
-            <div className="flex items-start gap-2.5">
-              <div className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
-                <Building2 className="h-4 w-4 text-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <p className="font-semibold text-[14px] truncate flex-1">
-                    {commessa.customer_name || commessa.title}
-                  </p>
-                  {priorityInfo?.icon && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`} />
-                </div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[10px] font-mono text-muted-foreground">{commessa.number}</span>
-                  <Badge variant="outline" className="text-[9px] px-1.5">{typeLabels[commessa.type] || commessa.type}</Badge>
-                </div>
-                {commessa.article && commessa.article !== commessa.title && (
-                  <p className="text-[11px] text-muted-foreground truncate mb-1">{commessa.article}</p>
-                )}
-                <PhasePipeline phases={commessa.phases} />
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    Inserita il {fmtDate(commessa.created_at)}
-                  </p>
-                  {commessa.deadline && (
-                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
-                      new Date(commessa.deadline) < new Date() ? "text-red-600" :
-                      new Date(commessa.deadline) <= new Date(Date.now() + 2 * 86400000) ? "text-amber-600" :
-                      "text-muted-foreground"
-                    }`}>
-                      ⏰ Scadenza: {fmtDate(commessa.deadline)}
-                    </p>
-                  )}
-                </div>
-              </div>
+            {/* Row 1: Cliente - località */}
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <p className="font-semibold text-[14px] truncate flex-1">
+                {commessa.customer_name || commessa.title}
+              </p>
+              {locationStr && (
+                <span className="text-[11px] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
+                  <MapPin className="h-3 w-3" />
+                  {locationStr}
+                </span>
+              )}
+              {priorityInfo?.icon && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`} />
             </div>
+
+            {/* Row 2: Numero commessa - tipologia */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[11px] font-mono text-muted-foreground">{commessa.number}</span>
+              <Badge variant="outline" className="text-[9px] px-1.5">{typeLabels[commessa.type] || commessa.type}</Badge>
+              {commessa.deadline && (
+                <span className={`text-[10px] font-medium flex items-center gap-0.5 ml-auto ${
+                  new Date(commessa.deadline) < new Date() ? "text-red-600" :
+                  new Date(commessa.deadline) <= new Date(Date.now() + 2 * 86400000) ? "text-amber-600" :
+                  "text-muted-foreground"
+                }`}>
+                  ⏰ {format(new Date(commessa.deadline), "dd MMM", { locale: it })}
+                </span>
+              )}
+            </div>
+
+            {/* Row 3: Phase pipeline */}
+            <PhasePipeline phases={commessa.phases} />
           </button>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="border-t border-border/50 p-3 space-y-2">
-            {/* Priority Change */}
+          <div className="border-t border-border/50 p-3 space-y-3">
+            {/* 1. Priorità */}
             <div className="space-y-1.5">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Priorità</p>
               <div className="flex flex-wrap gap-1.5">
@@ -662,9 +659,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
                       disabled={isActive || isPending}
                       onClick={(e) => { e.stopPropagation(); onPriorityChange(commessa, p); }}
                       className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all active:scale-95 ${
-                        isActive
-                          ? `${colorMap[p]} ring-1 ring-offset-1 ring-current/20`
-                          : "bg-background border-border text-muted-foreground hover:bg-muted/50"
+                        isActive ? `${colorMap[p]} ring-1 ring-offset-1 ring-current/20` : "bg-background border-border text-muted-foreground hover:bg-muted/50"
                       }`}
                     >
                       {isActive && <CheckCircle2 className="h-2.5 w-2.5 inline mr-0.5 -mt-0.5" />}
@@ -675,7 +670,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
               </div>
             </div>
 
-            {/* Urgent Communication Button */}
+            {/* 2. Comunicazione urgente */}
             <button
               onClick={(e) => { e.stopPropagation(); onSendUrgent(commessa); }}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold bg-red-50 text-red-700 border border-red-200 active:scale-[0.98] transition-all"
@@ -684,7 +679,69 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
               Invia Comunicazione Urgente
             </button>
 
-            {/* Admin Actions */}
+            {/* 3. Gestione fase attiva */}
+            {activePhase && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Gestione Fase: {(phaseConfig[activePhase.phase_type] || phaseConfig.produzione).label}
+                </p>
+                <PhaseCard
+                  phase={activePhase}
+                  commessa={commessa}
+                  onStatusChange={onPhaseStatusChange}
+                  onSchedule={onSchedulePhase}
+                  isPending={isPending}
+                  isLocked={false}
+                />
+              </div>
+            )}
+
+            {/* 4. Prodotti da produrre/preparare */}
+            {commessa.sales_order_id && <MobileProductsChecklist salesOrderId={commessa.sales_order_id} />}
+
+            {/* 5. Fasi successive */}
+            {remainingPhases.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Fasi Successive ({remainingPhases.length})
+                </p>
+                {remainingPhases.map(phase => (
+                  <PhaseCard
+                    key={phase.id}
+                    phase={phase}
+                    commessa={commessa}
+                    onStatusChange={onPhaseStatusChange}
+                    onSchedule={onSchedulePhase}
+                    isPending={isPending}
+                    isLocked={isPhseLocked(phase)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 6. Dettagli tecnici */}
+            {(commessa.diameter || commessa.smoke_inlet || commessa.bom_name || commessa.payment_on_delivery) && (
+              <div className="space-y-1 p-2 rounded-lg bg-muted/30 border border-border/50">
+                {commessa.diameter && <p className="text-[11px]"><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
+                {commessa.smoke_inlet && <p className="text-[11px]"><span className="text-muted-foreground">Fumi:</span> {commessa.smoke_inlet}</p>}
+                {commessa.bom_name && <p className="text-[11px]"><span className="text-muted-foreground">BOM:</span> {commessa.bom_name} (v{commessa.bom_version})</p>}
+                {commessa.payment_on_delivery && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
+                    <CreditCard className="h-3 w-3" />
+                    Pagamento alla consegna{commessa.payment_amount ? `: €${commessa.payment_amount.toLocaleString("it-IT")}` : ""}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {commessa.notes && (
+              <p className="text-[11px] text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{commessa.notes}</p>
+            )}
+
+            {/* 7. Foto cliente */}
+            {commessa.lead_id && <MobileLeadPhotos leadId={commessa.lead_id} />}
+
+            {/* 8. Modifica / Elimina */}
             {isAdmin && (
               <div className="flex gap-2">
                 <button
@@ -703,47 +760,6 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
                 </button>
               </div>
             )}
-
-            {/* Commessa details */}
-            {(commessa.diameter || commessa.smoke_inlet) && (
-              <div className="space-y-0.5 text-[11px]">
-                {commessa.diameter && <p><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
-                {commessa.smoke_inlet && <p><span className="text-muted-foreground">Fumi:</span> {commessa.smoke_inlet}</p>}
-              </div>
-            )}
-            {commessa.bom_name && (
-              <p className="text-[11px]"><span className="text-muted-foreground">BOM:</span> {commessa.bom_name} (v{commessa.bom_version})</p>
-            )}
-            {commessa.payment_on_delivery && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-medium">
-                <CreditCard className="h-3 w-3" />
-                Pagamento alla consegna{commessa.payment_amount ? `: €${commessa.payment_amount.toLocaleString("it-IT")}` : ""}
-              </div>
-            )}
-            {commessa.notes && (
-              <p className="text-[11px] text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{commessa.notes}</p>
-            )}
-
-            {/* Products checklist */}
-            {commessa.sales_order_id && <MobileProductsChecklist salesOrderId={commessa.sales_order_id} />}
-
-            {commessa.lead_id && <MobileLeadPhotos leadId={commessa.lead_id} />}
-
-            {/* Phases */}
-            <div className="space-y-1.5 pt-1">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Fasi ({sortedPhases.length})</p>
-              {sortedPhases.map(phase => (
-                <PhaseCard
-                  key={phase.id}
-                  phase={phase}
-                  commessa={commessa}
-                  onStatusChange={onPhaseStatusChange}
-                  onSchedule={onSchedulePhase}
-                  isPending={isPending}
-                  isLocked={isPhseLocked(phase)}
-                />
-              ))}
-            </div>
           </div>
         </CollapsibleContent>
       </div>
