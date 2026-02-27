@@ -695,7 +695,7 @@ export default function ZAppCommesse() {
   });
 
   const schedulePhseMutation = useMutation({
-    mutationFn: async ({ phaseId, date, phaseType }: { phaseId: string; date: string; phaseType?: string }) => {
+    mutationFn: async ({ phaseId, date, phaseType, commessa, isReschedule }: { phaseId: string; date: string; phaseType?: string; commessa?: any; isReschedule?: boolean }) => {
       const updateData: any = { scheduled_date: date };
       // Se è un'installazione con stato "da_programmare", passa automaticamente a "programmata"
       if (phaseType === "installazione") {
@@ -703,11 +703,26 @@ export default function ZAppCommesse() {
       }
       const { error } = await supabase.from("commessa_phases").update(updateData).eq("id", phaseId);
       if (error) throw error;
+      return { commessa, phaseType, date, isReschedule };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Fase calendarizzata");
       queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
       setSchedulePhase(null);
+
+      // Send scheduling notification (fire and forget)
+      if (data?.commessa) {
+        supabase.functions.invoke("notify-commessa-scheduled", {
+          body: {
+            commessa_title: data.commessa.title,
+            commessa_number: data.commessa.number,
+            phase_type: data.phaseType,
+            scheduled_date: data.date,
+            customer_name: data.commessa.customer_name,
+            is_reschedule: data.isReschedule || false,
+          },
+        }).catch(err => console.error("Error sending schedule notification:", err));
+      }
     },
     onError: (err: any) => toast.error("Errore: " + err.message),
   });
@@ -726,10 +741,13 @@ export default function ZAppCommesse() {
 
   const handleConfirmSchedule = useCallback(() => {
     if (!schedulePhase || !scheduleDate) return;
+    const isReschedule = !!schedulePhase.phase.scheduled_date;
     schedulePhseMutation.mutate({
       phaseId: schedulePhase.phase.id,
       date: format(scheduleDate, "yyyy-MM-dd"),
       phaseType: schedulePhase.phase.phase_type,
+      commessa: schedulePhase.commessa,
+      isReschedule,
     });
   }, [schedulePhase, scheduleDate, schedulePhseMutation]);
 
