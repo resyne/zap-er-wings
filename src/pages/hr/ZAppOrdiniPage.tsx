@@ -16,11 +16,23 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
-  MapPin, Building2, FileText, Pencil, Trash2, Save
+  MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+
+interface AcceptedOffer {
+  id: string;
+  number: string;
+  title: string;
+  description?: string;
+  customer_id?: string;
+  customer_name?: string;
+  lead_id?: string;
+  notes?: string;
+  customers?: { name: string; code: string } | null;
+}
 
 interface Order {
   id: string;
@@ -152,6 +164,7 @@ export default function ZAppOrdiniPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [acceptedOffers, setAcceptedOffers] = useState<AcceptedOffer[]>([]);
 
   // Create form state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -179,7 +192,74 @@ export default function ZAppOrdiniPage() {
   const [selectedPriority, setSelectedPriority] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => { loadOrders(); loadAcceptedOffers(); }, []);
+
+  const loadAcceptedOffers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("offers")
+        .select("id, number, title, description, customer_id, customer_name, lead_id, notes, customers(name, code)")
+        .eq("status", "accettata")
+        .eq("archived", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setAcceptedOffers((data || []) as unknown as AcceptedOffer[]);
+    } catch (error) {
+      console.error("Error loading accepted offers:", error);
+    }
+  };
+
+  const handleCreateOrderFromOffer = (offer: AcceptedOffer) => {
+    // Pre-fill the create form with offer data
+    loadCustomers();
+    loadProducts();
+    loadMaterials();
+    // Find customer from offer
+    const custId = offer.customer_id;
+    if (custId) {
+      supabase.from("customers")
+        .select("id, name, code, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address")
+        .eq("id", custId)
+        .single()
+        .then(({ data }) => {
+          if (data) setSelectedCustomer(data as any);
+        });
+    }
+    setOrderTypeCategory("fornitura");
+    setInterventionType("");
+    setIsWarranty(false);
+    setDeliveryMode("");
+    setOrderItems([{
+      id: crypto.randomUUID(),
+      mode: "text",
+      text: offer.title || offer.description || "",
+      productId: "",
+      materialId: "",
+      serviceType: "",
+      details: "",
+      quantity: 1,
+    }]);
+    setFormData({
+      notes: offer.notes ? `Da offerta ${offer.number}: ${offer.notes}` : `Da offerta ${offer.number}`,
+      order_date: new Date().toISOString().split("T")[0],
+      delivery_date: "",
+      deadline: "",
+    });
+    setSelectedPriority("");
+    setSaving(false);
+    setShowCreateForm(true);
+  };
+
+  const handleDismissOffer = async (offerId: string) => {
+    try {
+      const { error } = await supabase.from("offers").update({ archived: true }).eq("id", offerId);
+      if (error) throw error;
+      setAcceptedOffers(prev => prev.filter(o => o.id !== offerId));
+      toast.success("Offerta archiviata");
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -495,6 +575,7 @@ export default function ZAppOrdiniPage() {
 
       setShowCreateForm(false);
       loadOrders();
+      loadAcceptedOffers();
     } catch (error: any) {
       console.error("Error creating order:", error);
       toast.error("Errore: " + error.message);
@@ -1123,6 +1204,46 @@ export default function ZAppOrdiniPage() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                 Crea Ordine
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Offerte Accettate */}
+        {!showCreateForm && acceptedOffers.length > 0 && (
+          <div className="bg-white rounded-xl border-2 border-green-200 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5 text-green-600" />
+              <h3 className="font-semibold text-sm">Offerte Accettate ({acceptedOffers.length})</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">Trasforma un'offerta accettata in ordine</p>
+            <div className="space-y-2">
+              {acceptedOffers.map(offer => (
+                <div key={offer.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{offer.title || offer.number}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {offer.number} • {offer.customers?.name || offer.customer_name || "—"}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs bg-green-600 hover:bg-green-700"
+                      onClick={() => handleCreateOrderFromOffer(offer)}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Ordine
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDismissOffer(offer.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
