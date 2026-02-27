@@ -148,6 +148,8 @@ export default function OffersPage() {
     payment_agreement?: string;
     vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
     company_entity?: 'climatel' | 'unita1';
+    lead_id?: string;
+    customer_name_fallback?: string;
   }>({
     id: undefined,
     customer_id: '',
@@ -839,7 +841,8 @@ export default function OffersPage() {
   const handleCreateOffer = async () => {
     try {
       const customer = customers.find(c => c.id === newOffer.customer_id);
-      if (!customer) {
+      // Allow saving if we have a customer OR a lead reference (for lead-based offers like Vesuviano)
+      if (!customer && !newOffer.lead_id && !newOffer.customer_name_fallback) {
         toast({
           title: "Errore",
           description: "Seleziona un cliente valido",
@@ -847,6 +850,7 @@ export default function OffersPage() {
         });
         return;
       }
+      const customerName = customer?.name || newOffer.customer_name_fallback || '';
 
       // Build incluso_fornitura from checkboxes and custom text
       const inclusoItems = [];
@@ -867,8 +871,8 @@ export default function OffersPage() {
         const { data: offerData, error } = await supabase
           .from('offers')
           .update({
-            customer_id: newOffer.customer_id,
-            customer_name: customer.name,
+            customer_id: newOffer.customer_id || null,
+            customer_name: customerName,
             title: newOffer.title,
             description: newOffer.description,
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
@@ -937,8 +941,8 @@ export default function OffersPage() {
           .from('offers')
           .insert([{
             number: offerNumber,
-            customer_id: newOffer.customer_id,
-            customer_name: customer.name,
+            customer_id: newOffer.customer_id || null,
+            customer_name: customerName,
             title: newOffer.title,
             description: newOffer.description,
             amount: calculatedTotal > 0 ? calculatedTotal : newOffer.amount,
@@ -1706,9 +1710,9 @@ export default function OffersPage() {
                                     {newOffer.customer_id
                                       ? (() => {
                                           const customer = customers.find((c) => c.id === newOffer.customer_id);
-                                          return customer ? `${customer.code} - ${customer.company_name || customer.name}` : "Seleziona azienda";
+                                          return customer ? `${customer.code} - ${customer.company_name || customer.name}` : (newOffer.customer_name_fallback || "Seleziona azienda");
                                         })()
-                                      : "Seleziona azienda"}
+                                      : (newOffer.customer_name_fallback ? `${newOffer.customer_name_fallback} (da lead)` : "Seleziona azienda")}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
@@ -2907,7 +2911,9 @@ export default function OffersPage() {
                         payment_method: (selectedOffer as any).payment_method || '',
                         payment_agreement: (selectedOffer as any).payment_agreement || '',
                         vat_regime: (selectedOffer as any).vat_regime || 'standard',
-                        company_entity: (selectedOffer as any).company_entity || 'climatel'
+                        company_entity: (selectedOffer as any).company_entity || 'climatel',
+                        lead_id: (selectedOffer as any).lead_id || undefined,
+                        customer_name_fallback: selectedOffer.customer_name || '',
                       });
                       
                       // Carica i prodotti dell'offerta
