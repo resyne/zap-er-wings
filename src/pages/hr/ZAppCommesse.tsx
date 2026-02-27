@@ -446,15 +446,16 @@ const PhasePipeline = memo(function PhasePipeline({ phases }: { phases: Commessa
 });
 
 // ─── Phase Card (inside commessa) ─────────────
-const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onSchedule, isPending, isLocked }: {
+const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onSchedule, isPending, isLocked, defaultOpen = false }: {
   phase: CommessaPhase;
   commessa: Commessa;
   onStatusChange: (phaseId: string, newStatus: string) => void;
   onSchedule: (phase: CommessaPhase, commessa: Commessa) => void;
   isPending: boolean;
   isLocked: boolean;
+  defaultOpen?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultOpen);
   const config = phaseConfig[phase.phase_type] || phaseConfig.produzione;
   const Icon = config.icon;
   const statusInfo = statusLabels[phase.status] || { label: phase.status, color: "bg-muted text-muted-foreground" };
@@ -686,12 +687,14 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
                   Gestione Fase: {(phaseConfig[activePhase.phase_type] || phaseConfig.produzione).label}
                 </p>
                 <PhaseCard
+                  key={activePhase.id}
                   phase={activePhase}
                   commessa={commessa}
                   onStatusChange={onPhaseStatusChange}
                   onSchedule={onSchedulePhase}
                   isPending={isPending}
                   isLocked={false}
+                  defaultOpen={true}
                 />
               </div>
             )}
