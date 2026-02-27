@@ -594,15 +594,8 @@ async function sendNotifications(
         console.log(`Assigned user ${assignedUserId} has notify_on_message disabled, skipping notifications`);
       }
     } else {
-      // Fallback to account-level notification recipients (already filtered by notify_on_message=true via RPC)
-      const { data: accountRecipients, error } = await supabase
-        .rpc("get_whatsapp_notification_recipients", { p_account_id: account.id });
-
-      if (error) {
-        console.error("Error getting notification recipients:", error);
-        return;
-      }
-      recipients = accountRecipients || [];
+      // No assigned user - skip notifications (only assigned users should be notified)
+      console.log("Conversation has no assigned user, skipping notifications");
     }
 
     if (recipients.length === 0) {
