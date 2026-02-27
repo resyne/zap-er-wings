@@ -599,26 +599,26 @@ async function sendNotifications(
     console.log(`Sending notifications to ${recipients.length} recipient(s)`);
 
     for (const recipient of recipients) {
-      if (recipient.is_online) {
-        // User is online - create in-app notification
-        console.log(`Creating in-app notification for user ${recipient.user_id}`);
-        
-        await supabase.from("notifications").insert({
-          user_id: recipient.user_id,
-          title: `📱 Messaggio WhatsApp`,
-          message: `${leadData?.contact_name || customerName || customerPhone}: ${messageContent.substring(0, 100)}`,
-          type: "whatsapp_message",
-          entity_type: "whatsapp_conversation",
-          entity_id: conversationId || null,
-          is_read: false,
-        });
-      } else {
-        // User is offline - check email and whatsapp preferences
-        let shouldSendEmail = true;
-        let shouldSendWhatsApp = false;
+      // Always create in-app notification
+      console.log(`Creating in-app notification for user ${recipient.user_id}`);
+      
+      await supabase.from("notifications").insert({
+        user_id: recipient.user_id,
+        title: `📱 Messaggio WhatsApp`,
+        message: `${leadData?.contact_name || customerName || customerPhone}: ${messageContent.substring(0, 100)}`,
+        type: "whatsapp_message",
+        entity_type: "whatsapp_conversation",
+        entity_id: conversationId || null,
+        is_read: false,
+      });
 
+      // Always check email and whatsapp preferences (regardless of online status)
+      let shouldSendEmail = false;
+      let shouldSendWhatsApp = false;
+
+      if (!recipient.is_online) {
+        // User is offline - check preferences for email and whatsapp
         if (!assignedUserId) {
-          // For account-level recipients, check their settings
           const { data: setting } = await supabase
             .from("whatsapp_notification_settings")
             .select("email_when_offline, whatsapp_when_offline")
@@ -628,7 +628,6 @@ async function sendNotifications(
           shouldSendEmail = setting?.email_when_offline ?? false;
           shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
         } else {
-          // For assigned user, check their notification settings for this account
           const { data: setting } = await supabase
             .from("whatsapp_notification_settings")
             .select("email_when_offline, whatsapp_when_offline")
@@ -638,88 +637,98 @@ async function sendNotifications(
           shouldSendEmail = setting?.email_when_offline ?? true;
           shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
         }
+      } else {
+        // User is online - still send WhatsApp if enabled (always)
+        const { data: setting } = await supabase
+          .from("whatsapp_notification_settings")
+          .select("whatsapp_when_offline")
+          .eq("account_id", account.id)
+          .eq("user_id", recipient.user_id)
+          .single();
+        shouldSendWhatsApp = setting?.whatsapp_when_offline ?? false;
+      }
 
-        if (shouldSendEmail && recipient.email) {
-          console.log(`Sending email notification to ${recipient.email} with lead context`);
-          
-          const response = await fetch(
-            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp-notification-email`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-              },
-              body: JSON.stringify({
-                recipient_email: recipient.email,
-                customer_phone: customerPhone,
-                customer_name: customerName,
-                lead_name: leadData?.contact_name,
-                company_name: leadData?.company_name,
-                message_content: messageContent,
-                message_type: messageType,
-                account_name: account.verified_name || account.display_phone_number,
-                recent_messages: recentMessages,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            console.error("Error sending notification email:", await response.text());
+      // Send email notification if enabled
+      if (shouldSendEmail && recipient.email) {
+        console.log(`Sending email notification to ${recipient.email} with lead context`);
+        
+        const response = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-whatsapp-notification-email`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              recipient_email: recipient.email,
+              customer_phone: customerPhone,
+              customer_name: customerName,
+              lead_name: leadData?.contact_name,
+              company_name: leadData?.company_name,
+              message_content: messageContent,
+              message_type: messageType,
+              conversation_id: conversationId,
+            }),
           }
+        );
+
+        if (!response.ok) {
+          console.error("Error sending email notification:", await response.text());
+        } else {
+          console.log("Email notification sent successfully");
         }
+      }
 
-        // Send WhatsApp notification to the user if enabled
-        if (shouldSendWhatsApp) {
-          // Get user phone from profile
-          const { data: userProfile } = await supabase
-            .from("profiles")
-            .select("phone, first_name")
-            .eq("id", recipient.user_id)
-            .single();
+      // Send WhatsApp notification to the user if enabled (regardless of online status)
+      if (shouldSendWhatsApp) {
+        const { data: userProfile } = await supabase
+          .from("profiles")
+          .select("phone, first_name")
+          .eq("id", recipient.user_id)
+          .single();
 
-          if (userProfile?.phone) {
-            console.log(`Sending WhatsApp notification to ${userProfile.phone}`);
-            
-            const displayName = leadData?.contact_name || customerName || customerPhone;
-            const truncatedMessage = messageContent.substring(0, 200);
+        if (userProfile?.phone) {
+          console.log(`Sending WhatsApp notification to ${userProfile.phone}`);
+          
+          const displayName = leadData?.contact_name || customerName || customerPhone;
+          const truncatedMessage = messageContent.substring(0, 200);
 
-            try {
-              const waResponse = await fetch(
-                `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                  },
-                  body: JSON.stringify({
-                    account_id: account.id,
-                    to: userProfile.phone,
-                    type: "template",
-                    template_name: "nuovo_messaggio_chat",
-                    template_language: "it",
-                    template_params: [
-                      userProfile.first_name || "Operatore",
-                      displayName,
-                      customerPhone,
-                      truncatedMessage,
-                    ],
-                  }),
-                }
-              );
-
-              if (!waResponse.ok) {
-                console.error("Error sending WhatsApp notification:", await waResponse.text());
-              } else {
-                console.log("WhatsApp notification sent successfully");
+          try {
+            const waResponse = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-send`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                },
+                body: JSON.stringify({
+                  account_id: account.id,
+                  to: userProfile.phone,
+                  type: "template",
+                  template_name: "nuovo_messaggio_chat",
+                  template_language: "it",
+                  template_params: [
+                    userProfile.first_name || "Operatore",
+                    displayName,
+                    customerPhone,
+                    truncatedMessage,
+                  ],
+                }),
               }
-            } catch (waError) {
-              console.error("Error sending WhatsApp notification:", waError);
+            );
+
+            if (!waResponse.ok) {
+              console.error("Error sending WhatsApp notification:", await waResponse.text());
+            } else {
+              console.log("WhatsApp notification sent successfully");
             }
-          } else {
-            console.log(`User ${recipient.user_id} has no phone number configured for WhatsApp notifications`);
+          } catch (waError) {
+            console.error("Error sending WhatsApp notification:", waError);
           }
+        } else {
+          console.log(`User ${recipient.user_id} has no phone number configured for WhatsApp notifications`);
         }
       }
     }
