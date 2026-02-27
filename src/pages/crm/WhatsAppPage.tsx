@@ -1124,7 +1124,7 @@ const syncTemplatesMutation = useMutation({
       const context = bodyText.substring(start, end).toLowerCase();
       
       // Smart matching based on context keywords
-      if (/(?:name|nome|nombre|nom\b|vorname|nachname|cliente|customer|dear|caro|estimado|cher)/i.test(context)) {
+      if (/(?:name|nome|nombre|nom\b|vorname|nachname|cliente|customer|dear|caro|estimado|cher|ciao|salve|buongiorno|gentile|hi\b|hello|hola|bonjour|hallo|guten)/i.test(context)) {
         // Name context - never use a phone number as name
         if (safeCustomerName) {
           params[idx] = safeCustomerName;

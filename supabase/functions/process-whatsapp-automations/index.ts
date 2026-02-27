@@ -252,8 +252,8 @@ serve(async (req) => {
             let paramValue = '-';
             
             // Determine parameter type based on context
-            if (p === 1) {
-              // {{1}} is almost always the contact name
+            if (p === 1 || /(?:ciao|salve|buongiorno|gentile|dear|caro|hi\b|hello|hola|name|nome)/i.test(fullContext)) {
+              // {{1}} is almost always the contact name, also match greetings
               paramValue = lead.contact_name || lead.company_name || 'Cliente';
             } else if (fullContext.includes('portale fornitore') || fullContext.includes('supplier portal') || 
                        fullContext.includes('portal proveedor') || fullContext.includes('portail fournisseur') ||
