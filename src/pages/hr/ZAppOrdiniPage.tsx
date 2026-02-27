@@ -209,7 +209,7 @@ export default function ZAppOrdiniPage() {
     }
   };
 
-  const handleCreateOrderFromOffer = (offer: AcceptedOffer) => {
+  const handleCreateOrderFromOffer = async (offer: AcceptedOffer) => {
     // Pre-fill the create form with offer data
     loadCustomers();
     loadProducts();
@@ -230,16 +230,38 @@ export default function ZAppOrdiniPage() {
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
-    setOrderItems([{
-      id: crypto.randomUUID(),
-      mode: "text",
-      text: offer.title || offer.description || "",
-      productId: "",
-      materialId: "",
-      serviceType: "",
-      details: "",
-      quantity: 1,
-    }]);
+
+    // Load offer items (products) from offer_items table
+    const { data: offerItems } = await supabase
+      .from("offer_items")
+      .select("product_id, description, quantity, products(name, code)")
+      .eq("offer_id", offer.id);
+
+    if (offerItems && offerItems.length > 0) {
+      const items: OrderItem[] = offerItems.map((oi: any) => ({
+        id: crypto.randomUUID(),
+        mode: oi.product_id ? "product" as const : "text" as const,
+        text: oi.product_id ? "" : (oi.description || ""),
+        productId: oi.product_id || "",
+        materialId: "",
+        serviceType: "",
+        details: oi.product_id ? (oi.description || "") : "",
+        quantity: oi.quantity || 1,
+      }));
+      setOrderItems(items);
+    } else {
+      setOrderItems([{
+        id: crypto.randomUUID(),
+        mode: "text",
+        text: offer.title || offer.description || "",
+        productId: "",
+        materialId: "",
+        serviceType: "",
+        details: "",
+        quantity: 1,
+      }]);
+    }
+
     setFormData({
       notes: `Da offerta ${offer.number}`,
       order_date: new Date().toISOString().split("T")[0],
