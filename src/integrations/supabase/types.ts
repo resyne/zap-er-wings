@@ -8380,10 +8380,12 @@ export type Database = {
       }
       sales_order_items: {
         Row: {
+          completed_at: string | null
           created_at: string
           description: string | null
           discount_percent: number | null
           id: string
+          is_completed: boolean
           notes: string | null
           product_id: string | null
           product_name: string
@@ -8394,10 +8396,12 @@ export type Database = {
           vat_rate: number | null
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           discount_percent?: number | null
           id?: string
+          is_completed?: boolean
           notes?: string | null
           product_id?: string | null
           product_name: string
@@ -8408,10 +8412,12 @@ export type Database = {
           vat_rate?: number | null
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
           description?: string | null
           discount_percent?: number | null
           id?: string
+          is_completed?: boolean
           notes?: string | null
           product_id?: string | null
           product_name?: string
