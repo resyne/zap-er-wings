@@ -68,6 +68,7 @@ interface Commessa {
   deadline?: string;
   created_at: string;
   sales_order_id?: string;
+  offer_id?: string;
   legacy_work_order_id?: string;
   customer_name?: string;
   customer_code?: string;
@@ -156,12 +157,13 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
 const completedStatuses = ["pronto", "completato", "completata", "spedito", "completed", "closed"];
 
 // ─── Sub-component: Products to produce/prepare checklist ─────────────
-const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrderId }: { salesOrderId: string }) {
+const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrderId, offerId }: { salesOrderId: string; offerId?: string }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [bomData, setBomData] = useState<Record<string, { level1: any[]; level2: any[] }>>({});
+  const [isFromOffer, setIsFromOffer] = useState(false);
 
-  useEffect(() => { loadItems(); }, [salesOrderId]);
+  useEffect(() => { loadItems(); }, [salesOrderId, offerId]);
 
   const loadItems = async () => {
     try {
@@ -171,9 +173,24 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
         .eq("sales_order_id", salesOrderId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      setItems(data || []);
-      // Load BOM data for items with product_id
-      if (data) await loadBomData(data);
+      
+      if (data && data.length > 0) {
+        setItems(data);
+        setIsFromOffer(false);
+        await loadBomData(data);
+      } else if (offerId) {
+        // Fallback: load from offer_items
+        const { data: offerData } = await supabase
+          .from("offer_items")
+          .select("id, product_name, description, quantity, product_id")
+          .eq("offer_id", offerId)
+          .order("created_at", { ascending: true });
+        if (offerData && offerData.length > 0) {
+          setItems(offerData.map(oi => ({ ...oi, is_completed: false, completed_at: null })));
+          setIsFromOffer(true);
+          await loadBomData(offerData);
+        }
+      }
     } catch { /* silent */ } finally { setLoading(false); }
   };
 
@@ -234,6 +251,7 @@ const MobileProductsChecklist = memo(function MobileProductsChecklist({ salesOrd
   };
 
   const toggleComplete = async (item: any) => {
+    if (isFromOffer) return; // Can't toggle offer items
     const newCompleted = !item.is_completed;
     const { error } = await supabase
       .from("sales_order_items")
@@ -711,7 +729,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
             )}
 
             {/* 4. Prodotti da produrre/preparare */}
-            {commessa.sales_order_id && <MobileProductsChecklist salesOrderId={commessa.sales_order_id} />}
+            {commessa.sales_order_id && <MobileProductsChecklist salesOrderId={commessa.sales_order_id} offerId={commessa.offer_id} />}
 
             {/* 5. Fasi successive */}
             {remainingPhases.length > 0 && (
@@ -1099,7 +1117,7 @@ export default function ZAppCommesse() {
           archived, deadline, created_at, sales_order_id,
           customers(name, code),
           boms(name, version),
-          sales_orders(number),
+          sales_orders(number, offer_id),
           commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
         `)
         .eq("archived", false)
@@ -1135,6 +1153,7 @@ export default function ZAppCommesse() {
         deadline: c.deadline,
         created_at: c.created_at,
         sales_order_id: c.sales_order_id,
+        offer_id: c.sales_orders?.offer_id,
         customer_name: c.customers?.name,
         customer_code: c.customers?.code,
         bom_name: c.boms?.name,
