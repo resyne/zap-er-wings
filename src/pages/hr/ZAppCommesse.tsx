@@ -754,7 +754,7 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
             {/* 6. Dettagli tecnici e informazioni */}
             <div className="space-y-1 p-2 rounded-lg bg-muted/30 border border-border/50">
               {commessa.article && <p className="text-[11px]"><span className="text-muted-foreground">Articolo:</span> <span className="font-medium">{commessa.article}</span></p>}
-              {commessa.description && <p className="text-[11px]"><span className="text-muted-foreground">Descrizione:</span> {commessa.description}</p>}
+              {commessa.description && <p className="text-[11px]"><span className="text-muted-foreground">Descrizione:</span> {commessa.description.replace(/\n*Valore ordine:.*$/i, '').trim()}</p>}
               {commessa.diameter && <p className="text-[11px]"><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
               {commessa.smoke_inlet && <p className="text-[11px]"><span className="text-muted-foreground">Innesto Fumi:</span> {commessa.smoke_inlet}</p>}
               {commessa.delivery_mode && <p className="text-[11px]"><span className="text-muted-foreground">Consegna:</span> {commessa.delivery_mode === "spedizione" ? "Spedizione" : commessa.delivery_mode === "ritiro" ? "Ritiro" : commessa.delivery_mode === "installazione" ? "Installazione" : commessa.delivery_mode}</p>}
