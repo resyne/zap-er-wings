@@ -411,7 +411,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
           type: 'template',
           template_name: template.name,
           template_language: template.language,
-          template_params: templateParams.filter(p => p.trim() !== ''),
+          template_params: templateParams.map(p => p.trim() === '' ? '-' : p),
           sent_by: currentUserId,
           lead_id: leadId
         }
