@@ -526,14 +526,19 @@ export default function ZAppWhatsAppPage() {
                     </div>
                   )}
 
-                  {/* Text content */}
-                  {msg.message_type === "text" && msg.content && (
+                  {/* Text content (text, button, and other text-based types) */}
+                  {(msg.message_type === "text" || msg.message_type === "button" || msg.message_type === "interactive") && msg.content && (
                     <TranslatedMessageBubble
                       messageId={msg.id}
                       originalText={msg.content}
                       isInbound={msg.direction === "inbound"}
                       savedTranslation={(msg as any).translation_it}
                     />
+                  )}
+
+                  {/* Fallback for unsupported/unknown message types with content */}
+                  {!["text", "button", "interactive", "template", "image", "video", "audio", "document"].includes(msg.message_type) && msg.content && (
+                    <p className="text-sm whitespace-pre-wrap italic text-muted-foreground">{msg.content}</p>
                   )}
 
                   {/* Caption for media with text */}
