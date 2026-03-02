@@ -15,6 +15,7 @@ const zAppPages = [
   { title: "Comunicazioni", url: "/hr/z-app/comunicazioni" },
   { title: "Ordini", url: "/hr/z-app/ordini" },
   { title: "Ordini Fornitori", url: "/hr/z-app/ordini-fornitori" },
+  { title: "WhatsApp", url: "/hr/z-app/whatsapp" },
 ];
 
 interface ZAppVisibilityDialogProps {
