@@ -523,7 +523,7 @@ export default function ZAppOrdiniPage() {
       }
 
       const commessaTitle = orderTypeCategory === "fornitura"
-        ? `Fornitura ${productName} per ${customerName}`.trim()
+        ? `Fornitura ${subject || productName} per ${customerName}`.trim()
         : orderTypeCategory === "intervento"
         ? `${interventionType === "manutenzione" ? "Manutenzione" : "Riparazione"} per ${customerName}`.trim()
         : `Ricambi per ${customerName}`.trim();
