@@ -12,6 +12,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 
 const sections = [
@@ -90,9 +91,14 @@ const sections = [
 export default function ZAppPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const { isPageVisible, loading } = usePageVisibility(user?.id);
 
-  const visibleSections = sections.filter(s => isPageVisible(s.url));
+  const visibleSections = sections.filter(s => {
+    // Impostazioni visibile solo agli admin
+    if (s.url === "/hr/z-app/impostazioni") return isAdmin;
+    return isPageVisible(s.url);
+  });
 
   return (
     <div className="min-h-screen bg-muted/30">
