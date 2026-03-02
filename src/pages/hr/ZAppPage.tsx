@@ -8,7 +8,8 @@ import {
   MessageCircle,
   Smartphone,
   ShoppingCart,
-  Settings
+  Settings,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
@@ -62,6 +63,13 @@ const sections = [
     icon: ShoppingCart,
     color: "bg-teal-500",
     url: "/hr/z-app/ordini",
+  },
+  {
+    title: "WhatsApp",
+    description: "Chat e messaggi WhatsApp",
+    icon: MessageSquare,
+    color: "bg-green-500",
+    url: "/hr/z-app/whatsapp",
   },
   {
     title: "Ordini Fornitori",

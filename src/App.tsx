@@ -122,6 +122,7 @@ import ZAppComunicazioniPage from "./pages/hr/ZAppComunicazioniPage";
 import ZAppOrdiniPage from "./pages/hr/ZAppOrdiniPage";
 import ZAppOrdiniFornitoriPage from "./pages/hr/ZAppOrdiniFornitoriPage";
 import ZAppImpostazioniPage from "./pages/hr/ZAppImpostazioniPage";
+import ZAppWhatsAppPage from "./pages/hr/ZAppWhatsAppPage";
 import StrategyPage from "./pages/direzione/StrategyPage";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
@@ -237,6 +238,7 @@ const App = () => (
                 <Route path="hr/z-app/ordini" element={<ZAppOrdiniPage />} />
                 <Route path="hr/z-app/ordini-fornitori" element={<ZAppOrdiniFornitoriPage />} />
                 <Route path="hr/z-app/impostazioni" element={<ZAppImpostazioniPage />} />
+                <Route path="hr/z-app/whatsapp" element={<ZAppWhatsAppPage />} />
                 <Route path="docs" element={<DocumentationPage />} />
                 <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
                 <Route path="docs/technical-sheets/blast-chillers" element={<BlastChillersPage />} />
