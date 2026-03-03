@@ -832,6 +832,7 @@ export default function ZAppCommesse() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [schedulePhase, setSchedulePhase] = useState<{ phase: CommessaPhase; commessa: Commessa } | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
+  const [scheduleNextPrompt, setScheduleNextPrompt] = useState<{ nextPhases: CommessaPhase[]; commessa: Commessa } | null>(null);
   const [urgentDialog, setUrgentDialog] = useState<Commessa | null>(null);
   const [urgentMessage, setUrgentMessage] = useState("");
   const [sendingUrgent, setSendingUrgent] = useState(false);
@@ -891,6 +892,21 @@ export default function ZAppCommesse() {
     onSuccess: (_data) => {
       toast.success("Stato fase aggiornato");
       queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+
+      // If the phase was completed, check for next phases to schedule
+      if (_data.commessa && completedStatuses.includes(_data.newStatus)) {
+        const sortedPhases = [..._data.commessa.phases].sort((a, b) => a.phase_order - b.phase_order);
+        const completedPhase = sortedPhases.find(p => p.id === _data.phaseId);
+        if (completedPhase) {
+          const nextPhases = sortedPhases.filter(
+            p => p.phase_order > completedPhase.phase_order && !p.scheduled_date && !completedStatuses.includes(p.status)
+          );
+          if (nextPhases.length > 0) {
+            setScheduleNextPrompt({ nextPhases, commessa: _data.commessa });
+          }
+        }
+      }
+
       // Send WhatsApp notification for status change (fire and forget)
       if (_data.commessa) {
         const c = _data.commessa;
@@ -1291,6 +1307,55 @@ export default function ZAppCommesse() {
             <Button variant="outline" onClick={() => setSchedulePhase(null)}>Annulla</Button>
             <Button onClick={handleConfirmSchedule} disabled={!scheduleDate || schedulePhseMutation.isPending}>
               {schedulePhseMutation.isPending ? "Salvataggio..." : "Conferma"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Next Phase Prompt */}
+      <Dialog open={!!scheduleNextPrompt} onOpenChange={(o) => !o && setScheduleNextPrompt(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5 text-indigo-600" />
+              Programma fasi successive
+            </DialogTitle>
+            <DialogDescription>
+              {scheduleNextPrompt && `${scheduleNextPrompt.commessa.number} — ${scheduleNextPrompt.commessa.customer_name || scheduleNextPrompt.commessa.title}`}
+            </DialogDescription>
+          </DialogHeader>
+          {scheduleNextPrompt && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Vuoi calendarizzare le fasi successive?</p>
+              {scheduleNextPrompt.nextPhases.map(phase => {
+                const config = phaseConfig[phase.phase_type] || phaseConfig.produzione;
+                const Icon = config.icon;
+                return (
+                  <button
+                    key={phase.id}
+                    onClick={() => {
+                      setScheduleNextPrompt(null);
+                      setSchedulePhase({ phase, commessa: scheduleNextPrompt.commessa });
+                      setScheduleDate(undefined);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
+                  >
+                    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${config.lightBg}`}>
+                      <Icon className={`h-4 w-4 ${config.text}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{config.label}</p>
+                      <p className="text-[11px] text-muted-foreground">Clicca per calendarizzare</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleNextPrompt(null)} className="w-full">
+              Salta per ora
             </Button>
           </DialogFooter>
         </DialogContent>
