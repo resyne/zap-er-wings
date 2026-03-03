@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrencySymbol } from "@/lib/currencyUtils";
 
 export default function PublicOfferPage() {
   const { code } = useParams<{ code: string }>();
@@ -172,14 +173,15 @@ export default function PublicOfferPage() {
           productDescription = await translateText(productDescription, offerLanguage);
         }
         
+        const cs = getCurrencySymbol((offer as any).currency || 'EUR');
         return `
           <tr>
             <td style="padding: 8px; font-size: 11px; color: #333; border-bottom: 1px solid #e9ecef;">${productName}</td>
             <td style="padding: 8px; font-size: 11px; color: #666; border-bottom: 1px solid #e9ecef;">${productDescription || '-'}</td>
             <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.quantity}</td>
-            <td style="padding: 8px; font-size: 11px; color: #333; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${item.unit_price.toFixed(2)}</td>
+            <td style="padding: 8px; font-size: 11px; color: #333; text-align: right; border-bottom: 1px solid #e9ecef;">${cs} ${item.unit_price.toFixed(2)}</td>
             <td style="padding: 8px; font-size: 11px; color: #333; text-align: center; border-bottom: 1px solid #e9ecef;">${item.discount_percent || 0}%</td>
-            <td style="padding: 8px; font-size: 11px; font-weight: bold; color: #38AC4F; text-align: right; border-bottom: 1px solid #e9ecef;">€ ${total.toFixed(2)}</td>
+            <td style="padding: 8px; font-size: 11px; font-weight: bold; color: #38AC4F; text-align: right; border-bottom: 1px solid #e9ecef;">${cs} ${total.toFixed(2)}</td>
           </tr>
         `;
       }));
@@ -369,7 +371,8 @@ export default function PublicOfferPage() {
         .replace(/\{\{descrizione\}\}/g, translatedDescription || '')
         .replace(/\{\{firma_commerciale\}\}/g, template === 'vesuviano' ? '' : 'Abbattitori Zapper')
         .replace(/\{\{payment_agreement\}\}/g, offer.payment_agreement || '')
-        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
+        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '')
+        .replace(/€/g, getCurrencySymbol((offer as any).currency || 'EUR'));
 
       setHtmlContent(htmlTemplate);
     } catch (err) {
