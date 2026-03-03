@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
+import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -64,6 +65,9 @@ export default function ZAppMagazzino() {
   const [logOpen, setLogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
+  const [productCaricoOpen, setProductCaricoOpen] = useState(false);
+  const [productScaricoOpen, setProductScaricoOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 
   // Fetch all suppliers for settings
   const { data: allSuppliers = [] } = useQuery({
@@ -129,6 +133,28 @@ export default function ZAppMagazzino() {
       return (data || []) as StockMovement[];
     },
   });
+
+  // Fetch products (finished goods)
+  const { data: products = [], isLoading: loadingProducts } = useQuery({
+    queryKey: ["zapp-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, code, name, unit_of_measure, current_stock, minimum_stock, maximum_stock, production_cost, sale_price, warehouse_location, last_inventory_date")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products;
+    const term = productSearch.toLowerCase();
+    return products.filter(p =>
+      p.name.toLowerCase().includes(term) || p.code.toLowerCase().includes(term)
+    );
+  }, [products, productSearch]);
 
   // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
@@ -243,14 +269,18 @@ export default function ZAppMagazzino() {
 
       {/* Tabs */}
       <Tabs defaultValue="scorte" className="px-4">
-        <TabsList className="w-full grid grid-cols-2 h-10 rounded-xl">
-          <TabsTrigger value="scorte" className="rounded-lg text-sm">
-            <Package className="h-4 w-4 mr-1.5" />
-            Scorte
+        <TabsList className="w-full grid grid-cols-3 h-10 rounded-xl">
+          <TabsTrigger value="scorte" className="rounded-lg text-xs">
+            <Package className="h-3.5 w-3.5 mr-1" />
+            Materiali
           </TabsTrigger>
-          <TabsTrigger value="movimenti" className="rounded-lg text-sm">
-            <TrendingUp className="h-4 w-4 mr-1.5" />
-            I miei movimenti
+          <TabsTrigger value="prodotti" className="rounded-lg text-xs">
+            <Box className="h-3.5 w-3.5 mr-1" />
+            Prodotti
+          </TabsTrigger>
+          <TabsTrigger value="movimenti" className="rounded-lg text-xs">
+            <TrendingUp className="h-3.5 w-3.5 mr-1" />
+            Movimenti
           </TabsTrigger>
         </TabsList>
 
@@ -344,6 +374,75 @@ export default function ZAppMagazzino() {
           )}
         </TabsContent>
 
+        {/* Products Tab */}
+        <TabsContent value="prodotti" className="mt-3 space-y-3">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-white" />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={() => setProductCaricoOpen(true)} size="sm" className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs h-9">
+              <TrendingUp className="h-3.5 w-3.5 mr-1" /> Carico
+            </Button>
+            <Button onClick={() => setProductScaricoOpen(true)} size="sm" className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs h-9">
+              <TrendingDown className="h-3.5 w-3.5 mr-1" /> Scarico
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">{filteredProducts.length} prodotti finiti</p>
+
+          {loadingProducts ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Nessun prodotto trovato</div>
+          ) : (
+            <div className="space-y-2">
+              {filteredProducts.map((p) => {
+                const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
+                const isOut = p.current_stock <= 0;
+                return (
+                  <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-border">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-red-50" : isLow ? "bg-amber-50" : "bg-blue-50"}`}>
+                        <Box className={`h-4 w-4 ${isOut ? "text-red-500" : isLow ? "text-amber-500" : "text-blue-500"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-[13px] truncate">{p.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{p.code}</p>
+                        {p.warehouse_location && (
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                            <MapPin className="h-2.5 w-2.5" /> {p.warehouse_location}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-[13px]">{p.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{p.unit_of_measure || "pz"}</span></p>
+                        {isOut ? (
+                          <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>
+                        ) : isLow ? (
+                          <Badge variant="destructive" className="text-[10px] px-1.5">Sotto scorta</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 text-green-700 border-green-300">OK</Badge>
+                        )}
+                        {(p.sale_price || 0) > 0 && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-0.5">
+                            <Euro className="h-2.5 w-2.5" /> {Number(p.sale_price).toLocaleString("it-IT")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
         {/* Movements Tab */}
         <TabsContent value="movimenti" className="mt-3 space-y-2">
           {loadingMovements ? (
@@ -416,6 +515,8 @@ export default function ZAppMagazzino() {
       <ManualMovementDialog open={scaricoOpen} onOpenChange={setScaricoOpen} movementType="scarico" />
       <InventoryDialog open={inventoryOpen} onOpenChange={setInventoryOpen} materials={filteredMaterials} />
       <InventoryLogDialog open={logOpen} onOpenChange={setLogOpen} />
+      <ProductMovementDialog open={productCaricoOpen} onOpenChange={setProductCaricoOpen} movementType="carico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
+      <ProductMovementDialog open={productScaricoOpen} onOpenChange={setProductScaricoOpen} movementType="scarico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
     </div>
   );
 }

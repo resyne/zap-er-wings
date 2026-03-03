@@ -6967,6 +6967,56 @@ export type Database = {
           },
         ]
       }
+      product_stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_date: string
+          movement_type: string
+          notes: string | null
+          origin_type: string
+          product_id: string
+          quantity: number
+          status: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type: string
+          notes?: string | null
+          origin_type?: string
+          product_id: string
+          quantity: number
+          status?: string
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_date?: string
+          movement_type?: string
+          notes?: string | null
+          origin_type?: string
+          product_id?: string
+          quantity?: number
+          status?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_project_activity_log: {
         Row: {
           action: string
@@ -7199,57 +7249,78 @@ export type Database = {
           bom_id: string | null
           code: string
           created_at: string
+          current_stock: number
           description: string | null
           id: string
           image_url: string | null
           installation_possible: boolean
           is_active: boolean | null
+          last_inventory_date: string | null
           material_id: string | null
+          maximum_stock: number
+          minimum_stock: number
           name: string
           product_type: string
+          production_cost: number | null
           requires_production: boolean
+          sale_price: number | null
           shipping_possible: boolean
           technical_specs: Json | null
           unit_of_measure: string | null
           updated_at: string
+          warehouse_location: string | null
         }
         Insert: {
           base_price?: number | null
           bom_id?: string | null
           code: string
           created_at?: string
+          current_stock?: number
           description?: string | null
           id?: string
           image_url?: string | null
           installation_possible?: boolean
           is_active?: boolean | null
+          last_inventory_date?: string | null
           material_id?: string | null
+          maximum_stock?: number
+          minimum_stock?: number
           name: string
           product_type: string
+          production_cost?: number | null
           requires_production?: boolean
+          sale_price?: number | null
           shipping_possible?: boolean
           technical_specs?: Json | null
           unit_of_measure?: string | null
           updated_at?: string
+          warehouse_location?: string | null
         }
         Update: {
           base_price?: number | null
           bom_id?: string | null
           code?: string
           created_at?: string
+          current_stock?: number
           description?: string | null
           id?: string
           image_url?: string | null
           installation_possible?: boolean
           is_active?: boolean | null
+          last_inventory_date?: string | null
           material_id?: string | null
+          maximum_stock?: number
+          minimum_stock?: number
           name?: string
           product_type?: string
+          production_cost?: number | null
           requires_production?: boolean
+          sale_price?: number | null
           shipping_possible?: boolean
           technical_specs?: Json | null
           unit_of_measure?: string | null
           updated_at?: string
+          warehouse_location?: string | null
         }
         Relationships: [
           {
