@@ -652,6 +652,20 @@ const CommessaCard = memo(function CommessaCard({ commessa, onPhaseStatusChange,
 
             {/* Row 3: Phase pipeline */}
             <PhasePipeline phases={commessa.phases} />
+
+            {/* Row 4: Installation date if scheduled */}
+            {(() => {
+              const installPhase = sortedPhases.find(p => p.phase_type === "installazione" && p.scheduled_date && !completedStatuses.includes(p.status));
+              if (!installPhase) return null;
+              return (
+                <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+                  <MapPin className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                  <span className="text-[11px] font-semibold text-blue-700">
+                    Installazione: {format(new Date(installPhase.scheduled_date!), "dd MMM yyyy", { locale: it })}
+                  </span>
+                </div>
+              );
+            })()}
           </button>
         </CollapsibleTrigger>
 
