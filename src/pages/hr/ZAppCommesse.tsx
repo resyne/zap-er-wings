@@ -514,7 +514,7 @@ const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onS
 
         <CollapsibleContent>
           <div className="border-t border-border/50 px-2.5 py-2.5 space-y-2.5">
-            {/* Schedule */}
+            {/* Schedule - always available, even for locked phases */}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Calendario</p>
@@ -524,15 +524,13 @@ const PhaseCard = memo(function PhaseCard({ phase, commessa, onStatusChange, onS
                   <p className="text-[11px] text-muted-foreground">Non calendarizzato</p>
                 )}
               </div>
-              {!isLocked && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSchedule(phase, commessa); }}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 active:scale-95 transition-all"
-                >
-                  <CalendarPlus className="h-3.5 w-3.5" />
-                  {phase.scheduled_date ? "Modifica" : "Calendarizza"}
-                </button>
-              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); onSchedule(phase, commessa); }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 active:scale-95 transition-all"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" />
+                {phase.scheduled_date ? "Modifica" : "Calendarizza"}
+              </button>
             </div>
 
             {/* Status change */}
@@ -832,7 +830,7 @@ export default function ZAppCommesse() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [schedulePhase, setSchedulePhase] = useState<{ phase: CommessaPhase; commessa: Commessa } | null>(null);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>();
-  const [scheduleNextPrompt, setScheduleNextPrompt] = useState<{ nextPhases: CommessaPhase[]; commessa: Commessa } | null>(null);
+  
   const [urgentDialog, setUrgentDialog] = useState<Commessa | null>(null);
   const [urgentMessage, setUrgentMessage] = useState("");
   const [sendingUrgent, setSendingUrgent] = useState(false);
@@ -889,21 +887,19 @@ export default function ZAppCommesse() {
       );
       return { previousData };
     },
-    onSuccess: (_data) => {
+    onSuccess: async (_data) => {
       toast.success("Stato fase aggiornato");
       queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
 
-      // If the phase was completed, check for next phases to schedule
+      // Auto-archive commessa if ALL phases are completed
       if (_data.commessa && completedStatuses.includes(_data.newStatus)) {
-        const sortedPhases = [..._data.commessa.phases].sort((a, b) => a.phase_order - b.phase_order);
-        const completedPhase = sortedPhases.find(p => p.id === _data.phaseId);
-        if (completedPhase) {
-          const nextPhases = sortedPhases.filter(
-            p => p.phase_order > completedPhase.phase_order && !p.scheduled_date && !completedStatuses.includes(p.status)
-          );
-          if (nextPhases.length > 0) {
-            setScheduleNextPrompt({ nextPhases, commessa: _data.commessa });
-          }
+        const allPhases = _data.commessa.phases;
+        const updatedPhases = allPhases.map(p => p.id === _data.phaseId ? { ...p, status: _data.newStatus } : p);
+        const allDone = updatedPhases.every(p => completedStatuses.includes(p.status));
+        if (allDone) {
+          await supabase.from("commesse").update({ archived: true, status: "completata" }).eq("id", _data.commessa.id);
+          queryClient.invalidateQueries({ queryKey: ["zapp-commesse"] });
+          toast.success("Commessa completata e archiviata");
         }
       }
 
@@ -1135,7 +1131,7 @@ export default function ZAppCommesse() {
 
   // ─── Data Fetching ──────────────────────────────────────
   const { data: commesse = [], isLoading } = useQuery({
-    queryKey: ["zapp-commesse"],
+    queryKey: ["zapp-commesse", statusFilter],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("commesse")
@@ -1150,7 +1146,7 @@ export default function ZAppCommesse() {
           sales_orders(number, offer_id),
           commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
         `)
-        .eq("archived", false)
+        .eq("archived", statusFilter === "archived" ? true : false)
         .order("created_at", { ascending: false });
       if (error) throw error;
 
@@ -1201,6 +1197,7 @@ export default function ZAppCommesse() {
       const q = debouncedSearch.toLowerCase();
       const matchesSearch = !q || c.title.toLowerCase().includes(q) || c.number.toLowerCase().includes(q) ||
         (c.customer_name || "").toLowerCase().includes(q) || (c.article || "").toLowerCase().includes(q);
+      if (statusFilter === "archived") return matchesSearch; // already filtered by query
       const matchesStatus = statusFilter === "all" ||
         (statusFilter === "active" && c.status !== "completata") ||
         (statusFilter === "completed" && c.status === "completata");
@@ -1245,9 +1242,10 @@ export default function ZAppCommesse() {
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[110px] rounded-xl bg-background"><SelectValue /></SelectTrigger>
-            <SelectContent>
+             <SelectContent>
               <SelectItem value="active">Attive</SelectItem>
               <SelectItem value="completed">Completate</SelectItem>
+              <SelectItem value="archived">Archiviate</SelectItem>
               <SelectItem value="all">Tutte</SelectItem>
             </SelectContent>
           </Select>
@@ -1312,54 +1310,6 @@ export default function ZAppCommesse() {
         </DialogContent>
       </Dialog>
 
-      {/* Schedule Next Phase Prompt */}
-      <Dialog open={!!scheduleNextPrompt} onOpenChange={(o) => !o && setScheduleNextPrompt(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarPlus className="h-5 w-5 text-indigo-600" />
-              Programma fasi successive
-            </DialogTitle>
-            <DialogDescription>
-              {scheduleNextPrompt && `${scheduleNextPrompt.commessa.number} — ${scheduleNextPrompt.commessa.customer_name || scheduleNextPrompt.commessa.title}`}
-            </DialogDescription>
-          </DialogHeader>
-          {scheduleNextPrompt && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Vuoi calendarizzare le fasi successive?</p>
-              {scheduleNextPrompt.nextPhases.map(phase => {
-                const config = phaseConfig[phase.phase_type] || phaseConfig.produzione;
-                const Icon = config.icon;
-                return (
-                  <button
-                    key={phase.id}
-                    onClick={() => {
-                      setScheduleNextPrompt(null);
-                      setSchedulePhase({ phase, commessa: scheduleNextPrompt.commessa });
-                      setScheduleDate(undefined);
-                    }}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
-                  >
-                    <div className={`h-8 w-8 rounded-md flex items-center justify-center ${config.lightBg}`}>
-                      <Icon className={`h-4 w-4 ${config.text}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{config.label}</p>
-                      <p className="text-[11px] text-muted-foreground">Clicca per calendarizzare</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setScheduleNextPrompt(null)} className="w-full">
-              Salta per ora
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Urgent Communication Dialog */}
       <Dialog open={!!urgentDialog} onOpenChange={(o) => { if (!o) { setUrgentDialog(null); setUrgentMessage(""); } }}>

@@ -501,7 +501,7 @@ export default function CommesseUnificatePage() {
 
   // ─── Data Fetching ──────────────────────────────────────
   const { data: workOrders = [], isLoading: loadingWO } = useQuery({
-    queryKey: ["commesse-work-orders"],
+    queryKey: ["commesse-work-orders", statusFilter],
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -517,7 +517,7 @@ export default function CommesseUnificatePage() {
           sales_orders(number),
           offers(number)
         `)
-        .eq("archived", false)
+        .eq("archived", statusFilter === "archived" ? true : false)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []).map((wo: any): UnifiedOrder => ({
@@ -540,7 +540,7 @@ export default function CommesseUnificatePage() {
   });
 
   const { data: serviceOrders = [], isLoading: loadingSWO } = useQuery({
-    queryKey: ["commesse-service-orders"],
+    queryKey: ["commesse-service-orders", statusFilter],
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -553,7 +553,7 @@ export default function CommesseUnificatePage() {
           profiles!service_work_orders_assigned_to_fkey(first_name, last_name),
           sales_orders(number)
         `)
-        .eq("archived", false)
+        .eq("archived", statusFilter === "archived" ? true : false)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []).map((so: any): UnifiedOrder => ({
@@ -573,7 +573,7 @@ export default function CommesseUnificatePage() {
   });
 
   const { data: shippingOrders = [], isLoading: loadingSO } = useQuery({
-    queryKey: ["commesse-shipping-orders"],
+    queryKey: ["commesse-shipping-orders", statusFilter],
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -587,7 +587,7 @@ export default function CommesseUnificatePage() {
           profiles!shipping_orders_assigned_to_fkey(first_name, last_name),
           sales_orders(number)
         `)
-        .eq("archived", false)
+        .eq("archived", statusFilter === "archived" ? true : false)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []).map((so: any): UnifiedOrder => ({
@@ -616,7 +616,7 @@ export default function CommesseUnificatePage() {
       const q = searchTerm.toLowerCase();
       const matchesSearch = !q || o.title.toLowerCase().includes(q) || o.number.toLowerCase().includes(q) ||
         (o.customer_name || "").toLowerCase().includes(q) || (o.article || "").toLowerCase().includes(q);
-      const matchesStatus = statusFilter === "all" ||
+      const matchesStatus = statusFilter === "archived" || statusFilter === "all" ||
         (statusFilter === "active" && !completedStatuses.includes(o.status)) ||
         (statusFilter === "completed" && completedStatuses.includes(o.status));
       const matchesType = typeFilter === "all" || o.type === typeFilter;
@@ -720,6 +720,7 @@ export default function CommesseUnificatePage() {
           <SelectContent>
             <SelectItem value="active">Attive</SelectItem>
             <SelectItem value="completed">Completate</SelectItem>
+            <SelectItem value="archived">Archiviate</SelectItem>
             <SelectItem value="all">Tutte</SelectItem>
           </SelectContent>
         </Select>
