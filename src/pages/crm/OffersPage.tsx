@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { OfferLivePreview } from "@/components/dashboard/OfferLivePreview";
+import { SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/currencyUtils";
 
 interface Offer {
   id: string;
@@ -147,6 +148,7 @@ export default function OffersPage() {
     payment_method?: string;
     payment_agreement?: string;
     vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
+    currency?: string;
     company_entity?: 'climatel' | 'unita1';
     lead_id?: string;
     customer_name_fallback?: string;
@@ -171,6 +173,7 @@ export default function OffersPage() {
     payment_agreement: '',
     vat_regime: 'standard',
     company_entity: 'climatel',
+    currency: 'EUR',
   });
 
   const [offerRequest, setOfferRequest] = useState({
@@ -798,7 +801,7 @@ export default function OffersPage() {
       }
 
       // Send message with document
-      const messageText = `📄 *Offerta ${offer.number}*\n\n${offer.title}\n\nImporto: €${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+      const messageText = `📄 *Offerta ${offer.number}*\n\n${offer.title}\n\nImporto: ${getCurrencySymbol((offer as any).currency || 'EUR')}${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
       
       const { error: sendError } = await supabase.functions.invoke('wasender-send', {
         body: {
@@ -891,6 +894,7 @@ export default function OffersPage() {
             payment_agreement: newOffer.payment_agreement || null,
             vat_regime: newOffer.vat_regime,
             company_entity: newOffer.company_entity || 'climatel',
+            currency: newOffer.currency || 'EUR',
           })
           .eq('id', newOffer.id)
           .select()
@@ -961,6 +965,7 @@ export default function OffersPage() {
             payment_agreement: newOffer.payment_agreement || null,
             vat_regime: newOffer.vat_regime,
             company_entity: newOffer.company_entity || 'climatel',
+            currency: newOffer.currency || 'EUR',
           }])
           .select()
           .single();
@@ -1014,7 +1019,8 @@ export default function OffersPage() {
             payment_method: '',
             payment_agreement: '',
             vat_regime: 'standard'
-          });
+          } as any);
+
       setSelectedProducts([]);
       setIncludeCertificazione(true);
       setIncludeGaranzia(true);
@@ -1794,6 +1800,17 @@ export default function OffersPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Valuta</label>
+                                <Select value={newOffer.currency || 'EUR'} onValueChange={(value: string) => setNewOffer(prev => ({ ...prev, currency: value }))}>
+                                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {SUPPORTED_CURRENCIES.map(c => (
+                                      <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Intestazione e Coordinate Bancarie</label>
@@ -2075,6 +2092,7 @@ export default function OffersPage() {
                     includeCertificazione={includeCertificazione}
                     includeGaranzia={includeGaranzia}
                     inclusoCustom={inclusoCustom}
+                    currency={newOffer.currency}
                   />
                 </div>
               )}
@@ -2085,7 +2103,7 @@ export default function OffersPage() {
               <div className="flex items-center gap-4">
                 {selectedProducts.length > 0 && (
                   <div className="text-sm text-muted-foreground">
-                    Totale: <span className="font-semibold text-foreground">€{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}</span>
+                    Totale: <span className="font-semibold text-foreground">{getCurrencySymbol(newOffer.currency || 'EUR')}{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}</span>
                   </div>
                 )}
                 {!isMobile && (
@@ -2912,6 +2930,7 @@ export default function OffersPage() {
                         payment_agreement: (selectedOffer as any).payment_agreement || '',
                         vat_regime: (selectedOffer as any).vat_regime || 'standard',
                         company_entity: (selectedOffer as any).company_entity || 'climatel',
+                        currency: (selectedOffer as any).currency || 'EUR',
                         lead_id: (selectedOffer as any).lead_id || undefined,
                         customer_name_fallback: selectedOffer.customer_name || '',
                       });

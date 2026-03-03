@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { getCurrencySymbol } from "@/lib/currencyUtils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Building2, Package, CreditCard, Clock, ListChecks, FileText } from "lucide-react";
@@ -34,6 +35,7 @@ interface OfferLivePreviewProps {
   includeCertificazione: boolean;
   includeGaranzia: boolean;
   inclusoCustom: string;
+  currency?: string;
 }
 
 const companyInfo = {
@@ -83,8 +85,10 @@ export function OfferLivePreview({
   vatRegime,
   includeCertificazione,
   includeGaranzia,
-  inclusoCustom
+  inclusoCustom,
+  currency
 }: OfferLivePreviewProps) {
+  const cs = getCurrencySymbol(currency || 'EUR');
   const calculatedTotal = useMemo(() => {
     return products.reduce((total, item) => {
       const subtotal = item.quantity * item.unit_price;
@@ -187,7 +191,7 @@ export function OfferLivePreview({
                         </td>
                         <td className="text-center p-1.5">{item.quantity}</td>
                         <td className="text-right p-1.5 font-medium">
-                          €{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(0)}
+                          {cs}{(item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)).toFixed(0)}
                         </td>
                       </tr>
                     ))}
@@ -196,17 +200,17 @@ export function OfferLivePreview({
                 <div className="border-t p-2 bg-muted/30">
                   <div className="flex justify-between text-[10px]">
                     <span>Imponibile</span>
-                    <span className="font-medium">€{calculatedTotal.toFixed(2)}</span>
+                    <span className="font-medium">{cs}{calculatedTotal.toFixed(2)}</span>
                   </div>
                   {vatRegime === 'standard' && (
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>IVA 22%</span>
-                      <span>€{vatAmount.toFixed(2)}</span>
+                      <span>{cs}{vatAmount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t" style={{ color: accentColor }}>
                     <span>Totale</span>
-                    <span>€{totalWithVat.toFixed(2)}</span>
+                    <span>{cs}{totalWithVat.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
