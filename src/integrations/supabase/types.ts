@@ -5740,6 +5740,7 @@ export type Database = {
           attachments: string[] | null
           company_entity: string | null
           created_at: string
+          currency: string
           customer_id: string | null
           customer_name: string
           description: string | null
@@ -5777,6 +5778,7 @@ export type Database = {
           attachments?: string[] | null
           company_entity?: string | null
           created_at?: string
+          currency?: string
           customer_id?: string | null
           customer_name: string
           description?: string | null
@@ -5814,6 +5816,7 @@ export type Database = {
           attachments?: string[] | null
           company_entity?: string | null
           created_at?: string
+          currency?: string
           customer_id?: string | null
           customer_name?: string
           description?: string | null

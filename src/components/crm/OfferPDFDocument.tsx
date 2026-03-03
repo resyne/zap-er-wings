@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { getCurrencySymbol } from '@/lib/currencyUtils';
 
 const PRIMARY_COLOR = '#38AC4F';
 
@@ -374,6 +375,7 @@ interface OfferPDFDocumentProps {
     payment_method?: string;
     payment_agreement?: string;
     metodi_pagamento?: string;
+    currency?: string;
   };
   customer: {
     name: string;
@@ -389,6 +391,8 @@ interface OfferPDFDocumentProps {
 }
 
 export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocumentProps) => {
+  const cs = getCurrencySymbol(offer.currency || 'EUR');
+  
   // Calculate totals
   const totaleImponibile = items.reduce((sum, item) => {
     const itemTotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100);
@@ -467,9 +471,9 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
                     <View key={index} style={styles.tableRow}>
                       <Text style={styles.col1}>{item.description || item.product_name}</Text>
                       <Text style={styles.col2}>{item.quantity}</Text>
-                      <Text style={styles.col3}>€ {item.unit_price.toFixed(2)}</Text>
+                      <Text style={styles.col3}>{cs} {item.unit_price.toFixed(2)}</Text>
                       <Text style={styles.col4}>{item.discount_percent || 0}%</Text>
-                      <Text style={styles.col5}>€ {itemTotal.toFixed(2)}</Text>
+                      <Text style={styles.col5}>{cs} {itemTotal.toFixed(2)}</Text>
                     </View>
                   );
                 })
@@ -477,9 +481,9 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
                 <View style={styles.tableRow}>
                   <Text style={styles.col1}>{offer.description || offer.title}</Text>
                   <Text style={styles.col2}>1</Text>
-                  <Text style={styles.col3}>€ {offer.amount.toFixed(2)}</Text>
+                  <Text style={styles.col3}>{cs} {offer.amount.toFixed(2)}</Text>
                   <Text style={styles.col4}>0%</Text>
-                  <Text style={styles.col5}>€ {offer.amount.toFixed(2)}</Text>
+                  <Text style={styles.col5}>{cs} {offer.amount.toFixed(2)}</Text>
                 </View>
               )}
             </View>
@@ -508,15 +512,15 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
           <View style={styles.totals}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Totale Imponibile:</Text>
-              <Text style={styles.totalValue}>€ {totaleImponibile.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{cs} {totaleImponibile.toFixed(2)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>IVA:</Text>
-              <Text style={styles.totalValue}>€ {totaleIva.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{cs} {totaleIva.toFixed(2)}</Text>
             </View>
             <View style={[styles.totalRow, styles.totalFinal]}>
               <Text style={styles.totalLabel}>Totale Offerta:</Text>
-              <Text style={styles.totalValue}>€ {totaleLordo.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{cs} {totaleLordo.toFixed(2)}</Text>
             </View>
           </View>
 
@@ -557,7 +561,7 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
               </View>
               <View style={styles.summaryTotal}>
                 <Text style={styles.summaryTotalLabel}>TOTALE OFFERTA</Text>
-                <Text style={styles.summaryTotalAmount}>€ {totaleLordo.toFixed(2)}</Text>
+                <Text style={styles.summaryTotalAmount}>{cs} {totaleLordo.toFixed(2)}</Text>
                 <Text style={styles.summaryTotalLabel}>IVA inclusa</Text>
               </View>
             </View>

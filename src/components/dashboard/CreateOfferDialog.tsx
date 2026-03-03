@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Check, ChevronsUpDown, Plus, X, User, FileText, Clock, Package, CreditCard, ChevronDown, ChevronRight, Building2, ListChecks, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { SUPPORTED_CURRENCIES } from "@/lib/currencyUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -119,6 +120,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     status: defaultStatus,
     template: 'zapper' as 'zapper' | 'vesuviano' | 'zapperpro',
     language: 'it' as 'it' | 'en' | 'fr' | 'es',
+    currency: 'EUR' as string,
     timeline_produzione: '',
     timeline_consegna: '',
     timeline_installazione: '',
@@ -328,7 +330,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
           payment_agreement: newOffer.payment_agreement || null,
           vat_regime: newOffer.vat_regime,
           company_entity: newOffer.company_entity,
-          lead_id: leadId
+          lead_id: leadId,
+          currency: newOffer.currency || 'EUR'
         }])
         .select('id, unique_code')
         .single();
@@ -402,7 +405,8 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       payment_method: '',
       payment_agreement: '',
       vat_regime: 'standard',
-      company_entity: 'climatel'
+      company_entity: 'climatel',
+      currency: 'EUR'
     });
     setSelectedProducts([]);
     setIncludeCertificazione(true);
@@ -700,6 +704,24 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
                   <SelectItem value="en">🇬🇧 Inglese</SelectItem>
                   <SelectItem value="fr">🇫🇷 Francese</SelectItem>
                   <SelectItem value="es">🇪🇸 Spagnolo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Valuta</Label>
+              <Select 
+                value={newOffer.currency} 
+                onValueChange={(value: string) => 
+                  setNewOffer({ ...newOffer, currency: value })
+                }
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Seleziona valuta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1192,6 +1214,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
       includeCertificazione={includeCertificazione}
       includeGaranzia={includeGaranzia}
       inclusoCustom={inclusoCustom}
+      currency={newOffer.currency}
     />
   );
 
