@@ -106,7 +106,7 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
       const { error } = await supabase.from("stock_movements").insert({
         movement_date: new Date().toISOString(),
         movement_type: movementType,
-        origin_type: "Manuale",
+        origin_type: "manuale",
         item_description: formData.item_description,
         quantity: parseFloat(formData.quantity),
         unit: formData.unit,
@@ -118,6 +118,16 @@ export function ManualMovementDialog({ open, onOpenChange, movementType }: Manua
         supplier_id: formData.supplier_id || null,
       });
       if (error) throw error;
+
+      // Update current_stock on the material
+      const qty = parseFloat(formData.quantity);
+      const stockDelta = movementType === "carico" ? qty : -qty;
+      const newStock = Math.max(0, (selectedMaterial?.current_stock || 0) + stockDelta);
+      await supabase
+        .from("materials")
+        .update({ current_stock: newStock })
+        .eq("id", formData.material_id);
+
       toast({ title: "Movimento creato", description: `${movementType === "carico" ? "Carico" : "Scarico"} registrato con successo` });
       queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
