@@ -34,7 +34,7 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
   const [loading, setLoading] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set());
 
   // Group by supplier
   const groupedBySupplier = useMemo(() => {
