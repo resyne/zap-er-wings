@@ -60,6 +60,7 @@ interface Offer {
   approved_by?: string;
   approved_by_name?: string;
   approved_at?: string;
+  currency?: string;
 }
 
 interface Lead {
@@ -392,7 +393,7 @@ export default function OffersPage() {
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
         
-        const cs = getCurrencySymbol((offer as any).currency || 'EUR');
+        const cs = getCurrencySymbol(offer.currency || 'EUR');
         return `
           <tr>
             <td>${displayName}</td>
@@ -516,7 +517,7 @@ export default function OffersPage() {
         .replace(/\{\{timeline_installazione\}\}/g, timelineInstallazione || '')
         .replace(/\{\{timeline_collaudo\}\}/g, timelineCollaudo || '')
         .replace(/\{\{sconto\}\}/g, (offer as any).discount || '')
-        .replace(/€/g, getCurrencySymbol((offer as any).currency || 'EUR'));
+        .replace(/€/g, getCurrencySymbol(offer.currency || 'EUR'));
 
       // Create temporary container
       const container = document.createElement('div');
@@ -803,7 +804,7 @@ export default function OffersPage() {
       }
 
       // Send message with document
-      const messageText = `📄 *Offerta ${offer.number}*\n\n${offer.title}\n\nImporto: ${getCurrencySymbol((offer as any).currency || 'EUR')}${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+      const messageText = `📄 *Offerta ${offer.number}*\n\n${offer.title}\n\nImporto: ${getCurrencySymbol(offer.currency || 'EUR')}${offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
       
       const { error: sendError } = await supabase.functions.invoke('wasender-send', {
         body: {
@@ -1209,6 +1210,7 @@ export default function OffersPage() {
           payment_method: offer.payment_method,
           payment_agreement: offer.payment_agreement,
           vat_regime: offer.vat_regime,
+          currency: offer.currency || 'EUR',
           archived: false
         }])
         .select()
@@ -1863,7 +1865,7 @@ export default function OffersPage() {
                                 <SelectContent>
                                   {products.map((product) => (
                                     <SelectItem key={product.id} value={product.id}>
-                                      {product.code} - {product.name} - €{(product.price_from_list || product.base_price)?.toFixed(2) || '0.00'}
+                                      {product.code} - {product.name} - {getCurrencySymbol(newOffer.currency || 'EUR')}{(product.price_from_list || product.base_price)?.toFixed(2) || '0.00'}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1887,7 +1889,7 @@ export default function OffersPage() {
                                 <div className="flex items-center justify-between text-xs">
                                   <span className="text-muted-foreground">{selectedProducts.length} articoli</span>
                                   <span className="font-semibold text-primary">
-                                    Totale: €{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}
+                                    Totale: {getCurrencySymbol(newOffer.currency || 'EUR')}{selectedProducts.reduce((sum, item) => sum + (item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100)), 0).toFixed(2)}
                                   </span>
                                 </div>
                                 {selectedProducts.map((item, index) => (
@@ -1903,7 +1905,7 @@ export default function OffersPage() {
                                         <Input type="number" value={item.quantity} onChange={(e) => { const updated = [...selectedProducts]; updated[index].quantity = parseFloat(e.target.value) || 1; setSelectedProducts(updated); }} min="1" className="h-8 text-sm" />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Prezzo €</label>
+                                        <label className="text-xs text-muted-foreground">Prezzo {getCurrencySymbol(newOffer.currency || 'EUR')}</label>
                                         <Input type="number" value={item.unit_price} onChange={(e) => { const updated = [...selectedProducts]; updated[index].unit_price = parseFloat(e.target.value) || 0; setSelectedProducts(updated); }} min="0" step="0.01" className="h-8 text-sm" />
                                       </div>
                                       <div className="space-y-1">
@@ -2204,7 +2206,7 @@ export default function OffersPage() {
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "text-xs font-semibold" : "text-sm font-semibold"}>{getCurrencySymbol(offer.currency || 'EUR')} {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
                       {offer.template && (
                         <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
                           {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
@@ -2252,7 +2254,7 @@ export default function OffersPage() {
                       <div className={isMobile ? "font-medium text-xs" : "font-medium text-sm"}>{offer.number}</div>
                       <div className="text-xs text-muted-foreground">{offer.customer_name}</div>
                       <div className="text-xs line-clamp-2">{offer.title}</div>
-                      <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>€ {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
+                      <div className={isMobile ? "text-xs font-semibold text-green-700" : "text-sm font-semibold text-green-700"}>{getCurrencySymbol(offer.currency || 'EUR')} {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</div>
                       {offer.template && (
                         <Badge variant="outline" className={`text-xs ${offer.template === 'vesuviano' ? 'border-orange-500 text-orange-700 bg-orange-50' : 'border-blue-500 text-blue-700 bg-blue-50'}`}>
                           {offer.template === 'vesuviano' ? 'Vesuviano' : offer.template === 'zapperpro' ? 'ZapperPro' : 'Zapper'}
@@ -2312,7 +2314,7 @@ export default function OffersPage() {
                       <div className="text-xs line-clamp-2">{offer.title}</div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">
-                          € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                          {getCurrencySymbol(offer.currency || 'EUR')} {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(offer.created_at).toLocaleDateString('it-IT')}
@@ -2383,7 +2385,7 @@ export default function OffersPage() {
                     <TableCell>{offer.customer_name}</TableCell>
                     <TableCell className="max-w-md truncate">{offer.title}</TableCell>
                     <TableCell className="text-right font-medium">
-                      € {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      {getCurrencySymbol(offer.currency || 'EUR')} {offer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
                       {offer.template && (
@@ -2808,7 +2810,7 @@ export default function OffersPage() {
                   <div className="flex justify-between">
                     <span className="font-semibold">Importo Totale:</span>
                     <span className="text-lg font-bold text-primary">
-                      € {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                      {getCurrencySymbol(selectedOffer.currency || 'EUR')} {selectedOffer.amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
