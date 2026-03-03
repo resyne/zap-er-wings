@@ -392,14 +392,15 @@ export default function OffersPage() {
         const discount = item.discount_percent ? (subtotal * item.discount_percent) / 100 : 0;
         const total = subtotal - discount;
         
+        const cs = getCurrencySymbol((offer as any).currency || 'EUR');
         return `
           <tr>
             <td>${displayName}</td>
             <td>${displayDesc || ''}</td>
             <td>${item.quantity}</td>
-            <td>€ ${item.unit_price.toFixed(2)}</td>
+            <td>${cs} ${item.unit_price.toFixed(2)}</td>
             <td>${item.discount_percent || 0}%</td>
-            <td>€ ${total.toFixed(2)}</td>
+            <td>${cs} ${total.toFixed(2)}</td>
           </tr>
         `;
       }).join('');
@@ -514,7 +515,8 @@ export default function OffersPage() {
         .replace(/\{\{timeline_consegna\}\}/g, timelineConsegna || '')
         .replace(/\{\{timeline_installazione\}\}/g, timelineInstallazione || '')
         .replace(/\{\{timeline_collaudo\}\}/g, timelineCollaudo || '')
-        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '');
+        .replace(/\{\{sconto\}\}/g, (offer as any).discount || '')
+        .replace(/€/g, getCurrencySymbol((offer as any).currency || 'EUR'));
 
       // Create temporary container
       const container = document.createElement('div');
