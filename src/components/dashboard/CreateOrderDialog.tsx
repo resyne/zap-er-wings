@@ -971,6 +971,81 @@ export function CreateOrderDialog({ open, onOpenChange, onSuccess, leadId, prefi
         throw new Error(`Errore creazione commessa di spedizione: ${error.message}`);
       }
 
+      // Create unified commessa with phases (for Z-APP)
+      try {
+        const custName = salesOrder.customers?.name || 'Cliente';
+        let commessaType = 'fornitura';
+        const phases: Array<{ phase_type: string; phase_order: number; status: string }> = [];
+        let commTitle = '';
+
+        if (production.enabled && service.enabled) {
+          commessaType = 'fornitura';
+          commTitle = `Fornitura ${articlesString || ''} per ${custName}`.trim();
+          phases.push({ phase_type: 'produzione', phase_order: 1, status: 'da_fare' });
+          phases.push({ phase_type: 'installazione', phase_order: 2, status: 'da_programmare' });
+        } else if (production.enabled) {
+          commessaType = 'fornitura';
+          commTitle = `Fornitura ${articlesString || ''} per ${custName}`.trim();
+          phases.push({ phase_type: 'produzione', phase_order: 1, status: 'da_fare' });
+          if (shipping.enabled) phases.push({ phase_type: 'spedizione', phase_order: 2, status: 'da_preparare' });
+        } else if (service.enabled) {
+          commessaType = 'intervento';
+          commTitle = `Intervento per ${custName}`.trim();
+          phases.push({ phase_type: 'manutenzione', phase_order: 1, status: 'da_programmare' });
+        } else if (shipping.enabled) {
+          commessaType = 'ricambi';
+          commTitle = `Ricambi per ${custName}`.trim();
+          phases.push({ phase_type: 'spedizione', phase_order: 1, status: 'da_preparare' });
+        }
+
+        // Get customer shipping data if needed
+        let custShipData: any = null;
+        if (phases.some(p => p.phase_type === 'spedizione' || p.phase_type === 'installazione')) {
+          const { data } = await supabase
+            .from('customers')
+            .select('city, province, address, shipping_address')
+            .eq('id', newOrder.customer_id)
+            .single();
+          custShipData = data;
+        }
+
+        const { data: commessa, error: commError } = await supabase
+          .from('commesse')
+          .insert([{
+            number: '',
+            sales_order_id: salesOrder.id,
+            customer_id: newOrder.customer_id,
+            title: commTitle,
+            description: articlesString || '',
+            type: commessaType,
+            priority: newOrder.priority === 'high' ? 'high' : newOrder.priority === 'low' ? 'low' : 'medium',
+            status: 'da_fare',
+            article: articlesString || null,
+            notes: newOrder.notes || null,
+            deadline: newOrder.delivery_date || null,
+            shipping_address: custShipData?.shipping_address || custShipData?.address || null,
+            shipping_city: custShipData?.city || null,
+            shipping_province: custShipData?.province || null,
+            is_warranty: false,
+            lead_id: newOrder.lead_id || leadId || null,
+            legacy_work_order_id: productionWO?.id || null,
+            legacy_service_order_id: serviceWO?.id || null,
+            legacy_shipping_order_id: shippingOrder?.id || null,
+          }] as any)
+          .select()
+          .single();
+
+        if (commError) {
+          console.error('Error creating commessa:', commError);
+        } else if (commessa && phases.length > 0) {
+          const phasesData = phases.map(p => ({ ...p, commessa_id: commessa.id }));
+          await supabase.from('commessa_phases').insert(phasesData);
+          console.log('Commessa created:', commessa.number);
+        }
+      } catch (commessaErr) {
+        console.error('Error creating unified commessa:', commessaErr);
+      }
+
       // Archivia l'offerta se è stata utilizzata per creare l'ordine
       if (newOrder.offer_id) {
         await supabase

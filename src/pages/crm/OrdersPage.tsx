@@ -486,7 +486,7 @@ export default function OrdersPage() {
       let serviceWO = null;
       let shippingOrder = null;
 
-      // Create work orders based on type
+      // Create work orders based on type (legacy)
       console.log('Creating work orders for type:', newOrder.order_type);
       switch (newOrder.order_type) {
         case 'odp':
@@ -514,6 +514,85 @@ export default function OrdersPage() {
           shippingOrder = await createShippingOrder(salesOrder.id, salesOrder);
           console.log('Shipping order created:', shippingOrder);
           break;
+      }
+
+      // Create unified commessa with phases (new system for Z-APP)
+      try {
+        const customerName = salesOrder.customers?.name || 'Cliente';
+        const orderType = newOrder.order_type;
+        
+        // Determine commessa type and phases
+        let commessaType = 'fornitura';
+        const phases: Array<{ phase_type: string; phase_order: number; status: string }> = [];
+        let commessaTitle = '';
+        
+        if (orderType === 'odp') {
+          commessaType = 'fornitura';
+          commessaTitle = `Fornitura ${salesOrder.article || ''} per ${customerName}`.trim();
+          phases.push({ phase_type: 'produzione', phase_order: 1, status: 'da_fare' });
+        } else if (orderType === 'odpel') {
+          commessaType = 'fornitura';
+          commessaTitle = `Fornitura ${salesOrder.article || ''} per ${customerName}`.trim();
+          phases.push({ phase_type: 'produzione', phase_order: 1, status: 'da_fare' });
+          phases.push({ phase_type: 'installazione', phase_order: 2, status: 'da_programmare' });
+        } else if (orderType === 'odl') {
+          commessaType = 'intervento';
+          commessaTitle = `Intervento per ${customerName}`.trim();
+          phases.push({ phase_type: 'manutenzione', phase_order: 1, status: 'da_programmare' });
+        } else if (orderType === 'ods') {
+          commessaType = 'ricambi';
+          commessaTitle = `Ricambi per ${customerName}`.trim();
+          phases.push({ phase_type: 'spedizione', phase_order: 1, status: 'da_preparare' });
+        }
+
+        // Get customer shipping data
+        let custShipData: any = null;
+        if (phases.some(p => p.phase_type === 'spedizione' || p.phase_type === 'installazione')) {
+          const { data } = await supabase
+            .from('customers')
+            .select('city, province, address, shipping_address')
+            .eq('id', newOrder.customer_id)
+            .single();
+          custShipData = data;
+        }
+
+        const { data: commessa, error: commError } = await supabase
+          .from('commesse')
+          .insert([{
+            number: '',
+            sales_order_id: salesOrder.id,
+            customer_id: newOrder.customer_id,
+            title: commessaTitle,
+            description: salesOrder.article || '',
+            type: commessaType,
+            priority: newOrder.priority === 'high' ? 'high' : newOrder.priority === 'low' ? 'low' : 'medium',
+            status: 'da_fare',
+            article: salesOrder.article || null,
+            notes: newOrder.notes || null,
+            deadline: newOrder.delivery_date || null,
+            shipping_address: custShipData?.shipping_address || custShipData?.address || null,
+            shipping_city: custShipData?.city || null,
+            shipping_province: custShipData?.province || null,
+            is_warranty: newOrder.order_source === 'warranty',
+            lead_id: location.state?.leadId || null,
+            legacy_work_order_id: productionWO?.id || null,
+            legacy_service_order_id: serviceWO?.id || null,
+            legacy_shipping_order_id: shippingOrder?.id || null,
+          }] as any)
+          .select()
+          .single();
+
+        if (commError) {
+          console.error('Error creating commessa:', commError);
+        } else if (commessa && phases.length > 0) {
+          const phasesData = phases.map(p => ({ ...p, commessa_id: commessa.id }));
+          const { error: phaseError } = await supabase.from('commessa_phases').insert(phasesData);
+          if (phaseError) console.error('Error creating commessa phases:', phaseError);
+          else console.log('Commessa created with phases:', commessa.number);
+        }
+      } catch (commessaErr) {
+        console.error('Error creating unified commessa:', commessaErr);
+        // Non blocchiamo l'ordine se fallisce la creazione commessa
       }
 
       let successMessage = "Ordine creato con successo";
