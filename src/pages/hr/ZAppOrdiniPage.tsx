@@ -178,6 +178,7 @@ export default function ZAppOrdiniPage() {
   const [interventionType, setInterventionType] = useState("");
   const [isWarranty, setIsWarranty] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState("");
+  const [smokeInlet, setSmokeInlet] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
     { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }
   ]);
@@ -232,6 +233,7 @@ export default function ZAppOrdiniPage() {
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
+    setSmokeInlet("");
 
     // Load offer items (products) from offer_items table
     const { data: offerItems } = await supabase
@@ -419,6 +421,7 @@ export default function ZAppOrdiniPage() {
     setInterventionType("");
     setIsWarranty(false);
     setDeliveryMode("");
+    setSmokeInlet("");
     setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
     setSelectedPriority("");
@@ -549,6 +552,7 @@ export default function ZAppOrdiniPage() {
           shipping_province: custData?.province || null,
           is_warranty: isWarranty,
           lead_id: selectedLeadIdForOrder || null,
+          smoke_inlet: (orderTypeCategory === "fornitura" && smokeInlet) ? smokeInlet : null,
         }] as any)
         .select()
         .single();
@@ -1131,6 +1135,36 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
+
+            {/* 4a. Ingresso Fumi (only for fornitura) */}
+            {orderTypeCategory === "fornitura" && selectedCustomer && hasValidItems && (
+              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+                <Label className="font-semibold text-sm">Ingresso Fumi</Label>
+                <p className="text-xs text-muted-foreground">Seleziona il lato dell'ingresso fumi (opzionale)</p>
+                <div className="flex gap-3">
+                  {[
+                    { value: "sx", label: "← SX", desc: "Sinistra" },
+                    { value: "dx", label: "DX →", desc: "Destra" },
+                  ].map(opt => {
+                    const isSelected = smokeInlet === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSmokeInlet(isSelected ? "" : opt.value)}
+                        className={cn(
+                          "flex-1 flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all font-semibold",
+                          isSelected ? "border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500" : "border-border bg-muted/30 text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <span className="text-lg">{opt.label}</span>
+                        <span className="text-xs font-normal text-muted-foreground">{opt.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* 4b. Tipo di intervento (only for intervento) */}
             {needsInterventionType && selectedCustomer && hasValidItems && (
