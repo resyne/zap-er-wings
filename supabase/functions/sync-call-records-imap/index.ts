@@ -194,9 +194,45 @@ async function syncPbxEmails(supabase: any, pbx: any) {
           // Check if record exists
           const { data: existing } = await supabase
             .from('call_records')
-            .select('id')
+            .select('id, duration_seconds')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
+
+          // If record exists but new one has longer duration, update duration and recording
+          if (existing && callData.duration_seconds > (existing.duration_seconds || 0)) {
+            console.log(`Updating existing record ${existing.id}: duration ${existing.duration_seconds} -> ${callData.duration_seconds}`);
+            
+            // Upload new MP3 if present (the longer call has the real recording)
+            let updatedRecordingUrl: string | null = null;
+            if (emailData.mp3Attachment) {
+              const storagePath = `${callData.call_date}/${callData.unique_call_id}_updated.mp3`;
+              const { error: uploadError } = await supabase.storage
+                .from('call-recordings')
+                .upload(storagePath, emailData.mp3Attachment.data, {
+                  contentType: 'audio/mpeg',
+                  upsert: true
+                });
+              if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                  .from('call-recordings')
+                  .getPublicUrl(storagePath);
+                updatedRecordingUrl = urlData?.publicUrl || storagePath;
+              }
+            }
+
+            const updateData: any = {
+              duration_seconds: callData.duration_seconds,
+              call_time: callData.call_time,
+            };
+            if (updatedRecordingUrl) updateData.recording_url = updatedRecordingUrl;
+
+            await supabase
+              .from('call_records')
+              .update(updateData)
+              .eq('id', existing.id);
+            
+            newCallRecords++;
+          }
 
           if (!existing) {
             // Try to match extension to user
@@ -366,9 +402,44 @@ async function syncLegacyConfig(supabase: any, config: any) {
         if (callData) {
           const { data: existing } = await supabase
             .from('call_records')
-            .select('id')
+            .select('id, duration_seconds')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
+
+          // If record exists but new one has longer duration, update it
+          if (existing && callData.duration_seconds > (existing.duration_seconds || 0)) {
+            console.log(`Updating existing record ${existing.id}: duration ${existing.duration_seconds} -> ${callData.duration_seconds}`);
+            
+            let updatedRecordingUrl: string | null = null;
+            if (emailData.mp3Attachment) {
+              const storagePath = `${callData.call_date}/${callData.unique_call_id}_updated.mp3`;
+              const { error: uploadError } = await supabase.storage
+                .from('call-recordings')
+                .upload(storagePath, emailData.mp3Attachment.data, {
+                  contentType: 'audio/mpeg',
+                  upsert: true
+                });
+              if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                  .from('call-recordings')
+                  .getPublicUrl(storagePath);
+                updatedRecordingUrl = urlData?.publicUrl || storagePath;
+              }
+            }
+
+            const updateData: any = {
+              duration_seconds: callData.duration_seconds,
+              call_time: callData.call_time,
+            };
+            if (updatedRecordingUrl) updateData.recording_url = updatedRecordingUrl;
+
+            await supabase
+              .from('call_records')
+              .update(updateData)
+              .eq('id', existing.id);
+            
+            newCallRecords++;
+          }
 
           if (!existing) {
             // Try to find matching lead by phone number
@@ -731,10 +802,21 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
   // If still no match, try to find any numeric ID pattern near the end of the string
   if (!idMatch) {
     // Look for the typical call ID format: digits followed by decimal point and more digits
-    const altMatch = cleanBody.match(/(\d{10,}\.?\d*)/);
+    const altMatch = cleanBody.match(/(\d{10,}\.\d+)/);
     if (altMatch) {
       console.log('Found call ID using fallback pattern:', altMatch[1]);
       idMatch = altMatch;
+    } else {
+      // Last resort: generate a composite ID from caller+called+date+time to avoid collisions
+      const fallbackCaller = callerMatch?.[1]?.trim() || '';
+      const fallbackCalled = calledMatch?.[1]?.trim() || '';
+      const fallbackDate = dateMatch?.[1]?.trim() || '';
+      const fallbackTime = timeMatch?.[1]?.trim() || '';
+      if (fallbackCaller && fallbackDate && fallbackTime) {
+        const compositeId = `${fallbackCaller}-${fallbackCalled}-${fallbackDate}-${fallbackTime}`.replace(/[^a-zA-Z0-9\-]/g, '');
+        console.log('Generated composite fallback call ID:', compositeId);
+        idMatch = [compositeId, compositeId];
+      }
     }
   }
 
