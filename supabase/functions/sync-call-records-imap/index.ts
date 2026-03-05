@@ -192,17 +192,28 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
         if (callData) {
           // Check if record exists
-          const { data: existing } = await supabase
+          let { data: existing } = await supabase
             .from('call_records')
-            .select('id, duration_seconds')
+            .select('id, duration_seconds, recording_url, call_time, unique_call_id')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
 
-          // If record exists but new one has longer duration, update duration and recording
-          if (existing && callData.duration_seconds > (existing.duration_seconds || 0)) {
+          // Secondary match: same call signature even if unique_call_id is corrupted/different
+          if (!existing) {
+            existing = await findExistingCallBySignature(supabase, callData);
+            if (existing) {
+              console.log(`Matched existing record by signature: ${existing.id} (existing ID: ${existing.unique_call_id}, incoming ID: ${callData.unique_call_id})`);
+            }
+          }
+
+          const shouldRefreshRecording = !!existing && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
+            (!existing.recording_url || !existing.recording_url.includes(callData.unique_call_id));
+
+          // If record exists and we have better data, update duration and/or recording
+          if (existing && (callData.duration_seconds > (existing.duration_seconds || 0) || shouldRefreshRecording)) {
             console.log(`Updating existing record ${existing.id}: duration ${existing.duration_seconds} -> ${callData.duration_seconds}`);
             
-            // Upload new MP3 if present (the longer call has the real recording)
+            // Upload newer MP3 if present
             let updatedRecordingUrl: string | null = null;
             if (emailData.mp3Attachment) {
               const storagePath = `${callData.call_date}/${callData.unique_call_id}_updated.mp3`;
@@ -221,15 +232,29 @@ async function syncPbxEmails(supabase: any, pbx: any) {
             }
 
             const updateData: any = {
-              duration_seconds: callData.duration_seconds,
+              duration_seconds: Math.max(callData.duration_seconds, existing.duration_seconds || 0),
               call_time: callData.call_time,
             };
-            if (updatedRecordingUrl) updateData.recording_url = updatedRecordingUrl;
+
+            if (updatedRecordingUrl) {
+              updateData.recording_url = updatedRecordingUrl;
+              // Force re-processing on refreshed audio
+              updateData.transcription = null;
+              updateData.ai_summary = null;
+              updateData.ai_sentiment = null;
+              updateData.ai_actions = [];
+              updateData.ai_processed_at = null;
+            }
 
             await supabase
               .from('call_records')
               .update(updateData)
               .eq('id', existing.id);
+
+            // Retrigger transcription if we uploaded a refreshed recording
+            if (updatedRecordingUrl) {
+              await triggerTranscription(existing.id, updatedRecordingUrl);
+            }
             
             newCallRecords++;
           }
@@ -400,14 +425,25 @@ async function syncLegacyConfig(supabase: any, config: any) {
         const callData = extractCallRecordData(emailData.body);
 
         if (callData) {
-          const { data: existing } = await supabase
+          let { data: existing } = await supabase
             .from('call_records')
-            .select('id, duration_seconds')
+            .select('id, duration_seconds, recording_url, call_time, unique_call_id')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
 
-          // If record exists but new one has longer duration, update it
-          if (existing && callData.duration_seconds > (existing.duration_seconds || 0)) {
+          // Secondary match for corrupted/different IDs
+          if (!existing) {
+            existing = await findExistingCallBySignature(supabase, callData);
+            if (existing) {
+              console.log(`(Legacy) matched existing record by signature: ${existing.id} (existing ID: ${existing.unique_call_id}, incoming ID: ${callData.unique_call_id})`);
+            }
+          }
+
+          const shouldRefreshRecording = !!existing && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
+            (!existing.recording_url || !existing.recording_url.includes(callData.unique_call_id));
+
+          // If record exists and new data is better, update it
+          if (existing && (callData.duration_seconds > (existing.duration_seconds || 0) || shouldRefreshRecording)) {
             console.log(`Updating existing record ${existing.id}: duration ${existing.duration_seconds} -> ${callData.duration_seconds}`);
             
             let updatedRecordingUrl: string | null = null;
@@ -428,15 +464,27 @@ async function syncLegacyConfig(supabase: any, config: any) {
             }
 
             const updateData: any = {
-              duration_seconds: callData.duration_seconds,
+              duration_seconds: Math.max(callData.duration_seconds, existing.duration_seconds || 0),
               call_time: callData.call_time,
             };
-            if (updatedRecordingUrl) updateData.recording_url = updatedRecordingUrl;
+
+            if (updatedRecordingUrl) {
+              updateData.recording_url = updatedRecordingUrl;
+              updateData.transcription = null;
+              updateData.ai_summary = null;
+              updateData.ai_sentiment = null;
+              updateData.ai_actions = [];
+              updateData.ai_processed_at = null;
+            }
 
             await supabase
               .from('call_records')
               .update(updateData)
               .eq('id', existing.id);
+
+            if (updatedRecordingUrl) {
+              await triggerTranscription(existing.id, updatedRecordingUrl);
+            }
             
             newCallRecords++;
           }
@@ -879,6 +927,53 @@ function extractCallRecordData(emailBody: string): CallRecordData | null {
     extension_number: extensionNumber,
     direction: direction
   };
+}
+
+async function findExistingCallBySignature(supabase: any, callData: CallRecordData) {
+  try {
+    let query = supabase
+      .from('call_records')
+      .select('id, duration_seconds, recording_url, call_time, unique_call_id')
+      .eq('call_date', callData.call_date)
+      .eq('caller_number', callData.caller_number)
+      .eq('called_number', callData.called_number)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (callData.direction) {
+      query = query.eq('direction', callData.direction);
+    }
+
+    const { data: candidates, error } = await query;
+    if (error || !candidates || candidates.length === 0) return null;
+
+    const toSeconds = (time: string | null | undefined) => {
+      if (!time) return null;
+      const [h, m, s] = time.split(':').map((v) => Number(v));
+      if ([h, m, s].some((v) => Number.isNaN(v))) return null;
+      return h * 3600 + m * 60 + s;
+    };
+
+    const targetSeconds = toSeconds(callData.call_time);
+    if (targetSeconds === null) return candidates[0];
+
+    const withinWindow = candidates
+      .map((candidate: any) => {
+        const candidateSeconds = toSeconds(candidate.call_time);
+        const delta = candidateSeconds === null ? Number.MAX_SAFE_INTEGER : Math.abs(candidateSeconds - targetSeconds);
+        return { candidate, delta };
+      })
+      .filter((item: any) => item.delta <= 180)
+      .sort((a: any, b: any) => {
+        if (a.delta !== b.delta) return a.delta - b.delta;
+        return (a.candidate.duration_seconds || 0) - (b.candidate.duration_seconds || 0);
+      });
+
+    return withinWindow.length > 0 ? withinWindow[0].candidate : null;
+  } catch (error) {
+    console.error('Error in findExistingCallBySignature:', error);
+    return null;
+  }
 }
 
 // Trigger AI analysis for a new call record
