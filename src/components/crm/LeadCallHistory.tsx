@@ -22,6 +22,7 @@ interface CallRecord {
   ai_sentiment?: string;
   transcription?: string;
   service?: string;
+  updated_at?: string;
 }
 
 interface LeadCallHistoryProps {
@@ -47,7 +48,7 @@ export default function LeadCallHistory({ leadId }: LeadCallHistoryProps) {
         .order('call_time', { ascending: false });
 
       if (error) throw error;
-      setCalls(data || []);
+      setCalls(dedupeCalls(data || []));
     } catch (error) {
       console.error('Error loading call records:', error);
     } finally {
@@ -63,6 +64,43 @@ export default function LeadCallHistory({ leadId }: LeadCallHistoryProps) {
       return `${mins}m ${secs}s`;
     }
     return `${secs}s`;
+  };
+
+  const hasValidTranscription = (transcription?: string) => {
+    if (!transcription) return false;
+    const normalized = transcription.trim().toLowerCase();
+    return normalized.length > 0 && !normalized.includes('sottotitoli creati dalla comunità amara.org');
+  };
+
+  const dedupeCalls = (records: CallRecord[]) => {
+    const bestByKey = new Map<string, CallRecord>();
+
+    for (const call of records) {
+      const dedupeKey = `${call.call_date}|${call.call_time}|${call.direction}|${call.caller_number}|${call.called_number}`;
+      const existing = bestByKey.get(dedupeKey);
+
+      if (!existing) {
+        bestByKey.set(dedupeKey, call);
+        continue;
+      }
+
+      const currentScore = (hasValidTranscription(call.transcription) ? 100000 : 0) + (call.duration_seconds || 0);
+      const existingScore = (hasValidTranscription(existing.transcription) ? 100000 : 0) + (existing.duration_seconds || 0);
+
+      const shouldReplace =
+        currentScore > existingScore ||
+        (currentScore === existingScore && !!call.updated_at && !!existing.updated_at && new Date(call.updated_at) > new Date(existing.updated_at));
+
+      if (shouldReplace) {
+        bestByKey.set(dedupeKey, call);
+      }
+    }
+
+    return Array.from(bestByKey.values()).sort((a, b) => {
+      const aDateTime = new Date(`${a.call_date}T${a.call_time}`).getTime();
+      const bDateTime = new Date(`${b.call_date}T${b.call_time}`).getTime();
+      return bDateTime - aDateTime;
+    });
   };
 
   const getSentimentColor = (sentiment?: string) => {
