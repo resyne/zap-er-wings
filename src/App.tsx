@@ -128,6 +128,7 @@ const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"
 const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
 const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
 const ZAppTimbraturaPage = lazy(() => import("./pages/hr/ZAppTimbraturaPage"));
+const ZAppRiepilogoTimbraturePage = lazy(() => import("./pages/hr/ZAppRiepilogoTimbraturePage"));
 const AttendanceDashboardPage = lazy(() => import("./pages/hr/attendance/AttendanceDashboardPage"));
 const ShiftsPage = lazy(() => import("./pages/hr/attendance/ShiftsPage"));
 const AttendancePresenzePage = lazy(() => import("./pages/hr/attendance/AttendancePresenzePage"));
@@ -266,6 +267,7 @@ const App = () => (
                 <Route path="hr/z-app/impostazioni" element={<Suspense fallback={<PageLoader />}><ZAppImpostazioniPage /></Suspense>} />
                 <Route path="hr/z-app/whatsapp" element={<Suspense fallback={<PageLoader />}><ZAppWhatsAppPage /></Suspense>} />
                 <Route path="hr/z-app/timbratura" element={<Suspense fallback={<PageLoader />}><ZAppTimbraturaPage /></Suspense>} />
+                <Route path="hr/z-app/riepilogo-timbrature" element={<Suspense fallback={<PageLoader />}><ZAppRiepilogoTimbraturePage /></Suspense>} />
                 <Route path="hr/time-attendance" element={<Suspense fallback={<PageLoader />}><AttendanceDashboardPage /></Suspense>} />
                 <Route path="hr/time-attendance/shifts" element={<Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>} />
                 <Route path="hr/time-attendance/presenze" element={<Suspense fallback={<PageLoader />}><AttendancePresenzePage /></Suspense>} />
