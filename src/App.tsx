@@ -1,5 +1,6 @@
 
 // Route configuration and imports
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,124 +11,140 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PresenceTracker } from "@/components/auth/PresenceTracker";
 import { AppLayout } from "./components/layout/app-layout";
+
+// Public routes - loaded eagerly since they're entry points
 import AuthPage from "./pages/auth/AuthPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { DirectionalDashboardPage } from "./pages/dashboard/DirectionalDashboardPage";
-import PeoplePage from "./pages/hr/PeoplePage";
-import SafetyPage from "./pages/hr/SafetyPage";
-import CallRecordsPage from "./pages/crm/CallRecordsPage";
-import PhoneExtensionsPage from "./pages/crm/PhoneExtensionsPage";
-import WhatsAppPage from "./pages/crm/WhatsAppPage";
-import WaSenderPage from "./pages/crm/WaSenderPage";
-import TechniciansPage from "./pages/hr/TechniciansPage";
-import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
-import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import BomPage from "./pages/production/BomPage";
-import ProductionOrdersPage from "./pages/production/ProductionOrdersPage";
-import ExecutionsPage from "./pages/production/ExecutionsPage";
-import SerialsPage from "./pages/production/SerialsPage";
-import RmaPage from "./pages/production/RmaPage";
-import CertificationsPage from "./pages/production/CertificationsPage";
-import ProductionProjectsPage from "./pages/production/ProductionProjectsPage";
-import LeadsPage from "./pages/crm/LeadsPage";
-import LeadKpiPage from "./pages/crm/LeadKpiPage";
-import EmailMarketingPage from "./pages/marketing/EmailMarketingPage";
-import CampaignsPage from "./pages/marketing/CampaignsPage";
-import MarketingAutomationPage from "./pages/marketing/MarketingAutomationPage";
-import OrdersPage from "./pages/crm/OrdersPage";
-import CommesseUnificatePage from "./pages/direzione/CommesseUnificatePage";
-import CustomersPage from "./pages/crm/CustomersPage";
-import OffersPage from "./pages/crm/OffersPage";
-import ProductCatalogPage from "./pages/crm/ProductCatalogPage";
-import ProductConfiguratorPage from "./pages/crm/ProductConfiguratorPage";
-import PublicConfiguratorPage from "./pages/PublicConfiguratorPage";
-import SupplierPortalPage from "./pages/procurement/SupplierPortalPage";
-import StockPage from "./pages/warehouse/StockPage";
-import MovementsPage from "./pages/warehouse/MovementsPage";
-
-import InventoryPage from "./pages/warehouse/InventoryPage";
-import DdtPage from "./pages/warehouse/DdtPage";
-import SuppliersPage from "./pages/procurement/SuppliersPage";
-import RfqPage from "./pages/procurement/RfqPage";
-import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
-import ReceiptsPage from "./pages/procurement/ReceiptsPage";
-import QualityControlPage from "./pages/procurement/QualityControlPage";
-import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
-import ImportersPage from "./pages/partnerships/ImportersPage";
-import InstallersPage from "./pages/partnerships/InstallersPage";
-import ResellersPage from "./pages/partnerships/ResellersPage";
-import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
-import InvoicesPage from "./pages/finance/InvoicesPage";
-import ManagementControlPage from "./pages/management-control/ManagementControlPage";
-import SetupPage from "./pages/management-control/SetupPage";
-import ProjectsPage from "./pages/management-control/ProjectsPage";
-import BudgetPage from "./pages/management-control/BudgetPage";
-import MovementsPageMC from "./pages/management-control/MovementsPage";
-import CreditsDebtsPage from "./pages/management-control/CreditsDebtsPage";
-import RegistroPage from "./pages/management-control-2/RegistroPage";
-import MovimentiFinanziariPage from "./pages/management-control-2/MovimentiFinanziariPage";
-
-import ChartOfAccountsPage from "./pages/management-control-2/ChartOfAccountsPage";
-import CostCentersPage from "./pages/management-control-2/CostCentersPage";
-import PrimaNotaPageMC2 from "./pages/management-control-2/PrimaNotaPage";
-import AccountingEnginePage from "./pages/management-control-2/AccountingEnginePage";
-import ScadenziarioPage from "./pages/management-control-2/ScadenziarioPage";
-import MastrinoPage from "./pages/management-control-2/MastrinoPage";
-
-import RegistroContabilePage from "./pages/management-control-2/RegistroContabilePage";
-import SetupContabilePage from "./pages/management-control-2/SetupContabilePage";
-import FluidaPage from "./pages/hr/FluidaPage";
-import DocumentationPage from "./pages/documentation/DocumentationPage";
-import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
-import BlastChillersPage from "./pages/documentation/BlastChillersPage";
-import OvensPage from "./pages/documentation/OvensPage";
-import CompliancePage from "./pages/documentation/CompliancePage";
-import ManualsPage from "./pages/documentation/ManualsPage";
-import PriceListsPage from "./pages/documentation/PriceListsPage";
-import { SettingsPage } from "./pages/settings/SettingsPage";
-import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
-import RiepilogoOperativoPage from "./pages/direzione/RiepilogoOperativoPage";
-import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
-
-import SupportPage from "./pages/support/SupportPage";
-import ServiceReportsPage from "./pages/support/ServiceReportsPage";
-import ServiceOrdersPage from "./pages/support/ServiceOrdersPage";
-import ServiceReportSettingsPage from "./pages/support/ServiceReportSettingsPage";
-import TicketsPage from "./pages/support/TicketsPage";
-import CostEstimatorPage from "./pages/crm/CostEstimatorPage";
-import MaterialsPage from "./pages/warehouse/MaterialsPage";
-import ShippingCommissionsPage from "./pages/warehouse/ShippingCommissionsPage";
-import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
-import EmailPage from "./pages/communication/EmailPage";
-import ArchivePage from "./pages/marketing/ArchivePage";
-import BrandkitPage from "./pages/marketing/BrandkitPage";
-import BrandAssetManager from "./pages/marketing/BrandAssetManager";
-import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
-import IntegrationsPage from "./pages/integrations/IntegrationsPage";
-import { TasksPage } from "./pages/tasks/TasksPage";
-import ContentCreationPage from "./pages/marketing/ContentCreationPage";
-import CompetitorAnalysisPage from "./pages/marketing/CompetitorAnalysisPage";
-import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
-import TaskKpiPage from "./pages/direzione/TaskKpiPage";
-import ZAppPage from "./pages/hr/ZAppPage";
-import ZAppServiceReportsPage from "./pages/hr/ZAppServiceReportsPage";
-import ZAppNewServiceReportPage from "./pages/hr/ZAppNewServiceReportPage";
-import ZAppRegistroPage from "./pages/hr/ZAppRegistroPage";
-import ZAppMagazzino from "./pages/hr/ZAppMagazzino";
-import ZAppCommesse from "./pages/hr/ZAppCommesse";
-import ZAppCalendarioPage from "./pages/hr/ZAppCalendarioPage";
-import ZAppComunicazioniPage from "./pages/hr/ZAppComunicazioniPage";
-import ZAppOrdiniPage from "./pages/hr/ZAppOrdiniPage";
-import ZAppOrdiniFornitoriPage from "./pages/hr/ZAppOrdiniFornitoriPage";
-import ZAppImpostazioniPage from "./pages/hr/ZAppImpostazioniPage";
-import ZAppWhatsAppPage from "./pages/hr/ZAppWhatsAppPage";
-import StrategyPage from "./pages/direzione/StrategyPage";
+import NotFound from "./pages/NotFound";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
+import PublicConfiguratorPage from "./pages/PublicConfiguratorPage";
+import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
+import SupplierPortalPage from "./pages/procurement/SupplierPortalPage";
+import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
 
-const queryClient = new QueryClient();
+// Lazy-loaded pages - only loaded when navigated to
+const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const DirectionalDashboardPage = lazy(() => import("./pages/dashboard/DirectionalDashboardPage").then(m => ({ default: m.DirectionalDashboardPage })));
+const PeoplePage = lazy(() => import("./pages/hr/PeoplePage"));
+const SafetyPage = lazy(() => import("./pages/hr/SafetyPage"));
+const CallRecordsPage = lazy(() => import("./pages/crm/CallRecordsPage"));
+const PhoneExtensionsPage = lazy(() => import("./pages/crm/PhoneExtensionsPage"));
+const WhatsAppPage = lazy(() => import("./pages/crm/WhatsAppPage"));
+const WaSenderPage = lazy(() => import("./pages/crm/WaSenderPage"));
+const TechniciansPage = lazy(() => import("./pages/hr/TechniciansPage"));
+const TechniciansPageDebug = lazy(() => import("./pages/hr/TechniciansPageDebug"));
+const BomPage = lazy(() => import("./pages/production/BomPage"));
+const ProductionOrdersPage = lazy(() => import("./pages/production/ProductionOrdersPage"));
+const ExecutionsPage = lazy(() => import("./pages/production/ExecutionsPage"));
+const SerialsPage = lazy(() => import("./pages/production/SerialsPage"));
+const RmaPage = lazy(() => import("./pages/production/RmaPage"));
+const CertificationsPage = lazy(() => import("./pages/production/CertificationsPage"));
+const ProductionProjectsPage = lazy(() => import("./pages/production/ProductionProjectsPage"));
+const LeadsPage = lazy(() => import("./pages/crm/LeadsPage"));
+const LeadKpiPage = lazy(() => import("./pages/crm/LeadKpiPage"));
+const EmailMarketingPage = lazy(() => import("./pages/marketing/EmailMarketingPage"));
+const CampaignsPage = lazy(() => import("./pages/marketing/CampaignsPage"));
+const MarketingAutomationPage = lazy(() => import("./pages/marketing/MarketingAutomationPage"));
+const OrdersPage = lazy(() => import("./pages/crm/OrdersPage"));
+const CommesseUnificatePage = lazy(() => import("./pages/direzione/CommesseUnificatePage"));
+const CustomersPage = lazy(() => import("./pages/crm/CustomersPage"));
+const OffersPage = lazy(() => import("./pages/crm/OffersPage"));
+const ProductCatalogPage = lazy(() => import("./pages/crm/ProductCatalogPage"));
+const ProductConfiguratorPage = lazy(() => import("./pages/crm/ProductConfiguratorPage"));
+const StockPage = lazy(() => import("./pages/warehouse/StockPage"));
+const MovementsPage = lazy(() => import("./pages/warehouse/MovementsPage"));
+const InventoryPage = lazy(() => import("./pages/warehouse/InventoryPage"));
+const DdtPage = lazy(() => import("./pages/warehouse/DdtPage"));
+const SuppliersPage = lazy(() => import("./pages/procurement/SuppliersPage"));
+const RfqPage = lazy(() => import("./pages/procurement/RfqPage"));
+const PurchaseOrdersPage = lazy(() => import("./pages/procurement/PurchaseOrdersPage"));
+const ReceiptsPage = lazy(() => import("./pages/procurement/ReceiptsPage"));
+const QualityControlPage = lazy(() => import("./pages/procurement/QualityControlPage"));
+const ReplenishmentPage = lazy(() => import("./pages/procurement/ReplenishmentPage"));
+const ImportersPage = lazy(() => import("./pages/partnerships/ImportersPage"));
+const InstallersPage = lazy(() => import("./pages/partnerships/InstallersPage"));
+const ResellersPage = lazy(() => import("./pages/partnerships/ResellersPage"));
+const PrimaNotaPage = lazy(() => import("./pages/finance/PrimaNotaPage"));
+const InvoicesPage = lazy(() => import("./pages/finance/InvoicesPage"));
+const ManagementControlPage = lazy(() => import("./pages/management-control/ManagementControlPage"));
+const SetupPage = lazy(() => import("./pages/management-control/SetupPage"));
+const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"));
+const BudgetPage = lazy(() => import("./pages/management-control/BudgetPage"));
+const MovementsPageMC = lazy(() => import("./pages/management-control/MovementsPage"));
+const CreditsDebtsPage = lazy(() => import("./pages/management-control/CreditsDebtsPage"));
+const RegistroPage = lazy(() => import("./pages/management-control-2/RegistroPage"));
+const MovimentiFinanziariPage = lazy(() => import("./pages/management-control-2/MovimentiFinanziariPage"));
+const ChartOfAccountsPage = lazy(() => import("./pages/management-control-2/ChartOfAccountsPage"));
+const CostCentersPage = lazy(() => import("./pages/management-control-2/CostCentersPage"));
+const PrimaNotaPageMC2 = lazy(() => import("./pages/management-control-2/PrimaNotaPage"));
+const AccountingEnginePage = lazy(() => import("./pages/management-control-2/AccountingEnginePage"));
+const ScadenziarioPage = lazy(() => import("./pages/management-control-2/ScadenziarioPage"));
+const MastrinoPage = lazy(() => import("./pages/management-control-2/MastrinoPage"));
+const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
+const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
+const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
+const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
+const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
+const BlastChillersPage = lazy(() => import("./pages/documentation/BlastChillersPage"));
+const OvensPage = lazy(() => import("./pages/documentation/OvensPage"));
+const CompliancePage = lazy(() => import("./pages/documentation/CompliancePage"));
+const ManualsPage = lazy(() => import("./pages/documentation/ManualsPage"));
+const PriceListsPage = lazy(() => import("./pages/documentation/PriceListsPage"));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const CalendarioAziendale = lazy(() => import("./pages/direzione/CalendarioAziendaleNew"));
+const RiepilogoOperativoPage = lazy(() => import("./pages/direzione/RiepilogoOperativoPage"));
+const SupportPage = lazy(() => import("./pages/support/SupportPage"));
+const ServiceReportsPage = lazy(() => import("./pages/support/ServiceReportsPage"));
+const ServiceOrdersPage = lazy(() => import("./pages/support/ServiceOrdersPage"));
+const ServiceReportSettingsPage = lazy(() => import("./pages/support/ServiceReportSettingsPage"));
+const TicketsPage = lazy(() => import("./pages/support/TicketsPage"));
+const CostEstimatorPage = lazy(() => import("./pages/crm/CostEstimatorPage"));
+const MaterialsPage = lazy(() => import("./pages/warehouse/MaterialsPage"));
+const ShippingCommissionsPage = lazy(() => import("./pages/warehouse/ShippingCommissionsPage"));
+const EmailPage = lazy(() => import("./pages/communication/EmailPage"));
+const ArchivePage = lazy(() => import("./pages/marketing/ArchivePage"));
+const BrandkitPage = lazy(() => import("./pages/marketing/BrandkitPage"));
+const BrandAssetManager = lazy(() => import("./pages/marketing/BrandAssetManager"));
+const TicketRestaurantPage = lazy(() => import("./pages/hr/TicketRestaurantPage"));
+const IntegrationsPage = lazy(() => import("./pages/integrations/IntegrationsPage"));
+const TasksPage = lazy(() => import("./pages/tasks/TasksPage").then(m => ({ default: m.TasksPage })));
+const ContentCreationPage = lazy(() => import("./pages/marketing/ContentCreationPage"));
+const CompetitorAnalysisPage = lazy(() => import("./pages/marketing/CompetitorAnalysisPage"));
+const CalendarioPersonale = lazy(() => import("./pages/personal-area/CalendarioPersonale"));
+const TaskKpiPage = lazy(() => import("./pages/direzione/TaskKpiPage"));
+const ZAppPage = lazy(() => import("./pages/hr/ZAppPage"));
+const ZAppServiceReportsPage = lazy(() => import("./pages/hr/ZAppServiceReportsPage"));
+const ZAppNewServiceReportPage = lazy(() => import("./pages/hr/ZAppNewServiceReportPage"));
+const ZAppRegistroPage = lazy(() => import("./pages/hr/ZAppRegistroPage"));
+const ZAppMagazzino = lazy(() => import("./pages/hr/ZAppMagazzino"));
+const ZAppCommesse = lazy(() => import("./pages/hr/ZAppCommesse"));
+const ZAppCalendarioPage = lazy(() => import("./pages/hr/ZAppCalendarioPage"));
+const ZAppComunicazioniPage = lazy(() => import("./pages/hr/ZAppComunicazioniPage"));
+const ZAppOrdiniPage = lazy(() => import("./pages/hr/ZAppOrdiniPage"));
+const ZAppOrdiniFornitoriPage = lazy(() => import("./pages/hr/ZAppOrdiniFornitoriPage"));
+const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"));
+const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
+const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
+
+// Loading fallback for lazy routes
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // 30s - riduce refetch inutili
+      gcTime: 5 * 60_000, // 5min - mantiene cache più a lungo
+      retry: 1, // Solo 1 retry per query fallite
+      refetchOnWindowFocus: false, // Evita refetch al cambio tab
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
