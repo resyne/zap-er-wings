@@ -9,7 +9,8 @@ import {
   Smartphone,
   ShoppingCart,
   Settings,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
