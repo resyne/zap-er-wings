@@ -34,7 +34,15 @@ export function usePageVisibility(userId?: string) {
     }
   }, [userId]);
 
-  const updatePageVisibility = useCallback(async (pageUrl: string, isVisible: boolean) => {
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    fetchPageVisibility();
+  }, [userId, fetchPageVisibility]);
+
+
     if (!userId) return;
 
     try {
