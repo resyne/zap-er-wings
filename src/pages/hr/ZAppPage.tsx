@@ -9,13 +9,21 @@ import {
   Smartphone,
   ShoppingCart,
   Settings,
-  MessageSquare
+  MessageSquare,
+  Clock
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 
 const sections = [
+  {
+    title: "Timbratura",
+    description: "Clock In/Out con GPS e geofencing",
+    icon: Clock,
+    color: "bg-indigo-600",
+    url: "/hr/z-app/timbratura",
+  },
   {
     title: "Rapporto Intervento",
     description: "Compila e consulta i rapporti di intervento",

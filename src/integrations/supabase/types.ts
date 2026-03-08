@@ -459,6 +459,160 @@ export type Database = {
           },
         ]
       }
+      attendance_anomalies: {
+        Row: {
+          anomaly_type: string
+          clock_event_id: string | null
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          id: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+        }
+        Insert: {
+          anomaly_type: string
+          clock_event_id?: string | null
+          created_at?: string
+          date: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Update: {
+          anomaly_type?: string
+          clock_event_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_anomalies_clock_event_id_fkey"
+            columns: ["clock_event_id"]
+            isOneToOne: false
+            referencedRelation: "clock_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_corrections: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          event_type: string
+          id: string
+          old_value: string | null
+          original_event_id: string | null
+          reason: string
+          requested_value: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          event_type: string
+          id?: string
+          old_value?: string | null
+          original_event_id?: string | null
+          reason: string
+          requested_value: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          event_type?: string
+          id?: string
+          old_value?: string | null
+          original_event_id?: string | null
+          reason?: string
+          requested_value?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_corrections_original_event_id_fkey"
+            columns: ["original_event_id"]
+            isOneToOne: false
+            referencedRelation: "clock_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_days: {
+        Row: {
+          break_minutes: number | null
+          created_at: string
+          date: string
+          early_exit_minutes: number | null
+          employee_id: string
+          first_clock_in: string | null
+          id: string
+          last_clock_out: string | null
+          late_minutes: number | null
+          notes: string | null
+          overtime_minutes: number | null
+          status: string
+          total_work_minutes: number | null
+          updated_at: string
+        }
+        Insert: {
+          break_minutes?: number | null
+          created_at?: string
+          date: string
+          early_exit_minutes?: number | null
+          employee_id: string
+          first_clock_in?: string | null
+          id?: string
+          last_clock_out?: string | null
+          late_minutes?: number | null
+          notes?: string | null
+          overtime_minutes?: number | null
+          status?: string
+          total_work_minutes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          break_minutes?: number | null
+          created_at?: string
+          date?: string
+          early_exit_minutes?: number | null
+          employee_id?: string
+          first_clock_in?: string | null
+          id?: string
+          last_clock_out?: string | null
+          late_minutes?: number | null
+          notes?: string | null
+          overtime_minutes?: number | null
+          status?: string
+          total_work_minutes?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -712,6 +866,39 @@ export type Database = {
           id?: string
           mime_type?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      break_records: {
+        Row: {
+          break_end: string | null
+          break_start: string
+          break_type: string
+          created_at: string
+          date: string
+          duration_minutes: number | null
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          break_end?: string | null
+          break_start: string
+          break_type?: string
+          created_at?: string
+          date: string
+          duration_minutes?: number | null
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          break_end?: string | null
+          break_start?: string
+          break_type?: string
+          created_at?: string
+          date?: string
+          duration_minutes?: number | null
+          employee_id?: string
+          id?: string
         }
         Relationships: []
       }
@@ -999,6 +1186,68 @@ export type Database = {
           visibility?: string | null
         }
         Relationships: []
+      }
+      clock_events: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          distance_from_workplace: number | null
+          employee_id: string
+          event_type: string
+          geofence_id: string | null
+          gps_accuracy: number | null
+          gps_lat: number | null
+          gps_long: number | null
+          id: string
+          ip_address: string | null
+          note: string | null
+          photo_url: string | null
+          status: string
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          distance_from_workplace?: number | null
+          employee_id: string
+          event_type: string
+          geofence_id?: string | null
+          gps_accuracy?: number | null
+          gps_lat?: number | null
+          gps_long?: number | null
+          id?: string
+          ip_address?: string | null
+          note?: string | null
+          photo_url?: string | null
+          status?: string
+          timestamp?: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          distance_from_workplace?: number | null
+          employee_id?: string
+          event_type?: string
+          geofence_id?: string | null
+          gps_accuracy?: number | null
+          gps_lat?: number | null
+          gps_long?: number | null
+          id?: string
+          ip_address?: string | null
+          note?: string | null
+          photo_url?: string | null
+          status?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clock_events_geofence_id_fkey"
+            columns: ["geofence_id"]
+            isOneToOne: false
+            referencedRelation: "geofences"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commessa_communications: {
         Row: {
@@ -3064,6 +3313,41 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_shifts: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          shift_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          shift_id: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          shift_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_shifts_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executions: {
         Row: {
           created_at: string
@@ -3217,6 +3501,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      geofences: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          latitude: number
+          location_type: string
+          longitude: number
+          name: string
+          radius_meters: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          latitude: number
+          location_type?: string
+          longitude: number
+          name: string
+          radius_meters?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number
+          location_type?: string
+          longitude?: number
+          name?: string
+          radius_meters?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       gl_entry: {
         Row: {
@@ -3529,6 +3852,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_attendance_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
       }
       hr_employees: {
         Row: {
@@ -4885,6 +5232,48 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          notes: string | null
+          reason: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          notes?: string | null
+          reason?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          notes?: string | null
+          reason?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ledger_entries: {
         Row: {
           amount: number
@@ -6222,6 +6611,45 @@ export type Database = {
           sizes_available?: number[] | null
           updated_at?: string | null
           video_urls?: string[] | null
+        }
+        Relationships: []
+      }
+      overtime_records: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          minutes: number
+          notes: string | null
+          overtime_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          id?: string
+          minutes?: number
+          notes?: string | null
+          overtime_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          minutes?: number
+          notes?: string | null
+          overtime_type?: string
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -9393,6 +9821,48 @@ export type Database = {
           },
         ]
       }
+      shifts: {
+        Row: {
+          break_duration_minutes: number
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          is_night_shift: boolean
+          name: string
+          start_time: string
+          tolerance_early_minutes: number
+          tolerance_late_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          break_duration_minutes?: number
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          is_night_shift?: boolean
+          name: string
+          start_time: string
+          tolerance_early_minutes?: number
+          tolerance_late_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          break_duration_minutes?: number
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          is_night_shift?: boolean
+          name?: string
+          start_time?: string
+          tolerance_early_minutes?: number
+          tolerance_late_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipping_order_comments: {
         Row: {
           content: string
@@ -10795,6 +11265,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      travel_records: {
+        Row: {
+          approved_by: string | null
+          client_name: string | null
+          created_at: string
+          dest_lat: number | null
+          dest_long: number | null
+          destination: string | null
+          distance_km: number | null
+          employee_id: string
+          end_time: string | null
+          id: string
+          notes: string | null
+          purpose: string | null
+          start_lat: number | null
+          start_location: string | null
+          start_long: number | null
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          client_name?: string | null
+          created_at?: string
+          dest_lat?: number | null
+          dest_long?: number | null
+          destination?: string | null
+          distance_km?: number | null
+          employee_id: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          start_lat?: number | null
+          start_location?: string | null
+          start_long?: number | null
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          client_name?: string | null
+          created_at?: string
+          dest_lat?: number | null
+          dest_long?: number | null
+          destination?: string | null
+          distance_km?: number | null
+          employee_id?: string
+          end_time?: string | null
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          start_lat?: number | null
+          start_location?: string | null
+          start_long?: number | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_email_configs: {
         Row: {

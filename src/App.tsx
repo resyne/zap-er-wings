@@ -127,6 +127,18 @@ const ZAppOrdiniFornitoriPage = lazy(() => import("./pages/hr/ZAppOrdiniFornitor
 const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"));
 const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
 const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
+const ZAppTimbraturaPage = lazy(() => import("./pages/hr/ZAppTimbraturaPage"));
+const AttendanceDashboardPage = lazy(() => import("./pages/hr/attendance/AttendanceDashboardPage"));
+const ShiftsPage = lazy(() => import("./pages/hr/attendance/ShiftsPage"));
+const AttendancePresenzePage = lazy(() => import("./pages/hr/attendance/AttendancePresenzePage"));
+const OvertimePage = lazy(() => import("./pages/hr/attendance/OvertimePage"));
+const TravelPage = lazy(() => import("./pages/hr/attendance/TravelPage"));
+const AnomaliesPage = lazy(() => import("./pages/hr/attendance/AnomaliesPage"));
+const AttendanceReportsPage = lazy(() => import("./pages/hr/attendance/AttendanceReportsPage"));
+const GeofencesPage = lazy(() => import("./pages/hr/attendance/GeofencesPage"));
+const AttendanceSettingsPage = lazy(() => import("./pages/hr/attendance/AttendanceSettingsPage"));
+const LeavesPage = lazy(() => import("./pages/hr/attendance/LeavesPage"));
+const CorrectionsPage = lazy(() => import("./pages/hr/attendance/CorrectionsPage"));
 
 // Loading fallback for lazy routes
 const PageLoader = () => (
@@ -253,6 +265,18 @@ const App = () => (
                 <Route path="hr/z-app/ordini-fornitori" element={<Suspense fallback={<PageLoader />}><ZAppOrdiniFornitoriPage /></Suspense>} />
                 <Route path="hr/z-app/impostazioni" element={<Suspense fallback={<PageLoader />}><ZAppImpostazioniPage /></Suspense>} />
                 <Route path="hr/z-app/whatsapp" element={<Suspense fallback={<PageLoader />}><ZAppWhatsAppPage /></Suspense>} />
+                <Route path="hr/z-app/timbratura" element={<Suspense fallback={<PageLoader />}><ZAppTimbraturaPage /></Suspense>} />
+                <Route path="hr/time-attendance" element={<Suspense fallback={<PageLoader />}><AttendanceDashboardPage /></Suspense>} />
+                <Route path="hr/time-attendance/shifts" element={<Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>} />
+                <Route path="hr/time-attendance/presenze" element={<Suspense fallback={<PageLoader />}><AttendancePresenzePage /></Suspense>} />
+                <Route path="hr/time-attendance/overtime" element={<Suspense fallback={<PageLoader />}><OvertimePage /></Suspense>} />
+                <Route path="hr/time-attendance/travel" element={<Suspense fallback={<PageLoader />}><TravelPage /></Suspense>} />
+                <Route path="hr/time-attendance/anomalies" element={<Suspense fallback={<PageLoader />}><AnomaliesPage /></Suspense>} />
+                <Route path="hr/time-attendance/reports" element={<Suspense fallback={<PageLoader />}><AttendanceReportsPage /></Suspense>} />
+                <Route path="hr/time-attendance/geofences" element={<Suspense fallback={<PageLoader />}><GeofencesPage /></Suspense>} />
+                <Route path="hr/time-attendance/settings" element={<Suspense fallback={<PageLoader />}><AttendanceSettingsPage /></Suspense>} />
+                <Route path="hr/time-attendance/leaves" element={<Suspense fallback={<PageLoader />}><LeavesPage /></Suspense>} />
+                <Route path="hr/time-attendance/corrections" element={<Suspense fallback={<PageLoader />}><CorrectionsPage /></Suspense>} />
                 <Route path="docs" element={<Suspense fallback={<PageLoader />}><DocumentationPage /></Suspense>} />
                 <Route path="docs/technical-sheets" element={<Suspense fallback={<PageLoader />}><TechnicalSheetsPage /></Suspense>} />
                 <Route path="docs/technical-sheets/blast-chillers" element={<Suspense fallback={<PageLoader />}><BlastChillersPage /></Suspense>} />
