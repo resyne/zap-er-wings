@@ -284,8 +284,16 @@ export function AppSidebar() {
       .map(group => group.title)
   );
 
+  const [openSubGroups, setOpenSubGroups] = useState<string[]>(
+    navigationGroups.flatMap(g => g.items.filter(i => i.children && i.children.some(c => currentPath.startsWith(c.url))).map(i => i.url))
+  );
+
   // Debug: sempre mostra il testo su mobile, logica normale su desktop
   const showText = isMobile ? true : !collapsed;
+
+  const toggleSubGroup = (url: string) => {
+    setOpenSubGroups(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
+  };
   
   console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state, openGroups });
 
