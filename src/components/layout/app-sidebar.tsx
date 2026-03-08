@@ -68,7 +68,6 @@ interface NavItem {
   icon: React.ComponentType<any>;
   badge?: string;
   external?: boolean;
-  children?: NavItem[];
 }
 
 interface NavGroup {
