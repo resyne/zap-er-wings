@@ -7,6 +7,7 @@ import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { Smartphone } from "lucide-react";
 
 const zAppPages = [
+  { title: "Riepilogo Timbrature", url: "/hr/z-app/riepilogo-timbrature" },
   { title: "Rapporto Intervento", url: "/hr/z-app/rapporti" },
   { title: "Registro Incasso/Spese", url: "/hr/z-app/registro" },
   { title: "Magazzino", url: "/hr/z-app/magazzino" },
