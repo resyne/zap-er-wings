@@ -343,46 +343,7 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {visibleItems.map((item) => (
-                          <React.Fragment key={item.url}>
-                          {item.children ? (
-                            // Item with sub-menu
-                            <>
-                              <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                  <button
-                                    onClick={() => toggleSubGroup(item.url)}
-                                    className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1 w-full"
-                                  >
-                                    <item.icon className="h-4 w-4 text-gray-500" />
-                                    <span className="text-sm font-normal">{item.title}</span>
-                                    {openSubGroups.includes(item.url) ? 
-                                      <ChevronDown className="ml-auto h-3 w-3 text-gray-400" /> : 
-                                      <ChevronRight className="ml-auto h-3 w-3 text-gray-400" />
-                                    }
-                                  </button>
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                              {openSubGroups.includes(item.url) && item.children.map((child) => (
-                                <SidebarMenuItem key={child.url}>
-                                  <SidebarMenuButton asChild>
-                                    <NavLink
-                                      to={child.url}
-                                      className={({ isActive: linkIsActive }) => {
-                                        const active = linkIsActive || isActive(child.url);
-                                        return active 
-                                          ? "flex items-center gap-3 pl-8 pr-3 py-2 bg-blue-50 text-blue-700 border-l-2 border-blue-500 rounded-r-md mx-1 font-medium" 
-                                          : "flex items-center gap-3 pl-8 pr-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1";
-                                      }}
-                                    >
-                                      <child.icon className={isActive(child.url) ? "h-4 w-4 text-blue-600" : "h-4 w-4 text-gray-500"} />
-                                      <span className="text-sm font-normal">{child.title}</span>
-                                    </NavLink>
-                                  </SidebarMenuButton>
-                                </SidebarMenuItem>
-                              ))}
-                            </>
-                          ) : (
-                          <SidebarMenuItem>
+                          <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton asChild>
                             {item.external ? (
                               <a
@@ -423,8 +384,6 @@ export function AppSidebar() {
                             )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
-                          )}
-                          </React.Fragment>
                         ))}
                       </SidebarMenu>
                     </SidebarGroupContent>
