@@ -10,15 +10,6 @@ export function usePageVisibility(userId?: string) {
   const [pageVisibility, setPageVisibility] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    fetchPageVisibility();
-  }, [userId, fetchPageVisibility]);
-
   const fetchPageVisibility = useCallback(async () => {
     if (!userId) return;
 
