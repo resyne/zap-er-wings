@@ -19,7 +19,7 @@ export function usePageVisibility(userId?: string) {
     fetchPageVisibility();
   }, [userId]);
 
-  const fetchPageVisibility = async () => {
+  const fetchPageVisibility = useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -41,9 +41,9 @@ export function usePageVisibility(userId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const updatePageVisibility = async (pageUrl: string, isVisible: boolean) => {
+  const updatePageVisibility = useCallback(async (pageUrl: string, isVisible: boolean) => {
     if (!userId) return;
 
     try {
