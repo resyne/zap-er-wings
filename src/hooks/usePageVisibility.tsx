@@ -69,7 +69,7 @@ export function usePageVisibility(userId?: string) {
   const isPageVisible = useCallback((pageUrl: string): boolean => {
     // Default to visible if not explicitly set to false
     return pageVisibility[pageUrl] !== false;
-  };
+  }, [pageVisibility]);
 
   return {
     pageVisibility,

@@ -21,58 +21,51 @@ interface FetchOptions {
 
 async function fetchOperationalDocs(options: FetchOptions = {}): Promise<OperationalDocument[]> {
   const { onlyPending = false } = options;
-  const ordersData: any[] = [];
-  const ddtsData: any[] = [];
-  const reportsData: any[] = [];
   const customersMap = new Map<string, string>();
 
-  // Fetch customers for name lookup
-  const customersRes = await (supabase as any)
-    .from("customers")
-    .select(`id, name, company_name`);
+  // Fetch all data in parallel
+  const buildOrdersQuery = () => {
+    let q = supabase
+      .from("sales_orders")
+      .select(`id, number, customer_id, order_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
+      .order("created_at", { ascending: false });
+    if (onlyPending) q = q.eq('invoiced', false);
+    return q;
+  };
+
+  const buildDdtsQuery = () => {
+    let q = supabase
+      .from("ddts")
+      .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced, invoice_number, invoice_date, archived`)
+      .order("created_at", { ascending: false });
+    if (onlyPending) q = q.eq('invoiced', false);
+    return q;
+  };
+
+  const buildReportsQuery = () => {
+    let q = supabase
+      .from("service_reports")
+      .select(`id, intervention_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false });
+    if (onlyPending) q = q.eq('invoiced', false);
+    return q;
+  };
+
+  const [customersRes, ordersRes, ddtsRes, reportsRes] = await Promise.all([
+    supabase.from("customers").select(`id, name, company_name`),
+    buildOrdersQuery(),
+    buildDdtsQuery(),
+    buildReportsQuery(),
+  ]);
+
   if (customersRes.data) {
     customersRes.data.forEach((c: any) => customersMap.set(c.id, c.company_name || c.name));
   }
 
-  // Fetch orders
-  let ordersQuery = (supabase as any)
-    .from("sales_orders")
-    .select(`id, number, customer_id, order_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
-    .order("created_at", { ascending: false });
-  
-  if (onlyPending) {
-    ordersQuery = ordersQuery.eq('invoiced', false);
-  }
-  
-  const ordersRes = await ordersQuery;
-  if (ordersRes.data) ordersData.push(...ordersRes.data);
-
-  // Fetch DDTs
-  let ddtsQuery = (supabase as any)
-    .from("ddts")
-    .select(`id, ddt_number, customer_id, created_at, ddt_data, invoiced, invoice_number, invoice_date, archived`)
-    .order("created_at", { ascending: false });
-  
-  if (onlyPending) {
-    ddtsQuery = ddtsQuery.eq('invoiced', false);
-  }
-  
-  const ddtsRes = await ddtsQuery;
-  if (ddtsRes.data) ddtsData.push(...ddtsRes.data);
-
-  // Fetch service reports
-  let reportsQuery = (supabase as any)
-    .from("service_reports")
-    .select(`id, intervention_date, total_amount, invoiced, invoice_number, invoice_date, archived`)
-    .eq("status", "completed")
-    .order("created_at", { ascending: false });
-  
-  if (onlyPending) {
-    reportsQuery = reportsQuery.eq('invoiced', false);
-  }
-  
-  const reportsRes = await reportsQuery;
-  if (reportsRes.data) reportsData.push(...reportsRes.data);
+  const ordersData = ordersRes.data || [];
+  const ddtsData = ddtsRes.data || [];
+  const reportsData = reportsRes.data || [];
 
   const unifiedDocs: OperationalDocument[] = [];
 
