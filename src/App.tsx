@@ -1,5 +1,6 @@
 
 // Route configuration and imports
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,124 +11,140 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PresenceTracker } from "@/components/auth/PresenceTracker";
 import { AppLayout } from "./components/layout/app-layout";
+
+// Public routes - loaded eagerly since they're entry points
 import AuthPage from "./pages/auth/AuthPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
-import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { DirectionalDashboardPage } from "./pages/dashboard/DirectionalDashboardPage";
-import PeoplePage from "./pages/hr/PeoplePage";
-import SafetyPage from "./pages/hr/SafetyPage";
-import CallRecordsPage from "./pages/crm/CallRecordsPage";
-import PhoneExtensionsPage from "./pages/crm/PhoneExtensionsPage";
-import WhatsAppPage from "./pages/crm/WhatsAppPage";
-import WaSenderPage from "./pages/crm/WaSenderPage";
-import TechniciansPage from "./pages/hr/TechniciansPage";
-import TechniciansPageDebug from "./pages/hr/TechniciansPageDebug";
-import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import BomPage from "./pages/production/BomPage";
-import ProductionOrdersPage from "./pages/production/ProductionOrdersPage";
-import ExecutionsPage from "./pages/production/ExecutionsPage";
-import SerialsPage from "./pages/production/SerialsPage";
-import RmaPage from "./pages/production/RmaPage";
-import CertificationsPage from "./pages/production/CertificationsPage";
-import ProductionProjectsPage from "./pages/production/ProductionProjectsPage";
-import LeadsPage from "./pages/crm/LeadsPage";
-import LeadKpiPage from "./pages/crm/LeadKpiPage";
-import EmailMarketingPage from "./pages/marketing/EmailMarketingPage";
-import CampaignsPage from "./pages/marketing/CampaignsPage";
-import MarketingAutomationPage from "./pages/marketing/MarketingAutomationPage";
-import OrdersPage from "./pages/crm/OrdersPage";
-import CommesseUnificatePage from "./pages/direzione/CommesseUnificatePage";
-import CustomersPage from "./pages/crm/CustomersPage";
-import OffersPage from "./pages/crm/OffersPage";
-import ProductCatalogPage from "./pages/crm/ProductCatalogPage";
-import ProductConfiguratorPage from "./pages/crm/ProductConfiguratorPage";
-import PublicConfiguratorPage from "./pages/PublicConfiguratorPage";
-import SupplierPortalPage from "./pages/procurement/SupplierPortalPage";
-import StockPage from "./pages/warehouse/StockPage";
-import MovementsPage from "./pages/warehouse/MovementsPage";
-
-import InventoryPage from "./pages/warehouse/InventoryPage";
-import DdtPage from "./pages/warehouse/DdtPage";
-import SuppliersPage from "./pages/procurement/SuppliersPage";
-import RfqPage from "./pages/procurement/RfqPage";
-import PurchaseOrdersPage from "./pages/procurement/PurchaseOrdersPage";
-import ReceiptsPage from "./pages/procurement/ReceiptsPage";
-import QualityControlPage from "./pages/procurement/QualityControlPage";
-import ReplenishmentPage from "./pages/procurement/ReplenishmentPage";
-import ImportersPage from "./pages/partnerships/ImportersPage";
-import InstallersPage from "./pages/partnerships/InstallersPage";
-import ResellersPage from "./pages/partnerships/ResellersPage";
-import PrimaNotaPage from "./pages/finance/PrimaNotaPage";
-import InvoicesPage from "./pages/finance/InvoicesPage";
-import ManagementControlPage from "./pages/management-control/ManagementControlPage";
-import SetupPage from "./pages/management-control/SetupPage";
-import ProjectsPage from "./pages/management-control/ProjectsPage";
-import BudgetPage from "./pages/management-control/BudgetPage";
-import MovementsPageMC from "./pages/management-control/MovementsPage";
-import CreditsDebtsPage from "./pages/management-control/CreditsDebtsPage";
-import RegistroPage from "./pages/management-control-2/RegistroPage";
-import MovimentiFinanziariPage from "./pages/management-control-2/MovimentiFinanziariPage";
-
-import ChartOfAccountsPage from "./pages/management-control-2/ChartOfAccountsPage";
-import CostCentersPage from "./pages/management-control-2/CostCentersPage";
-import PrimaNotaPageMC2 from "./pages/management-control-2/PrimaNotaPage";
-import AccountingEnginePage from "./pages/management-control-2/AccountingEnginePage";
-import ScadenziarioPage from "./pages/management-control-2/ScadenziarioPage";
-import MastrinoPage from "./pages/management-control-2/MastrinoPage";
-
-import RegistroContabilePage from "./pages/management-control-2/RegistroContabilePage";
-import SetupContabilePage from "./pages/management-control-2/SetupContabilePage";
-import FluidaPage from "./pages/hr/FluidaPage";
-import DocumentationPage from "./pages/documentation/DocumentationPage";
-import TechnicalSheetsPage from "./pages/documentation/TechnicalSheetsPage";
-import BlastChillersPage from "./pages/documentation/BlastChillersPage";
-import OvensPage from "./pages/documentation/OvensPage";
-import CompliancePage from "./pages/documentation/CompliancePage";
-import ManualsPage from "./pages/documentation/ManualsPage";
-import PriceListsPage from "./pages/documentation/PriceListsPage";
-import { SettingsPage } from "./pages/settings/SettingsPage";
-import CalendarioAziendale from "./pages/direzione/CalendarioAziendaleNew";
-import RiepilogoOperativoPage from "./pages/direzione/RiepilogoOperativoPage";
-import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
-
-import SupportPage from "./pages/support/SupportPage";
-import ServiceReportsPage from "./pages/support/ServiceReportsPage";
-import ServiceOrdersPage from "./pages/support/ServiceOrdersPage";
-import ServiceReportSettingsPage from "./pages/support/ServiceReportSettingsPage";
-import TicketsPage from "./pages/support/TicketsPage";
-import CostEstimatorPage from "./pages/crm/CostEstimatorPage";
-import MaterialsPage from "./pages/warehouse/MaterialsPage";
-import ShippingCommissionsPage from "./pages/warehouse/ShippingCommissionsPage";
-import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
-import EmailPage from "./pages/communication/EmailPage";
-import ArchivePage from "./pages/marketing/ArchivePage";
-import BrandkitPage from "./pages/marketing/BrandkitPage";
-import BrandAssetManager from "./pages/marketing/BrandAssetManager";
-import TicketRestaurantPage from "./pages/hr/TicketRestaurantPage";
-import IntegrationsPage from "./pages/integrations/IntegrationsPage";
-import { TasksPage } from "./pages/tasks/TasksPage";
-import ContentCreationPage from "./pages/marketing/ContentCreationPage";
-import CompetitorAnalysisPage from "./pages/marketing/CompetitorAnalysisPage";
-import CalendarioPersonale from "./pages/personal-area/CalendarioPersonale";
-import TaskKpiPage from "./pages/direzione/TaskKpiPage";
-import ZAppPage from "./pages/hr/ZAppPage";
-import ZAppServiceReportsPage from "./pages/hr/ZAppServiceReportsPage";
-import ZAppNewServiceReportPage from "./pages/hr/ZAppNewServiceReportPage";
-import ZAppRegistroPage from "./pages/hr/ZAppRegistroPage";
-import ZAppMagazzino from "./pages/hr/ZAppMagazzino";
-import ZAppCommesse from "./pages/hr/ZAppCommesse";
-import ZAppCalendarioPage from "./pages/hr/ZAppCalendarioPage";
-import ZAppComunicazioniPage from "./pages/hr/ZAppComunicazioniPage";
-import ZAppOrdiniPage from "./pages/hr/ZAppOrdiniPage";
-import ZAppOrdiniFornitoriPage from "./pages/hr/ZAppOrdiniFornitoriPage";
-import ZAppImpostazioniPage from "./pages/hr/ZAppImpostazioniPage";
-import ZAppWhatsAppPage from "./pages/hr/ZAppWhatsAppPage";
-import StrategyPage from "./pages/direzione/StrategyPage";
+import NotFound from "./pages/NotFound";
 import PublicOfferPage from "./pages/PublicOfferPage";
 import PublicDDTPage from "./pages/PublicDDTPage";
+import PublicConfiguratorPage from "./pages/PublicConfiguratorPage";
+import PublicRiepilogoOperativoPage from "./pages/PublicRiepilogoOperativoPage";
+import SupplierPortalPage from "./pages/procurement/SupplierPortalPage";
+import PurchaseOrderConfirmPage from "./pages/procurement/PurchaseOrderConfirmPage";
 
-const queryClient = new QueryClient();
+// Lazy-loaded pages - only loaded when navigated to
+const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const DirectionalDashboardPage = lazy(() => import("./pages/dashboard/DirectionalDashboardPage").then(m => ({ default: m.DirectionalDashboardPage })));
+const PeoplePage = lazy(() => import("./pages/hr/PeoplePage"));
+const SafetyPage = lazy(() => import("./pages/hr/SafetyPage"));
+const CallRecordsPage = lazy(() => import("./pages/crm/CallRecordsPage"));
+const PhoneExtensionsPage = lazy(() => import("./pages/crm/PhoneExtensionsPage"));
+const WhatsAppPage = lazy(() => import("./pages/crm/WhatsAppPage"));
+const WaSenderPage = lazy(() => import("./pages/crm/WaSenderPage"));
+const TechniciansPage = lazy(() => import("./pages/hr/TechniciansPage"));
+const TechniciansPageDebug = lazy(() => import("./pages/hr/TechniciansPageDebug"));
+const BomPage = lazy(() => import("./pages/production/BomPage"));
+const ProductionOrdersPage = lazy(() => import("./pages/production/ProductionOrdersPage"));
+const ExecutionsPage = lazy(() => import("./pages/production/ExecutionsPage"));
+const SerialsPage = lazy(() => import("./pages/production/SerialsPage"));
+const RmaPage = lazy(() => import("./pages/production/RmaPage"));
+const CertificationsPage = lazy(() => import("./pages/production/CertificationsPage"));
+const ProductionProjectsPage = lazy(() => import("./pages/production/ProductionProjectsPage"));
+const LeadsPage = lazy(() => import("./pages/crm/LeadsPage"));
+const LeadKpiPage = lazy(() => import("./pages/crm/LeadKpiPage"));
+const EmailMarketingPage = lazy(() => import("./pages/marketing/EmailMarketingPage"));
+const CampaignsPage = lazy(() => import("./pages/marketing/CampaignsPage"));
+const MarketingAutomationPage = lazy(() => import("./pages/marketing/MarketingAutomationPage"));
+const OrdersPage = lazy(() => import("./pages/crm/OrdersPage"));
+const CommesseUnificatePage = lazy(() => import("./pages/direzione/CommesseUnificatePage"));
+const CustomersPage = lazy(() => import("./pages/crm/CustomersPage"));
+const OffersPage = lazy(() => import("./pages/crm/OffersPage"));
+const ProductCatalogPage = lazy(() => import("./pages/crm/ProductCatalogPage"));
+const ProductConfiguratorPage = lazy(() => import("./pages/crm/ProductConfiguratorPage"));
+const StockPage = lazy(() => import("./pages/warehouse/StockPage"));
+const MovementsPage = lazy(() => import("./pages/warehouse/MovementsPage"));
+const InventoryPage = lazy(() => import("./pages/warehouse/InventoryPage"));
+const DdtPage = lazy(() => import("./pages/warehouse/DdtPage"));
+const SuppliersPage = lazy(() => import("./pages/procurement/SuppliersPage"));
+const RfqPage = lazy(() => import("./pages/procurement/RfqPage"));
+const PurchaseOrdersPage = lazy(() => import("./pages/procurement/PurchaseOrdersPage"));
+const ReceiptsPage = lazy(() => import("./pages/procurement/ReceiptsPage"));
+const QualityControlPage = lazy(() => import("./pages/procurement/QualityControlPage"));
+const ReplenishmentPage = lazy(() => import("./pages/procurement/ReplenishmentPage"));
+const ImportersPage = lazy(() => import("./pages/partnerships/ImportersPage"));
+const InstallersPage = lazy(() => import("./pages/partnerships/InstallersPage"));
+const ResellersPage = lazy(() => import("./pages/partnerships/ResellersPage"));
+const PrimaNotaPage = lazy(() => import("./pages/finance/PrimaNotaPage"));
+const InvoicesPage = lazy(() => import("./pages/finance/InvoicesPage"));
+const ManagementControlPage = lazy(() => import("./pages/management-control/ManagementControlPage"));
+const SetupPage = lazy(() => import("./pages/management-control/SetupPage"));
+const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"));
+const BudgetPage = lazy(() => import("./pages/management-control/BudgetPage"));
+const MovementsPageMC = lazy(() => import("./pages/management-control/MovementsPage"));
+const CreditsDebtsPage = lazy(() => import("./pages/management-control/CreditsDebtsPage"));
+const RegistroPage = lazy(() => import("./pages/management-control-2/RegistroPage"));
+const MovimentiFinanziariPage = lazy(() => import("./pages/management-control-2/MovimentiFinanziariPage"));
+const ChartOfAccountsPage = lazy(() => import("./pages/management-control-2/ChartOfAccountsPage"));
+const CostCentersPage = lazy(() => import("./pages/management-control-2/CostCentersPage"));
+const PrimaNotaPageMC2 = lazy(() => import("./pages/management-control-2/PrimaNotaPage"));
+const AccountingEnginePage = lazy(() => import("./pages/management-control-2/AccountingEnginePage"));
+const ScadenziarioPage = lazy(() => import("./pages/management-control-2/ScadenziarioPage"));
+const MastrinoPage = lazy(() => import("./pages/management-control-2/MastrinoPage"));
+const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
+const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
+const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
+const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
+const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
+const BlastChillersPage = lazy(() => import("./pages/documentation/BlastChillersPage"));
+const OvensPage = lazy(() => import("./pages/documentation/OvensPage"));
+const CompliancePage = lazy(() => import("./pages/documentation/CompliancePage"));
+const ManualsPage = lazy(() => import("./pages/documentation/ManualsPage"));
+const PriceListsPage = lazy(() => import("./pages/documentation/PriceListsPage"));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const CalendarioAziendale = lazy(() => import("./pages/direzione/CalendarioAziendaleNew"));
+const RiepilogoOperativoPage = lazy(() => import("./pages/direzione/RiepilogoOperativoPage"));
+const SupportPage = lazy(() => import("./pages/support/SupportPage"));
+const ServiceReportsPage = lazy(() => import("./pages/support/ServiceReportsPage"));
+const ServiceOrdersPage = lazy(() => import("./pages/support/ServiceOrdersPage"));
+const ServiceReportSettingsPage = lazy(() => import("./pages/support/ServiceReportSettingsPage"));
+const TicketsPage = lazy(() => import("./pages/support/TicketsPage"));
+const CostEstimatorPage = lazy(() => import("./pages/crm/CostEstimatorPage"));
+const MaterialsPage = lazy(() => import("./pages/warehouse/MaterialsPage"));
+const ShippingCommissionsPage = lazy(() => import("./pages/warehouse/ShippingCommissionsPage"));
+const EmailPage = lazy(() => import("./pages/communication/EmailPage"));
+const ArchivePage = lazy(() => import("./pages/marketing/ArchivePage"));
+const BrandkitPage = lazy(() => import("./pages/marketing/BrandkitPage"));
+const BrandAssetManager = lazy(() => import("./pages/marketing/BrandAssetManager"));
+const TicketRestaurantPage = lazy(() => import("./pages/hr/TicketRestaurantPage"));
+const IntegrationsPage = lazy(() => import("./pages/integrations/IntegrationsPage"));
+const TasksPage = lazy(() => import("./pages/tasks/TasksPage").then(m => ({ default: m.TasksPage })));
+const ContentCreationPage = lazy(() => import("./pages/marketing/ContentCreationPage"));
+const CompetitorAnalysisPage = lazy(() => import("./pages/marketing/CompetitorAnalysisPage"));
+const CalendarioPersonale = lazy(() => import("./pages/personal-area/CalendarioPersonale"));
+const TaskKpiPage = lazy(() => import("./pages/direzione/TaskKpiPage"));
+const ZAppPage = lazy(() => import("./pages/hr/ZAppPage"));
+const ZAppServiceReportsPage = lazy(() => import("./pages/hr/ZAppServiceReportsPage"));
+const ZAppNewServiceReportPage = lazy(() => import("./pages/hr/ZAppNewServiceReportPage"));
+const ZAppRegistroPage = lazy(() => import("./pages/hr/ZAppRegistroPage"));
+const ZAppMagazzino = lazy(() => import("./pages/hr/ZAppMagazzino"));
+const ZAppCommesse = lazy(() => import("./pages/hr/ZAppCommesse"));
+const ZAppCalendarioPage = lazy(() => import("./pages/hr/ZAppCalendarioPage"));
+const ZAppComunicazioniPage = lazy(() => import("./pages/hr/ZAppComunicazioniPage"));
+const ZAppOrdiniPage = lazy(() => import("./pages/hr/ZAppOrdiniPage"));
+const ZAppOrdiniFornitoriPage = lazy(() => import("./pages/hr/ZAppOrdiniFornitoriPage"));
+const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"));
+const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
+const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
+
+// Loading fallback for lazy routes
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+  </div>
+);
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // 30s - riduce refetch inutili
+      gcTime: 5 * 60_000, // 5min - mantiene cache più a lungo
+      retry: 1, // Solo 1 retry per query fallite
+      refetchOnWindowFocus: false, // Evita refetch al cambio tab
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -153,114 +170,111 @@ const App = () => (
                 </ProtectedRoute>
               }>
               <Route index element={<Index />} />
-                <Route path="direzione/dashboard" element={<DirectionalDashboardPage />} />
-                <Route path="direzione/calendario" element={<CalendarioAziendale />} />
-                <Route path="direzione/task-kpi" element={<TaskKpiPage />} />
-                <Route path="direzione/strategy" element={<StrategyPage />} />
-                <Route path="direzione/riepilogo-operativo" element={<RiepilogoOperativoPage />} />
-                <Route path="direzione/orders" element={<OrdersPage />} />
-                <Route path="direzione/commesse" element={<CommesseUnificatePage />} />
+                <Route path="direzione/dashboard" element={<Suspense fallback={<PageLoader />}><DirectionalDashboardPage /></Suspense>} />
+                <Route path="direzione/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioAziendale /></Suspense>} />
+                <Route path="direzione/task-kpi" element={<Suspense fallback={<PageLoader />}><TaskKpiPage /></Suspense>} />
+                <Route path="direzione/strategy" element={<Suspense fallback={<PageLoader />}><StrategyPage /></Suspense>} />
+                <Route path="direzione/riepilogo-operativo" element={<Suspense fallback={<PageLoader />}><RiepilogoOperativoPage /></Suspense>} />
+                <Route path="direzione/orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
+                <Route path="direzione/commesse" element={<Suspense fallback={<PageLoader />}><CommesseUnificatePage /></Suspense>} />
                 
-                <Route path="personal-area" element={<DashboardPage />} />
-                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="personal-area" element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
+                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
                 
-                <Route path="hr/people" element={<PeoplePage />} />
-                <Route path="hr/safety" element={<SafetyPage />} />
-                <Route path="hr/technicians" element={<TechniciansPage />} />
-                <Route path="hr/technicians-debug" element={<TechniciansPageDebug />} />
-                <Route path="mfg/bom" element={<BomPage />} />
-                <Route path="mfg/work-orders" element={<ProductionOrdersPage />} />
-                <Route path="mfg/executions" element={<ExecutionsPage />} />
-                <Route path="mfg/certifications" element={<CertificationsPage />} />
-                <Route path="mfg/serials" element={<SerialsPage />} />
-                <Route path="mfg/rma" element={<RmaPage />} />
-                <Route path="mfg/projects" element={<ProductionProjectsPage />} />
-                <Route path="crm/leads" element={<LeadsPage />} />
-                <Route path="crm/leads/kpi" element={<LeadKpiPage />} />
-                <Route path="marketing/email-marketing" element={<EmailMarketingPage />} />
-                <Route path="marketing/campaigns" element={<CampaignsPage />} />
-                <Route path="marketing/automation" element={<MarketingAutomationPage />} />
-                <Route path="crm/customers" element={<CustomersPage />} />
-                <Route path="crm/offers" element={<OffersPage />} />
-                <Route path="crm/call-records" element={<CallRecordsPage />} />
-                <Route path="crm/phone-extensions" element={<PhoneExtensionsPage />} />
-                <Route path="crm/whatsapp" element={<WhatsAppPage />} />
-                <Route path="crm/wasender" element={<WaSenderPage />} />
-                <Route path="crm/product-configurator" element={<ProductConfiguratorPage />} />
-                <Route path="mfg/products" element={<ProductCatalogPage />} />
-                <Route path="warehouse/materials" element={<MaterialsPage />} />
-                <Route path="warehouse/shipping-orders" element={<ShippingCommissionsPage />} />
-                <Route path="wms/stock" element={<StockPage />} />
-                <Route path="wms/movements" element={<MovementsPage />} />
-                
-                <Route path="wms/inventory" element={<InventoryPage />} />
-                <Route path="wms/ddt" element={<DdtPage />} />
-                <Route path="procurement/suppliers" element={<SuppliersPage />} />
-                <Route path="procurement/rfq" element={<RfqPage />} />
-                <Route path="procurement/po" element={<PurchaseOrdersPage />} />
-                <Route path="procurement/purchase-orders" element={<PurchaseOrdersPage />} />
-                <Route path="procurement/receipts" element={<ReceiptsPage />} />
-                <Route path="procurement/quality-control" element={<QualityControlPage />} />
-                <Route path="procurement/replenishment" element={<ReplenishmentPage />} />
-                <Route path="partnerships/importers" element={<ImportersPage />} />
-                <Route path="partnerships/installers" element={<InstallersPage />} />
-                <Route path="partnerships/resellers" element={<ResellersPage />} />
-                <Route path="finance/prima-nota" element={<PrimaNotaPage />} />
-                <Route path="finance/invoices" element={<InvoicesPage />} />
-                <Route path="management-control" element={<ManagementControlPage />} />
-                <Route path="management-control/setup" element={<SetupPage />} />
-                <Route path="management-control/movements" element={<MovementsPageMC />} />
-                <Route path="management-control/projects" element={<ProjectsPage />} />
-                <Route path="management-control/budget" element={<BudgetPage />} />
-                <Route path="management-control/credits-debts" element={<CreditsDebtsPage />} />
-                <Route path="management-control-2/registro" element={<RegistroPage />} />
-                <Route path="management-control-2/movimenti-finanziari" element={<MovimentiFinanziariPage />} />
-                
-                <Route path="management-control-2/setup-contabile" element={<SetupContabilePage />} />
-                <Route path="management-control-2/chart-of-accounts" element={<ChartOfAccountsPage />} />
-                <Route path="management-control-2/cost-centers" element={<CostCentersPage />} />
-                <Route path="management-control-2/prima-nota" element={<PrimaNotaPageMC2 />} />
-                <Route path="management-control-2/accounting-engine" element={<AccountingEnginePage />} />
-                <Route path="management-control-2/scadenziario" element={<ScadenziarioPage />} />
-                <Route path="management-control-2/mastrino" element={<MastrinoPage />} />
-                
-                <Route path="management-control-2/registro-fatture" element={<RegistroContabilePage />} />
-                <Route path="hr/fluida" element={<FluidaPage />} />
-                <Route path="hr/ticket-restaurant" element={<TicketRestaurantPage />} />
-                <Route path="hr/z-app" element={<ZAppPage />} />
-                <Route path="hr/z-app/rapporti" element={<ZAppServiceReportsPage />} />
-                <Route path="hr/z-app/rapporti/nuovo" element={<ZAppNewServiceReportPage />} />
-                <Route path="hr/z-app/registro" element={<ZAppRegistroPage />} />
-                <Route path="hr/z-app/magazzino" element={<ZAppMagazzino />} />
-                <Route path="hr/z-app/commesse" element={<ZAppCommesse />} />
-                <Route path="hr/z-app/calendario" element={<ZAppCalendarioPage />} />
-                <Route path="hr/z-app/comunicazioni" element={<ZAppComunicazioniPage />} />
-                <Route path="hr/z-app/ordini" element={<ZAppOrdiniPage />} />
-                <Route path="hr/z-app/ordini-fornitori" element={<ZAppOrdiniFornitoriPage />} />
-                <Route path="hr/z-app/impostazioni" element={<ZAppImpostazioniPage />} />
-                <Route path="hr/z-app/whatsapp" element={<ZAppWhatsAppPage />} />
-                <Route path="docs" element={<DocumentationPage />} />
-                <Route path="docs/technical-sheets" element={<TechnicalSheetsPage />} />
-                <Route path="docs/technical-sheets/blast-chillers" element={<BlastChillersPage />} />
-                <Route path="docs/technical-sheets/ovens" element={<OvensPage />} />
-                <Route path="docs/compliance" element={<CompliancePage />} />
-                <Route path="docs/manuals" element={<ManualsPage />} />
-                <Route path="docs/price-lists" element={<PriceListsPage />} />
-                <Route path="support" element={<SupportPage />} />
-                <Route path="support/service-reports" element={<ServiceReportsPage />} />
-                <Route path="support/work-orders" element={<ServiceOrdersPage />} />
-                <Route path="support/tickets" element={<TicketsPage />} />
-                <Route path="support/service-report-settings" element={<ServiceReportSettingsPage />} />
-                <Route path="crm/cost-estimator" element={<CostEstimatorPage />} />
-                <Route path="marketing/archive" element={<ArchivePage />} />
-                <Route path="marketing/content-creation" element={<ContentCreationPage />} />
-                <Route path="marketing/brandkit" element={<BrandkitPage />} />
-                <Route path="marketing/competitor-analysis" element={<CompetitorAnalysisPage />} />
-                <Route path="marketing/brandkit/:brandId" element={<BrandAssetManager />} />
-                <Route path="integrations" element={<IntegrationsPage />} />
-                <Route path="tasks" element={<TasksPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="personal-area/calendario" element={<CalendarioPersonale />} />
+                <Route path="hr/people" element={<Suspense fallback={<PageLoader />}><PeoplePage /></Suspense>} />
+                <Route path="hr/safety" element={<Suspense fallback={<PageLoader />}><SafetyPage /></Suspense>} />
+                <Route path="hr/technicians" element={<Suspense fallback={<PageLoader />}><TechniciansPage /></Suspense>} />
+                <Route path="hr/technicians-debug" element={<Suspense fallback={<PageLoader />}><TechniciansPageDebug /></Suspense>} />
+                <Route path="mfg/bom" element={<Suspense fallback={<PageLoader />}><BomPage /></Suspense>} />
+                <Route path="mfg/work-orders" element={<Suspense fallback={<PageLoader />}><ProductionOrdersPage /></Suspense>} />
+                <Route path="mfg/executions" element={<Suspense fallback={<PageLoader />}><ExecutionsPage /></Suspense>} />
+                <Route path="mfg/certifications" element={<Suspense fallback={<PageLoader />}><CertificationsPage /></Suspense>} />
+                <Route path="mfg/serials" element={<Suspense fallback={<PageLoader />}><SerialsPage /></Suspense>} />
+                <Route path="mfg/rma" element={<Suspense fallback={<PageLoader />}><RmaPage /></Suspense>} />
+                <Route path="mfg/projects" element={<Suspense fallback={<PageLoader />}><ProductionProjectsPage /></Suspense>} />
+                <Route path="crm/leads" element={<Suspense fallback={<PageLoader />}><LeadsPage /></Suspense>} />
+                <Route path="crm/leads/kpi" element={<Suspense fallback={<PageLoader />}><LeadKpiPage /></Suspense>} />
+                <Route path="marketing/email-marketing" element={<Suspense fallback={<PageLoader />}><EmailMarketingPage /></Suspense>} />
+                <Route path="marketing/campaigns" element={<Suspense fallback={<PageLoader />}><CampaignsPage /></Suspense>} />
+                <Route path="marketing/automation" element={<Suspense fallback={<PageLoader />}><MarketingAutomationPage /></Suspense>} />
+                <Route path="crm/customers" element={<Suspense fallback={<PageLoader />}><CustomersPage /></Suspense>} />
+                <Route path="crm/offers" element={<Suspense fallback={<PageLoader />}><OffersPage /></Suspense>} />
+                <Route path="crm/call-records" element={<Suspense fallback={<PageLoader />}><CallRecordsPage /></Suspense>} />
+                <Route path="crm/phone-extensions" element={<Suspense fallback={<PageLoader />}><PhoneExtensionsPage /></Suspense>} />
+                <Route path="crm/whatsapp" element={<Suspense fallback={<PageLoader />}><WhatsAppPage /></Suspense>} />
+                <Route path="crm/wasender" element={<Suspense fallback={<PageLoader />}><WaSenderPage /></Suspense>} />
+                <Route path="crm/product-configurator" element={<Suspense fallback={<PageLoader />}><ProductConfiguratorPage /></Suspense>} />
+                <Route path="mfg/products" element={<Suspense fallback={<PageLoader />}><ProductCatalogPage /></Suspense>} />
+                <Route path="warehouse/materials" element={<Suspense fallback={<PageLoader />}><MaterialsPage /></Suspense>} />
+                <Route path="warehouse/shipping-orders" element={<Suspense fallback={<PageLoader />}><ShippingCommissionsPage /></Suspense>} />
+                <Route path="wms/stock" element={<Suspense fallback={<PageLoader />}><StockPage /></Suspense>} />
+                <Route path="wms/movements" element={<Suspense fallback={<PageLoader />}><MovementsPage /></Suspense>} />
+                <Route path="wms/inventory" element={<Suspense fallback={<PageLoader />}><InventoryPage /></Suspense>} />
+                <Route path="wms/ddt" element={<Suspense fallback={<PageLoader />}><DdtPage /></Suspense>} />
+                <Route path="procurement/suppliers" element={<Suspense fallback={<PageLoader />}><SuppliersPage /></Suspense>} />
+                <Route path="procurement/rfq" element={<Suspense fallback={<PageLoader />}><RfqPage /></Suspense>} />
+                <Route path="procurement/po" element={<Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense>} />
+                <Route path="procurement/purchase-orders" element={<Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense>} />
+                <Route path="procurement/receipts" element={<Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>} />
+                <Route path="procurement/quality-control" element={<Suspense fallback={<PageLoader />}><QualityControlPage /></Suspense>} />
+                <Route path="procurement/replenishment" element={<Suspense fallback={<PageLoader />}><ReplenishmentPage /></Suspense>} />
+                <Route path="partnerships/importers" element={<Suspense fallback={<PageLoader />}><ImportersPage /></Suspense>} />
+                <Route path="partnerships/installers" element={<Suspense fallback={<PageLoader />}><InstallersPage /></Suspense>} />
+                <Route path="partnerships/resellers" element={<Suspense fallback={<PageLoader />}><ResellersPage /></Suspense>} />
+                <Route path="finance/prima-nota" element={<Suspense fallback={<PageLoader />}><PrimaNotaPage /></Suspense>} />
+                <Route path="finance/invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
+                <Route path="management-control" element={<Suspense fallback={<PageLoader />}><ManagementControlPage /></Suspense>} />
+                <Route path="management-control/setup" element={<Suspense fallback={<PageLoader />}><SetupPage /></Suspense>} />
+                <Route path="management-control/movements" element={<Suspense fallback={<PageLoader />}><MovementsPageMC /></Suspense>} />
+                <Route path="management-control/projects" element={<Suspense fallback={<PageLoader />}><ProjectsPage /></Suspense>} />
+                <Route path="management-control/budget" element={<Suspense fallback={<PageLoader />}><BudgetPage /></Suspense>} />
+                <Route path="management-control/credits-debts" element={<Suspense fallback={<PageLoader />}><CreditsDebtsPage /></Suspense>} />
+                <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><RegistroPage /></Suspense>} />
+                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><MovimentiFinanziariPage /></Suspense>} />
+                <Route path="management-control-2/setup-contabile" element={<Suspense fallback={<PageLoader />}><SetupContabilePage /></Suspense>} />
+                <Route path="management-control-2/chart-of-accounts" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
+                <Route path="management-control-2/cost-centers" element={<Suspense fallback={<PageLoader />}><CostCentersPage /></Suspense>} />
+                <Route path="management-control-2/prima-nota" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
+                <Route path="management-control-2/accounting-engine" element={<Suspense fallback={<PageLoader />}><AccountingEnginePage /></Suspense>} />
+                <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
+                <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
+                <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><RegistroContabilePage /></Suspense>} />
+                <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
+                <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />
+                <Route path="hr/z-app" element={<Suspense fallback={<PageLoader />}><ZAppPage /></Suspense>} />
+                <Route path="hr/z-app/rapporti" element={<Suspense fallback={<PageLoader />}><ZAppServiceReportsPage /></Suspense>} />
+                <Route path="hr/z-app/rapporti/nuovo" element={<Suspense fallback={<PageLoader />}><ZAppNewServiceReportPage /></Suspense>} />
+                <Route path="hr/z-app/registro" element={<Suspense fallback={<PageLoader />}><ZAppRegistroPage /></Suspense>} />
+                <Route path="hr/z-app/magazzino" element={<Suspense fallback={<PageLoader />}><ZAppMagazzino /></Suspense>} />
+                <Route path="hr/z-app/commesse" element={<Suspense fallback={<PageLoader />}><ZAppCommesse /></Suspense>} />
+                <Route path="hr/z-app/calendario" element={<Suspense fallback={<PageLoader />}><ZAppCalendarioPage /></Suspense>} />
+                <Route path="hr/z-app/comunicazioni" element={<Suspense fallback={<PageLoader />}><ZAppComunicazioniPage /></Suspense>} />
+                <Route path="hr/z-app/ordini" element={<Suspense fallback={<PageLoader />}><ZAppOrdiniPage /></Suspense>} />
+                <Route path="hr/z-app/ordini-fornitori" element={<Suspense fallback={<PageLoader />}><ZAppOrdiniFornitoriPage /></Suspense>} />
+                <Route path="hr/z-app/impostazioni" element={<Suspense fallback={<PageLoader />}><ZAppImpostazioniPage /></Suspense>} />
+                <Route path="hr/z-app/whatsapp" element={<Suspense fallback={<PageLoader />}><ZAppWhatsAppPage /></Suspense>} />
+                <Route path="docs" element={<Suspense fallback={<PageLoader />}><DocumentationPage /></Suspense>} />
+                <Route path="docs/technical-sheets" element={<Suspense fallback={<PageLoader />}><TechnicalSheetsPage /></Suspense>} />
+                <Route path="docs/technical-sheets/blast-chillers" element={<Suspense fallback={<PageLoader />}><BlastChillersPage /></Suspense>} />
+                <Route path="docs/technical-sheets/ovens" element={<Suspense fallback={<PageLoader />}><OvensPage /></Suspense>} />
+                <Route path="docs/compliance" element={<Suspense fallback={<PageLoader />}><CompliancePage /></Suspense>} />
+                <Route path="docs/manuals" element={<Suspense fallback={<PageLoader />}><ManualsPage /></Suspense>} />
+                <Route path="docs/price-lists" element={<Suspense fallback={<PageLoader />}><PriceListsPage /></Suspense>} />
+                <Route path="support" element={<Suspense fallback={<PageLoader />}><SupportPage /></Suspense>} />
+                <Route path="support/service-reports" element={<Suspense fallback={<PageLoader />}><ServiceReportsPage /></Suspense>} />
+                <Route path="support/work-orders" element={<Suspense fallback={<PageLoader />}><ServiceOrdersPage /></Suspense>} />
+                <Route path="support/tickets" element={<Suspense fallback={<PageLoader />}><TicketsPage /></Suspense>} />
+                <Route path="support/service-report-settings" element={<Suspense fallback={<PageLoader />}><ServiceReportSettingsPage /></Suspense>} />
+                <Route path="crm/cost-estimator" element={<Suspense fallback={<PageLoader />}><CostEstimatorPage /></Suspense>} />
+                <Route path="marketing/archive" element={<Suspense fallback={<PageLoader />}><ArchivePage /></Suspense>} />
+                <Route path="marketing/content-creation" element={<Suspense fallback={<PageLoader />}><ContentCreationPage /></Suspense>} />
+                <Route path="marketing/brandkit" element={<Suspense fallback={<PageLoader />}><BrandkitPage /></Suspense>} />
+                <Route path="marketing/competitor-analysis" element={<Suspense fallback={<PageLoader />}><CompetitorAnalysisPage /></Suspense>} />
+                <Route path="marketing/brandkit/:brandId" element={<Suspense fallback={<PageLoader />}><BrandAssetManager /></Suspense>} />
+                <Route path="integrations" element={<Suspense fallback={<PageLoader />}><IntegrationsPage /></Suspense>} />
+                <Route path="tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
+                <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+                <Route path="personal-area/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioPersonale /></Suspense>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,13 +13,6 @@ export interface DocumentItem {
   storage_path?: string;
   url?: string;
 }
-
-const languages = [
-  { code: "it", name: "Italiano", flag: "🇮🇹" },
-  { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "es", name: "Español", flag: "🇪🇸" },
-  { code: "fr", name: "Français", flag: "🇫🇷" }
-];
 
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -140,17 +133,17 @@ export const useDocuments = () => {
     }
   };
 
-  const getDocumentsByType = (type: DocumentItem['type']) => {
+  const getDocumentsByType = useCallback((type: DocumentItem['type']) => {
     return documents.filter(doc => doc.type === type);
-  };
+  }, [documents]);
 
-  const getDocumentsByCategory = (category: string) => {
+  const getDocumentsByCategory = useCallback((category: string) => {
     return documents.filter(doc => doc.category === category);
-  };
+  }, [documents]);
 
-  const getDocumentsByLanguage = (language: string) => {
+  const getDocumentsByLanguage = useCallback((language: string) => {
     return documents.filter(doc => doc.language === language);
-  };
+  }, [documents]);
 
   useEffect(() => {
     loadDocuments();

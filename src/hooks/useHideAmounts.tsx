@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,17 +10,7 @@ export function useHideAmounts() {
   const [hideAmounts, setHideAmounts] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setHideAmounts(false);
-      setLoading(false);
-      return;
-    }
-
-    fetchHideAmountsSetting();
-  }, [user]);
-
-  const fetchHideAmountsSetting = async () => {
+  const fetchHideAmountsSetting = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -42,7 +32,17 @@ export function useHideAmounts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setHideAmounts(false);
+      setLoading(false);
+      return;
+    }
+
+    fetchHideAmountsSetting();
+  }, [user, fetchHideAmountsSetting]);
 
   return {
     hideAmounts,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface PageVisibility {
@@ -10,16 +10,7 @@ export function usePageVisibility(userId?: string) {
   const [pageVisibility, setPageVisibility] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    fetchPageVisibility();
-  }, [userId]);
-
-  const fetchPageVisibility = async () => {
+  const fetchPageVisibility = useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -41,9 +32,18 @@ export function usePageVisibility(userId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  const updatePageVisibility = async (pageUrl: string, isVisible: boolean) => {
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    fetchPageVisibility();
+  }, [userId, fetchPageVisibility]);
+
+
+  const updatePageVisibility = useCallback(async (pageUrl: string, isVisible: boolean) => {
     if (!userId) return;
 
     try {
@@ -64,12 +64,12 @@ export function usePageVisibility(userId?: string) {
       console.error("Error updating page visibility:", error);
       throw error;
     }
-  };
+  }, [userId]);
 
-  const isPageVisible = (pageUrl: string): boolean => {
+  const isPageVisible = useCallback((pageUrl: string): boolean => {
     // Default to visible if not explicitly set to false
     return pageVisibility[pageUrl] !== false;
-  };
+  }, [pageVisibility]);
 
   return {
     pageVisibility,
