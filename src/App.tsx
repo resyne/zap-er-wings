@@ -267,6 +267,7 @@ const App = () => (
                 <Route path="hr/z-app/impostazioni" element={<Suspense fallback={<PageLoader />}><ZAppImpostazioniPage /></Suspense>} />
                 <Route path="hr/z-app/whatsapp" element={<Suspense fallback={<PageLoader />}><ZAppWhatsAppPage /></Suspense>} />
                 <Route path="hr/z-app/timbratura" element={<Suspense fallback={<PageLoader />}><ZAppTimbraturaPage /></Suspense>} />
+                <Route path="hr/z-app/riepilogo-timbrature" element={<Suspense fallback={<PageLoader />}><ZAppRiepilogoTimbraturePage /></Suspense>} />
                 <Route path="hr/time-attendance" element={<Suspense fallback={<PageLoader />}><AttendanceDashboardPage /></Suspense>} />
                 <Route path="hr/time-attendance/shifts" element={<Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>} />
                 <Route path="hr/time-attendance/presenze" element={<Suspense fallback={<PageLoader />}><AttendancePresenzePage /></Suspense>} />
