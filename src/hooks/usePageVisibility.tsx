@@ -43,6 +43,7 @@ export function usePageVisibility(userId?: string) {
   }, [userId, fetchPageVisibility]);
 
 
+  const updatePageVisibility = useCallback(async (pageUrl: string, isVisible: boolean) => {
     if (!userId) return;
 
     try {
