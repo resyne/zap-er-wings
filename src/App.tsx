@@ -128,6 +128,7 @@ const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"
 const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
 const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
 const ZAppTimbraturaPage = lazy(() => import("./pages/hr/ZAppTimbraturaPage"));
+const ZAppRiepilogoTimbraturePage = lazy(() => import("./pages/hr/ZAppRiepilogoTimbraturePage"));
 const AttendanceDashboardPage = lazy(() => import("./pages/hr/attendance/AttendanceDashboardPage"));
 const ShiftsPage = lazy(() => import("./pages/hr/attendance/ShiftsPage"));
 const AttendancePresenzePage = lazy(() => import("./pages/hr/attendance/AttendancePresenzePage"));
