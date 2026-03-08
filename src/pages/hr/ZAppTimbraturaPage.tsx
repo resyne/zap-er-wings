@@ -9,6 +9,12 @@ export default function ZAppTimbraturaPage() {
   const navigate = useNavigate();
   const { currentStatus, todayEvents, todayWorkMinutes, loading, clockEvent } = useAttendance();
   const [processing, setProcessing] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const formatMinutes = (mins: number) => {
     const h = Math.floor(mins / 60);
