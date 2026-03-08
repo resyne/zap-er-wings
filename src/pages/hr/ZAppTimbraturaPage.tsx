@@ -96,7 +96,7 @@ export default function ZAppTimbraturaPage() {
           {/* Clock time */}
           <div className="text-center">
             <div className="text-lg font-mono text-muted-foreground">
-              {new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </div>
           </div>
         </div>
