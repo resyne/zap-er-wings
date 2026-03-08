@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, LogIn, LogOut, Coffee, Play, MapPin, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,12 @@ export default function ZAppTimbraturaPage() {
   const navigate = useNavigate();
   const { currentStatus, todayEvents, todayWorkMinutes, loading, clockEvent } = useAttendance();
   const [processing, setProcessing] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const formatMinutes = (mins: number) => {
     const h = Math.floor(mins / 60);
@@ -90,7 +96,7 @@ export default function ZAppTimbraturaPage() {
           {/* Clock time */}
           <div className="text-center">
             <div className="text-lg font-mono text-muted-foreground">
-              {new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </div>
           </div>
         </div>
