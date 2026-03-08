@@ -41,7 +41,9 @@ import {
   CheckSquare,
   Phone,
   Shield,
-  MessageCircle
+  MessageCircle,
+  MapPin,
+  AlertTriangle
 } from "lucide-react";
 
 import {
