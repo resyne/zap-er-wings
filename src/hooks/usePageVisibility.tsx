@@ -17,7 +17,7 @@ export function usePageVisibility(userId?: string) {
     }
 
     fetchPageVisibility();
-  }, [userId]);
+  }, [userId, fetchPageVisibility]);
 
   const fetchPageVisibility = useCallback(async () => {
     if (!userId) return;
