@@ -127,6 +127,18 @@ const ZAppOrdiniFornitoriPage = lazy(() => import("./pages/hr/ZAppOrdiniFornitor
 const ZAppImpostazioniPage = lazy(() => import("./pages/hr/ZAppImpostazioniPage"));
 const ZAppWhatsAppPage = lazy(() => import("./pages/hr/ZAppWhatsAppPage"));
 const StrategyPage = lazy(() => import("./pages/direzione/StrategyPage"));
+const ZAppTimbraturaPage = lazy(() => import("./pages/hr/ZAppTimbraturaPage"));
+const AttendanceDashboardPage = lazy(() => import("./pages/hr/attendance/AttendanceDashboardPage"));
+const ShiftsPage = lazy(() => import("./pages/hr/attendance/ShiftsPage"));
+const AttendancePresenzePage = lazy(() => import("./pages/hr/attendance/AttendancePresenzePage"));
+const OvertimePage = lazy(() => import("./pages/hr/attendance/OvertimePage"));
+const TravelPage = lazy(() => import("./pages/hr/attendance/TravelPage"));
+const AnomaliesPage = lazy(() => import("./pages/hr/attendance/AnomaliesPage"));
+const AttendanceReportsPage = lazy(() => import("./pages/hr/attendance/AttendanceReportsPage"));
+const GeofencesPage = lazy(() => import("./pages/hr/attendance/GeofencesPage"));
+const AttendanceSettingsPage = lazy(() => import("./pages/hr/attendance/AttendanceSettingsPage"));
+const LeavesPage = lazy(() => import("./pages/hr/attendance/LeavesPage"));
+const CorrectionsPage = lazy(() => import("./pages/hr/attendance/CorrectionsPage"));
 
 // Loading fallback for lazy routes
 const PageLoader = () => (
