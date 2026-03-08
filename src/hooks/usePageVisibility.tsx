@@ -64,9 +64,9 @@ export function usePageVisibility(userId?: string) {
       console.error("Error updating page visibility:", error);
       throw error;
     }
-  };
+  }, [userId]);
 
-  const isPageVisible = (pageUrl: string): boolean => {
+  const isPageVisible = useCallback((pageUrl: string): boolean => {
     // Default to visible if not explicitly set to false
     return pageVisibility[pageUrl] !== false;
   };
