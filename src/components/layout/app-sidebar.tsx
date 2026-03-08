@@ -68,6 +68,7 @@ interface NavItem {
   icon: React.ComponentType<any>;
   badge?: string;
   external?: boolean;
+  children?: NavItem[];
 }
 
 interface NavGroup {
@@ -192,16 +193,20 @@ const navigationGroups: NavGroup[] = [
       { title: "Personale", url: "/hr/people", icon: Users },
       { title: "Sicurezza sul Lavoro", url: "/hr/safety", icon: Shield },
       { title: "Tecnici", url: "/hr/technicians", icon: Wrench },
-      { title: "Time & Attendance", url: "/hr/time-attendance", icon: Clock },
-      { title: "Turni", url: "/hr/time-attendance/shifts", icon: CalendarDays },
-      { title: "Presenze", url: "/hr/time-attendance/presenze", icon: UserCheck },
-      { title: "Straordinari", url: "/hr/time-attendance/overtime", icon: Clock },
-      { title: "Trasferte", url: "/hr/time-attendance/travel", icon: MapPin },
-      { title: "Assenze", url: "/hr/time-attendance/leaves", icon: Calendar },
-      { title: "Anomalie", url: "/hr/time-attendance/anomalies", icon: AlertTriangle },
-      { title: "Report Presenze", url: "/hr/time-attendance/reports", icon: BarChart3 },
-      { title: "Geofences", url: "/hr/time-attendance/geofences", icon: MapPin },
-      { title: "Impostazioni Presenze", url: "/hr/time-attendance/settings", icon: Settings },
+      { 
+        title: "Time & Attendance", url: "/hr/time-attendance", icon: Clock,
+        children: [
+          { title: "Turni", url: "/hr/time-attendance/shifts", icon: CalendarDays },
+          { title: "Presenze", url: "/hr/time-attendance/presenze", icon: UserCheck },
+          { title: "Straordinari", url: "/hr/time-attendance/overtime", icon: Clock },
+          { title: "Trasferte", url: "/hr/time-attendance/travel", icon: MapPin },
+          { title: "Assenze", url: "/hr/time-attendance/leaves", icon: Calendar },
+          { title: "Anomalie", url: "/hr/time-attendance/anomalies", icon: AlertTriangle },
+          { title: "Report Presenze", url: "/hr/time-attendance/reports", icon: BarChart3 },
+          { title: "Geofences", url: "/hr/time-attendance/geofences", icon: MapPin },
+          { title: "Impostazioni Prese...", url: "/hr/time-attendance/settings", icon: Settings },
+        ]
+      },
       { title: "Fluida", url: "/hr/fluida", icon: Users },
       { title: "Ticket Restaurant", url: "/hr/ticket-restaurant", icon: UtensilsCrossed },
       { title: "Z-APP", url: "/hr/z-app", icon: Zap },
@@ -279,8 +284,16 @@ export function AppSidebar() {
       .map(group => group.title)
   );
 
+  const [openSubGroups, setOpenSubGroups] = useState<string[]>(
+    navigationGroups.flatMap(g => g.items.filter(i => i.children && i.children.some(c => currentPath.startsWith(c.url))).map(i => i.url))
+  );
+
   // Debug: sempre mostra il testo su mobile, logica normale su desktop
   const showText = isMobile ? true : !collapsed;
+
+  const toggleSubGroup = (url: string) => {
+    setOpenSubGroups(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
+  };
   
   console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state, openGroups });
 
@@ -351,7 +364,46 @@ export function AppSidebar() {
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {visibleItems.map((item) => (
-                          <SidebarMenuItem key={item.url}>
+                          <React.Fragment key={item.url}>
+                          {item.children ? (
+                            // Item with sub-menu
+                            <>
+                              <SidebarMenuItem>
+                                <SidebarMenuButton asChild>
+                                  <button
+                                    onClick={() => toggleSubGroup(item.url)}
+                                    className="flex items-center gap-3 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1 w-full"
+                                  >
+                                    <item.icon className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-normal">{item.title}</span>
+                                    {openSubGroups.includes(item.url) ? 
+                                      <ChevronDown className="ml-auto h-3 w-3 text-gray-400" /> : 
+                                      <ChevronRight className="ml-auto h-3 w-3 text-gray-400" />
+                                    }
+                                  </button>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                              {openSubGroups.includes(item.url) && item.children.map((child) => (
+                                <SidebarMenuItem key={child.url}>
+                                  <SidebarMenuButton asChild>
+                                    <NavLink
+                                      to={child.url}
+                                      className={({ isActive: linkIsActive }) => {
+                                        const active = linkIsActive || isActive(child.url);
+                                        return active 
+                                          ? "flex items-center gap-3 pl-8 pr-3 py-2 bg-blue-50 text-blue-700 border-l-2 border-blue-500 rounded-r-md mx-1 font-medium" 
+                                          : "flex items-center gap-3 pl-8 pr-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all duration-200 rounded-md mx-1";
+                                      }}
+                                    >
+                                      <child.icon className={isActive(child.url) ? "h-4 w-4 text-blue-600" : "h-4 w-4 text-gray-500"} />
+                                      <span className="text-sm font-normal">{child.title}</span>
+                                    </NavLink>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))}
+                            </>
+                          ) : (
+                          <SidebarMenuItem>
                           <SidebarMenuButton asChild>
                             {item.external ? (
                               <a
@@ -392,6 +444,8 @@ export function AppSidebar() {
                             )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
+                          )}
+                          </React.Fragment>
                         ))}
                       </SidebarMenu>
                     </SidebarGroupContent>
