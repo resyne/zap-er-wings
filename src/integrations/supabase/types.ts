@@ -14,6 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_documents: {
+        Row: {
+          accounting_entry_id: string | null
+          ai_confidence: number | null
+          ai_raw_data: Json | null
+          counterpart_address: string | null
+          counterpart_name: string | null
+          counterpart_vat: string | null
+          created_at: string
+          customer_id: string | null
+          document_type: string
+          due_date: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          invoice_date: string | null
+          invoice_number: string | null
+          net_amount: number | null
+          status: string
+          total_amount: number | null
+          updated_at: string
+          uploaded_by: string | null
+          vat_amount: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          accounting_entry_id?: string | null
+          ai_confidence?: number | null
+          ai_raw_data?: Json | null
+          counterpart_address?: string | null
+          counterpart_name?: string | null
+          counterpart_vat?: string | null
+          created_at?: string
+          customer_id?: string | null
+          document_type: string
+          due_date?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          net_amount?: number | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          accounting_entry_id?: string | null
+          ai_confidence?: number | null
+          ai_raw_data?: Json | null
+          counterpart_address?: string | null
+          counterpart_name?: string | null
+          counterpart_vat?: string | null
+          created_at?: string
+          customer_id?: string | null
+          document_type?: string
+          due_date?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string | null
+          net_amount?: number | null
+          status?: string
+          total_amount?: number | null
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_documents_accounting_entry_id_fkey"
+            columns: ["accounting_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_entries: {
         Row: {
           account_code: string | null
