@@ -14,9 +14,13 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   FileText, Receipt, CreditCard, Upload, Loader2, CheckCircle2, 
-  XCircle, AlertCircle, Building2, Eye, Sparkles, Paperclip 
+  XCircle, AlertCircle, Building2, Eye, Sparkles, Paperclip, Trash2 
 } from "lucide-react";
 import { DocumentAttachmentsPanel } from "@/components/contabilita/DocumentAttachments";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AccountingDocument {
   id: string;
