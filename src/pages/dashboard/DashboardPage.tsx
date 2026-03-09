@@ -244,7 +244,7 @@ export function DashboardPage() {
       // Load lead activities
       const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
         .from("lead_activities")
-        .select("*, leads(company_name)")
+        .select("*, leads(company_name, phone, contact_name)")
         .eq("assigned_to", user.id)
         .neq("status", "completed")
         .order("activity_date", { ascending: true });
