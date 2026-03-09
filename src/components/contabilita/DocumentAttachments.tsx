@@ -93,13 +93,13 @@ export function DocumentAttachmentsPanel({ documentId, documentName }: DocumentA
           .from("document_attachments")
           .insert({
             document_id: documentId,
-            attachment_type: selectedType,
+            attachment_type: selectedType as any,
             file_url: fileUrl,
             file_name: file.name,
             file_type: file.type,
             file_size: file.size,
             uploaded_by: user.id,
-          });
+          } as any);
         if (insertError) throw insertError;
 
         toast.success(`Allegato "${file.name}" caricato`);
