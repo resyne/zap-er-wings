@@ -1712,10 +1712,8 @@ export default function PrimaNotaPage() {
 
                                 queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
                                 queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
-                                toast.success("Documento registrato — vai alla classificazione eventi");
-                                
-                                // Navigate to classification page
-                                navigate("/management-control-2/classificazione-eventi");
+                                queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+                                toast.success("Documento registrato come da classificare");
                               } catch (err: any) {
                                 toast.error("Errore: " + (err.message || "Errore sconosciuto"));
                               }
