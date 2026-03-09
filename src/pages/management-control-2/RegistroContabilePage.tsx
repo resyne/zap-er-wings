@@ -2484,13 +2484,13 @@ export default function RegistroContabilePage() {
   const { ivaAmount, totalAmount } = calculateAmounts(formData.imponibile, formData.iva_rate);
 
   return (
-    <div {...getRootProps()} className="space-y-6 relative min-h-[calc(100vh-100px)]">
+    <div {...getRootProps()} className="space-y-5 relative">
       <input {...getInputProps()} />
       
       {/* Drag overlay */}
       {isDragActive && (
         <div className="fixed inset-0 bg-primary/10 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border-2 border-dashed border-primary rounded-xl p-12 text-center">
+          <div className="bg-card border-2 border-dashed border-primary rounded-2xl p-12 text-center shadow-2xl">
             <Upload className="w-16 h-16 mx-auto mb-4 text-primary animate-bounce" />
             <p className="text-xl font-semibold text-primary">Rilascia la fattura qui</p>
             <p className="text-muted-foreground mt-2">AI analizzerà automaticamente il documento</p>
@@ -2501,7 +2501,7 @@ export default function RegistroContabilePage() {
       {/* Uploading/Analyzing overlay */}
       {(isUploading || isAnalyzing) && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border rounded-xl p-8 text-center shadow-lg">
+          <div className="bg-card border rounded-2xl p-8 text-center shadow-2xl">
             <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
             <p className="text-lg font-semibold">
               {isUploading ? "Caricamento..." : "Analisi AI in corso..."}
@@ -2513,17 +2513,25 @@ export default function RegistroContabilePage() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Inbox Documenti</h2>
-          <p className="text-sm text-muted-foreground">Fatture, scontrini, spese e incassi da classificare e registrare</p>
+      {/* Toolbar: actions + dropzone inline */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        {/* Compact dropzone */}
+        <div className="flex-1 border border-dashed border-muted-foreground/25 rounded-xl px-5 py-3.5 flex items-center gap-4 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Upload className="w-4.5 h-4.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">Trascina un documento qui</p>
+            <p className="text-xs text-muted-foreground">PDF o immagine — l'AI pre-compila i dati</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        
+        <div className="flex gap-2 flex-shrink-0">
           <label>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="default" asChild className="h-10">
               <div className="cursor-pointer">
                 <Upload className="w-4 h-4 mr-2" />
-                Carica Fattura
+                Carica
               </div>
             </Button>
             <input
@@ -2542,25 +2550,12 @@ export default function RegistroContabilePage() {
             setSplitEnabled(false);
             setSplitLines([]);
             setShowCreateDialog(true);
-          }}>
+          }} className="h-10">
             <Plus className="w-4 h-4 mr-2" />
             Nuova Fattura
           </Button>
         </div>
       </div>
-
-      {/* Dropzone hint card */}
-      <Card className="border-dashed border-2 border-muted-foreground/20 bg-muted/30">
-        <CardContent className="p-6 text-center">
-          <div className="flex items-center justify-center gap-4">
-            <FileText className="w-8 h-8 text-muted-foreground" />
-            <div className="text-left">
-              <p className="font-medium">Trascina una fattura qui</p>
-              <p className="text-sm text-muted-foreground">AI analizzerà automaticamente e pre-compilerà i dati</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card 
