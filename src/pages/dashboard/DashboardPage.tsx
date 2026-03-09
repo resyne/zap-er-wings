@@ -86,6 +86,8 @@ interface LeadActivity {
   notes?: string;
   leads?: {
     company_name: string;
+    phone: string | null;
+    contact_name: string | null;
   };
 }
 
@@ -242,7 +244,7 @@ export function DashboardPage() {
       // Load lead activities
       const { data: leadActivitiesData, error: leadActivitiesError } = await supabase
         .from("lead_activities")
-        .select("*, leads(company_name)")
+        .select("*, leads(company_name, phone, contact_name)")
         .eq("assigned_to", user.id)
         .neq("status", "completed")
         .order("activity_date", { ascending: true });
@@ -871,6 +873,9 @@ export function DashboardPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {activity.leads?.company_name || 'Lead'}
+                              {activity.leads?.phone && (
+                                <span className="ml-2 text-xs text-muted-foreground">📞 {activity.leads.phone}</span>
+                              )}
                             </p>
                             {activity.notes && (
                               <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
@@ -1435,6 +1440,12 @@ export function DashboardPage() {
                         <span>{getLeadActivityTypeLabel(previewItem.data.activity_type)}</span>
                       </div>
                       <p className="text-sm"><strong>Lead:</strong> {previewItem.data.leads?.company_name || 'N/A'}</p>
+                      {previewItem.data.leads?.contact_name && (
+                        <p className="text-sm"><strong>Contatto:</strong> {previewItem.data.leads.contact_name}</p>
+                      )}
+                      {previewItem.data.leads?.phone && (
+                        <p className="text-sm"><strong>Telefono:</strong> <a href={`tel:${previewItem.data.leads.phone}`} className="text-primary hover:underline">{previewItem.data.leads.phone}</a></p>
+                      )}
                       <p className="text-sm"><strong>Data:</strong> {format(new Date(previewItem.data.activity_date), "PPP 'alle' HH:mm", { locale: it })}</p>
                       {previewItem.data.notes && (
                         <div>
