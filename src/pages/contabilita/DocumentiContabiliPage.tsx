@@ -192,6 +192,8 @@ function DocumentUploadZone({ onUploadComplete }: { onUploadComplete: () => void
 }
 
 function DocumentsTable({ documents, isLoading }: { documents?: AccountingDocument[]; isLoading: boolean }) {
+  const [attachmentDoc, setAttachmentDoc] = useState<AccountingDocument | null>(null);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -237,68 +239,92 @@ function DocumentsTable({ documents, isLoading }: { documents?: AccountingDocume
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/30">
-            <TableHead>Tipo</TableHead>
-            <TableHead>N. Fattura</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Cliente/Fornitore</TableHead>
-            <TableHead>P.IVA</TableHead>
-            <TableHead className="text-right">Totale</TableHead>
-            <TableHead>Confidenza</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead>Azioni</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {documents.map((doc) => (
-            <TableRow key={doc.id} className="hover:bg-muted/20">
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {typeIcon(doc.document_type)}
-                  <span className="text-xs font-medium">{typeLabel(doc.document_type)}</span>
-                </div>
-              </TableCell>
-              <TableCell className="font-mono text-sm">{doc.invoice_number || "-"}</TableCell>
-              <TableCell className="text-sm">
-                {doc.invoice_date ? format(new Date(doc.invoice_date), "dd/MM/yyyy", { locale: it }) : "-"}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {doc.customer_id && <Building2 className="h-3 w-3 text-green-500" />}
-                  <span className="text-sm">{doc.counterpart_name || "-"}</span>
-                </div>
-              </TableCell>
-              <TableCell className="font-mono text-xs">{doc.counterpart_vat || "-"}</TableCell>
-              <TableCell className="text-right font-semibold">
-                {doc.total_amount != null ? `€ ${doc.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "-"}
-              </TableCell>
-              <TableCell>
-                {doc.ai_confidence != null && (
-                  <div className="flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      doc.ai_confidence >= 0.8 ? "bg-green-500" : 
-                      doc.ai_confidence >= 0.5 ? "bg-amber-500" : "bg-red-500"
-                    }`} />
-                    <span className="text-xs">{Math.round(doc.ai_confidence * 100)}%</span>
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>{statusBadge(doc.status)}</TableCell>
-              <TableCell>
-                <Button variant="ghost" size="sm" asChild>
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                    <Eye className="h-4 w-4" />
-                  </a>
-                </Button>
-              </TableCell>
+    <>
+      <div className="rounded-lg border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <TableHead>Tipo</TableHead>
+              <TableHead>N. Fattura</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Cliente/Fornitore</TableHead>
+              <TableHead>P.IVA</TableHead>
+              <TableHead className="text-right">Totale</TableHead>
+              <TableHead>Confidenza</TableHead>
+              <TableHead>Stato</TableHead>
+              <TableHead>Azioni</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {documents.map((doc) => (
+              <TableRow key={doc.id} className="hover:bg-muted/20">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {typeIcon(doc.document_type)}
+                    <span className="text-xs font-medium">{typeLabel(doc.document_type)}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-sm">{doc.invoice_number || "-"}</TableCell>
+                <TableCell className="text-sm">
+                  {doc.invoice_date ? format(new Date(doc.invoice_date), "dd/MM/yyyy", { locale: it }) : "-"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {doc.customer_id && <Building2 className="h-3 w-3 text-green-500" />}
+                    <span className="text-sm">{doc.counterpart_name || "-"}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="font-mono text-xs">{doc.counterpart_vat || "-"}</TableCell>
+                <TableCell className="text-right font-semibold">
+                  {doc.total_amount != null ? `€ ${doc.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "-"}
+                </TableCell>
+                <TableCell>
+                  {doc.ai_confidence != null && (
+                    <div className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        doc.ai_confidence >= 0.8 ? "bg-green-500" : 
+                        doc.ai_confidence >= 0.5 ? "bg-amber-500" : "bg-red-500"
+                      }`} />
+                      <span className="text-xs">{Math.round(doc.ai_confidence * 100)}%</span>
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>{statusBadge(doc.status)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setAttachmentDoc(doc)} title="Allegati">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                        <Eye className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Attachments Sheet */}
+      <Sheet open={!!attachmentDoc} onOpenChange={() => setAttachmentDoc(null)}>
+        <SheetContent className="w-[420px] sm:w-[480px]">
+          <SheetHeader>
+            <SheetTitle className="text-base">Allegati Documento</SheetTitle>
+          </SheetHeader>
+          {attachmentDoc && (
+            <div className="mt-4">
+              <DocumentAttachmentsPanel
+                documentId={attachmentDoc.id}
+                documentName={attachmentDoc.file_name}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
