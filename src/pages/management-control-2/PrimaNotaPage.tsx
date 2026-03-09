@@ -932,7 +932,7 @@ export default function PrimaNotaPage() {
   );
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6">
+    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">

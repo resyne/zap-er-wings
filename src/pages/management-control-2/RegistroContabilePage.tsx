@@ -3034,8 +3034,8 @@ export default function RegistroContabilePage() {
         </Card>
       ) : (
         <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[1100px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Numero</TableHead>
