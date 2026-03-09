@@ -84,6 +84,9 @@ const ScadenziarioPage = lazy(() => import("./pages/management-control-2/Scadenz
 const MastrinoPage = lazy(() => import("./pages/management-control-2/MastrinoPage"));
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
+const SalesInvoicesPage = lazy(() => import("./pages/accounting/SalesInvoicesPage"));
+const PurchaseInvoicesPage = lazy(() => import("./pages/accounting/PurchaseInvoicesPage"));
+const CreditNotesPage = lazy(() => import("./pages/accounting/CreditNotesPage"));
 const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
 const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
 const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
