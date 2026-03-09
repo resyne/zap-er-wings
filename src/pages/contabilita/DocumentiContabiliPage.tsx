@@ -367,7 +367,28 @@ export default function DocumentiContabiliPage() {
     queryClient.invalidateQueries({ queryKey: ["accounting-documents"] });
   };
 
-  const counts = {
+  const handleDelete = async (doc: AccountingDocument) => {
+    try {
+      // Delete attachments first
+      await supabase.from("document_attachments").delete().eq("document_id", doc.id);
+      // Delete the document record
+      const { error } = await supabase.from("accounting_documents").delete().eq("id", doc.id);
+      if (error) throw error;
+      // Try to delete the file from storage (extract path from URL)
+      try {
+        const url = new URL(doc.file_url);
+        const pathMatch = url.pathname.match(/\/object\/(?:public|sign)\/accounting-documents\/(.+)/);
+        if (pathMatch) {
+          const filePath = decodeURIComponent(pathMatch[1].split("?")[0]);
+          await supabase.storage.from("accounting-documents").remove([filePath]);
+        }
+      } catch {}
+      toast.success("Documento eliminato");
+      queryClient.invalidateQueries({ queryKey: ["accounting-documents"] });
+    } catch (err: any) {
+      toast.error("Errore nell'eliminazione: " + (err.message || "Errore sconosciuto"));
+    }
+  };
     tutti: documents?.length || 0,
     fattura_vendita: documents?.filter(d => d.document_type === "fattura_vendita").length || 0,
     fattura_acquisto: documents?.filter(d => d.document_type === "fattura_acquisto").length || 0,
