@@ -195,7 +195,7 @@ function DocumentUploadZone({ onUploadComplete }: { onUploadComplete: () => void
   );
 }
 
-function DocumentsTable({ documents, isLoading }: { documents?: AccountingDocument[]; isLoading: boolean }) {
+function DocumentsTable({ documents, isLoading, onDelete }: { documents?: AccountingDocument[]; isLoading: boolean; onDelete: (doc: AccountingDocument) => void }) {
   const [attachmentDoc, setAttachmentDoc] = useState<AccountingDocument | null>(null);
 
   if (isLoading) {
