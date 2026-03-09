@@ -382,7 +382,23 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // Fetch pending accounting documents (from AI analysis)
+  // Fetch entries waiting for classification (da_classificare)
+  const { data: daClassificareEntries = [] } = useQuery({
+    queryKey: ["accounting-entries-to-classify-pending"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounting_entries")
+        .select(`
+          id, direction, document_type, amount, document_date, note,
+          attachment_url, iva_mode, iva_aliquota, imponibile, iva_amount, totale
+        `)
+        .in("status", ["da_classificare", "in_classificazione", "sospeso"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: pendingDocuments = [] } = useQuery({
     queryKey: ["pending-accounting-documents"],
     queryFn: async () => {
@@ -983,9 +999,9 @@ export default function PrimaNotaPage() {
             <AlertCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Da Classificare</span>
             <span className="sm:hidden">Classificare</span>
-            {(pendingEntries.length + pendingDocuments.length) > 0 && (
+            {(pendingEntries.length + pendingDocuments.length + daClassificareEntries.length) > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {pendingEntries.length + pendingDocuments.length}
+                {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -1712,10 +1728,8 @@ export default function PrimaNotaPage() {
 
                                 queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
                                 queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
-                                toast.success("Documento registrato — vai alla classificazione eventi");
-                                
-                                // Navigate to classification page
-                                navigate("/management-control-2/classificazione-eventi");
+                                queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+                                toast.success("Documento registrato come da classificare");
                               } catch (err: any) {
                                 toast.error("Errore: " + (err.message || "Errore sconosciuto"));
                               }
@@ -1730,6 +1744,66 @@ export default function PrimaNotaPage() {
                   </Card>
                 );
               })}
+            </div>
+          )}
+
+          {/* Entries da classificare (from AI documents or manual) */}
+          {daClassificareEntries.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="h-4 w-4 text-amber-500" />
+                  <h3 className="font-semibold text-sm">Da Classificare</h3>
+                  <Badge variant="secondary" className="text-xs">{daClassificareEntries.length}</Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Apri Classificazione
+                </Button>
+              </div>
+              {daClassificareEntries.map((entry) => (
+                <Card
+                  key={entry.id}
+                  className="hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`p-2 rounded-full ${
+                            entry.direction === "entrata"
+                              ? "bg-green-100 text-green-600 dark:bg-green-900/30"
+                              : "bg-red-100 text-red-600 dark:bg-red-900/30"
+                          }`}
+                        >
+                          {entry.direction === "entrata" ? (
+                            <ArrowUp className="h-5 w-5" />
+                          ) : (
+                            <ArrowDown className="h-5 w-5" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-bold text-lg">
+                            € {(entry.totale || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(entry.document_date), "dd MMM yyyy", { locale: it })}
+                            {entry.note && <span className="ml-2">• {entry.note}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-amber-600 border-amber-300">
+                        Da classificare
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
 
@@ -1804,7 +1878,7 @@ export default function PrimaNotaPage() {
             </div>
           )}
 
-          {pendingEntries.length === 0 && pendingDocuments.length === 0 && (
+          {pendingEntries.length === 0 && pendingDocuments.length === 0 && daClassificareEntries.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
