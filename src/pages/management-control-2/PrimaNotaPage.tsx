@@ -932,29 +932,42 @@ export default function PrimaNotaPage() {
   );
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Prima Nota</h1>
-        <p className="text-muted-foreground">
-          Registro contabile, scritture in partita doppia e classificazione documenti
-        </p>
+    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
+              <p className="text-sm text-muted-foreground">
+                Registro contabile, scritture in partita doppia e classificazione documenti
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="registro-contabile" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="registro-contabile" className="gap-2">
+      <Tabs defaultValue="registro-contabile" className="space-y-6">
+        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
+          <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
-            Registro Contabile
+            <span className="hidden sm:inline">Registro Contabile</span>
+            <span className="sm:hidden">Registro</span>
           </TabsTrigger>
-          <TabsTrigger value="movements" className="gap-2">
+          <TabsTrigger value="movements" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <FileText className="h-4 w-4" />
-            Libro Giornale
+            <span className="hidden sm:inline">Libro Giornale</span>
+            <span className="sm:hidden">Giornale</span>
           </TabsTrigger>
-          <TabsTrigger value="pending" className="gap-2">
+          <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <AlertCircle className="h-4 w-4" />
-            Da Generare
+            <span className="hidden sm:inline">Da Generare</span>
+            <span className="sm:hidden">Pending</span>
             {pendingEntries.length > 0 && (
-              <Badge variant="secondary" className="ml-1">
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
                 {pendingEntries.length}
               </Badge>
             )}
@@ -962,8 +975,15 @@ export default function PrimaNotaPage() {
         </TabsList>
 
         {/* REGISTRO CONTABILE TAB */}
-        <TabsContent value="registro-contabile">
-          <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Caricamento Registro Contabile...</div>}>
+        <TabsContent value="registro-contabile" className="mt-0">
+          <Suspense fallback={
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center space-y-3">
+                <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground">Caricamento Registro Contabile...</p>
+              </div>
+            </div>
+          }>
             <RegistroContabileContent />
           </Suspense>
         </TabsContent>
