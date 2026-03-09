@@ -86,6 +86,8 @@ interface LeadActivity {
   notes?: string;
   leads?: {
     company_name: string;
+    phone: string | null;
+    contact_name: string | null;
   };
 }
 
