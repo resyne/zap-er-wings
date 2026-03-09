@@ -964,8 +964,8 @@ export default function PrimaNotaPage() {
           </TabsTrigger>
           <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Da Generare</span>
-            <span className="sm:hidden">Pending</span>
+            <span className="hidden sm:inline">Da Classificare</span>
+            <span className="sm:hidden">Classificare</span>
             {pendingEntries.length > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
                 {pendingEntries.length}
