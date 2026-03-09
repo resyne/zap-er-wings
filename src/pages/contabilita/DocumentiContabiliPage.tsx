@@ -8,13 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   FileText, Receipt, CreditCard, Upload, Loader2, CheckCircle2, 
-  XCircle, AlertCircle, Building2, Eye, Sparkles 
+  XCircle, AlertCircle, Building2, Eye, Sparkles, Paperclip 
 } from "lucide-react";
+import { DocumentAttachmentsPanel } from "@/components/contabilita/DocumentAttachments";
 
 interface AccountingDocument {
   id: string;
