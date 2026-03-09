@@ -1715,7 +1715,7 @@ export default function PrimaNotaPage() {
                                 toast.success("Documento registrato — vai alla classificazione eventi");
                                 
                                 // Navigate to classification page
-                                navigate("/management-control-2/classification");
+                                navigate("/management-control-2/classificazione-eventi");
                               } catch (err: any) {
                                 toast.error("Errore: " + (err.message || "Errore sconosciuto"));
                               }

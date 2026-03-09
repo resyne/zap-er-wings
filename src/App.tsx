@@ -86,6 +86,7 @@ const DocumentiContabiliPage = lazy(() => import("./pages/contabilita/DocumentiC
 const DocumentiOperativiPage = lazy(() => import("./pages/contabilita/DocumentiOperativiPage"));
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
+const EventClassificationPage = lazy(() => import("./pages/management-control-2/EventClassificationPage"));
 const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
 const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
 const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
@@ -255,6 +256,7 @@ const App = () => (
                 <Route path="contabilita/documenti-contabili" element={<Suspense fallback={<PageLoader />}><DocumentiContabiliPage /></Suspense>} />
                 <Route path="contabilita/documenti-operativi" element={<Suspense fallback={<PageLoader />}><DocumentiOperativiPage /></Suspense>} />
                 <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
+                <Route path="management-control-2/classificazione-eventi" element={<Suspense fallback={<PageLoader />}><EventClassificationPage /></Suspense>} />
                 <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
                 <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />

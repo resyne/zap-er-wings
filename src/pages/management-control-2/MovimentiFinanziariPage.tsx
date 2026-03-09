@@ -130,7 +130,7 @@ export default function MovimentiFinanziariPage() {
   };
 
   const handleGoToClassification = () => {
-    navigate("/management-control-2/classification");
+    navigate("/management-control-2/classificazione-eventi");
   };
 
   return (
