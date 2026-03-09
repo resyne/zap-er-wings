@@ -20,7 +20,7 @@ import {
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
-  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard
+  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -377,6 +377,21 @@ export default function PrimaNotaPage() {
 
       if (error) throw error;
       return data as PendingEntry[];
+    },
+  });
+
+  // Fetch pending accounting documents (from AI analysis)
+  const { data: pendingDocuments = [] } = useQuery({
+    queryKey: ["pending-accounting-documents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounting_documents")
+        .select("*, customers(name, company_name)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
     },
   });
 
@@ -966,9 +981,9 @@ export default function PrimaNotaPage() {
             <AlertCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Da Classificare</span>
             <span className="sm:hidden">Classificare</span>
-            {pendingEntries.length > 0 && (
+            {(pendingEntries.length + pendingDocuments.length) > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {pendingEntries.length}
+                {pendingEntries.length + pendingDocuments.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -1591,17 +1606,136 @@ export default function PrimaNotaPage() {
         </TabsContent>
 
         {/* PENDING TAB */}
-        <TabsContent value="pending" className="space-y-4">
-          {pendingEntries.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                <p className="text-lg font-medium">Nessun evento in attesa</p>
-                <p className="text-muted-foreground">Tutti gli eventi sono stati processati</p>
-              </CardContent>
-            </Card>
-          ) : (
+        <TabsContent value="pending" className="space-y-6">
+          {/* Documenti Contabili da AI */}
+          {pendingDocuments.length > 0 && (
             <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h3 className="font-semibold text-sm">Documenti Contabili (Analisi AI)</h3>
+                <Badge variant="secondary" className="text-xs">{pendingDocuments.length}</Badge>
+              </div>
+              {pendingDocuments.map((doc: any) => {
+                const isVendita = doc.document_type === "fattura_vendita";
+                const isAcquisto = doc.document_type === "fattura_acquisto";
+                const customerName = doc.customers?.company_name || doc.customers?.name || doc.counterpart_name;
+                return (
+                  <Card key={doc.id} className="hover:bg-accent/50 transition-colors border-primary/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full ${
+                            isVendita
+                              ? "bg-green-100 text-green-600 dark:bg-green-900/30"
+                              : "bg-red-100 text-red-600 dark:bg-red-900/30"
+                          }`}>
+                            {isVendita ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-lg">
+                                € {(doc.total_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {doc.document_type === "fattura_vendita" ? "Vendita" : 
+                                 doc.document_type === "fattura_acquisto" ? "Acquisto" : "Nota Credito"}
+                              </Badge>
+                              {doc.ai_confidence && (
+                                <Badge variant="secondary" className="text-xs gap-1">
+                                  <Sparkles className="h-3 w-3" />
+                                  {Math.round(doc.ai_confidence * 100)}%
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex gap-3">
+                              {doc.net_amount && <span>Imponibile: € {doc.net_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>}
+                              {doc.vat_amount && doc.vat_amount > 0 && (
+                                <span>IVA {doc.vat_rate ? `${doc.vat_rate}%` : ""}: € {doc.vat_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                              {doc.invoice_number && <span className="font-medium">N. {doc.invoice_number}</span>}
+                              {doc.invoice_date && <span>{format(new Date(doc.invoice_date), "dd MMM yyyy", { locale: it })}</span>}
+                              {customerName && (
+                                <span className="flex items-center gap-1">
+                                  <Building2 className="h-3 w-3" />
+                                  {customerName}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="h-4 w-4 mr-1" />
+                              Vedi
+                            </a>
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                // Create accounting entry from document
+                                const direction = isVendita ? "entrata" : "uscita";
+                                const { data: newEntry, error: entryError } = await supabase
+                                  .from("accounting_entries")
+                                  .insert({
+                                    direction,
+                                    document_type: doc.document_type === "nota_credito" ? "nota_credito" : "fattura",
+                                    amount: doc.total_amount || 0,
+                                    document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
+                                    attachment_url: doc.file_url,
+                                    status: "pronto_prima_nota",
+                                    iva_aliquota: doc.vat_rate,
+                                    imponibile: doc.net_amount,
+                                    iva_amount: doc.vat_amount,
+                                    totale: doc.total_amount,
+                                    iva_mode: "DOMESTICA_IMPONIBILE",
+                                    note: `${doc.document_type === "fattura_vendita" ? "Fattura vendita" : "Fattura acquisto"} n.${doc.invoice_number || "?"} - ${customerName || ""}`,
+                                  })
+                                  .select("id")
+                                  .single();
+
+                                if (entryError) throw entryError;
+
+                                // Link document to entry
+                                await supabase
+                                  .from("accounting_documents")
+                                  .update({ 
+                                    status: "classified", 
+                                    accounting_entry_id: newEntry.id 
+                                  })
+                                  .eq("id", doc.id);
+
+                                queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
+                                queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
+                                toast.success("Documento classificato e registrato in Prima Nota");
+                              } catch (err: any) {
+                                toast.error("Errore: " + (err.message || "Errore sconosciuto"));
+                              }
+                            }}
+                          >
+                            <FileCheck className="h-4 w-4 mr-1" />
+                            Classifica
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Registrazioni manuali da classificare */}
+          {pendingEntries.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Registrazioni Manuali</h3>
+                <Badge variant="secondary" className="text-xs">{pendingEntries.length}</Badge>
+              </div>
               {pendingEntries.map((entry) => (
                 <Card key={entry.id} className="hover:bg-accent/50 transition-colors">
                   <CardContent className="p-4">
@@ -1621,7 +1755,6 @@ export default function PrimaNotaPage() {
                           )}
                         </div>
                         <div>
-                          {/* FIX 6: Show separate amounts */}
                           <div className="font-bold text-lg">
                             € {(entry.totale || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                           </div>
@@ -1664,6 +1797,16 @@ export default function PrimaNotaPage() {
                 </Card>
               ))}
             </div>
+          )}
+
+          {pendingEntries.length === 0 && pendingDocuments.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                <p className="text-lg font-medium">Nessun evento in attesa</p>
+                <p className="text-muted-foreground">Tutti gli eventi e documenti sono stati processati</p>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
