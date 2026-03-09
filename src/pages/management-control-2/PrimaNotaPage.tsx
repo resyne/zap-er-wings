@@ -380,6 +380,21 @@ export default function PrimaNotaPage() {
     },
   });
 
+  // Fetch pending accounting documents (from AI analysis)
+  const { data: pendingDocuments = [] } = useQuery({
+    queryKey: ["pending-accounting-documents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounting_documents")
+        .select("*, customers(name, company_name)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
   // =====================================================
   // FIX 1 & 2 & 4: Generate prima nota with double-entry lines
   // =====================================================
