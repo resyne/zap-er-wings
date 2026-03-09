@@ -1440,6 +1440,12 @@ export function DashboardPage() {
                         <span>{getLeadActivityTypeLabel(previewItem.data.activity_type)}</span>
                       </div>
                       <p className="text-sm"><strong>Lead:</strong> {previewItem.data.leads?.company_name || 'N/A'}</p>
+                      {previewItem.data.leads?.contact_name && (
+                        <p className="text-sm"><strong>Contatto:</strong> {previewItem.data.leads.contact_name}</p>
+                      )}
+                      {previewItem.data.leads?.phone && (
+                        <p className="text-sm"><strong>Telefono:</strong> <a href={`tel:${previewItem.data.leads.phone}`} className="text-primary hover:underline">{previewItem.data.leads.phone}</a></p>
+                      )}
                       <p className="text-sm"><strong>Data:</strong> {format(new Date(previewItem.data.activity_date), "PPP 'alle' HH:mm", { locale: it })}</p>
                       {previewItem.data.notes && (
                         <div>
