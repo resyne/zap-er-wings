@@ -118,8 +118,12 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Controllo di Gestione 2",
+    title: "Contabilità",
     items: [
+      { title: "Prima Nota", url: "/management-control-2/prima-nota" },
+      { title: "Fatture Vendita", url: "/accounting/fatture-vendita" },
+      { title: "Fatture Acquisto", url: "/accounting/fatture-acquisto" },
+      { title: "Note di Credito", url: "/accounting/note-credito" },
       { title: "Giustificativi", url: "/management-control-2/registro" },
       { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari" },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile" },
