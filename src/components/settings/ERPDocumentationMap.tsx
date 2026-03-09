@@ -178,10 +178,9 @@ const erpSections: SectionDoc[] = [
       { title: "Registro", path: "/management-control-2/registro", icon: FileText, description: "Registro generale delle operazioni contabili con filtri temporali e ricerca avanzata." },
       { title: "Movimenti Finanziari", path: "/management-control-2/movimenti-finanziari", icon: DollarSign, description: "Dettaglio flussi finanziari: incassi, pagamenti, anticipi e riconciliazione bancaria." },
       { title: "Setup Contabile", path: "/management-control-2/setup-contabile", icon: Settings, description: "Configurazione piano dei conti, centri di costo/ricavo e motore contabile automatico." },
-      { title: "Prima Nota Contabile", path: "/management-control-2/prima-nota", icon: Database, description: "Registrazioni contabili in partita doppia con dare/avere, conti e competenza temporale." },
+      { title: "Prima Nota Contabile", path: "/management-control-2/prima-nota", icon: Database, description: "Registro contabile, scritture in partita doppia e classificazione fatture emesse e ricevute." },
       { title: "Scadenziario", path: "/management-control-2/scadenziario", icon: Clock, description: "Gestione scadenze pagamenti e incassi con alert, solleciti e stato finanziario." },
       { title: "Mastrino Contabile", path: "/management-control-2/mastrino", icon: PieChart, description: "Dettaglio movimenti per singolo conto contabile con saldi progressivi e filtri." },
-      { title: "Registro Contabile Fatture", path: "/management-control-2/registro-fatture", icon: FileText, description: "Registro IVA fatture emesse e ricevute con riepilogo aliquote e totali periodici." },
     ]
   },
   {
