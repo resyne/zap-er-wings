@@ -930,13 +930,15 @@ export default function PrimaNotaMovimentiPage({ embedded = false }: { embedded?
   );
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
+    <div className={embedded ? "space-y-4" : "container mx-auto p-4 max-w-7xl"}>
+      {!embedded && (
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Prima Nota</h1>
         <p className="text-muted-foreground">
           Scritture contabili in partita doppia generate dagli eventi classificati
         </p>
       </div>
+      )}
 
       <Tabs defaultValue="movements" className="space-y-4">
         <TabsList>
