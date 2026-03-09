@@ -177,7 +177,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Controllo di Gestione 2",
     items: [
-      { title: "Registro", url: "/management-control-2/registro", icon: FileText },
+      { title: "Giustificativi", url: "/management-control-2/registro", icon: FileText },
       { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari", icon: DollarSign },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile", icon: Settings },
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },

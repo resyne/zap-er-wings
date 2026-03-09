@@ -120,7 +120,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Controllo di Gestione 2",
     items: [
-      { title: "Registro", url: "/management-control-2/registro" },
+      { title: "Giustificativi", url: "/management-control-2/registro" },
       { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari" },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile" },
       { title: "Prima Nota", url: "/management-control-2/prima-nota" },

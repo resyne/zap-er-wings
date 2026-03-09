@@ -456,9 +456,9 @@ export default function RegistroPage() {
   return (
     <div className="px-4 py-4 sm:container sm:mx-auto sm:py-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Registro</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Giustificativi</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Registra rapidamente documenti operativi, spese e incassi
+          Incassi, spese, DDT, rapporti di intervento e offerte accettate dai dipendenti via Z-APP
         </p>
       </div>
 
