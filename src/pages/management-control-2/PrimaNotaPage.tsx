@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -176,6 +177,7 @@ const formatPaymentMethod = (method: string | null) => {
 const RegistroContabileContent = lazy(() => import("./RegistroContabilePage"));
 
 export default function PrimaNotaPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
@@ -1676,7 +1678,7 @@ export default function PrimaNotaPage() {
                             size="sm"
                             onClick={async () => {
                               try {
-                                // Create accounting entry from document
+                                // Create accounting entry from document with da_classificare status
                                 const direction = isVendita ? "entrata" : "uscita";
                                 const { data: newEntry, error: entryError } = await supabase
                                   .from("accounting_entries")
@@ -1686,7 +1688,7 @@ export default function PrimaNotaPage() {
                                     amount: doc.total_amount || 0,
                                     document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
                                     attachment_url: doc.file_url,
-                                    status: "pronto_prima_nota",
+                                    status: "da_classificare",
                                     iva_aliquota: doc.vat_rate,
                                     imponibile: doc.net_amount,
                                     iva_amount: doc.vat_amount,
@@ -1710,7 +1712,10 @@ export default function PrimaNotaPage() {
 
                                 queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
                                 queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
-                                toast.success("Documento classificato e registrato in Prima Nota");
+                                toast.success("Documento registrato — vai alla classificazione eventi");
+                                
+                                // Navigate to classification page
+                                navigate("/management-control-2/classification");
                               } catch (err: any) {
                                 toast.error("Errore: " + (err.message || "Errore sconosciuto"));
                               }
