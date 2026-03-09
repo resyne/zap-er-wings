@@ -173,6 +173,8 @@ const formatPaymentMethod = (method: string | null) => {
 // MAIN COMPONENT
 // =====================================================
 
+const RegistroContabileContent = lazy(() => import("./RegistroContabilePage"));
+
 export default function PrimaNotaPage() {
   const queryClient = useQueryClient();
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
