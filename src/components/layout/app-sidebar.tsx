@@ -177,10 +177,9 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Controllo di Gestione 2",
     items: [
-      { title: "Registro", url: "/management-control-2/registro", icon: FileText },
+      { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Movimenti Finanziari", url: "/management-control-2/movimenti-finanziari", icon: DollarSign },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile", icon: Settings },
-      { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
       { title: "Mastrino Contabile", url: "/management-control-2/mastrino", icon: PieChart },
       { title: "Registro Contabile", url: "/management-control-2/registro-fatture", icon: FileText },

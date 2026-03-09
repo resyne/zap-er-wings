@@ -74,7 +74,7 @@ const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"
 const BudgetPage = lazy(() => import("./pages/management-control/BudgetPage"));
 const MovementsPageMC = lazy(() => import("./pages/management-control/MovementsPage"));
 const CreditsDebtsPage = lazy(() => import("./pages/management-control/CreditsDebtsPage"));
-const RegistroPage = lazy(() => import("./pages/management-control-2/RegistroPage"));
+
 const MovimentiFinanziariPage = lazy(() => import("./pages/management-control-2/MovimentiFinanziariPage"));
 const ChartOfAccountsPage = lazy(() => import("./pages/management-control-2/ChartOfAccountsPage"));
 const CostCentersPage = lazy(() => import("./pages/management-control-2/CostCentersPage"));
@@ -242,7 +242,7 @@ const App = () => (
                 <Route path="management-control/projects" element={<Suspense fallback={<PageLoader />}><ProjectsPage /></Suspense>} />
                 <Route path="management-control/budget" element={<Suspense fallback={<PageLoader />}><BudgetPage /></Suspense>} />
                 <Route path="management-control/credits-debts" element={<Suspense fallback={<PageLoader />}><CreditsDebtsPage /></Suspense>} />
-                <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><RegistroPage /></Suspense>} />
+                <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><MovimentiFinanziariPage /></Suspense>} />
                 <Route path="management-control-2/setup-contabile" element={<Suspense fallback={<PageLoader />}><SetupContabilePage /></Suspense>} />
                 <Route path="management-control-2/chart-of-accounts" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
