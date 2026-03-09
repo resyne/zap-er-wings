@@ -66,7 +66,7 @@ interface DdtScanForm {
   line_items: DdtLineItem[];
 }
 
-export default function RegistroPage() {
+export default function RegistroPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeFlow, setActiveFlow] = useState<FlowType>(null);

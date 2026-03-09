@@ -173,7 +173,7 @@ const formatPaymentMethod = (method: string | null) => {
 // MAIN COMPONENT
 // =====================================================
 
-export default function PrimaNotaPage() {
+export default function PrimaNotaMovimentiPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
