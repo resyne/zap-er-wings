@@ -14,9 +14,13 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { 
   FileText, Receipt, CreditCard, Upload, Loader2, CheckCircle2, 
-  XCircle, AlertCircle, Building2, Eye, Sparkles, Paperclip 
+  XCircle, AlertCircle, Building2, Eye, Sparkles, Paperclip, Trash2 
 } from "lucide-react";
 import { DocumentAttachmentsPanel } from "@/components/contabilita/DocumentAttachments";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AccountingDocument {
   id: string;
@@ -191,7 +195,7 @@ function DocumentUploadZone({ onUploadComplete }: { onUploadComplete: () => void
   );
 }
 
-function DocumentsTable({ documents, isLoading }: { documents?: AccountingDocument[]; isLoading: boolean }) {
+function DocumentsTable({ documents, isLoading, onDelete }: { documents?: AccountingDocument[]; isLoading: boolean; onDelete: (doc: AccountingDocument) => void }) {
   const [attachmentDoc, setAttachmentDoc] = useState<AccountingDocument | null>(null);
 
   if (isLoading) {
@@ -300,6 +304,30 @@ function DocumentsTable({ documents, isLoading }: { documents?: AccountingDocume
                         <Eye className="h-4 w-4" />
                       </a>
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminare il documento?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Stai per eliminare "{doc.file_name}". Questa azione è irreversibile e rimuoverà anche tutti gli allegati associati.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annulla</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => onDelete(doc)}
+                          >
+                            Elimina
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </TableCell>
               </TableRow>
@@ -337,6 +365,29 @@ export default function DocumentiContabiliPage() {
 
   const handleUploadComplete = () => {
     queryClient.invalidateQueries({ queryKey: ["accounting-documents"] });
+  };
+
+  const handleDelete = async (doc: AccountingDocument) => {
+    try {
+      // Delete attachments first
+      await supabase.from("document_attachments").delete().eq("document_id", doc.id);
+      // Delete the document record
+      const { error } = await supabase.from("accounting_documents").delete().eq("id", doc.id);
+      if (error) throw error;
+      // Try to delete the file from storage (extract path from URL)
+      try {
+        const url = new URL(doc.file_url);
+        const pathMatch = url.pathname.match(/\/object\/(?:public|sign)\/accounting-documents\/(.+)/);
+        if (pathMatch) {
+          const filePath = decodeURIComponent(pathMatch[1].split("?")[0]);
+          await supabase.storage.from("accounting-documents").remove([filePath]);
+        }
+      } catch {}
+      toast.success("Documento eliminato");
+      queryClient.invalidateQueries({ queryKey: ["accounting-documents"] });
+    } catch (err: any) {
+      toast.error("Errore nell'eliminazione: " + (err.message || "Errore sconosciuto"));
+    }
   };
 
   const counts = {
@@ -389,16 +440,16 @@ export default function DocumentiContabiliPage() {
         </TabsList>
 
         <TabsContent value="tutti" className="mt-0">
-          <DocumentsTable documents={allDocs} isLoading={allLoading} />
+          <DocumentsTable documents={allDocs} isLoading={allLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="fattura_vendita" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="fattura_acquisto" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="nota_credito" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
       </Tabs>
     </div>
