@@ -389,6 +389,8 @@ export default function DocumentiContabiliPage() {
       toast.error("Errore nell'eliminazione: " + (err.message || "Errore sconosciuto"));
     }
   };
+
+  const counts = {
     tutti: documents?.length || 0,
     fattura_vendita: documents?.filter(d => d.document_type === "fattura_vendita").length || 0,
     fattura_acquisto: documents?.filter(d => d.document_type === "fattura_acquisto").length || 0,
