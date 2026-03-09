@@ -873,6 +873,9 @@ export function DashboardPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {activity.leads?.company_name || 'Lead'}
+                              {activity.leads?.phone && (
+                                <span className="ml-2 text-xs text-muted-foreground">📞 {activity.leads.phone}</span>
+                              )}
                             </p>
                             {activity.notes && (
                               <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
