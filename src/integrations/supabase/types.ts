@@ -3097,6 +3097,53 @@ export type Database = {
           },
         ]
       }
+      document_attachments: {
+        Row: {
+          attachment_type: Database["public"]["Enums"]["document_attachment_type"]
+          created_at: string
+          document_id: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          notes: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          attachment_type?: Database["public"]["Enums"]["document_attachment_type"]
+          created_at?: string
+          document_id: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          notes?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          attachment_type?: Database["public"]["Enums"]["document_attachment_type"]
+          created_at?: string
+          document_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          notes?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_attachments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_links: {
         Row: {
           created_at: string
@@ -13534,6 +13581,15 @@ export type Database = {
       accounting_event_type: "COSTO" | "RICAVO" | "FINANZIARIO" | "ASSESTAMENTO"
       app_role: "admin" | "user" | "moderator"
       competence_type: "IMMEDIATA" | "RATEIZZATA" | "DIFFERITA"
+      document_attachment_type:
+        | "scontrino"
+        | "rapporto_intervento"
+        | "ddt"
+        | "preventivo"
+        | "foto_lavori"
+        | "ordine"
+        | "contratto"
+        | "altro"
       financial_status_type:
         | "DA_PAGARE"
         | "DA_INCASSARE"
@@ -13732,6 +13788,16 @@ export const Constants = {
       accounting_event_type: ["COSTO", "RICAVO", "FINANZIARIO", "ASSESTAMENTO"],
       app_role: ["admin", "user", "moderator"],
       competence_type: ["IMMEDIATA", "RATEIZZATA", "DIFFERITA"],
+      document_attachment_type: [
+        "scontrino",
+        "rapporto_intervento",
+        "ddt",
+        "preventivo",
+        "foto_lavori",
+        "ordine",
+        "contratto",
+        "altro",
+      ],
       financial_status_type: [
         "DA_PAGARE",
         "DA_INCASSARE",
