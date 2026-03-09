@@ -86,6 +86,7 @@ const DocumentiContabiliPage = lazy(() => import("./pages/contabilita/DocumentiC
 const DocumentiOperativiPage = lazy(() => import("./pages/contabilita/DocumentiOperativiPage"));
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
+const EventClassificationPage = lazy(() => import("./pages/management-control-2/EventClassificationPage"));
 const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
 const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
 const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
