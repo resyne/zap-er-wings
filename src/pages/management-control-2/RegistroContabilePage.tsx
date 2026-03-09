@@ -2515,8 +2515,8 @@ export default function RegistroContabilePage() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Registro Contabile</h1>
-          <p className="text-muted-foreground">Fatture, scontrini, spese e incassi</p>
+          <h2 className="text-xl font-semibold">Inbox Documenti</h2>
+          <p className="text-sm text-muted-foreground">Fatture, scontrini, spese e incassi da classificare e registrare</p>
         </div>
         <div className="flex gap-2">
           <label>
