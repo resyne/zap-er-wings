@@ -66,7 +66,7 @@ interface DdtScanForm {
   line_items: DdtLineItem[];
 }
 
-export default function RegistroPage({ embedded = false }: { embedded?: boolean }) {
+export default function RegistroPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeFlow, setActiveFlow] = useState<FlowType>(null);
@@ -454,15 +454,13 @@ export default function RegistroPage({ embedded = false }: { embedded?: boolean 
   };
 
   return (
-    <div className={embedded ? "space-y-4 sm:space-y-6" : "px-4 py-4 sm:container sm:mx-auto sm:py-6 space-y-4 sm:space-y-6"}>
-      {!embedded && (
+    <div className="px-4 py-4 sm:container sm:mx-auto sm:py-6 space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">Registro</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           Registra rapidamente documenti operativi, spese e incassi
         </p>
       </div>
-      )}
 
       {/* 4 Main Action Buttons - Mobile First Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
