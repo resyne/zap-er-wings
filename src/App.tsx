@@ -251,7 +251,7 @@ const App = () => (
                 <Route path="management-control-2/accounting-engine" element={<Suspense fallback={<PageLoader />}><AccountingEnginePage /></Suspense>} />
                 <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
                 <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
-                <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><RegistroContabilePage /></Suspense>} />
+                <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
                 <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />
                 <Route path="hr/z-app" element={<Suspense fallback={<PageLoader />}><ZAppPage /></Suspense>} />
