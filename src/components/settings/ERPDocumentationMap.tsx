@@ -172,15 +172,18 @@ const erpSections: SectionDoc[] = [
     ]
   },
   {
-    section: "Controllo di Gestione 2 (Contabilità Avanzata)",
+    section: "Contabilità",
     color: "bg-fuchsia-100 text-fuchsia-800",
     pages: [
+      { title: "Prima Nota", path: "/management-control-2/prima-nota", icon: Database, description: "Registro contabile, scritture in partita doppia e classificazione fatture emesse e ricevute." },
+      { title: "Fatture Vendita", path: "/accounting/fatture-vendita", icon: FileText, description: "Gestione fatture emesse ai clienti con collegamento a giustificativi operativi." },
+      { title: "Fatture Acquisto", path: "/accounting/fatture-acquisto", icon: FileText, description: "Gestione fatture ricevute dai fornitori con collegamento a DDT e ordini." },
+      { title: "Note di Credito", path: "/accounting/note-credito", icon: FileText, description: "Gestione note di credito emesse e ricevute, collegate alle fatture di riferimento." },
       { title: "Giustificativi", path: "/management-control-2/registro", icon: FileText, description: "Documenti operativi caricati dai dipendenti via Z-APP: incassi, spese, DDT, rapporti di intervento e offerte accettate." },
       { title: "Movimenti Finanziari", path: "/management-control-2/movimenti-finanziari", icon: DollarSign, description: "Dettaglio flussi finanziari: incassi, pagamenti, anticipi e riconciliazione bancaria." },
-      { title: "Setup Contabile", path: "/management-control-2/setup-contabile", icon: Settings, description: "Configurazione piano dei conti, centri di costo/ricavo e motore contabile automatico." },
-      { title: "Prima Nota Contabile", path: "/management-control-2/prima-nota", icon: Database, description: "Registro contabile, scritture in partita doppia e classificazione fatture emesse e ricevute." },
       { title: "Scadenziario", path: "/management-control-2/scadenziario", icon: Clock, description: "Gestione scadenze pagamenti e incassi con alert, solleciti e stato finanziario." },
       { title: "Mastrino Contabile", path: "/management-control-2/mastrino", icon: PieChart, description: "Dettaglio movimenti per singolo conto contabile con saldi progressivi e filtri." },
+      { title: "Setup Contabile", path: "/management-control-2/setup-contabile", icon: Settings, description: "Configurazione piano dei conti, centri di costo/ricavo e motore contabile automatico." },
     ]
   },
   {
