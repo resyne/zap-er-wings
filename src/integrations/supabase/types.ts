@@ -2046,63 +2046,6 @@ export type Database = {
         }
         Relationships: []
       }
-      credit_notes: {
-        Row: {
-          amount: number
-          attachment_url: string | null
-          created_at: string
-          created_by: string | null
-          direction: string
-          id: string
-          note_date: string
-          note_number: string
-          notes: string | null
-          reason: string | null
-          related_invoice_id: string | null
-          related_invoice_type: string | null
-          subject_name: string
-          total: number
-          updated_at: string
-          vat_amount: number | null
-        }
-        Insert: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          direction?: string
-          id?: string
-          note_date?: string
-          note_number: string
-          notes?: string | null
-          reason?: string | null
-          related_invoice_id?: string | null
-          related_invoice_type?: string | null
-          subject_name: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Update: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          direction?: string
-          id?: string
-          note_date?: string
-          note_number?: string
-          notes?: string | null
-          reason?: string | null
-          related_invoice_id?: string | null
-          related_invoice_type?: string | null
-          subject_name?: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Relationships: []
-      }
       crm_companies: {
         Row: {
           annual_revenue: number | null
@@ -3003,45 +2946,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      document_links: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          document_id: string
-          document_type: string
-          id: string
-          justification_id: string | null
-          justification_name: string | null
-          justification_type: string
-          justification_url: string | null
-          notes: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          document_id: string
-          document_type: string
-          id?: string
-          justification_id?: string | null
-          justification_name?: string | null
-          justification_type: string
-          justification_url?: string | null
-          notes?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          document_id?: string
-          document_type?: string
-          id?: string
-          justification_id?: string | null
-          justification_name?: string | null
-          justification_type?: string
-          justification_url?: string | null
-          notes?: string | null
-        }
-        Relationships: []
       }
       email_automation_logs: {
         Row: {
@@ -7994,63 +7898,6 @@ export type Database = {
           },
         ]
       }
-      purchase_invoices: {
-        Row: {
-          amount: number
-          attachment_url: string | null
-          created_at: string
-          created_by: string | null
-          due_date: string | null
-          id: string
-          invoice_date: string
-          invoice_number: string
-          notes: string | null
-          payment_method: string | null
-          payment_status: string
-          supplier_id: string | null
-          supplier_name: string
-          total: number
-          updated_at: string
-          vat_amount: number | null
-        }
-        Insert: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number: string
-          notes?: string | null
-          payment_method?: string | null
-          payment_status?: string
-          supplier_id?: string | null
-          supplier_name: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Update: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number?: string
-          notes?: string | null
-          payment_method?: string | null
-          payment_status?: string
-          supplier_id?: string | null
-          supplier_name?: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Relationships: []
-      }
       purchase_order_attachments: {
         Row: {
           created_at: string | null
@@ -8991,71 +8838,6 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sales_invoices: {
-        Row: {
-          amount: number
-          attachment_url: string | null
-          created_at: string
-          created_by: string | null
-          customer_id: string | null
-          customer_name: string
-          due_date: string | null
-          id: string
-          invoice_date: string
-          invoice_number: string
-          notes: string | null
-          payment_method: string | null
-          payment_status: string
-          total: number
-          updated_at: string
-          vat_amount: number | null
-        }
-        Insert: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_id?: string | null
-          customer_name: string
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number: string
-          notes?: string | null
-          payment_method?: string | null
-          payment_status?: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Update: {
-          amount?: number
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          customer_id?: string | null
-          customer_name?: string
-          due_date?: string | null
-          id?: string
-          invoice_date?: string
-          invoice_number?: string
-          notes?: string | null
-          payment_method?: string | null
-          payment_status?: string
-          total?: number
-          updated_at?: string
-          vat_amount?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sales_invoices_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
             referencedColumns: ["id"]
           },
         ]

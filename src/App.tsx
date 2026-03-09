@@ -84,9 +84,6 @@ const ScadenziarioPage = lazy(() => import("./pages/management-control-2/Scadenz
 const MastrinoPage = lazy(() => import("./pages/management-control-2/MastrinoPage"));
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
-const SalesInvoicesPage = lazy(() => import("./pages/accounting/SalesInvoicesPage"));
-const PurchaseInvoicesPage = lazy(() => import("./pages/accounting/PurchaseInvoicesPage"));
-const CreditNotesPage = lazy(() => import("./pages/accounting/CreditNotesPage"));
 const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
 const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
 const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
@@ -255,9 +252,6 @@ const App = () => (
                 <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
                 <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
                 <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
-                <Route path="accounting/fatture-vendita" element={<Suspense fallback={<PageLoader />}><SalesInvoicesPage /></Suspense>} />
-                <Route path="accounting/fatture-acquisto" element={<Suspense fallback={<PageLoader />}><PurchaseInvoicesPage /></Suspense>} />
-                <Route path="accounting/note-credito" element={<Suspense fallback={<PageLoader />}><CreditNotesPage /></Suspense>} />
                 <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
                 <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />
                 <Route path="hr/z-app" element={<Suspense fallback={<PageLoader />}><ZAppPage /></Suspense>} />
