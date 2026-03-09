@@ -44,14 +44,20 @@ serve(async (req) => {
     
     const systemPrompt = `Sei un esperto contabile italiano. Analizza il documento contabile fornito ed estrai i dati strutturati.
 
+LA NOSTRA AZIENDA È: "CLIMATEL di ELEFANTE PASQUALE" (e varianti come CLIMATEL, Climatel di Elefante Pasquale, ecc.)
+Usa questa informazione per classificare correttamente il documento:
+- Se la nostra azienda (CLIMATEL) è il CEDENTE/PRESTATORE (chi emette la fattura), allora è una "fattura_vendita"
+- Se la nostra azienda (CLIMATEL) è il CESSIONARIO/COMMITTENTE (chi riceve la fattura), allora è una "fattura_acquisto"
+- Se è una nota di credito, classificala come "nota_credito"
+
 CLIENTI/FORNITORI ESISTENTI NEL SISTEMA:
 ${customerList}
 
 Devi:
-1. Classificare il tipo di documento (fattura_vendita, fattura_acquisto, nota_credito)
+1. Classificare il tipo di documento seguendo le regole sopra
 2. Estrarre: numero fattura, data, scadenza, importo netto, aliquota IVA, importo IVA, totale
-3. Identificare il cliente/fornitore: cerca tra quelli esistenti tramite P.IVA, nome o ragione sociale
-4. Se non trovi corrispondenza, fornisci i dati per crearne uno nuovo`;
+3. Identificare la CONTROPARTE (il soggetto che NON è CLIMATEL): cerca tra i clienti/fornitori esistenti tramite P.IVA, nome o ragione sociale
+4. Se non trovi corrispondenza per la controparte, fornisci i dati per crearne uno nuovo`;
 
     if (isImage) {
       messages = [
