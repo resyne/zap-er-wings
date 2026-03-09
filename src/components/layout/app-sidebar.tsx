@@ -183,7 +183,6 @@ const navigationGroups: NavGroup[] = [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
       { title: "Mastrino Contabile", url: "/management-control-2/mastrino", icon: PieChart },
-      { title: "Registro Contabile", url: "/management-control-2/registro-fatture", icon: FileText },
     ]
   },
   {

@@ -936,15 +936,19 @@ export default function PrimaNotaPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Prima Nota</h1>
         <p className="text-muted-foreground">
-          Scritture contabili in partita doppia generate dagli eventi classificati
+          Registro contabile, scritture in partita doppia e classificazione documenti
         </p>
       </div>
 
-      <Tabs defaultValue="movements" className="space-y-4">
+      <Tabs defaultValue="registro-contabile" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="registro-contabile" className="gap-2">
+            <Receipt className="h-4 w-4" />
+            Registro Contabile
+          </TabsTrigger>
           <TabsTrigger value="movements" className="gap-2">
             <FileText className="h-4 w-4" />
-            Movimenti
+            Libro Giornale
           </TabsTrigger>
           <TabsTrigger value="pending" className="gap-2">
             <AlertCircle className="h-4 w-4" />
@@ -956,6 +960,13 @@ export default function PrimaNotaPage() {
             )}
           </TabsTrigger>
         </TabsList>
+
+        {/* REGISTRO CONTABILE TAB */}
+        <TabsContent value="registro-contabile">
+          <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Caricamento Registro Contabile...</div>}>
+            <RegistroContabileContent />
+          </Suspense>
+        </TabsContent>
 
         {/* MOVEMENTS TAB */}
         <TabsContent value="movements" className="space-y-4">
