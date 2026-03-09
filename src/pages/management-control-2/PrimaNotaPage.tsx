@@ -1878,7 +1878,7 @@ export default function PrimaNotaPage() {
             </div>
           )}
 
-          {pendingEntries.length === 0 && pendingDocuments.length === 0 && (
+          {pendingEntries.length === 0 && pendingDocuments.length === 0 && daClassificareEntries.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
