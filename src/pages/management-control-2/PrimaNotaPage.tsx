@@ -981,9 +981,9 @@ export default function PrimaNotaPage() {
             <AlertCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Da Classificare</span>
             <span className="sm:hidden">Classificare</span>
-            {pendingEntries.length > 0 && (
+            {(pendingEntries.length + pendingDocuments.length) > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {pendingEntries.length}
+                {pendingEntries.length + pendingDocuments.length}
               </Badge>
             )}
           </TabsTrigger>
