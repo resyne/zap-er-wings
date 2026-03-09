@@ -440,16 +440,16 @@ export default function DocumentiContabiliPage() {
         </TabsList>
 
         <TabsContent value="tutti" className="mt-0">
-          <DocumentsTable documents={allDocs} isLoading={allLoading} />
+          <DocumentsTable documents={allDocs} isLoading={allLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="fattura_vendita" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="fattura_acquisto" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
         <TabsContent value="nota_credito" className="mt-0">
-          <DocumentsTable documents={documents} isLoading={isLoading} />
+          <DocumentsTable documents={documents} isLoading={isLoading} onDelete={handleDelete} />
         </TabsContent>
       </Tabs>
     </div>
