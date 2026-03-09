@@ -2557,155 +2557,151 @@ export default function RegistroContabilePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <Card 
-          className={`cursor-pointer transition-all ${showOperationalDocs ? 'ring-2 ring-orange-500' : 'hover:bg-muted/50'}`}
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <button 
+          className={cn(
+            "rounded-xl border p-3.5 text-left transition-all hover:shadow-sm",
+            showOperationalDocs ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'bg-card hover:bg-muted/50'
+          )}
           onClick={() => setShowOperationalDocs(!showOperationalDocs)}
         >
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Da Fatturare</p>
-                <p className="text-2xl font-bold text-orange-500">{stats.daFatturare}</p>
-              </div>
-              <FileText className="w-8 h-8 text-orange-500" />
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <FileText className="w-3.5 h-3.5 text-orange-600" />
             </div>
-          </CardContent>
-        </Card>
-        <Card 
-          className={`cursor-pointer transition-all ${filterType === 'da_classificare' ? 'ring-2 ring-primary' : 'hover:bg-muted/50'}`}
+            <span className="text-xs text-muted-foreground">Da Fatturare</span>
+          </div>
+          <p className="text-xl font-bold text-orange-600">{stats.daFatturare}</p>
+        </button>
+        
+        <button 
+          className={cn(
+            "rounded-xl border p-3.5 text-left transition-all hover:shadow-sm",
+            filterType === 'da_classificare' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'bg-card hover:bg-muted/50'
+          )}
           onClick={() => setFilterType(filterType === 'da_classificare' ? 'all' : 'da_classificare')}
         >
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Da Classificare</p>
-                <p className="text-2xl font-bold text-amber-500">{stats.daClassificare}</p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-amber-500" />
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bozze</p>
-                <p className="text-2xl font-bold">{stats.bozze}</p>
-              </div>
-              <Clock className="w-8 h-8 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Da Classificare</span>
+          </div>
+          <p className="text-xl font-bold text-amber-600">{stats.daClassificare}</p>
+        </button>
+        
+        <div className="rounded-xl border bg-card p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-muted flex items-center justify-center">
+              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Contabilizzate</p>
-                <p className="text-2xl font-bold text-green-500">{stats.contabilizzate}</p>
-              </div>
-              <CheckCircle2 className="w-8 h-8 text-green-500" />
+            <span className="text-xs text-muted-foreground">Bozze</span>
+          </div>
+          <p className="text-xl font-bold">{stats.bozze}</p>
+        </div>
+        
+        <div className="rounded-xl border bg-card p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Da Incassare</p>
-                <p className="text-2xl font-bold text-blue-500">€{stats.daIncassare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-              </div>
-              <ArrowUpRight className="w-8 h-8 text-blue-500" />
+            <span className="text-xs text-muted-foreground">Contabilizzate</span>
+          </div>
+          <p className="text-xl font-bold text-green-600">{stats.contabilizzate}</p>
+        </div>
+        
+        <div className="rounded-xl border bg-card p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <ArrowUpRight className="w-3.5 h-3.5 text-blue-600" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Da Pagare</p>
-                <p className="text-2xl font-bold text-orange-500">€{stats.daPagare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-              </div>
-              <ArrowDownLeft className="w-8 h-8 text-orange-500" />
+            <span className="text-xs text-muted-foreground">Da Incassare</span>
+          </div>
+          <p className="text-lg font-bold text-blue-600">€{stats.daIncassare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+        </div>
+        
+        <div className="rounded-xl border bg-card p-3.5">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <ArrowDownLeft className="w-3.5 h-3.5 text-red-600" />
             </div>
-          </CardContent>
-        </Card>
-        {/* Card per eventi stornati/da riclassificare */}
-        {stats.daRiclassificare > 0 && (
-          <Card 
-            className={`cursor-pointer transition-all border-orange-500/50 bg-orange-500/5 ${filterStatus === 'stornati' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-500/10'}`}
-            onClick={() => setFilterStatus(filterStatus === 'stornati' ? 'all' : 'stornati')}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-orange-600">Da Riclassificare</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.daRiclassificare}</p>
-                  <p className="text-xs text-muted-foreground">Post-storno</p>
-                </div>
-                <RefreshCw className="w-8 h-8 text-orange-500" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            <span className="text-xs text-muted-foreground">Da Pagare</span>
+          </div>
+          <p className="text-lg font-bold text-red-600">€{stats.daPagare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Cerca per numero fattura o soggetto..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti i tipi</SelectItem>
-                <SelectItem value="vendita">Vendita</SelectItem>
-                <SelectItem value="acquisto">Acquisto</SelectItem>
-                <SelectItem value="da_classificare">Da Classificare</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Stato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti gli stati</SelectItem>
-                <SelectItem value="bozza">Bozza</SelectItem>
-                <SelectItem value="registrata">Registrata</SelectItem>
-                <SelectItem value="contabilizzato">Contabilizzato</SelectItem>
-                <SelectItem value="stornati">
-                  <div className="flex items-center gap-2">
-                    <Undo2 className="w-3 h-3 text-orange-500" />
-                    Stornati / Da Riclassificare
-                  </div>
-                </SelectItem>
-                <SelectItem value="da_riclassificare">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-3 h-3 text-orange-500" />
-                    Solo Da Riclassificare
-                  </div>
-                </SelectItem>
-                <SelectItem value="rettificato">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3 h-3 text-red-500" />
-                    Rettificato (Bloccato)
-                  </div>
-                </SelectItem>
-                <SelectItem value="archiviato">Archiviato</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Da Riclassificare alert */}
+      {stats.daRiclassificare > 0 && (
+        <button 
+          className={cn(
+            "w-full rounded-xl border border-orange-300 dark:border-orange-800 p-3 flex items-center gap-3 transition-all text-left",
+            filterStatus === 'stornati' ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/30' : 'bg-orange-50/50 dark:bg-orange-950/10 hover:bg-orange-50 dark:hover:bg-orange-950/20'
+          )}
+          onClick={() => setFilterStatus(filterStatus === 'stornati' ? 'all' : 'stornati')}
+        >
+          <RefreshCw className="w-5 h-5 text-orange-600 flex-shrink-0" />
+          <div>
+            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">{stats.daRiclassificare} documenti da riclassificare</span>
+            <span className="text-xs text-orange-600/70 ml-2">post-storno</span>
           </div>
-        </CardContent>
-      </Card>
+        </button>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="Cerca per numero fattura o soggetto..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-10"
+          />
+        </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-full md:w-[180px] h-10">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i tipi</SelectItem>
+            <SelectItem value="vendita">Vendita</SelectItem>
+            <SelectItem value="acquisto">Acquisto</SelectItem>
+            <SelectItem value="da_classificare">Da Classificare</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-full md:w-[220px] h-10">
+            <SelectValue placeholder="Stato" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti gli stati</SelectItem>
+            <SelectItem value="bozza">Bozza</SelectItem>
+            <SelectItem value="registrata">Registrata</SelectItem>
+            <SelectItem value="contabilizzato">Contabilizzato</SelectItem>
+            <SelectItem value="stornati">
+              <div className="flex items-center gap-2">
+                <Undo2 className="w-3 h-3 text-orange-500" />
+                Stornati / Da Riclassificare
+              </div>
+            </SelectItem>
+            <SelectItem value="da_riclassificare">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-3 h-3 text-orange-500" />
+                Solo Da Riclassificare
+              </div>
+            </SelectItem>
+            <SelectItem value="rettificato">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3 h-3 text-red-500" />
+                Rettificato (Bloccato)
+              </div>
+            </SelectItem>
+            <SelectItem value="archiviato">Archiviato</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Vista Documentazione Operativa */}
       {showOperationalDocs ? (
