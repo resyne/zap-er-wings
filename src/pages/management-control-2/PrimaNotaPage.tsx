@@ -21,8 +21,11 @@ import {
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
-  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles
+  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
+  ClipboardList, Wallet
 } from "lucide-react";
+import { EventClassificationContent } from "./EventClassificationPage";
+import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
