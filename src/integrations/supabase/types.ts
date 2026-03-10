@@ -2857,6 +2857,7 @@ export type Database = {
       }
       ddts: {
         Row: {
+          accounting_document_id: string | null
           admin_status: string | null
           archived: boolean | null
           attachment_url: string | null
@@ -2873,6 +2874,7 @@ export type Database = {
           invoice_date: string | null
           invoice_number: string | null
           invoiced: boolean | null
+          non_contabilizzato: boolean
           notes: string | null
           official_document_date: string | null
           pdf_data: string | null
@@ -2885,6 +2887,7 @@ export type Database = {
           work_order_id: string | null
         }
         Insert: {
+          accounting_document_id?: string | null
           admin_status?: string | null
           archived?: boolean | null
           attachment_url?: string | null
@@ -2901,6 +2904,7 @@ export type Database = {
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
+          non_contabilizzato?: boolean
           notes?: string | null
           official_document_date?: string | null
           pdf_data?: string | null
@@ -2913,6 +2917,7 @@ export type Database = {
           work_order_id?: string | null
         }
         Update: {
+          accounting_document_id?: string | null
           admin_status?: string | null
           archived?: boolean | null
           attachment_url?: string | null
@@ -2929,6 +2934,7 @@ export type Database = {
           invoice_date?: string | null
           invoice_number?: string | null
           invoiced?: boolean | null
+          non_contabilizzato?: boolean
           notes?: string | null
           official_document_date?: string | null
           pdf_data?: string | null
@@ -2941,6 +2947,13 @@ export type Database = {
           work_order_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ddts_accounting_document_id_fkey"
+            columns: ["accounting_document_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ddts_customer_id_fkey"
             columns: ["customer_id"]
@@ -9347,6 +9360,7 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          accounting_document_id: string | null
           archived: boolean | null
           article: string | null
           attachments: Json | null
@@ -9363,6 +9377,7 @@ export type Database = {
           invoiced: boolean | null
           is_warranty: boolean
           lead_id: string | null
+          non_contabilizzato: boolean
           notes: string | null
           number: string
           offer_id: string | null
@@ -9377,6 +9392,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          accounting_document_id?: string | null
           archived?: boolean | null
           article?: string | null
           attachments?: Json | null
@@ -9393,6 +9409,7 @@ export type Database = {
           invoiced?: boolean | null
           is_warranty?: boolean
           lead_id?: string | null
+          non_contabilizzato?: boolean
           notes?: string | null
           number: string
           offer_id?: string | null
@@ -9407,6 +9424,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          accounting_document_id?: string | null
           archived?: boolean | null
           article?: string | null
           attachments?: Json | null
@@ -9423,6 +9441,7 @@ export type Database = {
           invoiced?: boolean | null
           is_warranty?: boolean
           lead_id?: string | null
+          non_contabilizzato?: boolean
           notes?: string | null
           number?: string
           offer_id?: string | null
@@ -9437,6 +9456,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_orders_accounting_document_id_fkey"
+            columns: ["accounting_document_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_orders_customer_id_fkey"
             columns: ["customer_id"]
@@ -9810,6 +9836,7 @@ export type Database = {
       }
       service_reports: {
         Row: {
+          accounting_document_id: string | null
           amount: number | null
           archived: boolean | null
           contact_id: string | null
@@ -9830,6 +9857,7 @@ export type Database = {
           is_warranty: boolean
           kilometers: number | null
           materials_used: string | null
+          non_contabilizzato: boolean
           notes: string | null
           payment_date: string | null
           payment_status: string
@@ -9849,6 +9877,7 @@ export type Database = {
           work_performed: string | null
         }
         Insert: {
+          accounting_document_id?: string | null
           amount?: number | null
           archived?: boolean | null
           contact_id?: string | null
@@ -9869,6 +9898,7 @@ export type Database = {
           is_warranty?: boolean
           kilometers?: number | null
           materials_used?: string | null
+          non_contabilizzato?: boolean
           notes?: string | null
           payment_date?: string | null
           payment_status?: string
@@ -9888,6 +9918,7 @@ export type Database = {
           work_performed?: string | null
         }
         Update: {
+          accounting_document_id?: string | null
           amount?: number | null
           archived?: boolean | null
           contact_id?: string | null
@@ -9908,6 +9939,7 @@ export type Database = {
           is_warranty?: boolean
           kilometers?: number | null
           materials_used?: string | null
+          non_contabilizzato?: boolean
           notes?: string | null
           payment_date?: string | null
           payment_status?: string
@@ -9927,6 +9959,13 @@ export type Database = {
           work_performed?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "service_reports_accounting_document_id_fkey"
+            columns: ["accounting_document_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "service_reports_contact_id_fkey"
             columns: ["contact_id"]
