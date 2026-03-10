@@ -138,22 +138,7 @@ export default function MovimentiFinanziariPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Movimenti Finanziari</h1>
-          <p className="text-muted-foreground">
-            Gestione incassi, pagamenti, anticipi e rimborsi
-          </p>
-        </div>
-        {stats.daClassificare > 0 && (
-          <Button onClick={handleGoToClassification}>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Vai a Classificazione Eventi ({stats.daClassificare})
-          </Button>
-        )}
-      </div>
-
+    <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
