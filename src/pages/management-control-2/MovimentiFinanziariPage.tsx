@@ -134,7 +134,7 @@ export default function MovimentiFinanziariPage() {
   };
 
   const handleGoToClassification = () => {
-    navigate("/management-control-2/classificazione-eventi");
+    navigate("/management-control-2/prima-nota");
   };
 
   return (
