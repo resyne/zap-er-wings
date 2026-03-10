@@ -22,7 +22,7 @@ import {
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
   FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
-  ClipboardList, Wallet
+  ClipboardList, Wallet, Info, ArrowLeftRight
 } from "lucide-react";
 import { EventClassificationContent } from "./EventClassificationPage";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
@@ -972,6 +972,88 @@ export default function PrimaNotaPage() {
           </div>
         </div>
       </div>
+
+      {/* Cruscotto Guida Prima Nota */}
+      <Collapsible>
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Come utilizzare la Prima Nota</CardTitle>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
+                  <ChevronDown className="h-4 w-4" />
+                  Dettagli
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <CardDescription>
+              Tutti i movimenti che riguardano denaro o strumenti equivalenti — per ricostruire il flusso di cassa, allineare cassa e banca, generare il cash flow.
+            </CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-2">
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* Entrate */}
+                <div className="rounded-lg border bg-background p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                      <ArrowUp className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <h4 className="font-semibold text-sm">Entrate</h4>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Incasso fattura cliente</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Vendita in contanti</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Bonifico ricevuto</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Incasso POS</li>
+                  </ul>
+                </div>
+
+                {/* Uscite */}
+                <div className="rounded-lg border bg-background p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                      <ArrowDown className="h-4 w-4 text-red-600" />
+                    </div>
+                    <h4 className="font-semibold text-sm">Uscite</h4>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento fornitore</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Spese bancarie</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento stipendi</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento F24</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Acquisto pagato subito</li>
+                  </ul>
+                </div>
+
+                {/* Movimenti interni */}
+                <div className="rounded-lg border bg-background p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h4 className="font-semibold text-sm">Movimenti interni</h4>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Giroconto banca → cassa</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Prelievo contanti</li>
+                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Versamento contanti</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
+                <p className="text-sm text-muted-foreground">
+                  👉 Questi movimenti devono sempre stare in prima nota perché servono per: <strong>ricostruire il flusso di cassa</strong>, <strong>allineare cassa e banca</strong> e <strong>generare il cash flow</strong>.
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
          <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-4 md:inline-flex">
