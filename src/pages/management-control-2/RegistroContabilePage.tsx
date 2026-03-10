@@ -2668,7 +2668,7 @@ export default function RegistroContabilePage() {
             <SelectItem value="all">Tutti i tipi</SelectItem>
             <SelectItem value="vendita">Vendita</SelectItem>
             <SelectItem value="acquisto">Acquisto</SelectItem>
-            <SelectItem value="da_classificare">Da Classificare</SelectItem>
+            <SelectItem value="da_classificare">Da Annotare</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
