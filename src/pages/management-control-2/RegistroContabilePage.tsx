@@ -2788,75 +2788,26 @@ export default function RegistroContabilePage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Cerca per numero fattura o soggetto..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-10"
-          />
-        </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full md:w-[180px] h-10">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti i tipi</SelectItem>
-            <SelectItem value="vendita">Vendita</SelectItem>
-            <SelectItem value="acquisto">Acquisto</SelectItem>
-            <SelectItem value="da_classificare">Da Annotare</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full md:w-[220px] h-10">
-            <SelectValue placeholder="Stato" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="bozza">Bozza</SelectItem>
-            <SelectItem value="registrata">Registrata</SelectItem>
-            <SelectItem value="contabilizzato">Contabilizzato</SelectItem>
-            <SelectItem value="stornati">
-              <div className="flex items-center gap-2">
-                <Undo2 className="w-3 h-3 text-orange-500" />
-                Stornati / Da Riclassificare
-              </div>
-            </SelectItem>
-            <SelectItem value="da_riclassificare">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-3 h-3 text-orange-500" />
-                Solo Da Riclassificare
-              </div>
-            </SelectItem>
-            <SelectItem value="rettificato">
-              <div className="flex items-center gap-2">
-                <Lock className="w-3 h-3 text-red-500" />
-                Rettificato (Bloccato)
-              </div>
-            </SelectItem>
-            <SelectItem value="archiviato">Archiviato</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={groupBy} onValueChange={(v) => {
-          setGroupBy(v as GroupByOption);
-          // Auto-expand first 3 periods
+      <RegistryFiltersBar
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        filterStatus={filterStatus}
+        onFilterStatusChange={setFilterStatus}
+        groupBy={groupBy}
+        onGroupByChange={(v) => {
+          setGroupBy(v as any);
           setExpandedRegistryPeriods(new Set());
-        }}>
-          <SelectTrigger className="w-full md:w-[180px] h-10">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Raggruppa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Nessun raggruppamento</SelectItem>
-            <SelectItem value="day">Per giorno</SelectItem>
-            <SelectItem value="week">Per settimana</SelectItem>
-            <SelectItem value="month">Per mese</SelectItem>
-            <SelectItem value="quarter">Per trimestre</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        }}
+        onClearFilters={() => {
+          setSearchTerm("");
+          setFilterType("all");
+          setFilterStatus("all");
+          setGroupBy("month");
+          setExpandedRegistryPeriods(new Set());
+        }}
+      />
 
       {/* Vista Documentazione Operativa */}
       {showOperationalDocs ? (
