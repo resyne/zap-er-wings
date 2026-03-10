@@ -399,16 +399,16 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         <div className="overflow-x-auto rounded-md border border-border">
           <div className="min-w-[600px]">
             {/* Day headers */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/30">
+            <div className="grid grid-cols-[36px_repeat(7,1fr)] bg-muted/30">
               <div className="border-b border-r border-border" />
               {weekDays.map((day, i) => {
                 const isToday = isSameDay(day, new Date());
                 return (
-                  <div key={i} className={`text-center py-2 border-b border-r border-border last:border-r-0 ${isToday ? 'bg-primary/5' : ''}`}>
-                    <div className={`text-[10px] uppercase tracking-wider ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                      {format(day, "EEE", { locale: it })}
+                  <div key={i} className={`text-center py-1.5 border-b border-r border-border last:border-r-0 ${isToday ? 'bg-primary/5' : ''}`}>
+                    <div className={`text-[9px] uppercase tracking-wider ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                      {format(day, "EEEEE", { locale: it })}
                     </div>
-                    <div className={`text-sm font-semibold leading-none mt-0.5 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                    <div className={`text-xs font-semibold leading-none mt-0.5 ${isToday ? 'text-primary' : 'text-foreground'}`}>
                       {format(day, "d")}
                     </div>
                   </div>
