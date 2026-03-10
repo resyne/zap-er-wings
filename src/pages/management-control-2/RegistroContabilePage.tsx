@@ -135,7 +135,7 @@ type RegistryStatus = 'bozza' | 'registrata' | 'da_classificare' | 'da_riclassif
 const REGISTRY_STATUSES = [
   { value: 'bozza', label: 'Bozza', color: 'bg-slate-500/20 text-slate-600 border-slate-500/30' },
   { value: 'registrata', label: 'Registrata', color: 'bg-primary/20 text-primary border-primary/30' },
-  { value: 'da_classificare', label: 'Da Classificare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
+  { value: 'da_classificare', label: 'Da Annotare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
   { value: 'da_riclassificare', label: 'Da Riclassificare', color: 'bg-orange-500/20 text-orange-600 border-orange-500/30' },
   { value: 'non_rilevante', label: 'Non Rilevante Fiscalmente', color: 'bg-gray-500/20 text-gray-600 border-gray-500/30' },
   { value: 'contabilizzato', label: 'Contabilizzato', color: 'bg-green-500/20 text-green-600 border-green-500/30' },
@@ -2586,7 +2586,7 @@ export default function RegistroContabilePage() {
             <div className="h-6 w-6 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
               <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
             </div>
-            <span className="text-xs text-muted-foreground">Da Classificare</span>
+            <span className="text-xs text-muted-foreground">Da Annotare</span>
           </div>
           <p className="text-xl font-bold text-amber-600">{stats.daClassificare}</p>
         </button>
@@ -2668,7 +2668,7 @@ export default function RegistroContabilePage() {
             <SelectItem value="all">Tutti i tipi</SelectItem>
             <SelectItem value="vendita">Vendita</SelectItem>
             <SelectItem value="acquisto">Acquisto</SelectItem>
-            <SelectItem value="da_classificare">Da Classificare</SelectItem>
+            <SelectItem value="da_classificare">Da Annotare</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -2986,7 +2986,7 @@ export default function RegistroContabilePage() {
                 ) : filteredEvents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nessun evento da classificare
+                      Nessun rapporto di spesa o incasso da annotare
                     </TableCell>
                   </TableRow>
                 ) : (

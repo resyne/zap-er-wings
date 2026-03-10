@@ -997,8 +997,8 @@ export default function PrimaNotaPage() {
           </TabsTrigger>
           <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Da Classificare</span>
-            <span className="sm:hidden">Classificare</span>
+            <span className="hidden sm:inline">Da Annotare</span>
+            <span className="sm:hidden">Annotare</span>
             {(pendingEntries.length + pendingDocuments.length + daClassificareEntries.length) > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
                 {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
@@ -1753,7 +1753,7 @@ export default function PrimaNotaPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileCheck className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Da Classificare</h3>
+                  <h3 className="font-semibold text-sm">Da Annotare</h3>
                   <Badge variant="secondary" className="text-xs">{daClassificareEntries.length}</Badge>
                 </div>
                 <Button
@@ -1798,7 +1798,7 @@ export default function PrimaNotaPage() {
                         </div>
                       </div>
                       <Badge variant="outline" className="text-amber-600 border-amber-300">
-                        Da classificare
+                        Da annotare
                       </Badge>
                     </div>
                   </CardContent>
