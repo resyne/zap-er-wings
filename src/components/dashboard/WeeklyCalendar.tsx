@@ -430,7 +430,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                 return (
                   <div
                     key={i}
-                    className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors
+                    className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors overflow-hidden
                       ${isToday ? 'bg-primary/5' : ''} 
                       ${isOver ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/30'}
                     `}
