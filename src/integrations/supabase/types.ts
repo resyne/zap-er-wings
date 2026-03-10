@@ -137,6 +137,7 @@ export type Database = {
           note: string | null
           payment_date: string | null
           payment_method: string | null
+          pre_movement_status: string | null
           profit_center_id: string | null
           recurrence_end_date: string | null
           recurrence_period: string | null
@@ -177,6 +178,7 @@ export type Database = {
           note?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          pre_movement_status?: string | null
           profit_center_id?: string | null
           recurrence_end_date?: string | null
           recurrence_period?: string | null
@@ -217,6 +219,7 @@ export type Database = {
           note?: string | null
           payment_date?: string | null
           payment_method?: string | null
+          pre_movement_status?: string | null
           profit_center_id?: string | null
           recurrence_end_date?: string | null
           recurrence_period?: string | null
@@ -7091,6 +7094,58 @@ export type Database = {
             columns: ["pbx_id"]
             isOneToOne: false
             referencedRelation: "pbx_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_movement_links: {
+        Row: {
+          id: string
+          invoice_document_id: string | null
+          invoice_entry_id: string | null
+          linked_at: string
+          linked_by: string | null
+          notes: string | null
+          pre_movement_id: string
+        }
+        Insert: {
+          id?: string
+          invoice_document_id?: string | null
+          invoice_entry_id?: string | null
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          pre_movement_id: string
+        }
+        Update: {
+          id?: string
+          invoice_document_id?: string | null
+          invoice_entry_id?: string | null
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          pre_movement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_movement_links_invoice_document_id_fkey"
+            columns: ["invoice_document_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_movement_links_invoice_entry_id_fkey"
+            columns: ["invoice_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_movement_links_pre_movement_id_fkey"
+            columns: ["pre_movement_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
             referencedColumns: ["id"]
           },
         ]
