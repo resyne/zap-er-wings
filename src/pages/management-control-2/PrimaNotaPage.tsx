@@ -987,10 +987,10 @@ export default function PrimaNotaPage() {
       </div>
 
       <Tabs defaultValue="registro-contabile" className="space-y-6">
-        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
+        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-5 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Registro Contabile</span>
+            <span className="hidden sm:inline">Registro</span>
             <span className="sm:hidden">Registro</span>
           </TabsTrigger>
           <TabsTrigger value="movements" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
@@ -1007,6 +1007,16 @@ export default function PrimaNotaPage() {
                 {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="classificazione" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden sm:inline">Classificazione</span>
+            <span className="sm:hidden">Classifica</span>
+          </TabsTrigger>
+          <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Movimenti</span>
+            <span className="sm:hidden">Movimenti</span>
           </TabsTrigger>
         </TabsList>
 
