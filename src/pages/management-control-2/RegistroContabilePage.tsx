@@ -24,6 +24,8 @@ import { AccountSplitManager } from "@/components/management-control/AccountSpli
 import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
 import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
+import { RegistryFiltersBar } from "@/components/registro-contabile/RegistryFiltersBar";
+import { InvoiceRegistryTable } from "@/components/registro-contabile/InvoiceRegistryTable";
 import { 
   Plus, 
   FileCheck, 
