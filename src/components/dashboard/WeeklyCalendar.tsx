@@ -61,6 +61,7 @@ interface RecurringTask {
 interface WeeklyCalendarProps {
   recurringTasks?: RecurringTask[];
   onRecurringTaskToggle?: (task: RecurringTask) => void;
+  onExternalDrop?: () => void;
 }
 
 type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
