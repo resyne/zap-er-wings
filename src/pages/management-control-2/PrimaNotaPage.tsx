@@ -383,6 +383,7 @@ export default function PrimaNotaPage() {
           profit_center:profit_centers(code, name)
         `)
         .in("status", ["da_classificare", "in_classificazione", "sospeso", "pronto_prima_nota"])
+        .is("pre_movement_status", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
