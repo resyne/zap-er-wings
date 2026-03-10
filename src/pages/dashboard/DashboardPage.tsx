@@ -697,7 +697,7 @@ export function DashboardPage() {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-center h-96">
-          <div className="text-lg">Caricamento dashboard...</div>
+          <div className="animate-pulse text-muted-foreground">Caricamento dashboard...</div>
         </div>
       </div>
     );
@@ -712,77 +712,118 @@ export function DashboardPage() {
   ].length;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header with user info */}
+    <div className="container mx-auto p-4 md:p-6 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">
-            Benvenuto, {profile?.first_name || user?.email}!
+          <h1 className="text-2xl font-bold tracking-tight">
+            Ciao, {profile?.first_name || user?.email} 👋
           </h1>
-          <p className="text-muted-foreground">
-            Ecco le tue attività di oggi
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {format(new Date(), "EEEE d MMMM yyyy", { locale: it })}
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <User className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1.5 h-7">
+            <User className="w-3 h-3" />
             <RoleDisplay />
-          </div>
-          <Button variant="outline" size="sm">
-            <Settings className="w-4 h-4 mr-2" />
-            Profilo
+          </Badge>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Settings className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Esci
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
+            <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Post-it / Sticky Notes Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>I Miei Post-it</CardTitle>
-          <Button size="sm" onClick={() => setShowNewNoteDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuovo Post-it
+      {/* Quick Actions — Registra movimento */}
+      <AIDocumentUpload />
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="border-none shadow-sm bg-muted/40">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">{totalTasks}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Attività</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-muted/40">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-lg bg-destructive/10 p-2">
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none text-destructive">{urgentTasks}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Urgenti</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors" onClick={() => navigate('/tasks')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-lg bg-accent p-2">
+              <CheckCircle2 className="h-4 w-4 text-foreground" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">{tasks.length}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Task</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors" onClick={() => navigate('/support/tickets')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="rounded-lg bg-orange-500/10 p-2">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">{tickets.length}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Ticket</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Post-it / Sticky Notes — compact */}
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
+          <CardTitle className="text-sm font-semibold">📌 Post-it</CardTitle>
+          <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setShowNewNoteDialog(true)}>
+            <Plus className="w-3 h-3" />
+            Nuovo
           </Button>
         </CardHeader>
-        <CardContent>
-          {stickyNotes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Nessun post-it. Clicca su "Nuovo Post-it" per aggiungerne uno.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stickyNotes.length > 0 && (
+          <CardContent className="px-4 pb-4 pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {stickyNotes.map((note) => (
-                <Card 
+                <div 
                   key={note.id} 
-                  className={`relative p-4 border-2 shadow-sm hover:shadow-md transition-shadow ${noteColorClasses[note.color as keyof typeof noteColorClasses] || noteColorClasses.yellow}`}
+                  className={`relative p-3 rounded-lg border text-sm ${noteColorClasses[note.color as keyof typeof noteColorClasses] || noteColorClasses.yellow}`}
                 >
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="absolute top-2 right-2 h-6 w-6"
+                    className="absolute top-1 right-1 h-5 w-5 opacity-40 hover:opacity-100"
                     onClick={() => handleDeleteNote(note.id)}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
-                  <p className="text-sm whitespace-pre-wrap pr-8 min-h-[80px]">
+                  <p className="whitespace-pre-wrap pr-6 min-h-[48px] text-xs leading-relaxed">
                     {note.content}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {format(new Date(note.created_at), "PPp", { locale: it })}
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    {format(new Date(note.created_at), "dd MMM HH:mm", { locale: it })}
                   </p>
-                </Card>
+                </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* AI Document Upload */}
-      <AIDocumentUpload />
+          </CardContent>
+        )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
