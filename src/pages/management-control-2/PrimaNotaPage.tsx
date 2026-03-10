@@ -803,8 +803,6 @@ export default function PrimaNotaPage() {
     },
   });
 
-      {/* ==================== PRE-MOVIMENTI IN ATTESA FATTURA ==================== */}
-      <PreMovementSection />
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
