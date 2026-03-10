@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -114,7 +114,7 @@ const isZeroIvaMode = (mode: string) => ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE
 
 const formatPaymentMethod = (method: string | null) => {
   if (!method) return "-";
-  const labels: Record<string, string> = { banca: "Banca", cassa: "Cassa", carta: "Carta", contanti: "Contanti", bonifico: "Bonifico" };
+  const labels: Record<string, string> = { bonifico: "Bonifico", banca: "Banca", carta: "Carta", american_express: "American Express", contanti: "Contanti", cassa: "Cassa" };
   return labels[method] || method;
 };
 
@@ -646,11 +646,21 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Non specificato</SelectItem>
-                      <SelectItem value="banca">Banca</SelectItem>
-                      <SelectItem value="cassa">Cassa</SelectItem>
-                      <SelectItem value="carta">Carta</SelectItem>
-                      <SelectItem value="contanti">Contanti</SelectItem>
-                      <SelectItem value="bonifico">Bonifico</SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>Bancario</SelectLabel>
+                        <SelectItem value="bonifico">Bonifico</SelectItem>
+                        <SelectItem value="banca">Banca (altro)</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Carte</SelectLabel>
+                        <SelectItem value="carta">Carta</SelectItem>
+                        <SelectItem value="american_express">American Express</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Contante</SelectLabel>
+                        <SelectItem value="contanti">Contanti</SelectItem>
+                        <SelectItem value="cassa">Cassa</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
