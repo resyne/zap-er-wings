@@ -909,7 +909,12 @@ export function DashboardPage() {
                   {tasks.map((task) => (
                     <div 
                       key={`task-${task.id}`} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'task', itemId: task.id }));
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
                       onClick={() => navigate(`/tasks?task=${task.id}`)}
                     >
                       <div className="flex items-start justify-between gap-2">
