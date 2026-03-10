@@ -386,22 +386,8 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // Fetch entries waiting for classification (da_classificare)
-  const { data: daClassificareEntries = [] } = useQuery({
-    queryKey: ["accounting-entries-to-classify-pending"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("accounting_entries")
-        .select(`
-          id, direction, document_type, amount, document_date, note,
-          attachment_url, iva_mode, iva_aliquota, imponibile, iva_amount, totale
-        `)
-        .in("status", ["da_classificare", "in_classificazione", "sospeso"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+
+
 
   const { data: pendingDocuments = [] } = useQuery({
     queryKey: ["pending-accounting-documents"],
@@ -988,7 +974,7 @@ export default function PrimaNotaPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-5 md:inline-flex">
+         <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-4 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Registro</span>
@@ -1000,19 +986,14 @@ export default function PrimaNotaPage() {
             <span className="sm:hidden">Giornale</span>
           </TabsTrigger>
           <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
-            <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Da Annotare</span>
-            <span className="sm:hidden">Annotare</span>
-            {(pendingEntries.length + pendingDocuments.length + daClassificareEntries.length) > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden sm:inline">Da Classificare</span>
+            <span className="sm:hidden">Classifica</span>
+            {(pendingEntries.length + pendingDocuments.length) > 0 && (
+              <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-xs h-5 min-w-5 flex items-center justify-center">
+                {pendingEntries.length + pendingDocuments.length}
               </Badge>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="classificazione" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
-            <ClipboardList className="h-4 w-4" />
-            <span className="hidden sm:inline">Classificazione</span>
-            <span className="sm:hidden">Classifica</span>
           </TabsTrigger>
           <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Wallet className="h-4 w-4" />
@@ -1761,64 +1742,10 @@ export default function PrimaNotaPage() {
             </div>
           )}
 
-          {/* Entries da classificare (from AI documents or manual) */}
-          {daClassificareEntries.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Da Annotare</h3>
-                  <Badge variant="secondary" className="text-xs">{daClassificareEntries.length}</Badge>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("classificazione")}
-                >
-                  <ClipboardList className="h-4 w-4 mr-1" />
-                  Vai a Classificazione
-                </Button>
-              </div>
-              {daClassificareEntries.map((entry) => (
-                <Card
-                  key={entry.id}
-                  className="hover:bg-accent/50 transition-colors"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`p-2 rounded-full ${
-                            entry.direction === "entrata"
-                              ? "bg-green-100 text-green-600 dark:bg-green-900/30"
-                              : "bg-red-100 text-red-600 dark:bg-red-900/30"
-                          }`}
-                        >
-                          {entry.direction === "entrata" ? (
-                            <ArrowUp className="h-5 w-5" />
-                          ) : (
-                            <ArrowDown className="h-5 w-5" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-bold text-lg">
-                            € {(entry.totale || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(entry.document_date), "dd MMM yyyy", { locale: it })}
-                            {entry.note && <span className="ml-2">• {entry.note}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-amber-600 border-amber-300">
-                        Da annotare
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          {/* Classificazione Eventi (integrata) */}
+          <div className="space-y-3">
+            <EventClassificationContent />
+          </div>
 
           {/* Registrazioni manuali da classificare */}
           {pendingEntries.length > 0 && (
@@ -1891,7 +1818,7 @@ export default function PrimaNotaPage() {
             </div>
           )}
 
-          {pendingEntries.length === 0 && pendingDocuments.length === 0 && daClassificareEntries.length === 0 && (
+          {pendingEntries.length === 0 && pendingDocuments.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
@@ -1902,10 +1829,8 @@ export default function PrimaNotaPage() {
           )}
         </TabsContent>
 
-        {/* CLASSIFICAZIONE TAB */}
-        <TabsContent value="classificazione" className="mt-0">
-          <EventClassificationContent />
-        </TabsContent>
+
+
 
         {/* MOVIMENTI FINANZIARI TAB */}
         <TabsContent value="movimenti-finanziari" className="mt-0">
