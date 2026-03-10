@@ -37,6 +37,7 @@ export function AIDocumentUpload() {
     soggetto_nome: "",
     riferimento: "",
     descrizione: "",
+    in_attesa_fattura: false,
   });
 
   const createMovimentoMutation = useMutation({
