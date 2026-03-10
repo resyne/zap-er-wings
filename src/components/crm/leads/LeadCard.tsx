@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame, Settings2, CalendarPlus, Globe, Bot, UserPlus } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { it } from "date-fns/locale";
@@ -19,6 +20,7 @@ interface LeadCardProps {
   onArchive: (leadId: string, archive: boolean) => void;
   onDelete: (leadId: string) => void;
   onCreateOffer: (lead: Lead) => void;
+  onStatusChange?: (leadId: string, newStatus: string) => void;
   formatAmount: (value: number) => string;
   linkedOffers?: { id: string; number: string; status: string }[];
 }
@@ -29,6 +31,15 @@ const priorityConfig = {
   hot: { color: "bg-red-100 text-red-800", label: "HOT" },
 };
 
+const kanbanStatuses = [
+  { id: "new", title: "Nuovo", color: "bg-blue-100 text-blue-800" },
+  { id: "pre_qualified", title: "Pre-Qualificato", color: "bg-purple-100 text-purple-800" },
+  { id: "qualified", title: "Qualificato", color: "bg-green-100 text-green-800" },
+  { id: "negotiation", title: "Trattativa", color: "bg-orange-100 text-orange-800" },
+  { id: "won", title: "Vinto", color: "bg-emerald-100 text-emerald-800" },
+  { id: "lost", title: "Perso", color: "bg-red-100 text-red-800" },
+];
+
 function LeadCardComponent({
   lead,
   index,
@@ -38,6 +49,7 @@ function LeadCardComponent({
   onArchive,
   onDelete,
   onCreateOffer,
+  onStatusChange,
   formatAmount,
   linkedOffers = [],
 }: LeadCardProps) {
@@ -177,7 +189,29 @@ function LeadCardComponent({
                 )}
               </div>
 
-              {/* Contact info */}
+              {/* Status selector */}
+              {onStatusChange && (
+                <Select
+                  value={lead.status}
+                  onValueChange={(value) => onStatusChange(lead.id, value)}
+                >
+                  <SelectTrigger 
+                    className="h-7 text-xs w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kanbanStatuses.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <span className={cn("inline-block w-2 h-2 rounded-full mr-1.5", s.color.split(" ")[0])} />
+                        {s.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {lead.phone && (
                   <span className="flex items-center gap-1">

@@ -2156,7 +2156,45 @@ export default function LeadsPage() {
                                      </span>
                                    )}
                                  </div>
-                                 
+
+                                 {/* Status selector */}
+                                 <Select
+                                   value={lead.pre_qualificato && lead.status === "new" ? "pre_qualified" : lead.status}
+                                   onValueChange={(value) => {
+                                     const updateData: any = {};
+                                     if (value === "pre_qualified") {
+                                       updateData.status = "new";
+                                       updateData.pre_qualificato = true;
+                                     } else {
+                                       updateData.status = value;
+                                       updateData.pre_qualificato = false;
+                                     }
+                                     setLeads(prev => prev.map(l => 
+                                       l.id === lead.id ? { ...l, ...updateData } : l
+                                     ));
+                                     supabase
+                                       .from('leads')
+                                       .update(updateData)
+                                       .eq('id', lead.id)
+                                       .then();
+                                   }}
+                                 >
+                                   <SelectTrigger
+                                     className="h-6 text-[10px] w-full"
+                                     onClick={(e) => e.stopPropagation()}
+                                   >
+                                     <SelectValue />
+                                   </SelectTrigger>
+                                   <SelectContent onClick={(e) => e.stopPropagation()}>
+                                     {kanbanStatuses.map((s) => (
+                                       <SelectItem key={s.id} value={s.id}>
+                                         <span className={cn("inline-block w-2 h-2 rounded-full mr-1.5", s.color.split(" ")[0])} />
+                                         {s.title}
+                                       </SelectItem>
+                                     ))}
+                                   </SelectContent>
+                                 </Select>
+                                  
                                   {/* Prossima attività - compatto */}
                                   {lead.next_activity_date && (() => {
                                     const isOverdue = new Date(lead.next_activity_date) < new Date();
