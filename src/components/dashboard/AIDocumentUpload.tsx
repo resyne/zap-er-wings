@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Upload, Camera, Loader2 } from "lucide-react";
+import { Upload, Camera, Loader2, Receipt, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { toast } from "sonner";
@@ -219,8 +219,47 @@ export function AIDocumentUpload() {
     });
   };
 
+  const handleFlowStart = (flow: "spesa" | "incasso") => {
+    if (flow === "spesa") {
+      setQuickEntryType("uscita");
+    } else {
+      setQuickEntryType("entrata");
+    }
+    setShowQuickEntryDialog(true);
+  };
+
   return (
     <>
+      {/* Spesa / Incasso Action Buttons */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <Card 
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
+          onClick={() => handleFlowStart("spesa")}
+        >
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-2 group-hover:bg-destructive/20 transition-colors">
+              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-destructive" />
+            </div>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Spesa / Scontrino</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra una spesa o scontrino</CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
+          onClick={() => handleFlowStart("incasso")}
+        >
+          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
+              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+            </div>
+            <CardTitle className="text-sm sm:text-lg leading-tight">Incasso / Pagamento</CardTitle>
+            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un incasso sul campo</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* AI Upload Zone */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
