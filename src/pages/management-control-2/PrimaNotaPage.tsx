@@ -22,7 +22,7 @@ import {
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
   FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
-  ClipboardList, Wallet
+  ClipboardList, Wallet, Info, ArrowLeftRight
 } from "lucide-react";
 import { EventClassificationContent } from "./EventClassificationPage";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
