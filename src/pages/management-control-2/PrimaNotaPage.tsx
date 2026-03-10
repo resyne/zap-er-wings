@@ -1772,10 +1772,10 @@ export default function PrimaNotaPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                  onClick={() => setActiveTab("classificazione")}
                 >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Apri Classificazione
+                  <ClipboardList className="h-4 w-4 mr-1" />
+                  Vai a Classificazione
                 </Button>
               </div>
               {daClassificareEntries.map((entry) => (
