@@ -2552,7 +2552,7 @@ export default function RegistroContabilePage() {
             setShowCreateDialog(true);
           }} className="h-10">
             <Plus className="w-4 h-4 mr-2" />
-            Nuova Fattura
+            Nuova Nota
           </Button>
         </div>
       </div>
