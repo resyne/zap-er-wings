@@ -640,6 +640,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                       <SelectItem value="banca">Banca</SelectItem>
                       <SelectItem value="cassa">Cassa</SelectItem>
                       <SelectItem value="carta">Carta</SelectItem>
+                      <SelectItem value="contanti">Contanti</SelectItem>
+                      <SelectItem value="bonifico">Bonifico</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
