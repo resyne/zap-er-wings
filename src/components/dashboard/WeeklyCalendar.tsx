@@ -45,6 +45,16 @@ interface Ticket {
   customer_name: string;
 }
 
+interface LeadActivity {
+  id: string;
+  activity_type: string;
+  activity_date: string;
+  status: string | null;
+  notes: string | null;
+  lead_id: string;
+  lead_name?: string;
+}
+
 interface RecurringTask {
   id: string;
   task_template_id: string;
@@ -64,7 +74,7 @@ interface WeeklyCalendarProps {
   onExternalDrop?: () => void;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' }) | (LeadActivity & { item_type: 'lead_activity' });
 
 interface DragData {
   itemType: CalendarItem['item_type'] | 'lead_activity';
