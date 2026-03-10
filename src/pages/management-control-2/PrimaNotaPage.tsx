@@ -1100,6 +1100,9 @@ export default function PrimaNotaPage() {
         </Card>
       )}
 
+      {/* ==================== PRE-MOVIMENTI IN ATTESA FATTURA ==================== */}
+      <PreMovementSection />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
          <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
