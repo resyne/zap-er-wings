@@ -90,33 +90,7 @@ const financialStatuses = [
   { value: "da_incassare", label: "Da incassare" },
 ];
 
-const IVA_MODE_LABELS: Record<string, string> = {
-  ORDINARIO_22: "Ordinario (22%)",
-  REVERSE_CHARGE: "Reverse Charge (0%)",
-  INTRA_UE: "Intra UE (0%)",
-  EXTRA_UE: "Extra UE",
-};
-
-// Map legacy DB values to new keys
-const normalizeIvaMode = (mode: string | null): string => {
-  if (!mode) return "ORDINARIO_22";
-  const legacyMap: Record<string, string> = {
-    DOMESTICA_IMPONIBILE: "ORDINARIO_22",
-    CESSIONE_UE_NON_IMPONIBILE: "INTRA_UE",
-    CESSIONE_EXTRA_UE_NON_IMPONIBILE: "EXTRA_UE",
-    VENDITA_RC_EDILE: "REVERSE_CHARGE",
-    ACQUISTO_RC_EDILE: "REVERSE_CHARGE",
-  };
-  return legacyMap[mode] || (IVA_MODE_LABELS[mode] ? mode : "ORDINARIO_22");
-};
-
-const isZeroIvaMode = (mode: string) => ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE"].includes(mode);
-
-const formatPaymentMethod = (method: string | null) => {
-  if (!method) return "-";
-  const labels: Record<string, string> = { bonifico: "Bonifico", banca: "Banca", carta: "Carta", american_express: "American Express", contanti: "Contanti", cassa: "Cassa" };
-  return labels[method] || method;
-};
+import { IVA_MODE_LABELS, isZeroIvaMode, normalizeIvaMode, formatPaymentMethod, generateDoubleEntryLines } from "@/lib/accounting-utils";
 
 // =====================================================
 // COMPONENT
@@ -730,62 +704,4 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
       </DialogContent>
     </Dialog>
   );
-}
-
-// =====================================================
-// DOUBLE-ENTRY LINES GENERATION
-// =====================================================
-
-function generateDoubleEntryLines(
-  movementId: string, isRevenue: boolean, isPaid: boolean,
-  ivaMode: string, ivaAliquota: number,
-  imponibile: number, ivaAmount: number, totale: number,
-  paymentMethod: string | null, chartAccountId: string | null
-): any[] {
-  const lines: any[] = [];
-  let lineOrder = 1;
-
-  if (ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE") {
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic",
-      dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
-      chart_account_id: null,
-      dare: isRevenue ? totale : 0, avere: isRevenue ? 0 : totale,
-      description: isPaid ? `Incasso/Pagamento` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-      dare: isRevenue ? 0 : imponibile, avere: isRevenue ? imponibile : 0,
-      description: isRevenue ? "Ricavi" : "Costi",
-    });
-    if (ivaAmount > 0) {
-      lines.push({
-        prima_nota_id: movementId, line_order: lineOrder++,
-        account_type: "dynamic", dynamic_account_key: isRevenue ? "IVA_DEBITO" : "IVA_CREDITO",
-        chart_account_id: null,
-        dare: isRevenue ? 0 : ivaAmount, avere: isRevenue ? ivaAmount : 0,
-        description: `IVA ${ivaAliquota}%`,
-      });
-    }
-  } else if (isZeroIvaMode(ivaMode) || ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode)) {
-    // Zero IVA modes: Reverse Charge, Intra UE, Extra UE
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic",
-      dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
-      chart_account_id: null,
-      dare: isRevenue ? totale : 0, avere: isRevenue ? 0 : totale,
-      description: isPaid ? `Incasso/Pagamento` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-      dare: isRevenue ? 0 : totale, avere: isRevenue ? totale : 0,
-      description: `${isRevenue ? "Ricavi" : "Costi"} (${IVA_MODE_LABELS[ivaMode] || "Non imponibile"})`,
-    });
-  }
-
-  return lines;
 }
