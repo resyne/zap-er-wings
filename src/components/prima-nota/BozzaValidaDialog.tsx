@@ -114,7 +114,7 @@ const isZeroIvaMode = (mode: string) => ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE
 
 const formatPaymentMethod = (method: string | null) => {
   if (!method) return "-";
-  const labels: Record<string, string> = { banca: "Banca", cassa: "Cassa", carta: "Carta", contanti: "Contanti", bonifico: "Bonifico" };
+  const labels: Record<string, string> = { bonifico: "Bonifico", banca: "Banca", carta: "Carta", american_express: "American Express", contanti: "Contanti", cassa: "Cassa" };
   return labels[method] || method;
 };
 
