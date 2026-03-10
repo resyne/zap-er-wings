@@ -1900,6 +1900,16 @@ export default function PrimaNotaPage() {
             </Card>
           )}
         </TabsContent>
+
+        {/* CLASSIFICAZIONE TAB */}
+        <TabsContent value="classificazione" className="mt-0">
+          <EventClassificationContent />
+        </TabsContent>
+
+        {/* MOVIMENTI FINANZIARI TAB */}
+        <TabsContent value="movimenti-finanziari" className="mt-0">
+          <MovimentiFinanziariContent />
+        </TabsContent>
       </Tabs>
 
       {/* Movement Detail Dialog */}
