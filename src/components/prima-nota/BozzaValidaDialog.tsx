@@ -544,11 +544,9 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Imponibile</Label>
                   <Input type="number" step="0.01" value={form.imponibile} onChange={e => {
                     const imp = parseFloat(e.target.value) || 0;
-                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
-                    const isNoIva = noIvaModes.includes(form.iva_mode);
-                    const isRC = form.iva_mode === "ACQUISTO_RC_EDILE";
-                    const iva = isNoIva ? 0 : imp * (form.iva_aliquota / 100);
-                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    const zeroIva = isZeroIvaMode(form.iva_mode);
+                    const iva = zeroIva ? 0 : imp * (form.iva_aliquota / 100);
+                    const tot = zeroIva ? imp : imp + iva;
                     setForm(p => ({ ...p, imponibile: imp, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
