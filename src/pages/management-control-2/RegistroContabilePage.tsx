@@ -2263,7 +2263,68 @@ export default function RegistroContabilePage() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  // Filter events based on search
+  // Grouping logic for registry
+  const groupedInvoices = useMemo(() => {
+    if (groupBy === 'none') return null;
+    
+    const groups: Record<string, { label: string; sortKey: string; invoices: typeof filteredInvoices }> = {};
+    
+    for (const inv of filteredInvoices) {
+      const date = new Date(inv.invoice_date);
+      let key: string;
+      let label: string;
+      let sortKey: string;
+      
+      switch (groupBy) {
+        case 'day': {
+          key = format(date, 'yyyy-MM-dd');
+          label = format(date, 'EEEE d MMMM yyyy', { locale: it });
+          sortKey = key;
+          break;
+        }
+        case 'week': {
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+          key = format(weekStart, 'yyyy-MM-dd');
+          label = `Settimana del ${format(weekStart, 'd MMMM yyyy', { locale: it })}`;
+          sortKey = key;
+          break;
+        }
+        case 'month': {
+          key = format(date, 'yyyy-MM');
+          label = format(date, 'MMMM yyyy', { locale: it });
+          sortKey = key;
+          break;
+        }
+        case 'quarter': {
+          const q = getQuarter(date);
+          const y = getYear(date);
+          key = `${y}-Q${q}`;
+          label = `Q${q} ${y}`;
+          sortKey = `${y}-${q}`;
+          break;
+        }
+      }
+      
+      if (!groups[key]) {
+        groups[key] = { label: label.charAt(0).toUpperCase() + label.slice(1), sortKey, invoices: [] };
+      }
+      groups[key].invoices.push(inv);
+    }
+    
+    return Object.entries(groups)
+      .sort(([, a], [, b]) => b.sortKey.localeCompare(a.sortKey));
+  }, [filteredInvoices, groupBy]);
+
+  const toggleRegistryPeriod = (key: string) => {
+    setExpandedRegistryPeriods(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+
   const filteredEvents = eventsToClassify.filter(evt => 
     (evt.note || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (evt.document_type || '').toLowerCase().includes(searchTerm.toLowerCase())
