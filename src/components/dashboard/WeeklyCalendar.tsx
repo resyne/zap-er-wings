@@ -116,7 +116,7 @@ function getItemDate(item: CalendarItem): string | null {
   return null;
 }
 
-export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onExternalDrop }: WeeklyCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
