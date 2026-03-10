@@ -280,23 +280,20 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
       if (updateError) throw updateError;
 
       // 2. Generate Prima Nota
-      const ivaMode = form.iva_mode || "DOMESTICA_IMPONIBILE";
+      const ivaMode = form.iva_mode || "ORDINARIO_22";
       const ivaAliquota = form.iva_aliquota || 22;
       let imponibile = form.imponibile || entry.amount;
       let ivaAmount = form.iva_amount || 0;
       let totale = form.totale || entry.amount;
 
       // Recalculate IVA if needed
-      if (ivaMode === "DOMESTICA_IMPONIBILE") {
+      if (ivaMode === "ORDINARIO_22") {
         if (!form.iva_amount && !form.totale) {
           ivaAmount = imponibile * (ivaAliquota / 100);
           totale = imponibile + ivaAmount;
         }
-      } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+      } else if (isZeroIvaMode(ivaMode)) {
         ivaAmount = 0;
-        totale = imponibile;
-      } else if (ivaMode === "ACQUISTO_RC_EDILE") {
-        ivaAmount = imponibile * (ivaAliquota / 100);
         totale = imponibile;
       }
 
