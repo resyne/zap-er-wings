@@ -3232,9 +3232,11 @@ export default function RegistroContabilePage() {
         )}>
           <DialogHeader>
             <DialogTitle>
-              {isFiscalDocument(formData.event_type) ? 'Nuova Fattura' : 
-               formData.event_type === 'spesa_dipendente' ? 'Nuova Spesa Dipendente' : 
-               'Nuovo Incasso Dipendente'}
+              Nuova Nota — {formData.event_type === 'spesa_dipendente' ? 'Spesa Dipendente' : 
+               formData.event_type === 'incasso_dipendente' ? 'Incasso Dipendente' :
+               formData.event_type === 'fattura_acquisto' ? 'Fattura di Acquisto' :
+               formData.event_type === 'fattura_vendita' ? 'Fattura di Vendita' :
+               formData.event_type === 'nota_credito' ? 'Nota di Credito' : 'Seleziona tipo'}
             </DialogTitle>
           </DialogHeader>
           
