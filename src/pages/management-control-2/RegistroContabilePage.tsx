@@ -2619,7 +2619,7 @@ export default function RegistroContabilePage() {
     </>
   );
 
-
+  return (
     <div {...getRootProps()} className="space-y-5 relative">
       <input {...getInputProps()} />
       
