@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { format, getYear, getMonth } from "date-fns";
+import { format, getYear, getMonth, startOfWeek, startOfMonth, getQuarter } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
@@ -281,6 +281,11 @@ export default function RegistroContabilePage() {
   
   // Stato per mostrare la vista documenti operativi (separato dai filtri)
   const [showOperationalDocs, setShowOperationalDocs] = useState(false);
+  
+  // Raggruppamento per periodo
+  type GroupByOption = 'none' | 'day' | 'week' | 'month' | 'quarter';
+  const [groupBy, setGroupBy] = useState<GroupByOption>('month');
+  const [expandedRegistryPeriods, setExpandedRegistryPeriods] = useState<Set<string>>(new Set());
   
   // Stato per il dialog di conferma fattura duplicata
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
@@ -2258,7 +2263,68 @@ export default function RegistroContabilePage() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  // Filter events based on search
+  // Grouping logic for registry
+  const groupedInvoices = useMemo(() => {
+    if (groupBy === 'none') return null;
+    
+    const groups: Record<string, { label: string; sortKey: string; invoices: typeof filteredInvoices }> = {};
+    
+    for (const inv of filteredInvoices) {
+      const date = new Date(inv.invoice_date);
+      let key: string;
+      let label: string;
+      let sortKey: string;
+      
+      switch (groupBy) {
+        case 'day': {
+          key = format(date, 'yyyy-MM-dd');
+          label = format(date, 'EEEE d MMMM yyyy', { locale: it });
+          sortKey = key;
+          break;
+        }
+        case 'week': {
+          const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+          key = format(weekStart, 'yyyy-MM-dd');
+          label = `Settimana del ${format(weekStart, 'd MMMM yyyy', { locale: it })}`;
+          sortKey = key;
+          break;
+        }
+        case 'month': {
+          key = format(date, 'yyyy-MM');
+          label = format(date, 'MMMM yyyy', { locale: it });
+          sortKey = key;
+          break;
+        }
+        case 'quarter': {
+          const q = getQuarter(date);
+          const y = getYear(date);
+          key = `${y}-Q${q}`;
+          label = `Q${q} ${y}`;
+          sortKey = `${y}-${q}`;
+          break;
+        }
+      }
+      
+      if (!groups[key]) {
+        groups[key] = { label: label.charAt(0).toUpperCase() + label.slice(1), sortKey, invoices: [] };
+      }
+      groups[key].invoices.push(inv);
+    }
+    
+    return Object.entries(groups)
+      .sort(([, a], [, b]) => b.sortKey.localeCompare(a.sortKey));
+  }, [filteredInvoices, groupBy]);
+
+  const toggleRegistryPeriod = (key: string) => {
+    setExpandedRegistryPeriods(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+
   const filteredEvents = eventsToClassify.filter(evt => 
     (evt.note || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (evt.document_type || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -2483,6 +2549,76 @@ export default function RegistroContabilePage() {
 
   const { ivaAmount, totalAmount } = calculateAmounts(formData.imponibile, formData.iva_rate);
 
+  const renderInvoiceRow = (invoice: InvoiceRegistry) => (
+    <>
+      <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
+      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
+      <TableCell>{getTypeBadge(invoice.invoice_type)}</TableCell>
+      <TableCell>
+        <div>
+          <p className="font-medium">{invoice.subject_name}</p>
+          <p className="text-xs text-muted-foreground capitalize">{invoice.subject_type}</p>
+        </div>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs">{getVatRegimeLabel(invoice.vat_regime)}</span>
+      </TableCell>
+      <TableCell className="text-right">€{invoice.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+      <TableCell className="text-right text-muted-foreground">€{invoice.iva_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+      <TableCell className="text-right font-semibold">€{invoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+      <TableCell>{getRegistryStatusBadge(invoice.status as RegistryStatus, invoice.stornato)}</TableCell>
+      <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+          {invoice.status === 'bozza' && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
+                <Pencil className="w-3.5 h-3.5 mr-1" />Modifica
+              </Button>
+              <Button size="sm" onClick={() => { setSelectedInvoice(invoice); setShowRegisterDialog(true); }}>
+                <FileCheck className="w-3.5 h-3.5 mr-1" />Registra
+              </Button>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                onClick={() => { if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice); }}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          )}
+          {invoice.status === 'da_riclassificare' && (
+            <>
+              <Button size="sm" variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50" onClick={() => openEditDialog(invoice)}>
+                <Pencil className="w-3.5 h-3.5 mr-1" />Correggi
+              </Button>
+              <Button size="sm" onClick={() => { if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice); }}
+                disabled={regeneratePrimaNotaMutation.isPending}>
+                <RefreshCw className="w-3.5 h-3.5 mr-1" />Rigenera
+              </Button>
+            </>
+          )}
+          {invoice.status === 'rettificato' && (
+            <Badge variant="outline" className="text-muted-foreground"><Lock className="w-3 h-3 mr-1" />Bloccato</Badge>
+          )}
+          {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
+            <span className="text-xs text-muted-foreground italic">Per modificare: Storna in Prima Nota</span>
+          )}
+          {invoice.status === 'registrata' && !invoice.prima_nota_id && (
+            <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
+              <Pencil className="w-3.5 h-3.5 mr-1" />Modifica
+            </Button>
+          )}
+          {invoice.scadenza_id && (
+            <Button size="sm" variant="ghost" onClick={() => window.location.href = '/management-control-2/scadenziario'}>
+              <LinkIcon className="w-3.5 h-3.5 mr-1" />Scadenza
+            </Button>
+          )}
+          {invoice.stornato && invoice.motivo_storno && (
+            <span className="text-xs text-muted-foreground ml-1">Storno: {invoice.motivo_storno}</span>
+          )}
+        </div>
+      </TableCell>
+    </>
+  );
+
   return (
     <div {...getRootProps()} className="space-y-5 relative">
       <input {...getInputProps()} />
@@ -2699,6 +2835,23 @@ export default function RegistroContabilePage() {
               </div>
             </SelectItem>
             <SelectItem value="archiviato">Archiviato</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={groupBy} onValueChange={(v) => {
+          setGroupBy(v as GroupByOption);
+          // Auto-expand first 3 periods
+          setExpandedRegistryPeriods(new Set());
+        }}>
+          <SelectTrigger className="w-full md:w-[180px] h-10">
+            <Calendar className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Raggruppa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nessun raggruppamento</SelectItem>
+            <SelectItem value="day">Per giorno</SelectItem>
+            <SelectItem value="week">Per settimana</SelectItem>
+            <SelectItem value="month">Per mese</SelectItem>
+            <SelectItem value="quarter">Per trimestre</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -3062,6 +3215,52 @@ export default function RegistroContabilePage() {
                     Nessuna fattura trovata
                   </TableCell>
                 </TableRow>
+              ) : groupBy !== 'none' && groupedInvoices ? (
+                groupedInvoices.map(([key, group]) => {
+                  const isExpanded = expandedRegistryPeriods.has(key);
+                  const totImponibile = group.invoices.reduce((s, i) => s + i.imponibile, 0);
+                  const totIva = group.invoices.reduce((s, i) => s + i.iva_amount, 0);
+                  const totTotale = group.invoices.reduce((s, i) => s + (i.invoice_type === 'acquisto' ? -i.total_amount : i.total_amount), 0);
+                  const vendite = group.invoices.filter(i => i.invoice_type === 'vendita').length;
+                  const acquisti = group.invoices.filter(i => i.invoice_type === 'acquisto').length;
+                  
+                  return (
+                    <React.Fragment key={key}>
+                      <TableRow 
+                        className="bg-muted/40 hover:bg-muted/60 cursor-pointer border-b-0"
+                        onClick={() => toggleRegistryPeriod(key)}
+                      >
+                        <TableCell colSpan={5} className="py-3">
+                          <div className="flex items-center gap-3">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                            <span className="font-semibold text-sm">{group.label}</span>
+                            <Badge variant="secondary" className="text-xs">{group.invoices.length}</Badge>
+                            {vendite > 0 && <Badge className="bg-green-500/15 text-green-600 border-green-500/25 text-xs">{vendite} vendite</Badge>}
+                            {acquisti > 0 && <Badge className="bg-red-500/15 text-red-600 border-red-500/25 text-xs">{acquisti} acquisti</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-medium py-3">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground py-3">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className={cn("text-right text-xs font-bold py-3", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
+                          {totTotale >= 0 ? '+' : ''}€{totTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell colSpan={3} className="py-3" />
+                      </TableRow>
+                      {isExpanded && group.invoices.map((invoice) => (
+                        <TableRow 
+                          key={invoice.id}
+                          className={cn("border-l-2 border-l-primary/20", invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : "")}
+                          onClick={() => {
+                            setDetailsInvoice(invoice);
+                            setShowDetailsDialog(true);
+                          }}
+                        >
+                          {renderInvoiceRow(invoice)}
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  );
+                })
               ) : (
                 filteredInvoices.map((invoice) => (
                   <TableRow 
@@ -3072,102 +3271,7 @@ export default function RegistroContabilePage() {
                             setShowDetailsDialog(true);
                           }}
                   >
-                    <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
-                    <TableCell>{getTypeBadge(invoice.invoice_type)}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{invoice.subject_name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{invoice.subject_type}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs">{getVatRegimeLabel(invoice.vat_regime)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">€{invoice.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">€{invoice.iva_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-right font-semibold">€{invoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>{getRegistryStatusBadge(invoice.status as RegistryStatus, invoice.stornato)}</TableCell>
-                    <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                        {/* BOZZA: Modifica + Registra + Elimina */}
-                        {invoice.status === 'bozza' && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" />
-                              Modifica
-                            </Button>
-                            <Button size="sm" onClick={() => { setSelectedInvoice(invoice); setShowRegisterDialog(true); }}>
-                              <FileCheck className="w-3.5 h-3.5 mr-1" />
-                              Registra
-                            </Button>
-                            <Button 
-                              size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                              onClick={() => { if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice); }}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        )}
-
-                        {/* DA RICLASSIFICARE (post-storno): Correggi + Rigenera */}
-                        {invoice.status === 'da_riclassificare' && (
-                          <>
-                            <Button size="sm" variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50" onClick={() => openEditDialog(invoice)}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" />
-                              Correggi
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => { if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice); }}
-                              disabled={regeneratePrimaNotaMutation.isPending}
-                            >
-                              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                              Rigenera
-                            </Button>
-                          </>
-                        )}
-
-                        {/* RETTIFICATO: bloccato */}
-                        {invoice.status === 'rettificato' && (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            <Lock className="w-3 h-3 mr-1" />
-                            Bloccato
-                          </Badge>
-                        )}
-
-                        {/* REGISTRATA / CONTABILIZZATO: solo info storno */}
-                        {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
-                          <span className="text-xs text-muted-foreground italic">
-                            Per modificare: Storna in Prima Nota
-                          </span>
-                        )}
-
-                        {/* Registrata senza prima_nota (anomalia) */}
-                        {invoice.status === 'registrata' && !invoice.prima_nota_id && (
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
-                            <Pencil className="w-3.5 h-3.5 mr-1" />
-                            Modifica
-                          </Button>
-                        )}
-
-                        {/* Scadenza link */}
-                        {invoice.scadenza_id && (
-                          <Button size="sm" variant="ghost" onClick={() => window.location.href = '/management-control-2/scadenziario'}>
-                            <LinkIcon className="w-3.5 h-3.5 mr-1" />
-                            Scadenza
-                          </Button>
-                        )}
-
-                        {/* Info storno */}
-                        {invoice.stornato && invoice.motivo_storno && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            Storno: {invoice.motivo_storno}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
+                    {renderInvoiceRow(invoice)}
                   </TableRow>
                 ))
               )}
