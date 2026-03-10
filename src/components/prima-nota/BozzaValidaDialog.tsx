@@ -91,11 +91,10 @@ const financialStatuses = [
 ];
 
 const IVA_MODE_LABELS: Record<string, string> = {
-  DOMESTICA_IMPONIBILE: "IVA Domestica",
-  CESSIONE_UE_NON_IMPONIBILE: "Cessione UE",
-  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra-UE",
-  VENDITA_RC_EDILE: "RC Edile (Vendita)",
-  ACQUISTO_RC_EDILE: "RC Edile (Acquisto)",
+  ORDINARIO_22: "Ordinario (22%)",
+  REVERSE_CHARGE: "Reverse Charge (0%)",
+  INTRA_UE: "Intra UE (0%)",
+  EXTRA_UE: "Extra UE",
 };
 
 const formatPaymentMethod = (method: string | null) => {

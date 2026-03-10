@@ -147,11 +147,16 @@ interface PendingEntry {
 // =====================================================
 
 const IVA_MODE_LABELS: Record<string, string> = {
-  DOMESTICA_IMPONIBILE: "IVA Domestica",
-  CESSIONE_UE_NON_IMPONIBILE: "Cessione UE",
-  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra-UE",
-  VENDITA_RC_EDILE: "RC Edile (Vendita)",
-  ACQUISTO_RC_EDILE: "RC Edile (Acquisto)",
+  ORDINARIO_22: "Ordinario (22%)",
+  REVERSE_CHARGE: "Reverse Charge (0%)",
+  INTRA_UE: "Intra UE (0%)",
+  EXTRA_UE: "Extra UE",
+  // Legacy mappings for existing data
+  DOMESTICA_IMPONIBILE: "Ordinario (22%)",
+  CESSIONE_UE_NON_IMPONIBILE: "Intra UE (0%)",
+  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra UE",
+  VENDITA_RC_EDILE: "Reverse Charge (0%)",
+  ACQUISTO_RC_EDILE: "Reverse Charge (0%)",
 };
 
 const formatIvaMode = (mode: string | null) => {
