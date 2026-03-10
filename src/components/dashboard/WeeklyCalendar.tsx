@@ -608,7 +608,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckSquare className="w-5 h-5 text-primary" />
-              {selectedItem?.title}
+              {getItemTitle(selectedItem)}
             </DialogTitle>
             <DialogDescription>
               {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : selectedItem?.item_type === 'recurring' ? 'Task Ricorrente' : 'Evento'}
