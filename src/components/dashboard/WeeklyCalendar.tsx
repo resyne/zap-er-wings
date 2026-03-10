@@ -131,7 +131,20 @@ function getItemDate(item: CalendarItem): string | null {
   return null;
 }
 
-export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onExternalDrop }: WeeklyCalendarProps) {
+function getItemTitle(item: CalendarItem): string {
+  if (item.item_type === 'lead_activity') {
+    const la = item as LeadActivity & { item_type: 'lead_activity' };
+    return la.lead_name || la.activity_type;
+  }
+  return (item as any).title || '';
+}
+
+function getItemDescription(item: CalendarItem): string | undefined {
+  if (item.item_type === 'lead_activity') return (item as LeadActivity).notes || undefined;
+  return (item as any).description;
+}
+
+
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
