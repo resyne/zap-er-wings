@@ -100,6 +100,7 @@ const COLOR_MAP: Record<string, string> = {
   task: 'bg-primary/10 text-primary border-primary/20',
   ticket: 'bg-orange-50 text-orange-900 border-orange-200 dark:bg-orange-900/20 dark:text-orange-200 dark:border-orange-800',
   event: 'bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800',
+  lead_activity: 'bg-green-50 text-green-900 border-green-200 dark:bg-green-900/20 dark:text-green-200 dark:border-green-800',
 };
 
 function getItemHour(item: CalendarItem): number | null {
