@@ -116,6 +116,9 @@ function getItemHour(item: CalendarItem): number | null {
     if (!(item as Task).due_date) return null;
     try { return parseISO((item as Task).due_date!).getHours(); } catch { return null; }
   }
+  if (item.item_type === 'lead_activity') {
+    try { return parseISO((item as LeadActivity).activity_date).getHours(); } catch { return null; }
+  }
   return null;
 }
 
@@ -124,6 +127,7 @@ function getItemDate(item: CalendarItem): string | null {
   if (item.item_type === 'event') return (item as CalendarEvent).event_date;
   if (item.item_type === 'ticket') return (item as Ticket).scheduled_date;
   if (item.item_type === 'task') return (item as Task).due_date || null;
+  if (item.item_type === 'lead_activity') return (item as LeadActivity).activity_date;
   return null;
 }
 
