@@ -363,53 +363,52 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
   const slotKey = (dayIdx: number, hour: number | null) => `${dayIdx}-${hour ?? 'all'}`;
 
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardContent className="p-4">
+    <Card className="shadow-sm border-border/50 overflow-hidden">
+      <CardContent className="p-3">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
             <Calendar className="w-4 h-4 text-primary" />
-            Calendario Settimanale
+            Calendario
           </h3>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}>
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}>
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
-            <span className="text-xs font-medium min-w-[150px] text-center text-foreground">
-              {format(weekStart, "d MMM", { locale: it })} – {format(weekEnd, "d MMM yyyy", { locale: it })}
+            <span className="text-xs font-medium min-w-[120px] text-center text-foreground whitespace-nowrap">
+              {format(weekStart, "d", { locale: it })} – {format(weekEnd, "d MMM yy", { locale: it })}
             </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs ml-1" onClick={() => setCurrentWeek(new Date())}>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] ml-0.5 px-2" onClick={() => setCurrentWeek(new Date())}>
               Oggi
             </Button>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 mb-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary/30" /> Task</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-300" /> Eventi</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-orange-300" /> Ticket</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-300" /> Ricorrenti</span>
-          <span className="ml-auto flex items-center gap-1"><GripVertical className="w-3 h-3" /> Trascina per spostare</span>
+        <div className="flex items-center gap-2 mb-2 text-[9px] text-muted-foreground flex-wrap">
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-primary/30" /> Task</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-blue-300" /> Eventi</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-orange-300" /> Ticket</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-amber-300" /> Ricorrenti</span>
         </div>
 
         {/* Calendar grid */}
         <div className="overflow-x-auto rounded-md border border-border">
-          <div className="min-w-[800px]">
+          <div className="min-w-[600px]">
             {/* Day headers */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/30">
+            <div className="grid grid-cols-[36px_repeat(7,1fr)] bg-muted/30">
               <div className="border-b border-r border-border" />
               {weekDays.map((day, i) => {
                 const isToday = isSameDay(day, new Date());
                 return (
-                  <div key={i} className={`text-center py-2 border-b border-r border-border last:border-r-0 ${isToday ? 'bg-primary/5' : ''}`}>
-                    <div className={`text-[10px] uppercase tracking-wider ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                      {format(day, "EEE", { locale: it })}
+                  <div key={i} className={`text-center py-1.5 border-b border-r border-border last:border-r-0 ${isToday ? 'bg-primary/5' : ''}`}>
+                    <div className={`text-[9px] uppercase tracking-wider ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                      {format(day, "EEEEE", { locale: it })}
                     </div>
-                    <div className={`text-sm font-semibold leading-none mt-0.5 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                    <div className={`text-xs font-semibold leading-none mt-0.5 ${isToday ? 'text-primary' : 'text-foreground'}`}>
                       {format(day, "d")}
                     </div>
                   </div>
@@ -418,9 +417,9 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
             </div>
 
             {/* All-day row */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/10">
-              <div className="text-[9px] text-muted-foreground px-1 py-1.5 flex items-start justify-end pr-2 border-r border-b border-border font-medium">
-                Giornata
+            <div className="grid grid-cols-[36px_repeat(7,1fr)] bg-muted/10">
+              <div className="text-[8px] text-muted-foreground px-0.5 py-1 flex items-start justify-end pr-1 border-r border-b border-border font-medium">
+                Giorn.
               </div>
               {weekDays.map((day, i) => {
                 const items = getItemsForDay(day);
@@ -448,9 +447,9 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
 
             {/* Time slots */}
             {HOURS.map(hour => (
-              <div key={hour} className="grid grid-cols-[48px_repeat(7,1fr)]">
-                <div className="text-[10px] text-muted-foreground px-1 py-1 flex items-start justify-end pr-2 tabular-nums border-r border-b border-border font-medium">
-                  {String(hour).padStart(2, '0')}:00
+              <div key={hour} className="grid grid-cols-[36px_repeat(7,1fr)]">
+                <div className="text-[9px] text-muted-foreground px-0.5 py-0.5 flex items-start justify-end pr-1 tabular-nums border-r border-b border-border font-medium">
+                  {String(hour).padStart(2, '0')}
                 </div>
                 {weekDays.map((day, i) => {
                   const items = getItemsForDay(day);
@@ -465,7 +464,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                   return (
                     <div
                       key={i}
-                      className={`border-r border-b border-border last:border-r-0 min-h-[40px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors relative
+                      className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors relative
                         ${isToday ? 'bg-primary/[0.02]' : ''} 
                         ${isNowHour ? 'bg-primary/5' : ''} 
                         ${isOver ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/20'}
