@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Phone, Mail, Calendar, MoreVertical, Edit, Trash2, Archive, ArchiveRestore, Plus, MapPin, User, Flame, Settings2, CalendarPlus, Globe, Bot, UserPlus } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { it } from "date-fns/locale";
