@@ -143,7 +143,7 @@ function getItemDescription(item: CalendarItem): string | undefined {
   if (item.item_type === 'lead_activity') return (item as LeadActivity).notes || undefined;
   return (item as any).description;
 }
-
+export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onExternalDrop }: WeeklyCalendarProps) {
 
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
