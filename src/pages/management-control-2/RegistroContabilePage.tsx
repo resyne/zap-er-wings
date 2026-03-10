@@ -135,7 +135,7 @@ type RegistryStatus = 'bozza' | 'registrata' | 'da_classificare' | 'da_riclassif
 const REGISTRY_STATUSES = [
   { value: 'bozza', label: 'Bozza', color: 'bg-slate-500/20 text-slate-600 border-slate-500/30' },
   { value: 'registrata', label: 'Registrata', color: 'bg-primary/20 text-primary border-primary/30' },
-  { value: 'da_classificare', label: 'Da Classificare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
+  { value: 'da_classificare', label: 'Da Annotare', color: 'bg-amber-500/20 text-amber-600 border-amber-500/30' },
   { value: 'da_riclassificare', label: 'Da Riclassificare', color: 'bg-orange-500/20 text-orange-600 border-orange-500/30' },
   { value: 'non_rilevante', label: 'Non Rilevante Fiscalmente', color: 'bg-gray-500/20 text-gray-600 border-gray-500/30' },
   { value: 'contabilizzato', label: 'Contabilizzato', color: 'bg-green-500/20 text-green-600 border-green-500/30' },
