@@ -131,7 +131,8 @@ function getItemDate(item: CalendarItem): string | null {
   return null;
 }
 
-function getItemTitle(item: CalendarItem): string {
+function getItemTitle(item: CalendarItem | null): string {
+  if (!item) return '';
   if (item.item_type === 'lead_activity') {
     const la = item as LeadActivity & { item_type: 'lead_activity' };
     return la.lead_name || la.activity_type;
@@ -139,7 +140,8 @@ function getItemTitle(item: CalendarItem): string {
   return (item as any).title || '';
 }
 
-function getItemDescription(item: CalendarItem): string | undefined {
+function getItemDescription(item: CalendarItem | null): string | undefined {
+  if (!item) return undefined;
   if (item.item_type === 'lead_activity') return (item as LeadActivity).notes || undefined;
   return (item as any).description;
 }
