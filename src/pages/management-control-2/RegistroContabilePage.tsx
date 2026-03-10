@@ -4910,10 +4910,10 @@ function InvoiceDetailsDialog({
 
   const getVatRegimeLabel = (regime: string) => {
     const labels: Record<string, string> = {
-      'domestica_imponibile': 'IVA Domestica',
-      'ue_non_imponibile': 'UE Non Imponibile',
+      'domestica_imponibile': 'Ordinario (22%)',
+      'ue_non_imponibile': 'Intra UE (0%)',
       'extra_ue': 'Extra UE',
-      'reverse_charge': 'Reverse Charge'
+      'reverse_charge': 'Reverse Charge (0%)'
     };
     return labels[regime] || regime;
   };
