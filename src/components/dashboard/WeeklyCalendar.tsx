@@ -363,42 +363,41 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
   const slotKey = (dayIdx: number, hour: number | null) => `${dayIdx}-${hour ?? 'all'}`;
 
   return (
-    <Card className="shadow-sm border-border/50">
-      <CardContent className="p-4">
+    <Card className="shadow-sm border-border/50 overflow-hidden">
+      <CardContent className="p-3">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
             <Calendar className="w-4 h-4 text-primary" />
-            Calendario Settimanale
+            Calendario
           </h3>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}>
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}>
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
-            <span className="text-xs font-medium min-w-[150px] text-center text-foreground">
-              {format(weekStart, "d MMM", { locale: it })} – {format(weekEnd, "d MMM yyyy", { locale: it })}
+            <span className="text-xs font-medium min-w-[120px] text-center text-foreground whitespace-nowrap">
+              {format(weekStart, "d", { locale: it })} – {format(weekEnd, "d MMM yy", { locale: it })}
             </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}>
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs ml-1" onClick={() => setCurrentWeek(new Date())}>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] ml-0.5 px-2" onClick={() => setCurrentWeek(new Date())}>
               Oggi
             </Button>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-3 mb-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary/30" /> Task</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-300" /> Eventi</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-orange-300" /> Ticket</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-300" /> Ricorrenti</span>
-          <span className="ml-auto flex items-center gap-1"><GripVertical className="w-3 h-3" /> Trascina per spostare</span>
+        <div className="flex items-center gap-2 mb-2 text-[9px] text-muted-foreground flex-wrap">
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-primary/30" /> Task</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-blue-300" /> Eventi</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-orange-300" /> Ticket</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-amber-300" /> Ricorrenti</span>
         </div>
 
         {/* Calendar grid */}
         <div className="overflow-x-auto rounded-md border border-border">
-          <div className="min-w-[800px]">
+          <div className="min-w-[600px]">
             {/* Day headers */}
             <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/30">
               <div className="border-b border-r border-border" />
