@@ -117,16 +117,6 @@ interface RecurringTask {
   completion_id?: string;
 }
 
-interface AssignedOrder {
-  id: string;
-  number: string;
-  title: string;
-  status: string;
-  order_type: 'work_order' | 'service_order' | 'shipping_order';
-  customer_name?: string;
-  created_at: string;
-}
-
 interface StickyNote {
   id: string;
   content: string;
