@@ -27,6 +27,7 @@ import {
   Plus
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, getDay } from "date-fns";
+import { AIDocumentUpload } from "@/components/dashboard/AIDocumentUpload";
 import { it } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
