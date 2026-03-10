@@ -1116,11 +1116,11 @@ export function DashboardPage() {
 
         {/* Assigned Orders */}
         {assignedOrders.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                I Miei Ordini Assegnati ({assignedOrders.length})
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                I Miei Ordini ({assignedOrders.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
