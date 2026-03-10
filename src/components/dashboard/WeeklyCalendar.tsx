@@ -197,7 +197,14 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: W
       })
       .map(ticket => ({ ...ticket, item_type: 'ticket' as const }));
 
-    return [...dayTasks, ...dayEvents, ...dayTickets];
+    // Map JS getDay (0=Sun) to our weekDay (1=Mon..7=Sun)
+    const jsDay = day.getDay();
+    const weekDay = jsDay === 0 ? 7 : jsDay;
+    const dayRecurring = recurringTasks
+      .filter(rt => rt.day === weekDay)
+      .map(rt => ({ ...rt, item_type: 'recurring' as const }));
+
+    return [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets];
   };
 
   const handleCreateEvent = async () => {
