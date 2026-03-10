@@ -341,7 +341,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         onDragStart={isDraggable ? (e) => handleDragStart(e, item) : undefined}
         className={`
           group flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] leading-tight font-medium border 
-          cursor-pointer truncate transition-all hover:shadow-sm
+          cursor-pointer overflow-hidden transition-all hover:shadow-sm max-w-full
           ${COLOR_MAP[item.item_type] || COLOR_MAP.event} 
           ${recurringItem?.completed ? 'opacity-40 line-through' : ''}
           ${isDraggable ? 'hover:ring-1 hover:ring-primary/30 active:scale-95' : ''}
@@ -430,7 +430,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                 return (
                   <div
                     key={i}
-                    className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors
+                    className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors overflow-hidden
                       ${isToday ? 'bg-primary/5' : ''} 
                       ${isOver ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/30'}
                     `}
@@ -464,7 +464,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                   return (
                     <div
                       key={i}
-                      className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors relative
+                      className={`border-r border-b border-border last:border-r-0 min-h-[32px] px-0.5 py-0.5 space-y-0.5 cursor-pointer transition-colors relative overflow-hidden
                         ${isToday ? 'bg-primary/[0.02]' : ''} 
                         ${isNowHour ? 'bg-primary/5' : ''} 
                         ${isOver ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/20'}
