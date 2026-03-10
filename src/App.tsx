@@ -82,8 +82,7 @@ const PrimaNotaPageMC2 = lazy(() => import("./pages/management-control-2/PrimaNo
 const AccountingEnginePage = lazy(() => import("./pages/management-control-2/AccountingEnginePage"));
 const ScadenziarioPage = lazy(() => import("./pages/management-control-2/ScadenziarioPage"));
 const MastrinoPage = lazy(() => import("./pages/management-control-2/MastrinoPage"));
-const DocumentiContabiliPage = lazy(() => import("./pages/contabilita/DocumentiContabiliPage"));
-const DocumentiOperativiPage = lazy(() => import("./pages/contabilita/DocumentiOperativiPage"));
+const DocumentiPage = lazy(() => import("./pages/contabilita/DocumentiPage"));
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
 const EventClassificationPage = lazy(() => import("./pages/management-control-2/EventClassificationPage"));
