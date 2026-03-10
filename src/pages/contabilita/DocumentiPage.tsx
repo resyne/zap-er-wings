@@ -80,33 +80,23 @@ function UnlinkedDocumentsAlert() {
       if (!data) return;
       const promises: Promise<any>[] = [];
       if (data.ddts.length > 0) {
-        promises.push(
-          supabase
-            .from("ddts")
-            .update({ non_contabilizzato: true })
-            .is("accounting_document_id", null)
-            .eq("non_contabilizzato", false)
-        );
+        const ddtIds = data.ddts.map((d: any) => d.id);
+        for (const id of ddtIds) {
+          await supabase.from("ddts").update({ non_contabilizzato: true }).eq("id", id);
+        }
       }
       if (data.orders.length > 0) {
-        promises.push(
-          supabase
-            .from("sales_orders")
-            .update({ non_contabilizzato: true })
-            .is("accounting_document_id", null)
-            .eq("non_contabilizzato", false)
-        );
+        const orderIds = data.orders.map((o: any) => o.id);
+        for (const id of orderIds) {
+          await supabase.from("sales_orders").update({ non_contabilizzato: true }).eq("id", id);
+        }
       }
       if (data.reports.length > 0) {
-        promises.push(
-          supabase
-            .from("service_reports")
-            .update({ non_contabilizzato: true })
-            .is("accounting_document_id", null)
-            .eq("non_contabilizzato", false)
-        );
+        const reportIds = data.reports.map((r: any) => r.id);
+        for (const id of reportIds) {
+          await supabase.from("service_reports").update({ non_contabilizzato: true }).eq("id", id);
+        }
       }
-      await Promise.all(promises);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["unlinked-documents-count"] });
