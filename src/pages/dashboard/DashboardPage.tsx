@@ -756,9 +756,14 @@ export function DashboardPage() {
                   {leadActivities.map((activity) => {
                     const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
                     return (
-                      <div 
+                       <div 
                         key={`lead-${activity.id}`} 
-                        className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'lead_activity', itemId: activity.id }));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className={`p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
                         onClick={() => {
                           setPreviewItem({ type: 'lead', data: activity });
                           setIsPreviewOpen(true);
