@@ -386,22 +386,8 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // Fetch entries waiting for classification (da_classificare)
-  const { data: daClassificareEntries = [] } = useQuery({
-    queryKey: ["accounting-entries-to-classify-pending"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("accounting_entries")
-        .select(`
-          id, direction, document_type, amount, document_date, note,
-          attachment_url, iva_mode, iva_aliquota, imponibile, iva_amount, totale
-        `)
-        .in("status", ["da_classificare", "in_classificazione", "sospeso"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+
+
 
   const { data: pendingDocuments = [] } = useQuery({
     queryKey: ["pending-accounting-documents"],
