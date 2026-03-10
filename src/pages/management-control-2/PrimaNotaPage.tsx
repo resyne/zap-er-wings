@@ -410,7 +410,7 @@ export default function PrimaNotaPage() {
       const userId = userData.user?.id;
 
       // Calculate IVA values
-      const ivaMode = entry.iva_mode || "DOMESTICA_IMPONIBILE";
+      const ivaMode = entry.iva_mode || "ORDINARIO_22";
       const ivaAliquota = entry.iva_aliquota || 22;
       const imponibile = entry.imponibile || entry.amount;
       let ivaAmount = entry.iva_amount || 0;
