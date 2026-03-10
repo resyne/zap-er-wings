@@ -347,22 +347,35 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: W
                   dayItems.map((item) => {
                     const isTask = item.item_type === 'task';
                     const isTicket = item.item_type === 'ticket';
-                    const borderColor = isTask ? 'border-l-primary' : isTicket ? 'border-l-orange-400' : `border-l-${item.color}-400`;
+                    const isRecurring = item.item_type === 'recurring';
+                    const borderColor = isRecurring ? 'border-l-amber-500' : isTask ? 'border-l-primary' : isTicket ? 'border-l-orange-400' : `border-l-${(item as CalendarEvent).color}-400`;
+                    const recurringItem = isRecurring ? item as RecurringTask & { item_type: 'recurring' } : null;
                     
                     return (
                       <div
-                        key={item.id}
-                        className={`p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors border-l-2 ${borderColor}`}
+                        key={`${item.item_type}-${item.id}`}
+                        className={`p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors border-l-2 ${borderColor} ${recurringItem?.completed ? 'opacity-50' : ''}`}
                         onClick={() => {
-                          setSelectedItem(item);
-                          setShowDetailsDialog(true);
+                          if (isRecurring && onRecurringTaskToggle) {
+                            onRecurringTaskToggle(item as RecurringTask);
+                          } else {
+                            setSelectedItem(item);
+                            setShowDetailsDialog(true);
+                          }
                         }}
                       >
                         <div className="space-y-1">
-                          <div className="font-medium text-xs leading-tight line-clamp-2">
+                          <div className={`font-medium text-xs leading-tight line-clamp-2 flex items-center gap-1 ${recurringItem?.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {isRecurring && (
+                              <span className="flex-shrink-0">
+                                {recurringItem?.completed ? '✓' : '○'}
+                              </span>
+                            )}
                             {item.title}
                           </div>
-                          {isTask ? (
+                          {isRecurring ? (
+                            <Badge variant="outline" className="text-[10px] h-4 capitalize">{recurringItem!.category}</Badge>
+                          ) : isTask ? (
                             <Badge className={priorityColors[(item as Task).priority as keyof typeof priorityColors] + " text-[10px] h-4"}>
                               {priorityLabels[(item as Task).priority as keyof typeof priorityLabels]}
                             </Badge>
