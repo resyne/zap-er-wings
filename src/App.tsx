@@ -252,8 +252,7 @@ const App = () => (
                 <Route path="management-control-2/prima-nota" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="management-control-2/accounting-engine" element={<Suspense fallback={<PageLoader />}><AccountingEnginePage /></Suspense>} />
                 <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
-                <Route path="contabilita/documenti-contabili" element={<Suspense fallback={<PageLoader />}><DocumentiContabiliPage /></Suspense>} />
-                <Route path="contabilita/documenti-operativi" element={<Suspense fallback={<PageLoader />}><DocumentiOperativiPage /></Suspense>} />
+                <Route path="contabilita/documenti" element={<Suspense fallback={<PageLoader />}><DocumentiPage /></Suspense>} />
                 <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
                 <Route path="management-control-2/classificazione-eventi" element={<Suspense fallback={<PageLoader />}><EventClassificationPage /></Suspense>} />
                 <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
