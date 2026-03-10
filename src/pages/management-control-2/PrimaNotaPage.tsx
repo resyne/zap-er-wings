@@ -1756,64 +1756,10 @@ export default function PrimaNotaPage() {
             </div>
           )}
 
-          {/* Entries da classificare (from AI documents or manual) */}
-          {daClassificareEntries.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Da Annotare</h3>
-                  <Badge variant="secondary" className="text-xs">{daClassificareEntries.length}</Badge>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveTab("classificazione")}
-                >
-                  <ClipboardList className="h-4 w-4 mr-1" />
-                  Vai a Classificazione
-                </Button>
-              </div>
-              {daClassificareEntries.map((entry) => (
-                <Card
-                  key={entry.id}
-                  className="hover:bg-accent/50 transition-colors"
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`p-2 rounded-full ${
-                            entry.direction === "entrata"
-                              ? "bg-green-100 text-green-600 dark:bg-green-900/30"
-                              : "bg-red-100 text-red-600 dark:bg-red-900/30"
-                          }`}
-                        >
-                          {entry.direction === "entrata" ? (
-                            <ArrowUp className="h-5 w-5" />
-                          ) : (
-                            <ArrowDown className="h-5 w-5" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-bold text-lg">
-                            € {(entry.totale || entry.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(entry.document_date), "dd MMM yyyy", { locale: it })}
-                            {entry.note && <span className="ml-2">• {entry.note}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-amber-600 border-amber-300">
-                        Da annotare
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          {/* Classificazione Eventi (integrata) */}
+          <div className="space-y-3">
+            <EventClassificationContent />
+          </div>
 
           {/* Registrazioni manuali da classificare */}
           {pendingEntries.length > 0 && (
