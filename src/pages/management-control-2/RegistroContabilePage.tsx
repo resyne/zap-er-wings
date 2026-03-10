@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
