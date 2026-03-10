@@ -959,7 +959,7 @@ export default function PrimaNotaPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
               <p className="text-sm text-muted-foreground">
-                Registro contabile, scritture in partita doppia e classificazione documenti
+                Registro contabile, scritture in partita doppia e movimenti finanziari
               </p>
             </div>
           </div>
@@ -1048,27 +1048,138 @@ export default function PrimaNotaPage() {
         </Card>
       </Collapsible>
 
+      {/* ==================== BOZZE DA VALIDARE ==================== */}
+      {(bozze.length > 0 || pendingDocuments.length > 0) && (
+        <Card className="border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-700/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <ClipboardList className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Bozze da validare</CardTitle>
+                  <CardDescription className="text-xs">
+                    {bozze.length + pendingDocuments.length} moviment{(bozze.length + pendingDocuments.length) === 1 ? 'o' : 'i'} in attesa di validazione e contabilizzazione
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge variant="destructive" className="px-2 py-1 text-sm">
+                {bozze.length + pendingDocuments.length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2 space-y-2">
+            {/* AI Documents → convert to bozza on click */}
+            {pendingDocuments.map((doc: any) => {
+              const isVendita = doc.document_type === "fattura_vendita";
+              const customerName = doc.customers?.company_name || doc.customers?.name || doc.counterpart_name;
+              return (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      const direction = isVendita ? "entrata" : "uscita";
+                      const { data: newEntry, error: entryError } = await supabase
+                        .from("accounting_entries")
+                        .insert({
+                          direction,
+                          document_type: doc.document_type === "nota_credito" ? "nota_credito" : "fattura",
+                          amount: doc.total_amount || 0,
+                          document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
+                          attachment_url: doc.file_url,
+                          status: "da_classificare",
+                          iva_aliquota: doc.vat_rate,
+                          imponibile: doc.net_amount,
+                          iva_amount: doc.vat_amount,
+                          totale: doc.total_amount,
+                          iva_mode: "DOMESTICA_IMPONIBILE",
+                          note: `${isVendita ? "Fattura vendita" : "Fattura acquisto"} n.${doc.invoice_number || "?"} - ${customerName || ""}`,
+                        })
+                        .select()
+                        .single();
+                      if (entryError) throw entryError;
+                      await supabase.from("accounting_documents").update({ status: "classified", accounting_entry_id: newEntry.id }).eq("id", doc.id);
+                      queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
+                      queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
+                      setSelectedBozza(newEntry);
+                      setBozzaDialogOpen(true);
+                    } catch (err: any) {
+                      toast.error("Errore: " + (err.message || "Errore sconosciuto"));
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-1.5 rounded-full ${isVendita ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
+                      {isVendita ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">€ {(doc.total_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                        <Badge variant="outline" className="text-xs gap-1"><Sparkles className="h-3 w-3" />AI</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {doc.invoice_number && `N. ${doc.invoice_number} · `}
+                        {doc.invoice_date && format(new Date(doc.invoice_date), "dd MMM yyyy", { locale: it })}
+                        {customerName && ` · ${customerName}`}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Crea Bozza →</Badge>
+                </div>
+              );
+            })}
+
+            {/* Bozze Prima Nota */}
+            {bozze.map((bozza: any) => (
+              <div
+                key={bozza.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
+                onClick={() => { setSelectedBozza(bozza); setBozzaDialogOpen(true); }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 rounded-full ${bozza.direction === "entrata" ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
+                    {bozza.direction === "entrata" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">€ {(bozza.totale || bozza.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                      <Badge variant="outline" className="text-xs capitalize">{(bozza.document_type || "").replace(/_/g, " ")}</Badge>
+                      <Badge variant={bozza.status === "pronto_prima_nota" ? "default" : "secondary"} className="text-xs">
+                        {bozza.status === "da_classificare" ? "Da validare" : 
+                         bozza.status === "in_classificazione" ? "In lavorazione" : 
+                         bozza.status === "pronto_prima_nota" ? "Pronto" : 
+                         bozza.status.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(bozza.document_date), "dd MMM yyyy", { locale: it })}
+                      {bozza.note && ` · ${bozza.note}`}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="default" size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); setSelectedBozza(bozza); setBozzaDialogOpen(true); }}>
+                  <CheckCircle className="h-3 w-3" />
+                  Valida
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-         <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-4 md:inline-flex">
+         <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Registro</span>
+            <span className="hidden sm:inline">Registro Contabile</span>
             <span className="sm:hidden">Registro</span>
           </TabsTrigger>
           <TabsTrigger value="movements" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Libro Giornale</span>
             <span className="sm:hidden">Giornale</span>
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
-            <ClipboardList className="h-4 w-4" />
-            <span className="hidden sm:inline">Da Classificare</span>
-            <span className="sm:hidden">Classifica</span>
-            {(bozze.length + pendingDocuments.length) > 0 && (
-              <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-xs h-5 min-w-5 flex items-center justify-center">
-                {bozze.length + pendingDocuments.length}
-              </Badge>
-            )}
           </TabsTrigger>
           <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Wallet className="h-4 w-4" />
@@ -1693,146 +1804,6 @@ export default function PrimaNotaPage() {
           )}
         </TabsContent>
 
-        {/* PENDING TAB - Unified Bozze */}
-        <TabsContent value="pending" className="space-y-6">
-          {/* AI Documents that need to become bozze */}
-          {pendingDocuments.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-semibold text-sm">Documenti da AI</h3>
-                <Badge variant="secondary" className="text-xs">{pendingDocuments.length}</Badge>
-              </div>
-              {pendingDocuments.map((doc: any) => {
-                const isVendita = doc.document_type === "fattura_vendita";
-                const customerName = doc.customers?.company_name || doc.customers?.name || doc.counterpart_name;
-                return (
-                  <Card key={doc.id} className="hover:bg-accent/50 transition-colors border-primary/20 cursor-pointer"
-                    onClick={async () => {
-                      try {
-                        const direction = isVendita ? "entrata" : "uscita";
-                        const { data: newEntry, error: entryError } = await supabase
-                          .from("accounting_entries")
-                          .insert({
-                            direction,
-                            document_type: doc.document_type === "nota_credito" ? "nota_credito" : "fattura",
-                            amount: doc.total_amount || 0,
-                            document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
-                            attachment_url: doc.file_url,
-                            status: "da_classificare",
-                            iva_aliquota: doc.vat_rate,
-                            imponibile: doc.net_amount,
-                            iva_amount: doc.vat_amount,
-                            totale: doc.total_amount,
-                            iva_mode: "DOMESTICA_IMPONIBILE",
-                            note: `${isVendita ? "Fattura vendita" : "Fattura acquisto"} n.${doc.invoice_number || "?"} - ${customerName || ""}`,
-                          })
-                          .select()
-                          .single();
-                        if (entryError) throw entryError;
-                        await supabase.from("accounting_documents").update({ status: "classified", accounting_entry_id: newEntry.id }).eq("id", doc.id);
-                        queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
-                        queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
-                        // Open the dialog with the new entry
-                        setSelectedBozza(newEntry);
-                        setBozzaDialogOpen(true);
-                      } catch (err: any) {
-                        toast.error("Errore: " + (err.message || "Errore sconosciuto"));
-                      }
-                    }}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-2 rounded-full ${isVendita ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
-                            {isVendita ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-lg">€ {(doc.total_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
-                              <Badge variant="outline" className="text-xs">
-                                {doc.document_type === "fattura_vendita" ? "Vendita" : doc.document_type === "fattura_acquisto" ? "Acquisto" : "Nota Credito"}
-                              </Badge>
-                              {doc.ai_confidence && <Badge variant="secondary" className="text-xs gap-1"><Sparkles className="h-3 w-3" />{Math.round(doc.ai_confidence * 100)}%</Badge>}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {doc.invoice_number && <span>N. {doc.invoice_number} · </span>}
-                              {doc.invoice_date && format(new Date(doc.invoice_date), "dd MMM yyyy", { locale: it })}
-                              {customerName && <span> · {customerName}</span>}
-                            </div>
-                          </div>
-                        </div>
-                        <Badge variant="outline">Crea Bozza →</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Bozze Prima Nota */}
-          {bozze.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-semibold text-sm">Bozze Prima Nota</h3>
-                <Badge variant="secondary" className="text-xs">{bozze.length}</Badge>
-              </div>
-              {bozze.map((bozza: any) => (
-                <Card 
-                  key={bozza.id} 
-                  className="hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => { setSelectedBozza(bozza); setBozzaDialogOpen(true); }}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${bozza.direction === "entrata" ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
-                          {bozza.direction === "entrata" ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg">€ {(bozza.totale || bozza.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
-                            <Badge variant="outline" className="text-xs capitalize">{(bozza.document_type || "").replace(/_/g, " ")}</Badge>
-                            <Badge variant={bozza.status === "pronto_prima_nota" ? "default" : "secondary"} className="text-xs capitalize">
-                              {bozza.status === "da_classificare" ? "Da validare" : 
-                               bozza.status === "in_classificazione" ? "In lavorazione" : 
-                               bozza.status === "pronto_prima_nota" ? "Pronto" : 
-                               bozza.status.replace(/_/g, " ")}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                            <span>{format(new Date(bozza.document_date), "dd MMM yyyy", { locale: it })}</span>
-                            {bozza.note && <span className="truncate max-w-xs">· {bozza.note}</span>}
-                          </div>
-                          {bozza.chart_account && (
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {bozza.chart_account.code} - {bozza.chart_account.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedBozza(bozza); setBozzaDialogOpen(true); }}>
-                        Valida
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {bozze.length === 0 && pendingDocuments.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                <p className="text-lg font-medium">Nessuna bozza in attesa</p>
-                <p className="text-muted-foreground">Tutti i movimenti sono stati validati e contabilizzati</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
 
 
 
