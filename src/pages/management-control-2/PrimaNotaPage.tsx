@@ -182,6 +182,7 @@ const RegistroContabileContent = lazy(() => import("./RegistroContabilePage"));
 export default function PrimaNotaPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("registro-contabile");
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
   const [rectificationReason, setRectificationReason] = useState("");
