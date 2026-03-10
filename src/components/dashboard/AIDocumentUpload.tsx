@@ -90,6 +90,8 @@ export function AIDocumentUpload() {
       queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["pre-movements"] });
       toast.success("Movimento registrato con successo!");
       resetQuickEntry();
     },
