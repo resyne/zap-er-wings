@@ -372,6 +372,18 @@ export function AIDocumentUpload() {
                 rows={2}
               />
             </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+              <div>
+                <Label className="text-sm font-medium">In attesa fattura</Label>
+                <p className="text-xs text-muted-foreground">
+                  Es. carta carburante Q8, carta aziendale — la fattura arriva dopo
+                </p>
+              </div>
+              <Switch
+                checked={quickEntryForm.in_attesa_fattura}
+                onCheckedChange={(checked) => setQuickEntryForm(f => ({ ...f, in_attesa_fattura: checked }))}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={resetQuickEntry}>Annulla</Button>
