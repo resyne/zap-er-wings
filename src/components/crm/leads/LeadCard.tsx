@@ -49,6 +49,7 @@ function LeadCardComponent({
   onArchive,
   onDelete,
   onCreateOffer,
+  onStatusChange,
   formatAmount,
   linkedOffers = [],
 }: LeadCardProps) {
