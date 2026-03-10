@@ -780,6 +780,9 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* AI Document Upload */}
+      <AIDocumentUpload />
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
