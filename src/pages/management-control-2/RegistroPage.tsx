@@ -283,36 +283,7 @@ export default function RegistroPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
 
-      {/* 2 Main Action Buttons - Only Spesa and Incasso */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("spesa")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-red-100 flex items-center justify-center mb-2 group-hover:bg-red-200 transition-colors">
-              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Spesa / Scontrino</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra una spesa o scontrino</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("incasso")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
-              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Incasso / Pagamento</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un incasso sul campo</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* AI Upload Zone */}
+      {/* Giustificativi: Spesa, Incasso, AI Upload */}
       <AIDocumentUpload />
 
       {/* My Registrations */}
