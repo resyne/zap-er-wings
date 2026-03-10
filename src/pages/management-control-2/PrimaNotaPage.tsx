@@ -959,7 +959,7 @@ export default function PrimaNotaPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
               <p className="text-sm text-muted-foreground">
-                Registro contabile, scritture in partita doppia e classificazione documenti
+                Registro contabile, scritture in partita doppia e movimenti finanziari
               </p>
             </div>
           </div>
