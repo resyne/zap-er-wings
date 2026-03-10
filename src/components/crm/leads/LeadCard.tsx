@@ -189,7 +189,29 @@ function LeadCardComponent({
                 )}
               </div>
 
-              {/* Contact info */}
+              {/* Status selector */}
+              {onStatusChange && (
+                <Select
+                  value={lead.status}
+                  onValueChange={(value) => onStatusChange(lead.id, value)}
+                >
+                  <SelectTrigger 
+                    className="h-7 text-xs w-full"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kanbanStatuses.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <span className={cn("inline-block w-2 h-2 rounded-full mr-1.5", s.color.split(" ")[0])} />
+                        {s.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {lead.phone && (
                   <span className="flex items-center gap-1">
