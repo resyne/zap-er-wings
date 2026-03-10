@@ -91,12 +91,26 @@ const financialStatuses = [
 ];
 
 const IVA_MODE_LABELS: Record<string, string> = {
-  DOMESTICA_IMPONIBILE: "IVA Domestica",
-  CESSIONE_UE_NON_IMPONIBILE: "Cessione UE",
-  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra-UE",
-  VENDITA_RC_EDILE: "RC Edile (Vendita)",
-  ACQUISTO_RC_EDILE: "RC Edile (Acquisto)",
+  ORDINARIO_22: "Ordinario (22%)",
+  REVERSE_CHARGE: "Reverse Charge (0%)",
+  INTRA_UE: "Intra UE (0%)",
+  EXTRA_UE: "Extra UE",
 };
+
+// Map legacy DB values to new keys
+const normalizeIvaMode = (mode: string | null): string => {
+  if (!mode) return "ORDINARIO_22";
+  const legacyMap: Record<string, string> = {
+    DOMESTICA_IMPONIBILE: "ORDINARIO_22",
+    CESSIONE_UE_NON_IMPONIBILE: "INTRA_UE",
+    CESSIONE_EXTRA_UE_NON_IMPONIBILE: "EXTRA_UE",
+    VENDITA_RC_EDILE: "REVERSE_CHARGE",
+    ACQUISTO_RC_EDILE: "REVERSE_CHARGE",
+  };
+  return legacyMap[mode] || (IVA_MODE_LABELS[mode] ? mode : "ORDINARIO_22");
+};
+
+const isZeroIvaMode = (mode: string) => ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE"].includes(mode);
 
 const formatPaymentMethod = (method: string | null) => {
   if (!method) return "-";
@@ -124,7 +138,7 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
     financial_status: "",
     payment_method: "",
     cfo_notes: "",
-    iva_mode: "DOMESTICA_IMPONIBILE",
+    iva_mode: "ORDINARIO_22",
     iva_aliquota: 22,
     imponibile: 0,
     iva_amount: 0,
@@ -184,7 +198,7 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         financial_status: entry.financial_status || "",
         payment_method: entry.payment_method || "",
         cfo_notes: entry.cfo_notes || "",
-        iva_mode: entry.iva_mode || "DOMESTICA_IMPONIBILE",
+        iva_mode: normalizeIvaMode(entry.iva_mode),
         iva_aliquota: entry.iva_aliquota || 22,
         imponibile: entry.imponibile || entry.amount || 0,
         iva_amount: entry.iva_amount || 0,
@@ -266,23 +280,20 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
       if (updateError) throw updateError;
 
       // 2. Generate Prima Nota
-      const ivaMode = form.iva_mode || "DOMESTICA_IMPONIBILE";
+      const ivaMode = form.iva_mode || "ORDINARIO_22";
       const ivaAliquota = form.iva_aliquota || 22;
       let imponibile = form.imponibile || entry.amount;
       let ivaAmount = form.iva_amount || 0;
       let totale = form.totale || entry.amount;
 
       // Recalculate IVA if needed
-      if (ivaMode === "DOMESTICA_IMPONIBILE") {
+      if (ivaMode === "ORDINARIO_22") {
         if (!form.iva_amount && !form.totale) {
           ivaAmount = imponibile * (ivaAliquota / 100);
           totale = imponibile + ivaAmount;
         }
-      } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+      } else if (isZeroIvaMode(ivaMode)) {
         ivaAmount = 0;
-        totale = imponibile;
-      } else if (ivaMode === "ACQUISTO_RC_EDILE") {
-        ivaAmount = imponibile * (ivaAliquota / 100);
         totale = imponibile;
       }
 
@@ -502,13 +513,11 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                 <div className="space-y-1">
                   <Label className="text-xs">Regime IVA</Label>
                   <Select value={form.iva_mode} onValueChange={v => {
-                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
-                    const isNoIva = noIvaModes.includes(v);
-                    const isRC = v === "ACQUISTO_RC_EDILE";
+                    const zeroIva = isZeroIvaMode(v);
                     const imp = form.imponibile;
                     const aliq = form.iva_aliquota;
-                    const iva = isNoIva ? 0 : imp * (aliq / 100);
-                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    const iva = zeroIva ? 0 : imp * (aliq / 100);
+                    const tot = zeroIva ? imp : imp + iva;
                     setForm(p => ({ ...p, iva_mode: v, iva_amount: iva, totale: tot }));
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -523,11 +532,9 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Aliquota %</Label>
                   <Input type="number" value={form.iva_aliquota} onChange={e => {
                     const aliq = parseFloat(e.target.value) || 0;
-                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
-                    const isNoIva = noIvaModes.includes(form.iva_mode);
-                    const isRC = form.iva_mode === "ACQUISTO_RC_EDILE";
-                    const iva = isNoIva ? 0 : form.imponibile * (aliq / 100);
-                    const tot = isNoIva || isRC ? form.imponibile : form.imponibile + iva;
+                    const zeroIva = isZeroIvaMode(form.iva_mode);
+                    const iva = zeroIva ? 0 : form.imponibile * (aliq / 100);
+                    const tot = zeroIva ? form.imponibile : form.imponibile + iva;
                     setForm(p => ({ ...p, iva_aliquota: aliq, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
@@ -537,11 +544,9 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Imponibile</Label>
                   <Input type="number" step="0.01" value={form.imponibile} onChange={e => {
                     const imp = parseFloat(e.target.value) || 0;
-                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
-                    const isNoIva = noIvaModes.includes(form.iva_mode);
-                    const isRC = form.iva_mode === "ACQUISTO_RC_EDILE";
-                    const iva = isNoIva ? 0 : imp * (form.iva_aliquota / 100);
-                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    const zeroIva = isZeroIvaMode(form.iva_mode);
+                    const iva = zeroIva ? 0 : imp * (form.iva_aliquota / 100);
+                    const tot = zeroIva ? imp : imp + iva;
                     setForm(p => ({ ...p, imponibile: imp, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
@@ -730,7 +735,7 @@ function generateDoubleEntryLines(
   const lines: any[] = [];
   let lineOrder = 1;
 
-  if (ivaMode === "DOMESTICA_IMPONIBILE") {
+  if (ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE") {
     lines.push({
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "dynamic",
@@ -754,7 +759,8 @@ function generateDoubleEntryLines(
         description: `IVA ${ivaAliquota}%`,
       });
     }
-  } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+  } else if (isZeroIvaMode(ivaMode) || ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode)) {
+    // Zero IVA modes: Reverse Charge, Intra UE, Extra UE
     lines.push({
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "dynamic",
@@ -767,29 +773,7 @@ function generateDoubleEntryLines(
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
       dare: isRevenue ? 0 : totale, avere: isRevenue ? totale : 0,
-      description: `${isRevenue ? "Ricavi" : "Costi"} (Non imponibile)`,
-    });
-  } else if (ivaMode === "ACQUISTO_RC_EDILE") {
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-      dare: imponibile, avere: 0, description: "Costi (RC Edile)",
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : "DEBITI_FORNITORI",
-      chart_account_id: null,
-      dare: 0, avere: imponibile, description: isPaid ? "Pagamento" : "Debiti vs fornitori",
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: "IVA_CREDITO", chart_account_id: null,
-      dare: ivaAmount, avere: 0, description: `IVA a credito (RC) ${ivaAliquota}%`,
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: "IVA_DEBITO", chart_account_id: null,
-      dare: 0, avere: ivaAmount, description: `IVA a debito (RC) ${ivaAliquota}%`,
+      description: `${isRevenue ? "Ricavi" : "Costi"} (${IVA_MODE_LABELS[ivaMode] || "Non imponibile"})`,
     });
   }
 

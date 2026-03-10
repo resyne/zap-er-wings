@@ -2473,10 +2473,10 @@ export default function RegistroContabilePage() {
 
   const getVatRegimeLabel = (regime: string) => {
     switch (regime) {
-      case 'domestica_imponibile': return 'Domestica Imponibile';
-      case 'ue_non_imponibile': return 'UE Non Imponibile';
-      case 'extra_ue': return 'Extra-UE';
-      case 'reverse_charge': return 'Reverse Charge';
+      case 'domestica_imponibile': return 'Ordinario (22%)';
+      case 'ue_non_imponibile': return 'Intra UE (0%)';
+      case 'extra_ue': return 'Extra UE';
+      case 'reverse_charge': return 'Reverse Charge (0%)';
       default: return regime;
     }
   };
@@ -3647,10 +3647,10 @@ export default function RegistroContabilePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
-                      <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
-                      <SelectItem value="extra_ue">Extra-UE</SelectItem>
-                      <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
+                      <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                      <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                      <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                      <SelectItem value="extra_ue">Extra UE</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -4213,10 +4213,10 @@ export default function RegistroContabilePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
-                  <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
-                  <SelectItem value="extra_ue">Extra-UE</SelectItem>
-                  <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
+                  <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                  <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                  <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                  <SelectItem value="extra_ue">Extra UE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -4910,10 +4910,10 @@ function InvoiceDetailsDialog({
 
   const getVatRegimeLabel = (regime: string) => {
     const labels: Record<string, string> = {
-      'domestica_imponibile': 'IVA Domestica',
-      'ue_non_imponibile': 'UE Non Imponibile',
+      'domestica_imponibile': 'Ordinario (22%)',
+      'ue_non_imponibile': 'Intra UE (0%)',
       'extra_ue': 'Extra UE',
-      'reverse_charge': 'Reverse Charge'
+      'reverse_charge': 'Reverse Charge (0%)'
     };
     return labels[regime] || regime;
   };
