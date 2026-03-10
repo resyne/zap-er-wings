@@ -59,6 +59,10 @@ const statoConfig = {
   contabilizzato: { label: "Contabilizzato", color: "bg-green-500", icon: CheckCircle },
 };
 
+export function MovimentiFinanziariContent() {
+  return <MovimentiFinanziariPage />;
+}
+
 export default function MovimentiFinanziariPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
