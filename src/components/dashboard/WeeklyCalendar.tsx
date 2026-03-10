@@ -387,7 +387,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           ${isDraggable ? 'hover:ring-1 hover:ring-primary/30 active:scale-95' : ''}
         `}
         onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-        title={`${item.title}${isDraggable ? ' — Trascina per spostare' : ''}`}
+        title={`${getItemTitle(item)}${isDraggable ? ' — Trascina per spostare' : ''}`}
       >
         {isDraggable && (
           <GripVertical className="w-2.5 h-2.5 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity" />
