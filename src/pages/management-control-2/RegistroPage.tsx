@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,29 +11,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { 
   Upload, 
   Camera, 
-  FileText, 
   Receipt, 
   CreditCard, 
-  Wrench, 
-  Truck, 
   ArrowUp, 
   ArrowDown,
   Loader2,
   CheckCircle,
   X,
-  Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
-type FlowType = "rapporto" | "ddt" | "spesa" | "incasso" | null;
+type FlowType = "spesa" | "incasso" | null;
 
 interface QuickEntryForm {
   importo: string;
@@ -44,38 +38,13 @@ interface QuickEntryForm {
   descrizione: string;
 }
 
-interface DdtLineItem {
-  description: string;
-  quantity: number;
-  unit: string;
-  unit_price?: number;
-  total?: number;
-}
-
-interface DdtScanForm {
-  numero_ddt: string;
-  data_ddt: string;
-  fornitore: string;
-  destinatario: string;
-  destinatario_indirizzo: string;
-  destinazione: string;
-  destinazione_indirizzo: string;
-  causale_trasporto: string;
-  direzione: "entrata" | "uscita";
-  note: string;
-  line_items: DdtLineItem[];
-}
-
 export default function RegistroPage() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [activeFlow, setActiveFlow] = useState<FlowType>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [showQuickEntryDialog, setShowQuickEntryDialog] = useState(false);
-  const [showDdtScanDialog, setShowDdtScanDialog] = useState(false);
-  const [ddtUploadedFile, setDdtUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [quickEntryType, setQuickEntryType] = useState<"entrata" | "uscita">("uscita");
   const [quickEntryForm, setQuickEntryForm] = useState<QuickEntryForm>({
     importo: "",
@@ -83,19 +52,6 @@ export default function RegistroPage() {
     soggetto_nome: "",
     riferimento: "",
     descrizione: "",
-  });
-  const [ddtScanForm, setDdtScanForm] = useState<DdtScanForm>({
-    numero_ddt: "",
-    data_ddt: new Date().toISOString().split("T")[0],
-    fornitore: "",
-    destinatario: "",
-    destinatario_indirizzo: "",
-    destinazione: "",
-    destinazione_indirizzo: "",
-    causale_trasporto: "",
-    direzione: "entrata",
-    note: "",
-    line_items: [],
   });
 
   // Fetch my recent registrations
@@ -192,106 +148,13 @@ export default function RegistroPage() {
   };
 
   const handleFlowStart = (flow: FlowType) => {
-    if (flow === "rapporto") {
-      navigate("/support/service-reports?new=true");
-    } else if (flow === "ddt") {
-      setShowDdtScanDialog(true);
-    } else if (flow === "spesa") {
+    if (flow === "spesa") {
       setQuickEntryType("uscita");
       setShowQuickEntryDialog(true);
     } else if (flow === "incasso") {
       setQuickEntryType("entrata");
       setShowQuickEntryDialog(true);
     }
-  };
-
-  // DDT upload (solo upload, senza analisi AI - l'analisi viene fatta nella pagina DDT durante la verifica)
-  const handleDdtFileUpload = async (file: File) => {
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `ddt-${Date.now()}.${fileExt}`;
-      const filePath = `ddt-scans/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("accounting-attachments")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("accounting-attachments")
-        .getPublicUrl(filePath);
-
-      setDdtUploadedFile({ name: file.name, url: urlData.publicUrl });
-      toast.success("File DDT caricato!");
-    } catch {
-      toast.error("Errore upload file DDT");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Create DDT grezzo mutation
-  const createDdtMutation = useMutation({
-    mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      // Generate DDT number if not provided
-      const ddtNumber = ddtScanForm.numero_ddt || `SCAN-${Date.now()}`;
-      
-      const ddtData = {
-        numero: ddtNumber,
-        data: ddtScanForm.data_ddt,
-        fornitore: ddtScanForm.fornitore,
-        destinatario: ddtScanForm.destinatario,
-        destinatario_indirizzo: ddtScanForm.destinatario_indirizzo,
-        destinazione: ddtScanForm.destinazione,
-        destinazione_indirizzo: ddtScanForm.destinazione_indirizzo,
-        causale_trasporto: ddtScanForm.causale_trasporto,
-        direzione: ddtScanForm.direzione,
-        note: ddtScanForm.note,
-        line_items: ddtScanForm.line_items as unknown as Record<string, unknown>[],
-        allegato_url: ddtUploadedFile?.url,
-        allegato_nome: ddtUploadedFile?.name,
-        stato: "grezzo",
-        scansionato: true,
-      };
-
-      const { error } = await supabase.from("ddts").insert([{
-        ddt_number: ddtNumber,
-        ddt_data: JSON.parse(JSON.stringify(ddtData)),
-        created_by: userData.user?.id,
-      }]);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ddts"] });
-      toast.success("DDT grezzo creato con successo!");
-      resetDdtScan();
-    },
-    onError: () => {
-      toast.error("Errore durante la creazione del DDT");
-    },
-  });
-
-  const resetDdtScan = () => {
-    setShowDdtScanDialog(false);
-    setDdtUploadedFile(null);
-    setDdtScanForm({
-      numero_ddt: "",
-      data_ddt: new Date().toISOString().split("T")[0],
-      fornitore: "",
-      destinatario: "",
-      destinatario_indirizzo: "",
-      destinazione: "",
-      destinazione_indirizzo: "",
-      causale_trasporto: "",
-      direzione: "entrata",
-      note: "",
-      line_items: [],
-    });
   };
 
   const handleFileUpload = async (file: File) => {
@@ -338,70 +201,33 @@ export default function RegistroPage() {
 
           if (analysisData?.success && analysisData?.data) {
             const extracted = analysisData.data;
-            const docType = extracted.document_type?.toLowerCase();
             
-            // Open appropriate dialog based on document type
-            if (docType === "ddt") {
-              // It's a DDT - open DDT dialog with extracted data
-              setDdtUploadedFile(uploadedFileData);
-              setDdtScanForm({
-                numero_ddt: extracted.document_number || "",
-                data_ddt: extracted.document_date || new Date().toISOString().split("T")[0],
-                fornitore: extracted.supplier_name || "",
-                destinatario: extracted.recipient_name || "",
-                destinatario_indirizzo: extracted.recipient_address || "",
-                destinazione: extracted.destination_name || "",
-                destinazione_indirizzo: extracted.destination_address || "",
-                causale_trasporto: extracted.transport_reason || "",
-                direzione: extracted.direction === "uscita" ? "uscita" : "entrata",
-                note: extracted.notes || "",
-                line_items: extracted.line_items || [],
-              });
-              setShowDdtScanDialog(true);
-              toast.success("DDT riconosciuto e dati estratti!");
-            } else if (docType === "scontrino" || docType === "fattura" || docType === "ricevuta" || docType === "estratto_conto") {
-              // It's an expense/receipt - open expense dialog
-              setUploadedFile(uploadedFileData);
-              const isEntrata = extracted.direction === "entrata";
-              setQuickEntryType(isEntrata ? "entrata" : "uscita");
-              setQuickEntryForm({
-                importo: extracted.amount ? String(extracted.amount) : "",
-                metodo_pagamento: extracted.payment_method === "contanti" ? "cassa" : 
-                                  extracted.payment_method === "carta" ? "carta" : 
-                                  extracted.payment_method === "bonifico" ? "banca" : "cassa",
-                soggetto_nome: extracted.supplier_name || "",
-                riferimento: extracted.document_number || "",
-                descrizione: extracted.notes || "",
-              });
-              setShowQuickEntryDialog(true);
-              toast.success(`${docType === "scontrino" ? "Scontrino" : "Documento"} riconosciuto e dati estratti!`);
-            } else {
-              // Unknown type - default to expense dialog
-              setUploadedFile(uploadedFileData);
-              setQuickEntryType("uscita");
-              setQuickEntryForm((prev) => ({
-                ...prev,
-                importo: extracted.amount ? String(extracted.amount) : prev.importo,
-                soggetto_nome: extracted.supplier_name || prev.soggetto_nome,
-                descrizione: extracted.notes || prev.descrizione,
-              }));
-              setShowQuickEntryDialog(true);
-              toast.success("Documento analizzato - verifica i dati estratti");
-            }
+            // Open expense/income dialog with extracted data
+            setUploadedFile(uploadedFileData);
+            const isEntrata = extracted.direction === "entrata";
+            setQuickEntryType(isEntrata ? "entrata" : "uscita");
+            setQuickEntryForm({
+              importo: extracted.amount ? String(extracted.amount) : "",
+              metodo_pagamento: extracted.payment_method === "contanti" ? "cassa" : 
+                                extracted.payment_method === "carta" ? "carta" : 
+                                extracted.payment_method === "bonifico" ? "banca" : "cassa",
+              soggetto_nome: extracted.supplier_name || "",
+              riferimento: extracted.document_number || "",
+              descrizione: extracted.notes || "",
+            });
+            setShowQuickEntryDialog(true);
+            toast.success("Documento riconosciuto e dati estratti!");
           } else {
-            // No AI data - open expense dialog as default
             setUploadedFile(uploadedFileData);
             setShowQuickEntryDialog(true);
             toast.info("Compila manualmente i dati");
           }
         } else {
-          // No analysis possible - open expense dialog
           setUploadedFile(uploadedFileData);
           setShowQuickEntryDialog(true);
           toast.info("Compila manualmente i dati");
         }
       } catch {
-        // Error in analysis - open expense dialog as fallback
         setUploadedFile(uploadedFileData);
         setShowQuickEntryDialog(true);
         toast.info("Compila manualmente i dati");
@@ -456,34 +282,8 @@ export default function RegistroPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
 
-      {/* 4 Main Action Buttons - Mobile First Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("rapporto")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-blue-100 flex items-center justify-center mb-2 group-hover:bg-blue-200 transition-colors">
-              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Genera Rapporto</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Crea un nuovo rapporto di intervento</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("ddt")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-purple-100 flex items-center justify-center mb-2 group-hover:bg-purple-200 transition-colors">
-              <Truck className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Scansiona DDT</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un documento di trasporto</CardDescription>
-          </CardHeader>
-        </Card>
-
+      {/* 2 Main Action Buttons - Only Spesa and Incasso */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <Card 
           className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
           onClick={() => handleFlowStart("spesa")}
@@ -511,7 +311,7 @@ export default function RegistroPage() {
         </Card>
       </div>
 
-      {/* AI Upload Zone - Mobile Optimized */}
+      {/* AI Upload Zone */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -565,7 +365,7 @@ export default function RegistroPage() {
         </CardContent>
       </Card>
 
-      {/* My Registrations - Mobile Optimized */}
+      {/* My Registrations */}
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Le mie registrazioni recenti</CardTitle>
@@ -660,7 +460,7 @@ export default function RegistroPage() {
         </CardContent>
       </Card>
 
-      {/* Quick Entry Dialog - Mobile Optimized */}
+      {/* Quick Entry Dialog */}
       <Dialog open={showQuickEntryDialog} onOpenChange={setShowQuickEntryDialog}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
           <DialogHeader>
@@ -800,144 +600,6 @@ export default function RegistroPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* DDT Upload Dialog - Semplificato senza analisi AI */}
-      <Dialog open={showDdtScanDialog} onOpenChange={setShowDdtScanDialog}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-purple-600" />
-              Carica DDT
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* DDT File upload area */}
-            <div
-              className={cn(
-                "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:bg-accent/50",
-                ddtUploadedFile && "border-green-500 bg-green-50"
-              )}
-              onClick={() => document.getElementById("ddt-file-input")?.click()}
-            >
-              {isUploading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span className="text-sm">Caricamento...</span>
-                </div>
-              ) : ddtUploadedFile ? (
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="text-sm truncate max-w-[200px]">{ddtUploadedFile.name}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDdtUploadedFile(null);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Carica foto o PDF del DDT
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    L'analisi AI verrà effettuata durante la verifica
-                  </p>
-                </>
-              )}
-              <input
-                id="ddt-file-input"
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleDdtFileUpload(file);
-                }}
-              />
-            </div>
-
-            <div>
-              <label className="block">
-                <Button variant="outline" className="w-full h-12 sm:h-10" asChild>
-                  <div className="cursor-pointer">
-                    <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
-                    Scatta foto DDT
-                  </div>
-                </Button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleDdtFileUpload(file);
-                  }}
-                />
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Direzione *</Label>
-              <Select
-                value={ddtScanForm.direzione}
-                onValueChange={(value: "entrata" | "uscita") => setDdtScanForm((prev) => ({ ...prev, direzione: value }))}
-              >
-                <SelectTrigger className="h-12 sm:h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrata">
-                    <div className="flex items-center gap-2">
-                      <ArrowDown className="h-4 w-4 text-green-600" />
-                      DDT Entrata (merce ricevuta)
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="uscita">
-                    <div className="flex items-center gap-2">
-                      <ArrowUp className="h-4 w-4 text-red-600" />
-                      DDT Uscita (merce spedita)
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Note (opzionale)</Label>
-              <Textarea
-                placeholder="Note aggiuntive..."
-                value={ddtScanForm.note}
-                onChange={(e) => setDdtScanForm((prev) => ({ ...prev, note: e.target.value }))}
-                rows={2}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={resetDdtScan} className="w-full sm:w-auto h-12 sm:h-10">
-              Annulla
-            </Button>
-            <Button 
-              onClick={() => createDdtMutation.mutate()} 
-              disabled={createDdtMutation.isPending || !ddtUploadedFile}
-              className="w-full sm:w-auto h-12 sm:h-10 bg-purple-600 hover:bg-purple-700"
-            >
-              {createDdtMutation.isPending ? "Salvataggio..." : "Carica DDT"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }
