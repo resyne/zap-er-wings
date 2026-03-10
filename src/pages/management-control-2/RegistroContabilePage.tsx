@@ -2986,7 +2986,7 @@ export default function RegistroContabilePage() {
                 ) : filteredEvents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nessun evento da classificare
+                      Nessun rapporto di spesa o incasso da annotare
                     </TableCell>
                   </TableRow>
                 ) : (
