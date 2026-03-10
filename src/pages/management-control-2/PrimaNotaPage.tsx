@@ -1781,8 +1781,7 @@ export default function PrimaNotaPage() {
               {daClassificareEntries.map((entry) => (
                 <Card
                   key={entry.id}
-                  className="hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                  className="hover:bg-accent/50 transition-colors"
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
