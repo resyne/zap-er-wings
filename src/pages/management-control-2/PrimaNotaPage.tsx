@@ -22,7 +22,7 @@ import {
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
   FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
-  ClipboardList, Wallet, Info, ArrowLeftRight
+  ClipboardList, Wallet, Info, ArrowLeftRight, Clock
 } from "lucide-react";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
