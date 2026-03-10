@@ -756,9 +756,14 @@ export function DashboardPage() {
                   {leadActivities.map((activity) => {
                     const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
                     return (
-                      <div 
+                       <div 
                         key={`lead-${activity.id}`} 
-                        className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'lead_activity', itemId: activity.id }));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className={`p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
                         onClick={() => {
                           setPreviewItem({ type: 'lead', data: activity });
                           setIsPreviewOpen(true);
@@ -904,7 +909,12 @@ export function DashboardPage() {
                   {tasks.map((task) => (
                     <div 
                       key={`task-${task.id}`} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'task', itemId: task.id }));
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
                       onClick={() => navigate(`/tasks?task=${task.id}`)}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -1046,7 +1056,12 @@ export function DashboardPage() {
                   return (
                     <div 
                       key={ticket.id} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'ticket', itemId: ticket.id }));
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
                       onClick={() => navigate(`/support/tickets`)}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -1092,7 +1107,7 @@ export function DashboardPage() {
       </div>
 
       {/* Weekly Calendar Section (includes recurring tasks) */}
-      <WeeklyCalendar recurringTasks={recurringTasks} onRecurringTaskToggle={async (task) => {
+      <WeeklyCalendar recurringTasks={recurringTasks} onExternalDrop={loadUserTasks} onRecurringTaskToggle={async (task) => {
         if (!user) return;
         try {
           if (task.completed && task.completion_id) {

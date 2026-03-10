@@ -61,12 +61,13 @@ interface RecurringTask {
 interface WeeklyCalendarProps {
   recurringTasks?: RecurringTask[];
   onRecurringTaskToggle?: (task: RecurringTask) => void;
+  onExternalDrop?: () => void;
 }
 
 type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
 
 interface DragData {
-  itemType: CalendarItem['item_type'];
+  itemType: CalendarItem['item_type'] | 'lead_activity';
   itemId: string;
 }
 
@@ -115,7 +116,7 @@ function getItemDate(item: CalendarItem): string | null {
   return null;
 }
 
-export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onExternalDrop }: WeeklyCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -254,9 +255,13 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: W
       } else if (data.itemType === 'ticket') {
         const { error } = await supabase.from('tickets').update({ scheduled_date: newIso }).eq('id', data.itemId);
         if (error) throw error;
+      } else if (data.itemType === 'lead_activity') {
+        const { error } = await supabase.from('lead_activities').update({ activity_date: newIso }).eq('id', data.itemId);
+        if (error) throw error;
       }
-      toast({ title: "Spostato", description: "Elemento spostato con successo" });
+      toast({ title: "Spostato", description: "Elemento spostato nel calendario" });
       loadData();
+      onExternalDrop?.();
     } catch (error) {
       console.error('Drop error:', error);
       toast({ title: "Errore", description: "Impossibile spostare l'elemento", variant: "destructive" });
