@@ -69,6 +69,7 @@ export function AIDocumentUpload() {
       });
       if (movError) throw movError;
 
+      const isPreMovement = (movimento as any).in_attesa_fattura === true;
       const { error: accError } = await supabase.from("accounting_entries").insert({
         direction: movimento.direzione,
         document_type: "scontrino",
@@ -79,9 +80,10 @@ export function AIDocumentUpload() {
         note: movimento.soggetto_nome
           ? `Soggetto: ${movimento.soggetto_nome}${movimento.descrizione ? ` - ${movimento.descrizione}` : ""}`
           : movimento.descrizione || null,
-        status: "da_classificare",
+        status: isPreMovement ? "da_classificare" : "da_classificare",
+        pre_movement_status: isPreMovement ? "in_attesa_fattura" : null,
         user_id: userData.user?.id,
-      });
+      } as any);
       if (accError) throw accError;
     },
     onSuccess: () => {
