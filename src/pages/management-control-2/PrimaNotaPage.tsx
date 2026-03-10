@@ -364,32 +364,24 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // Fetch pending entries (pronto_prima_nota)
-  const { data: pendingEntries = [] } = useQuery({
-    queryKey: ["pending-prima-nota-entries"],
+  // Fetch ALL bozze (unified: da_classificare + in_classificazione + sospeso + pronto_prima_nota)
+  const { data: bozze = [] } = useQuery({
+    queryKey: ["bozze-prima-nota"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("accounting_entries")
         .select(`
-          id, direction, document_type, amount, document_date,
-          event_type, temporal_competence, recurrence_start_date, recurrence_end_date,
-          chart_account_id, cost_center_id, profit_center_id, center_percentage,
-          financial_status, affects_income_statement, payment_method,
-          iva_mode, iva_aliquota, imponibile, iva_amount, totale,
+          *, 
           chart_account:chart_of_accounts(code, name),
           cost_center:cost_centers(code, name),
           profit_center:profit_centers(code, name)
         `)
-        .eq("status", "pronto_prima_nota")
-        .order("document_date", { ascending: false });
-
+        .in("status", ["da_classificare", "in_classificazione", "sospeso", "pronto_prima_nota"])
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as PendingEntry[];
+      return data || [];
     },
   });
-
-
-
 
   const { data: pendingDocuments = [] } = useQuery({
     queryKey: ["pending-accounting-documents"],
@@ -399,7 +391,6 @@ export default function PrimaNotaPage() {
         .select("*, customers(name, company_name)")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       return data as any[];
     },
