@@ -24,6 +24,8 @@ import { AccountSplitManager } from "@/components/management-control/AccountSpli
 import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOperationalDocuments";
 import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
+import { RegistryFiltersBar } from "@/components/registro-contabile/RegistryFiltersBar";
+import { InvoiceRegistryTable } from "@/components/registro-contabile/InvoiceRegistryTable";
 import { 
   Plus, 
   FileCheck, 
@@ -2786,75 +2788,26 @@ export default function RegistroContabilePage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Cerca per numero fattura o soggetto..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-10"
-          />
-        </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full md:w-[180px] h-10">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti i tipi</SelectItem>
-            <SelectItem value="vendita">Vendita</SelectItem>
-            <SelectItem value="acquisto">Acquisto</SelectItem>
-            <SelectItem value="da_classificare">Da Annotare</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full md:w-[220px] h-10">
-            <SelectValue placeholder="Stato" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti gli stati</SelectItem>
-            <SelectItem value="bozza">Bozza</SelectItem>
-            <SelectItem value="registrata">Registrata</SelectItem>
-            <SelectItem value="contabilizzato">Contabilizzato</SelectItem>
-            <SelectItem value="stornati">
-              <div className="flex items-center gap-2">
-                <Undo2 className="w-3 h-3 text-orange-500" />
-                Stornati / Da Riclassificare
-              </div>
-            </SelectItem>
-            <SelectItem value="da_riclassificare">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-3 h-3 text-orange-500" />
-                Solo Da Riclassificare
-              </div>
-            </SelectItem>
-            <SelectItem value="rettificato">
-              <div className="flex items-center gap-2">
-                <Lock className="w-3 h-3 text-red-500" />
-                Rettificato (Bloccato)
-              </div>
-            </SelectItem>
-            <SelectItem value="archiviato">Archiviato</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={groupBy} onValueChange={(v) => {
-          setGroupBy(v as GroupByOption);
-          // Auto-expand first 3 periods
+      <RegistryFiltersBar
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        filterStatus={filterStatus}
+        onFilterStatusChange={setFilterStatus}
+        groupBy={groupBy}
+        onGroupByChange={(v) => {
+          setGroupBy(v as any);
           setExpandedRegistryPeriods(new Set());
-        }}>
-          <SelectTrigger className="w-full md:w-[180px] h-10">
-            <Calendar className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Raggruppa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Nessun raggruppamento</SelectItem>
-            <SelectItem value="day">Per giorno</SelectItem>
-            <SelectItem value="week">Per settimana</SelectItem>
-            <SelectItem value="month">Per mese</SelectItem>
-            <SelectItem value="quarter">Per trimestre</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        }}
+        onClearFilters={() => {
+          setSearchTerm("");
+          setFilterType("all");
+          setFilterStatus("all");
+          setGroupBy("month");
+          setExpandedRegistryPeriods(new Set());
+        }}
+      />
 
       {/* Vista Documentazione Operativa */}
       {showOperationalDocs ? (
@@ -3186,91 +3139,29 @@ export default function RegistroContabilePage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[1100px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Soggetto</TableHead>
-                <TableHead>Regime IVA</TableHead>
-                <TableHead className="text-right">Imponibile</TableHead>
-                <TableHead className="text-right">IVA</TableHead>
-                <TableHead className="text-right">Totale</TableHead>
-                <TableHead>Stato Doc.</TableHead>
-                <TableHead>Stato Fin.</TableHead>
-                <TableHead>Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">Caricamento...</TableCell>
-                </TableRow>
-              ) : filteredInvoices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                    Nessuna fattura trovata
-                  </TableCell>
-                </TableRow>
-              ) : groupBy !== 'none' && groupedInvoices ? (
-                groupedInvoices.map(([key, group]) => {
-                  const totImponibile = group.invoices.reduce((s, i) => s + i.imponibile, 0);
-                  const totIva = group.invoices.reduce((s, i) => s + i.iva_amount, 0);
-                  const totTotale = group.invoices.reduce((s, i) => s + (i.invoice_type === 'acquisto' ? -i.total_amount : i.total_amount), 0);
-                  
-                  return (
-                    <React.Fragment key={key}>
-                      <TableRow className="bg-muted/30 border-t-2 border-t-border">
-                        <TableCell colSpan={5} className="py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="font-semibold text-sm capitalize">{group.label}</span>
-                            <span className="text-xs text-muted-foreground">({group.invoices.length})</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-medium text-muted-foreground py-2.5">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground py-2.5">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className={cn("text-right text-xs font-semibold py-2.5", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
-                          {totTotale >= 0 ? '+' : ''}€{totTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell colSpan={3} className="py-2.5" />
-                      </TableRow>
-                      {group.invoices.map((invoice) => (
-                        <TableRow 
-                          key={invoice.id}
-                          className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                          onClick={() => {
-                            setDetailsInvoice(invoice);
-                            setShowDetailsDialog(true);
-                          }}
-                        >
-                          {renderInvoiceRow(invoice)}
-                        </TableRow>
-                      ))}
-                    </React.Fragment>
-                  );
-                })
-              ) : (
-                filteredInvoices.map((invoice) => (
-                  <TableRow 
-                    key={invoice.id}
-                    className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                    onClick={() => {
-                      setDetailsInvoice(invoice);
-                      setShowDetailsDialog(true);
-                    }}
-                  >
-                    {renderInvoiceRow(invoice)}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <InvoiceRegistryTable
+          invoices={filteredInvoices as any}
+          isLoading={isLoading}
+          groupBy={groupBy}
+          grouped={(groupBy !== 'none' && groupedInvoices) ? (groupedInvoices as any) : null}
+          onOpenDetails={(invoice) => {
+            setDetailsInvoice(invoice as any);
+            setShowDetailsDialog(true);
+          }}
+          onEdit={(invoice) => openEditDialog(invoice as any)}
+          onRegister={(invoice) => {
+            setSelectedInvoice(invoice as any);
+            setShowRegisterDialog(true);
+          }}
+          onDelete={(invoice) => {
+            if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
+          }}
+          onRegenerate={(invoice) => {
+            if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
+          }}
+          isRegenerating={regeneratePrimaNotaMutation.isPending}
+          onGoScadenziario={() => (window.location.href = '/management-control-2/scadenziario')}
+        />
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
