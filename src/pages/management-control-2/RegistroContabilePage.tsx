@@ -4213,10 +4213,10 @@ export default function RegistroContabilePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="domestica_imponibile">Domestica Imponibile</SelectItem>
-                  <SelectItem value="ue_non_imponibile">UE Non Imponibile</SelectItem>
-                  <SelectItem value="extra_ue">Extra-UE</SelectItem>
-                  <SelectItem value="reverse_charge">Reverse Charge</SelectItem>
+                  <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                  <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                  <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                  <SelectItem value="extra_ue">Extra UE</SelectItem>
                 </SelectContent>
               </Select>
             </div>
