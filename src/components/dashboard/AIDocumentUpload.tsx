@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Upload, Camera, Loader2, Receipt, CreditCard } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ interface QuickEntryForm {
   soggetto_nome: string;
   riferimento: string;
   descrizione: string;
+  in_attesa_fattura: boolean;
 }
 
 export function AIDocumentUpload() {
@@ -35,6 +37,7 @@ export function AIDocumentUpload() {
     soggetto_nome: "",
     riferimento: "",
     descrizione: "",
+    in_attesa_fattura: false,
   });
 
   const createMovimentoMutation = useMutation({
@@ -66,6 +69,7 @@ export function AIDocumentUpload() {
       });
       if (movError) throw movError;
 
+      const isPreMovement = (movimento as any).in_attesa_fattura === true;
       const { error: accError } = await supabase.from("accounting_entries").insert({
         direction: movimento.direzione,
         document_type: "scontrino",
@@ -76,15 +80,18 @@ export function AIDocumentUpload() {
         note: movimento.soggetto_nome
           ? `Soggetto: ${movimento.soggetto_nome}${movimento.descrizione ? ` - ${movimento.descrizione}` : ""}`
           : movimento.descrizione || null,
-        status: "da_classificare",
+        status: isPreMovement ? "da_classificare" : "da_classificare",
+        pre_movement_status: isPreMovement ? "in_attesa_fattura" : null,
         user_id: userData.user?.id,
-      });
+      } as any);
       if (accError) throw accError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
+      queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["pre-movements"] });
       toast.success("Movimento registrato con successo!");
       resetQuickEntry();
     },
@@ -102,6 +109,7 @@ export function AIDocumentUpload() {
       soggetto_nome: "",
       riferimento: "",
       descrizione: "",
+      in_attesa_fattura: false,
     });
   };
 
@@ -158,6 +166,7 @@ export function AIDocumentUpload() {
               soggetto_nome: extracted.supplier_name || "",
               riferimento: extracted.document_number || "",
               descrizione: extracted.notes || "",
+              in_attesa_fattura: false,
             });
             setShowQuickEntryDialog(true);
             toast.success("Documento riconosciuto e dati estratti!");
@@ -216,7 +225,8 @@ export function AIDocumentUpload() {
       descrizione: quickEntryForm.descrizione || undefined,
       allegato_url: uploadedFile?.url,
       allegato_nome: uploadedFile?.name,
-    });
+      in_attesa_fattura: quickEntryForm.in_attesa_fattura,
+    } as any);
   };
 
   const handleFlowStart = (flow: "spesa" | "incasso") => {
@@ -361,6 +371,18 @@ export function AIDocumentUpload() {
                 value={quickEntryForm.descrizione}
                 onChange={(e) => setQuickEntryForm(f => ({ ...f, descrizione: e.target.value }))}
                 rows={2}
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+              <div>
+                <Label className="text-sm font-medium">In attesa fattura</Label>
+                <p className="text-xs text-muted-foreground">
+                  Es. carta carburante Q8, carta aziendale — la fattura arriva dopo
+                </p>
+              </div>
+              <Switch
+                checked={quickEntryForm.in_attesa_fattura}
+                onCheckedChange={(checked) => setQuickEntryForm(f => ({ ...f, in_attesa_fattura: checked }))}
               />
             </div>
           </div>

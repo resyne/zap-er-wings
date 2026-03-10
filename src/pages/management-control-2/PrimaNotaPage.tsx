@@ -22,10 +22,11 @@ import {
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
   FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
-  ClipboardList, Wallet, Info, ArrowLeftRight
+  ClipboardList, Wallet, Info, ArrowLeftRight, Clock
 } from "lucide-react";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
+import { PreMovementSection } from "@/components/prima-nota/PreMovementSection";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
@@ -382,6 +383,7 @@ export default function PrimaNotaPage() {
           profit_center:profit_centers(code, name)
         `)
         .in("status", ["da_classificare", "in_classificazione", "sospeso", "pronto_prima_nota"])
+        .is("pre_movement_status", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -1098,6 +1100,9 @@ export default function PrimaNotaPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ==================== PRE-MOVIMENTI IN ATTESA FATTURA ==================== */}
+      <PreMovementSection />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
          <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
