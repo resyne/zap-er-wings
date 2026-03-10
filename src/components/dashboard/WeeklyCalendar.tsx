@@ -45,7 +45,25 @@ interface Ticket {
   customer_name: string;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
+interface RecurringTask {
+  id: string;
+  task_template_id: string;
+  title: string;
+  description?: string;
+  day: number;
+  priority: string;
+  category: string;
+  is_active: boolean;
+  completed?: boolean;
+  completion_id?: string;
+}
+
+interface WeeklyCalendarProps {
+  recurringTasks?: RecurringTask[];
+  onRecurringTaskToggle?: (task: RecurringTask) => void;
+}
+
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
@@ -73,7 +91,7 @@ const priorityLabels = {
   high: "Alta"
 };
 
-export function WeeklyCalendar() {
+export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: WeeklyCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -179,7 +197,14 @@ export function WeeklyCalendar() {
       })
       .map(ticket => ({ ...ticket, item_type: 'ticket' as const }));
 
-    return [...dayTasks, ...dayEvents, ...dayTickets];
+    // Map JS getDay (0=Sun) to our weekDay (1=Mon..7=Sun)
+    const jsDay = day.getDay();
+    const weekDay = jsDay === 0 ? 7 : jsDay;
+    const dayRecurring = recurringTasks
+      .filter(rt => rt.day === weekDay)
+      .map(rt => ({ ...rt, item_type: 'recurring' as const }));
+
+    return [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets];
   };
 
   const handleCreateEvent = async () => {
@@ -322,22 +347,35 @@ export function WeeklyCalendar() {
                   dayItems.map((item) => {
                     const isTask = item.item_type === 'task';
                     const isTicket = item.item_type === 'ticket';
-                    const borderColor = isTask ? 'border-l-primary' : isTicket ? 'border-l-orange-400' : `border-l-${item.color}-400`;
+                    const isRecurring = item.item_type === 'recurring';
+                    const borderColor = isRecurring ? 'border-l-amber-500' : isTask ? 'border-l-primary' : isTicket ? 'border-l-orange-400' : `border-l-${(item as CalendarEvent).color}-400`;
+                    const recurringItem = isRecurring ? item as RecurringTask & { item_type: 'recurring' } : null;
                     
                     return (
                       <div
-                        key={item.id}
-                        className={`p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors border-l-2 ${borderColor}`}
+                        key={`${item.item_type}-${item.id}`}
+                        className={`p-2 border rounded cursor-pointer hover:bg-muted/50 transition-colors border-l-2 ${borderColor} ${recurringItem?.completed ? 'opacity-50' : ''}`}
                         onClick={() => {
-                          setSelectedItem(item);
-                          setShowDetailsDialog(true);
+                          if (isRecurring && onRecurringTaskToggle) {
+                            onRecurringTaskToggle(item as RecurringTask);
+                          } else {
+                            setSelectedItem(item);
+                            setShowDetailsDialog(true);
+                          }
                         }}
                       >
                         <div className="space-y-1">
-                          <div className="font-medium text-xs leading-tight line-clamp-2">
+                          <div className={`font-medium text-xs leading-tight line-clamp-2 flex items-center gap-1 ${recurringItem?.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {isRecurring && (
+                              <span className="flex-shrink-0">
+                                {recurringItem?.completed ? '✓' : '○'}
+                              </span>
+                            )}
                             {item.title}
                           </div>
-                          {isTask ? (
+                          {isRecurring ? (
+                            <Badge variant="outline" className="text-[10px] h-4 capitalize">{recurringItem!.category}</Badge>
+                          ) : isTask ? (
                             <Badge className={priorityColors[(item as Task).priority as keyof typeof priorityColors] + " text-[10px] h-4"}>
                               {priorityLabels[(item as Task).priority as keyof typeof priorityLabels]}
                             </Badge>

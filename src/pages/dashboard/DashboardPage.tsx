@@ -15,7 +15,7 @@ import {
   Clock, 
   AlertCircle, 
   Users, 
-  TrendingUp, 
+   
   Calendar,
   User,
   LogOut,
@@ -117,16 +117,6 @@ interface RecurringTask {
   completion_id?: string;
 }
 
-interface AssignedOrder {
-  id: string;
-  number: string;
-  title: string;
-  status: string;
-  order_type: 'work_order' | 'service_order' | 'shipping_order';
-  customer_name?: string;
-  created_at: string;
-}
-
 interface StickyNote {
   id: string;
   content: string;
@@ -150,7 +140,7 @@ export function DashboardPage() {
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
-  const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
+  
   const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
@@ -313,93 +303,12 @@ export function DashboardPage() {
         };
       }) || [];
 
-      // Load assigned orders (work orders, service orders, shipping orders)
-      const assignedOrdersList: AssignedOrder[] = [];
-
-      // Work orders
-      const { data: workOrders } = await supabase
-        .from('work_orders')
-        .select(`
-          id,
-          number,
-          title,
-          status,
-          created_at,
-          customers:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      workOrders?.forEach(wo => {
-        assignedOrdersList.push({
-          id: wo.id,
-          number: wo.number,
-          title: wo.title,
-          status: wo.status,
-          order_type: 'work_order',
-          customer_name: (wo.customers as any)?.name,
-          created_at: wo.created_at
-        });
-      });
-
-      // Service work orders
-      const { data: serviceOrders } = await supabase
-        .from('service_work_orders')
-        .select(`
-          id,
-          number,
-          title,
-          status,
-          created_at,
-          customers:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      serviceOrders?.forEach(so => {
-        assignedOrdersList.push({
-          id: so.id,
-          number: so.number,
-          title: so.title,
-          status: so.status,
-          order_type: 'service_order',
-          customer_name: (so.customers as any)?.name,
-          created_at: so.created_at
-        });
-      });
-
-      // Shipping orders
-      const { data: shippingOrders } = await supabase
-        .from('shipping_orders')
-        .select(`
-          id,
-          number,
-          status,
-          created_at,
-          companies:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      shippingOrders?.forEach(ship => {
-        assignedOrdersList.push({
-          id: ship.id,
-          number: ship.number,
-          title: `Commessa di Spedizione ${ship.number}`,
-          status: ship.status,
-          order_type: 'shipping_order',
-          customer_name: (ship.companies as any)?.name,
-          created_at: ship.created_at
-        });
-      });
-
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
       setLeadActivities(leadActivitiesData || []);
       setTickets(ticketsData || []);
       setRecurringTasks(userRecurringTasks);
-      setAssignedOrders(assignedOrdersList);
 
       // Load sticky notes
       const { data: notesData, error: notesError } = await supabase
@@ -1114,92 +1023,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Assigned Orders */}
-        {assignedOrders.length > 0 && (
-          <Card className="shadow-sm">
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" />
-                I Miei Ordini ({assignedOrders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {assignedOrders.map((order) => {
-                  const orderTypeLabel = order.order_type === 'work_order' 
-                    ? 'Commessa di Produzione' 
-                    : order.order_type === 'service_order'
-                    ? 'Commessa di Lavoro'
-                    : 'Commessa di Spedizione';
-                  
-                  const statusColors: Record<string, string> = {
-                    'planned': 'bg-gray-100 text-gray-800',
-                    'in_progress': 'bg-blue-100 text-blue-800',
-                    'completed': 'bg-green-100 text-green-800',
-                    'da_preparare': 'bg-yellow-100 text-yellow-800',
-                    'pronto': 'bg-green-100 text-green-800',
-                  };
-
-                  return (
-                    <div 
-                      key={order.id} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => {
-                        if (order.order_type === 'work_order') {
-                          navigate('/mfg/work-orders');
-                        } else if (order.order_type === 'service_order') {
-                          navigate('/support/work-orders');
-                        } else {
-                          navigate('/warehouse/shipping-orders');
-                        }
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">{order.number}</Badge>
-                            <h4 className="font-medium">{order.title}</h4>
-                            <Badge className={statusColors[order.status] || 'bg-gray-100'}>
-                              {order.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>{orderTypeLabel}</span>
-                            {order.customer_name && (
-                              <span><strong>Cliente:</strong> {order.customer_name}</span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(order.created_at), "dd MMM yyyy", { locale: it })}
-                            </div>
-                          </div>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (order.order_type === 'work_order') {
-                              navigate('/mfg/work-orders');
-                            } else if (order.order_type === 'service_order') {
-                              navigate('/support/work-orders');
-                            } else {
-                              navigate('/warehouse/shipping-orders');
-                            }
-                          }}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Tickets */}
         <Card className="shadow-sm">
           <CardHeader className="py-3 px-4">
@@ -1268,150 +1091,24 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Weekly Recurring Tasks Section */}
-      {recurringTasks.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Task Ricorrenti Settimanali
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-medium text-muted-foreground mb-3">
-              Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
-            </div>
-            
-            <div className="space-y-4">
-              {weekDays.map(day => {
-                const dayTasks = recurringTasks.filter(t => t.day === day.value);
-                if (dayTasks.length === 0) return null;
-
-                // Check if this is today (getDay returns 0 for Sunday, so we adjust)
-                const today = new Date();
-                const currentDayOfWeek = getDay(today) === 0 ? 7 : getDay(today); // Convert Sunday from 0 to 7
-                const isToday = currentDayOfWeek === day.value;
-
-                return (
-                  <div key={day.value} className="space-y-2">
-                    <h4 className={`font-medium text-sm ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                      {day.label} {isToday && <Badge variant="default" className="ml-2">Oggi</Badge>}
-                    </h4>
-                    <div className="space-y-2">
-                      {dayTasks.map(task => {
-                        const getPriorityColorClass = (priority: string) => {
-                          switch (priority) {
-                            case 'urgent': return 'bg-red-500';
-                            case 'high': return 'bg-orange-500';
-                            case 'medium': return 'bg-yellow-500';
-                            case 'low': return 'bg-green-500';
-                            default: return 'bg-gray-500';
-                          }
-                        };
-
-                        return (
-                          <div
-                            key={task.id}
-                            className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
-                              task.completed 
-                                ? 'bg-muted/50' 
-                                : isToday 
-                                  ? 'border-primary border-2 bg-primary/5 shadow-md hover:shadow-lg' 
-                                  : 'hover:shadow-md'
-                            }`}
-                          >
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={async () => {
-                                if (!user) return;
-                                
-                                try {
-                                  if (task.completed && task.completion_id) {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .update({ 
-                                        completed: false,
-                                        completed_at: null,
-                                        completed_by: null
-                                      })
-                                      .eq('id', task.completion_id);
-                                  } else if (task.completion_id) {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .update({ 
-                                        completed: true,
-                                        completed_at: new Date().toISOString(),
-                                        completed_by: user.id
-                                      })
-                                      .eq('id', task.completion_id);
-                                  } else {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .insert({
-                                        recurring_task_id: task.id,
-                                        week_start: format(weekStart, 'yyyy-MM-dd'),
-                                        week_end: format(weekEnd, 'yyyy-MM-dd'),
-                                        completed: true,
-                                        completed_at: new Date().toISOString(),
-                                        completed_by: user.id
-                                      });
-                                  }
-
-                                  toast({
-                                    title: "Successo",
-                                    description: task.completed ? "Task segnata come non completata" : "Task completata!"
-                                  });
-
-                                  loadUserTasks();
-                                } catch (error) {
-                                  console.error('Error toggling completion:', error);
-                                  toast({
-                                    title: "Errore",
-                                    description: "Impossibile aggiornare lo stato",
-                                    variant: "destructive"
-                                  });
-                                }
-                              }}
-                            >
-                              {task.completed ? (
-                                <CheckCircle2 className="w-5 h-5 text-green-600" />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full border-2 border-muted-foreground" />
-                              )}
-                            </Button>
-
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${getPriorityColorClass(task.priority)}`} />
-                                <span className={task.completed ? 'line-through text-muted-foreground' : 'font-medium'}>
-                                  {task.title}
-                                </span>
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {task.category}
-                                </Badge>
-                              </div>
-                              {task.description && (
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                  {task.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Weekly Calendar Section */}
-      <WeeklyCalendar />
+      {/* Weekly Calendar Section (includes recurring tasks) */}
+      <WeeklyCalendar recurringTasks={recurringTasks} onRecurringTaskToggle={async (task) => {
+        if (!user) return;
+        try {
+          if (task.completed && task.completion_id) {
+            await supabase.from('recurring_task_completions').update({ completed: false, completed_at: null, completed_by: null }).eq('id', task.completion_id);
+          } else if (task.completion_id) {
+            await supabase.from('recurring_task_completions').update({ completed: true, completed_at: new Date().toISOString(), completed_by: user.id }).eq('id', task.completion_id);
+          } else {
+            await supabase.from('recurring_task_completions').insert({ recurring_task_id: task.id, week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd'), completed: true, completed_at: new Date().toISOString(), completed_by: user.id });
+          }
+          toast({ title: "Successo", description: task.completed ? "Task segnata come non completata" : "Task completata!" });
+          loadUserTasks();
+        } catch (error) {
+          console.error('Error toggling completion:', error);
+          toast({ title: "Errore", description: "Impossibile aggiornare lo stato", variant: "destructive" });
+        }
+      }} />
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
