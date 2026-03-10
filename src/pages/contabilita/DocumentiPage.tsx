@@ -78,7 +78,7 @@ function UnlinkedDocumentsAlert() {
   const dismissAll = useMutation({
     mutationFn: async () => {
       if (!data) return;
-      const promises: Promise<any>[] = [];
+      
       if (data.ddts.length > 0) {
         const ddtIds = data.ddts.map((d: any) => d.id);
         for (const id of ddtIds) {
