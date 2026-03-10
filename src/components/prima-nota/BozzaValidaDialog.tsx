@@ -646,11 +646,21 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Non specificato</SelectItem>
-                      <SelectItem value="banca">Banca</SelectItem>
-                      <SelectItem value="cassa">Cassa</SelectItem>
-                      <SelectItem value="carta">Carta</SelectItem>
-                      <SelectItem value="contanti">Contanti</SelectItem>
-                      <SelectItem value="bonifico">Bonifico</SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>Bancario</SelectLabel>
+                        <SelectItem value="bonifico">Bonifico</SelectItem>
+                        <SelectItem value="banca">Banca (altro)</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Carte</SelectLabel>
+                        <SelectItem value="carta">Carta</SelectItem>
+                        <SelectItem value="american_express">American Express</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Contante</SelectLabel>
+                        <SelectItem value="contanti">Contanti</SelectItem>
+                        <SelectItem value="cassa">Cassa</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
