@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { AIDocumentUpload } from "@/components/dashboard/AIDocumentUpload";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
