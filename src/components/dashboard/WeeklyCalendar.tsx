@@ -45,6 +45,16 @@ interface Ticket {
   customer_name: string;
 }
 
+interface LeadActivity {
+  id: string;
+  activity_type: string;
+  activity_date: string;
+  status: string | null;
+  notes: string | null;
+  lead_id: string;
+  lead_name?: string;
+}
+
 interface RecurringTask {
   id: string;
   task_template_id: string;
@@ -64,10 +74,10 @@ interface WeeklyCalendarProps {
   onExternalDrop?: () => void;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' }) | (LeadActivity & { item_type: 'lead_activity' });
 
 interface DragData {
-  itemType: CalendarItem['item_type'] | 'lead_activity';
+  itemType: CalendarItem['item_type'];
   itemId: string;
 }
 
@@ -90,6 +100,7 @@ const COLOR_MAP: Record<string, string> = {
   task: 'bg-primary/10 text-primary border-primary/20',
   ticket: 'bg-orange-50 text-orange-900 border-orange-200 dark:bg-orange-900/20 dark:text-orange-200 dark:border-orange-800',
   event: 'bg-blue-50 text-blue-900 border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800',
+  lead_activity: 'bg-green-50 text-green-900 border-green-200 dark:bg-green-900/20 dark:text-green-200 dark:border-green-800',
 };
 
 function getItemHour(item: CalendarItem): number | null {
@@ -105,6 +116,9 @@ function getItemHour(item: CalendarItem): number | null {
     if (!(item as Task).due_date) return null;
     try { return parseISO((item as Task).due_date!).getHours(); } catch { return null; }
   }
+  if (item.item_type === 'lead_activity') {
+    try { return parseISO((item as LeadActivity).activity_date).getHours(); } catch { return null; }
+  }
   return null;
 }
 
@@ -113,14 +127,29 @@ function getItemDate(item: CalendarItem): string | null {
   if (item.item_type === 'event') return (item as CalendarEvent).event_date;
   if (item.item_type === 'ticket') return (item as Ticket).scheduled_date;
   if (item.item_type === 'task') return (item as Task).due_date || null;
+  if (item.item_type === 'lead_activity') return (item as LeadActivity).activity_date;
   return null;
 }
 
+function getItemTitle(item: CalendarItem): string {
+  if (item.item_type === 'lead_activity') {
+    const la = item as LeadActivity & { item_type: 'lead_activity' };
+    return la.lead_name || la.activity_type;
+  }
+  return (item as any).title || '';
+}
+
+function getItemDescription(item: CalendarItem): string | undefined {
+  if (item.item_type === 'lead_activity') return (item as LeadActivity).notes || undefined;
+  return (item as any).description;
+}
 export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onExternalDrop }: WeeklyCalendarProps) {
+
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -144,7 +173,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
-      const [tasksRes, eventsRes, ticketsRes] = await Promise.all([
+      const [tasksRes, eventsRes, ticketsRes, activitiesRes] = await Promise.all([
         supabase.from('tasks').select('*').eq('assigned_to', user.id)
           .gte('due_date', weekStart.toISOString()).lte('due_date', weekEnd.toISOString())
           .not('due_date', 'is', null).eq('is_template', false),
@@ -153,13 +182,21 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         supabase.from('tickets').select('*').eq('assigned_to', user.id)
           .not('scheduled_date', 'is', null)
           .gte('scheduled_date', weekStart.toISOString()).lte('scheduled_date', weekEnd.toISOString()),
+        supabase.from('lead_activities').select('*, leads(company_name, contact_name)')
+          .eq('assigned_to', user.id)
+          .gte('activity_date', weekStart.toISOString()).lte('activity_date', weekEnd.toISOString()),
       ]);
       if (tasksRes.error) throw tasksRes.error;
       if (eventsRes.error) throw eventsRes.error;
       if (ticketsRes.error) throw ticketsRes.error;
+      if (activitiesRes.error) throw activitiesRes.error;
       setTasks(tasksRes.data || []);
       setEvents(eventsRes.data || []);
       setTickets(ticketsRes.data || []);
+      setLeadActivities((activitiesRes.data || []).map((a: any) => ({
+        ...a,
+        lead_name: a.leads?.company_name || a.leads?.contact_name || a.activity_type,
+      })));
     } catch (error) {
       console.error('Error loading data:', error);
       toast({ title: "Errore", description: "Errore nel caricamento dei dati", variant: "destructive" });
@@ -182,15 +219,18 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
       const dayTickets = tickets
         .filter(t => isSameDay(parseISO(t.scheduled_date), day))
         .map(t => ({ ...t, item_type: 'ticket' as const }));
+      const dayLeadActivities = leadActivities
+        .filter(a => isSameDay(parseISO(a.activity_date), day))
+        .map(a => ({ ...a, item_type: 'lead_activity' as const }));
       const jsDay = day.getDay();
       const weekDay = jsDay === 0 ? 7 : jsDay;
       const dayRecurring = recurringTasks
         .filter(rt => rt.day === weekDay)
         .map(rt => ({ ...rt, item_type: 'recurring' as const }));
-      map.set(key, [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets]);
+      map.set(key, [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets, ...dayLeadActivities]);
     });
     return map;
-  }, [weekDays, tasks, events, tickets, recurringTasks]);
+  }, [weekDays, tasks, events, tickets, leadActivities, recurringTasks]);
 
   const getItemsForDay = useCallback((day: Date) => {
     return itemsByDay.get(format(day, 'yyyy-MM-dd')) || [];
@@ -347,14 +387,15 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           ${isDraggable ? 'hover:ring-1 hover:ring-primary/30 active:scale-95' : ''}
         `}
         onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-        title={`${item.title}${isDraggable ? ' — Trascina per spostare' : ''}`}
+        title={`${getItemTitle(item)}${isDraggable ? ' — Trascina per spostare' : ''}`}
       >
         {isDraggable && (
           <GripVertical className="w-2.5 h-2.5 opacity-0 group-hover:opacity-50 shrink-0 transition-opacity" />
         )}
         {isRecurring && <span className="shrink-0">{recurringItem?.completed ? '✓' : '○'}</span>}
         {isTicket && <span className="shrink-0 font-mono">{(item as Ticket).number}</span>}
-        <span className="truncate">{item.title}</span>
+        {item.item_type === 'lead_activity' && <span className="shrink-0">📋</span>}
+        <span className="truncate">{getItemTitle(item)}</span>
       </div>
     );
   };
@@ -393,6 +434,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-blue-300" /> Eventi</span>
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-orange-300" /> Ticket</span>
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-amber-300" /> Ricorrenti</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-green-300" /> CRM</span>
         </div>
 
         {/* Calendar grid */}
@@ -567,18 +609,18 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckSquare className="w-5 h-5 text-primary" />
-              {selectedItem?.title}
+              {getItemTitle(selectedItem)}
             </DialogTitle>
             <DialogDescription>
-              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : selectedItem?.item_type === 'recurring' ? 'Task Ricorrente' : 'Evento'}
+              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : selectedItem?.item_type === 'recurring' ? 'Task Ricorrente' : selectedItem?.item_type === 'lead_activity' ? 'Attività CRM' : 'Evento'}
             </DialogDescription>
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-3">
-              {selectedItem.description && (
+              {getItemDescription(selectedItem) && (
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground mb-1">Descrizione</h4>
-                  <p className="text-sm">{selectedItem.description}</p>
+                  <p className="text-sm">{getItemDescription(selectedItem)}</p>
                 </div>
               )}
               {selectedItem.item_type === 'task' && (
