@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
+import { PreMovementSection } from "@/components/prima-nota/PreMovementSection";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
