@@ -186,6 +186,8 @@ export default function PrimaNotaPage() {
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
   const [rectificationReason, setRectificationReason] = useState("");
+  const [selectedBozza, setSelectedBozza] = useState<any>(null);
+  const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
   const [filterPeriodType, setFilterPeriodType] = useState<string>("month");
   const [filterPeriod, setFilterPeriod] = useState<string>(format(new Date(), "yyyy-MM"));
   const [filterDateFrom, setFilterDateFrom] = useState<string>("");
