@@ -469,11 +469,15 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-5 pb-4">
             {/* Movement info */}
-            <div className="p-3 rounded-lg bg-muted/50 border space-y-1">
-              {entry.note && <p className="text-sm">{entry.note}</p>}
+            <div className="p-3 rounded-lg bg-muted/50 border space-y-1.5">
+              {entry.note && (
+                <p className="text-sm">
+                  <span className="text-xs text-muted-foreground">Soggetto: </span>
+                  {entry.note}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {entry.payment_method && <Badge variant="outline" className="text-xs">{formatPaymentMethod(entry.payment_method)}</Badge>}
-                {entry.iva_mode && <Badge variant="outline" className="text-xs">{IVA_MODE_LABELS[entry.iva_mode] || entry.iva_mode}</Badge>}
                 {entry.status && <Badge variant="secondary" className="text-xs capitalize">{entry.status.replace(/_/g, " ")}</Badge>}
               </div>
               {entry.attachment_url && (
