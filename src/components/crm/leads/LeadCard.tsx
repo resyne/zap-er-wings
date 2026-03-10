@@ -20,6 +20,7 @@ interface LeadCardProps {
   onArchive: (leadId: string, archive: boolean) => void;
   onDelete: (leadId: string) => void;
   onCreateOffer: (lead: Lead) => void;
+  onStatusChange?: (leadId: string, newStatus: string) => void;
   formatAmount: (value: number) => string;
   linkedOffers?: { id: string; number: string; status: string }[];
 }
