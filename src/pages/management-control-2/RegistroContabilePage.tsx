@@ -2695,96 +2695,82 @@ export default function RegistroContabilePage() {
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <button 
-          className={cn(
-            "rounded-xl border p-3.5 text-left transition-all hover:shadow-sm",
-            showOperationalDocs ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'bg-card hover:bg-muted/50'
-          )}
-          onClick={() => setShowOperationalDocs(!showOperationalDocs)}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-              <FileText className="w-3.5 h-3.5 text-orange-600" />
-            </div>
-            <span className="text-xs text-muted-foreground">Da Fatturare</span>
+      {/* Riepilogo pendenti — collassabile */}
+      {(stats.bozze > 0 || stats.daClassificare > 0 || stats.daRiclassificare > 0 || stats.daFatturare > 0) && (
+        <Collapsible>
+          <div className="rounded-xl border bg-card">
+            <CollapsibleTrigger asChild>
+              <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-semibold">Elementi in sospeso</span>
+                  <div className="flex items-center gap-2">
+                    {stats.bozze > 0 && (
+                      <Badge variant="outline" className="text-xs">{stats.bozze} bozze</Badge>
+                    )}
+                    {stats.daClassificare > 0 && (
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-600">{stats.daClassificare} da annotare</Badge>
+                    )}
+                    {stats.daRiclassificare > 0 && (
+                      <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">{stats.daRiclassificare} da riclassificare</Badge>
+                    )}
+                    {stats.daFatturare > 0 && (
+                      <Badge variant="outline" className="text-xs border-primary/30 text-primary">{stats.daFatturare} da fatturare</Badge>
+                    )}
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="border-t px-4 py-3 flex flex-wrap gap-3">
+                <button
+                  className={cn("rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-sm", filterStatus === 'bozza' ? 'ring-2 ring-primary bg-primary/5' : 'bg-muted/30')}
+                  onClick={() => setFilterStatus(filterStatus === 'bozza' ? 'all' : 'bozza')}
+                >
+                  <span className="text-muted-foreground">Bozze</span>
+                  <span className="ml-2 font-bold">{stats.bozze}</span>
+                </button>
+                <button
+                  className={cn("rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-sm", filterStatus === 'contabilizzato' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20' : 'bg-muted/30')}
+                  onClick={() => setFilterStatus(filterStatus === 'contabilizzato' ? 'all' : 'contabilizzato')}
+                >
+                  <span className="text-muted-foreground">Contabilizzate</span>
+                  <span className="ml-2 font-bold text-green-600">{stats.contabilizzate}</span>
+                </button>
+                <button
+                  className={cn("rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-sm", filterType === 'da_classificare' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'bg-muted/30')}
+                  onClick={() => setFilterType(filterType === 'da_classificare' ? 'all' : 'da_classificare')}
+                >
+                  <span className="text-muted-foreground">Da Annotare</span>
+                  <span className="ml-2 font-bold text-amber-600">{stats.daClassificare}</span>
+                </button>
+                {stats.daRiclassificare > 0 && (
+                  <button
+                    className={cn("rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-sm", filterStatus === 'stornati' ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'bg-muted/30')}
+                    onClick={() => setFilterStatus(filterStatus === 'stornati' ? 'all' : 'stornati')}
+                  >
+                    <span className="text-muted-foreground">Da Riclassificare</span>
+                    <span className="ml-2 font-bold text-orange-600">{stats.daRiclassificare}</span>
+                  </button>
+                )}
+                <button
+                  className={cn("rounded-lg border px-3 py-2 text-sm transition-all hover:shadow-sm", showOperationalDocs ? 'ring-2 ring-primary bg-primary/5' : 'bg-muted/30')}
+                  onClick={() => setShowOperationalDocs(!showOperationalDocs)}
+                >
+                  <span className="text-muted-foreground">Da Fatturare</span>
+                  <span className="ml-2 font-bold text-primary">{stats.daFatturare}</span>
+                </button>
+                <div className="ml-auto flex items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">Da Incassare: <strong className="text-blue-600">€{stats.daIncassare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong></span>
+                  <span className="text-muted-foreground">Da Pagare: <strong className="text-red-600">€{stats.daPagare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</strong></span>
+                </div>
+              </div>
+            </CollapsibleContent>
           </div>
-          <p className="text-xl font-bold text-orange-600">{stats.daFatturare}</p>
-        </button>
-        
-        <button 
-          className={cn(
-            "rounded-xl border p-3.5 text-left transition-all hover:shadow-sm",
-            filterType === 'da_classificare' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'bg-card hover:bg-muted/50'
-          )}
-          onClick={() => setFilterType(filterType === 'da_classificare' ? 'all' : 'da_classificare')}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-            </div>
-            <span className="text-xs text-muted-foreground">Da Annotare</span>
-          </div>
-          <p className="text-xl font-bold text-amber-600">{stats.daClassificare}</p>
-        </button>
-        
-        <div className="rounded-xl border bg-card p-3.5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-muted flex items-center justify-center">
-              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-            <span className="text-xs text-muted-foreground">Bozze</span>
-          </div>
-          <p className="text-xl font-bold">{stats.bozze}</p>
-        </div>
-        
-        <div className="rounded-xl border bg-card p-3.5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-            </div>
-            <span className="text-xs text-muted-foreground">Contabilizzate</span>
-          </div>
-          <p className="text-xl font-bold text-green-600">{stats.contabilizzate}</p>
-        </div>
-        
-        <div className="rounded-xl border bg-card p-3.5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <ArrowUpRight className="w-3.5 h-3.5 text-blue-600" />
-            </div>
-            <span className="text-xs text-muted-foreground">Da Incassare</span>
-          </div>
-          <p className="text-lg font-bold text-blue-600">€{stats.daIncassare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-        </div>
-        
-        <div className="rounded-xl border bg-card p-3.5">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 w-6 rounded-md bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <ArrowDownLeft className="w-3.5 h-3.5 text-red-600" />
-            </div>
-            <span className="text-xs text-muted-foreground">Da Pagare</span>
-          </div>
-          <p className="text-lg font-bold text-red-600">€{stats.daPagare.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-        </div>
-      </div>
-
-      {/* Da Riclassificare alert */}
-      {stats.daRiclassificare > 0 && (
-        <button 
-          className={cn(
-            "w-full rounded-xl border border-orange-300 dark:border-orange-800 p-3 flex items-center gap-3 transition-all text-left",
-            filterStatus === 'stornati' ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-950/30' : 'bg-orange-50/50 dark:bg-orange-950/10 hover:bg-orange-50 dark:hover:bg-orange-950/20'
-          )}
-          onClick={() => setFilterStatus(filterStatus === 'stornati' ? 'all' : 'stornati')}
-        >
-          <RefreshCw className="w-5 h-5 text-orange-600 flex-shrink-0" />
-          <div>
-            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">{stats.daRiclassificare} documenti da riclassificare</span>
-            <span className="text-xs text-orange-600/70 ml-2">post-storno</span>
-          </div>
-        </button>
+        </Collapsible>
       )}
 
       {/* Filters */}
