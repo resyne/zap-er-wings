@@ -67,7 +67,7 @@ interface WeeklyCalendarProps {
 type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
 
 interface DragData {
-  itemType: CalendarItem['item_type'];
+  itemType: CalendarItem['item_type'] | 'lead_activity';
   itemId: string;
 }
 
