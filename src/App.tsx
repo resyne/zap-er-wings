@@ -245,7 +245,7 @@ const App = () => (
                 <Route path="management-control/budget" element={<Suspense fallback={<PageLoader />}><BudgetPage /></Suspense>} />
                 <Route path="management-control/credits-debts" element={<Suspense fallback={<PageLoader />}><CreditsDebtsPage /></Suspense>} />
                 <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><RegistroPage /></Suspense>} />
-                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><MovimentiFinanziariPage /></Suspense>} />
+                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="management-control-2/setup-contabile" element={<Suspense fallback={<PageLoader />}><SetupContabilePage /></Suspense>} />
                 <Route path="management-control-2/chart-of-accounts" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
                 <Route path="management-control-2/cost-centers" element={<Suspense fallback={<PageLoader />}><CostCentersPage /></Suspense>} />
