@@ -7,12 +7,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, ClipboardCheck, Receipt, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { FileText, ClipboardCheck, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const DocumentiContabiliPage = lazy(() => import("./DocumentiContabiliPage"));
 const DocumentiOperativiPage = lazy(() => import("./DocumentiOperativiPage"));
-const RegistroPage = lazy(() => import("../management-control-2/RegistroPage"));
 
 function useUnlinkedDocuments() {
   return useQuery({
@@ -54,26 +53,6 @@ function useUnlinkedDocuments() {
 function UnlinkedDocumentsAlert() {
   const { data, isLoading } = useUnlinkedDocuments();
   const queryClient = useQueryClient();
-  const [dismissing, setDismissing] = useState<string | null>(null);
-
-  const dismissMutation = useMutation({
-    mutationFn: async ({ table, id }: { table: string; id: string }) => {
-      const { error } = await supabase
-        .from(table as any)
-        .update({ non_contabilizzato: true })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["unlinked-documents-count"] });
-      toast.success("Documento segnato come non contabilizzato");
-      setDismissing(null);
-    },
-    onError: () => {
-      toast.error("Errore nell'aggiornamento");
-      setDismissing(null);
-    },
-  });
 
   const dismissAll = useMutation({
     mutationFn: async () => {
@@ -175,7 +154,7 @@ export default function DocumentiPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Documenti</h1>
           <p className="text-muted-foreground">
-            Documenti contabili, operativi e giustificativi
+            Documenti contabili e operativi
           </p>
         </div>
       </div>
@@ -183,7 +162,7 @@ export default function DocumentiPage() {
       <UnlinkedDocumentsAlert />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="contabili" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Documenti Contabili
@@ -197,10 +176,6 @@ export default function DocumentiPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="giustificativi" className="flex items-center gap-2">
-            <Receipt className="h-4 w-4" />
-            Giustificativi
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="contabili" className="mt-0">
@@ -212,12 +187,6 @@ export default function DocumentiPage() {
         <TabsContent value="operativi" className="mt-0">
           <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
             <DocumentiOperativiPage />
-          </Suspense>
-        </TabsContent>
-
-        <TabsContent value="giustificativi" className="mt-0">
-          <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
-            <RegistroPage />
           </Suspense>
         </TabsContent>
       </Tabs>
