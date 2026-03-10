@@ -416,21 +416,18 @@ export default function PrimaNotaPage() {
       let ivaAmount = entry.iva_amount || 0;
       let totale = entry.totale || entry.amount;
 
-      // FIX 3: Validate IVA based on mode
-      if (ivaMode === "DOMESTICA_IMPONIBILE") {
-        // IVA normale: imponibile + iva = totale
+      // Validate IVA based on mode
+      const isOrdinary = ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE";
+      const isZero = ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE", "CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode);
+
+      if (isOrdinary) {
         if (!entry.iva_amount && !entry.totale) {
           ivaAmount = imponibile * (ivaAliquota / 100);
           totale = imponibile + ivaAmount;
         }
-      } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
-        // Non imponibile: IVA = 0, totale = imponibile
+      } else if (isZero) {
         ivaAmount = 0;
         totale = imponibile;
-      } else if (ivaMode === "ACQUISTO_RC_EDILE") {
-        // Reverse charge acquisto: IVA calcolata internamente
-        ivaAmount = imponibile * (ivaAliquota / 100);
-        totale = imponibile; // Fornitore fattura solo imponibile
       }
 
       const isRevenue = entry.event_type === "ricavo" || entry.direction === "entrata";
