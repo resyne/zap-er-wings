@@ -447,9 +447,9 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
 
             {/* Time slots */}
             {HOURS.map(hour => (
-              <div key={hour} className="grid grid-cols-[48px_repeat(7,1fr)]">
-                <div className="text-[10px] text-muted-foreground px-1 py-1 flex items-start justify-end pr-2 tabular-nums border-r border-b border-border font-medium">
-                  {String(hour).padStart(2, '0')}:00
+              <div key={hour} className="grid grid-cols-[36px_repeat(7,1fr)]">
+                <div className="text-[9px] text-muted-foreground px-0.5 py-0.5 flex items-start justify-end pr-1 tabular-nums border-r border-b border-border font-medium">
+                  {String(hour).padStart(2, '0')}
                 </div>
                 {weekDays.map((day, i) => {
                   const items = getItemsForDay(day);
