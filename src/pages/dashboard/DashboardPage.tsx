@@ -735,396 +735,277 @@ export function DashboardPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* CRM Activities (Lead + Opportunities) */}
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              Attività CRM
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {(leadActivities.length + activities.length) === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessuna attività CRM
-                </p>
-              ) : (
-                <>
-                  {/* Lead Activities */}
-                  {leadActivities.map((activity) => {
-                    const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
-                    return (
-                       <div 
-                        key={`lead-${activity.id}`} 
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'lead_activity', itemId: activity.id }));
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                        className={`p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
-                        onClick={() => {
-                          setPreviewItem({ type: 'lead', data: activity });
-                          setIsPreviewOpen(true);
-                        }}
+      {/* Calendar + Sidebar layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5">
+        {/* Weekly Calendar Section (main area) */}
+        <WeeklyCalendar recurringTasks={recurringTasks} onExternalDrop={loadUserTasks} onRecurringTaskToggle={async (task) => {
+          if (!user) return;
+          try {
+            if (task.completed && task.completion_id) {
+              await supabase.from('recurring_task_completions').update({ completed: false, completed_at: null, completed_by: null }).eq('id', task.completion_id);
+            } else if (task.completion_id) {
+              await supabase.from('recurring_task_completions').update({ completed: true, completed_at: new Date().toISOString(), completed_by: user.id }).eq('id', task.completion_id);
+            } else {
+              await supabase.from('recurring_task_completions').insert({ recurring_task_id: task.id, week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd'), completed: true, completed_at: new Date().toISOString(), completed_by: user.id });
+            }
+            toast({ title: "Successo", description: task.completed ? "Task segnata come non completata" : "Task completata!" });
+            loadUserTasks();
+          } catch (error) {
+            console.error('Error toggling completion:', error);
+            toast({ title: "Errore", description: "Impossibile aggiornare lo stato", variant: "destructive" });
+          }
+        }} />
+
+        {/* Sidebar: Activities, Tasks, Tickets (draggable into calendar) */}
+        <div className="space-y-4 xl:max-h-[calc(100vh-200px)] xl:overflow-y-auto xl:pr-1">
+          {/* CRM Activities */}
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Attività CRM ({leadActivities.length + activities.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="space-y-2">
+                {(leadActivities.length + activities.length) === 0 ? (
+                  <p className="text-muted-foreground text-center py-3 text-sm">
+                    Nessuna attività CRM
+                  </p>
+                ) : (
+                  <>
+                    {leadActivities.map((activity) => {
+                      const isOverdue = new Date(activity.activity_date) < new Date() && activity.status === 'scheduled';
+                      return (
+                        <div 
+                          key={`lead-${activity.id}`} 
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'lead_activity', itemId: activity.id }));
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          className={`p-2.5 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow text-sm ${isOverdue ? 'border-l-4 border-l-destructive bg-destructive/5' : ''}`}
+                          onClick={() => {
+                            setPreviewItem({ type: 'lead', data: activity });
+                            setIsPreviewOpen(true);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">Lead</Badge>
+                                <span className="font-medium capitalize truncate">{activity.activity_type}</span>
+                                {isOverdue && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Scaduta</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {activity.leads?.company_name || 'Lead'}
+                                {activity.leads?.phone && <span className="ml-1">📞</span>}
+                              </p>
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(activity.activity_date), "dd MMM", { locale: it })}
+                              </div>
+                            </div>
+                            <div className="flex gap-0.5">
+                              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewItem({ type: 'lead', data: activity }); setIsPreviewOpen(true); }} className="h-6 w-6 p-0">
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openLeadActivityComplete(activity); }} className="h-6 w-6 p-0">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {activities.map((activity) => (
+                      <div 
+                        key={`crm-${activity.id}`} 
+                        className="p-2.5 border rounded-lg cursor-pointer hover:shadow-md transition-shadow text-sm"
+                        onClick={() => { setPreviewItem({ type: 'opportunity', data: activity }); setIsPreviewOpen(true); }}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Lead</Badge>
-                              <h4 className="font-medium capitalize">{activity.activity_type}</h4>
-                              {isOverdue && <Badge variant="destructive">Scaduta</Badge>}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] px-1.5 py-0">Opp.</Badge>
+                              <span className="font-medium truncate">{activity.title}</span>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {activity.leads?.company_name || 'Lead'}
-                              {activity.leads?.phone && (
-                                <span className="ml-2 text-xs text-muted-foreground">📞 {activity.leads.phone}</span>
-                              )}
-                            </p>
-                            {activity.notes && (
-                              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                {activity.notes}
-                              </p>
+                            {activity.scheduled_date && (
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(activity.scheduled_date), "dd MMM HH:mm", { locale: it })}
+                              </div>
                             )}
-                            <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(activity.activity_date), "dd MMM yyyy", { locale: it })}
-                            </div>
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPreviewItem({ type: 'lead', data: activity });
-                                setIsPreviewOpen(true);
-                              }}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Eye className="w-4 h-4" />
+                          <div className="flex gap-0.5">
+                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewItem({ type: 'opportunity', data: activity }); setIsPreviewOpen(true); }} className="h-6 w-6 p-0">
+                              <Eye className="w-3.5 h-3.5" />
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openLeadActivityComplete(activity);
-                              }}
-                              className="h-7 w-7 p-0"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
+                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markActivityCompleted(activity.id); }} className="h-6 w-6 p-0">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-                  {/* Opportunity Activities */}
-                  {activities.map((activity) => (
-                    <div 
-                      key={`crm-${activity.id}`} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => {
-                        setPreviewItem({ type: 'opportunity', data: activity });
-                        setIsPreviewOpen(true);
-                      }}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Opportunità</Badge>
-                            <h4 className="font-medium">{activity.title}</h4>
-                          </div>
-                          {activity.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {activity.description}
-                            </p>
-                          )}
-                          {activity.opportunity?.name && (
-                            <p className="text-sm text-blue-600 mt-1">
-                              {activity.opportunity.name}
-                            </p>
-                          )}
-                          {activity.scheduled_date && (
-                            <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(activity.scheduled_date), "dd MMM yyyy HH:mm", { locale: it })}
+          {/* Tasks */}
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                Task ({tasks.length + requests.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="space-y-2">
+                {(tasks.length + requests.length) === 0 ? (
+                  <p className="text-muted-foreground text-center py-3 text-sm">
+                    Nessun task assegnato
+                  </p>
+                ) : (
+                  <>
+                    {tasks.map((task) => (
+                      <div 
+                        key={`task-${task.id}`} 
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'task', itemId: task.id }));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className="p-2.5 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow text-sm"
+                        onClick={() => navigate(`/tasks?task=${task.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="font-medium truncate">{task.title}</span>
+                              <Badge variant={getPriorityColor(task.priority) as any} className="text-[10px] px-1.5 py-0">
+                                {task.priority}
+                              </Badge>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewItem({ type: 'opportunity', data: activity });
-                              setIsPreviewOpen(true);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              markActivityCompleted(activity.id);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* All Tasks (Tasks + Requests) */}
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary" />
-              Task
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {(tasks.length + requests.length) === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessun task assegnato
-                </p>
-              ) : (
-                <>
-                  {/* Tasks */}
-                  {tasks.map((task) => (
-                    <div 
-                      key={`task-${task.id}`} 
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'task', itemId: task.id }));
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className="p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                      onClick={() => navigate(`/tasks?task=${task.id}`)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium">{task.title}</h4>
-                            <Badge variant={getPriorityColor(task.priority) as any}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                              {task.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span className="capitalize">{task.category}</span>
+                            {task.category && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{task.category}</Badge>
+                            )}
                             {task.due_date && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                                 <Calendar className="w-3 h-3" />
-                                {format(new Date(task.due_date), "dd MMM yyyy", { locale: it })}
+                                {format(new Date(task.due_date), "dd MMM", { locale: it })}
                               </div>
                             )}
                           </div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewItem({ type: 'task', data: task });
-                              setIsPreviewOpen(true);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              markTaskCompleted(task.id);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-0.5">
+                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewItem({ type: 'task', data: task }); setIsPreviewOpen(true); }} className="h-6 w-6 p-0">
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markTaskCompleted(task.id); }} className="h-6 w-6 p-0">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-
-                  {/* Requests */}
-                  {requests.map((request) => (
-                    <div 
-                      key={`request-${request.id}`} 
-                      className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => navigate(`/tasks?task=${request.id}`)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium">{request.title}</h4>
-                            <Badge variant={getPriorityColor(request.priority) as any}>
-                              {request.priority}
-                            </Badge>
-                          </div>
-                          {request.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                              {request.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>Tipo: {request.type}</span>
+                    ))}
+                    {requests.map((request) => (
+                      <div 
+                        key={`req-${request.id}`} 
+                        className="p-2.5 border rounded-lg cursor-pointer hover:shadow-md transition-shadow text-sm"
+                        onClick={() => navigate(`/tasks?task=${request.id}`)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="font-medium truncate">{request.title}</span>
+                              <Badge variant={getPriorityColor(request.priority) as any} className="text-[10px] px-1.5 py-0">
+                                {request.priority}
+                              </Badge>
+                            </div>
                             {request.due_date && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                                 <Calendar className="w-3 h-3" />
-                                {format(new Date(request.due_date), "dd MMM yyyy", { locale: it })}
+                                {format(new Date(request.due_date), "dd MMM", { locale: it })}
                               </div>
                             )}
                           </div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewItem({ type: 'request', data: request });
-                              setIsPreviewOpen(true);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              markRequestCompleted(request.id);
-                            }}
-                            className="h-7 w-7 p-0"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-0.5">
+                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPreviewItem({ type: 'request', data: request }); setIsPreviewOpen(true); }} className="h-6 w-6 p-0">
+                              <Eye className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); markRequestCompleted(request.id); }} className="h-6 w-6 p-0">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    ))}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Tickets */}
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-primary" />
-              Ticket Assegnati
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {tickets.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nessun ticket assegnato
-                </p>
-              ) : (
-                tickets.map((ticket) => {
-                  const priorityColor = ticket.priority === "high" ? "destructive" : 
-                                       ticket.priority === "medium" ? "default" : "secondary";
-                  const statusColor = ticket.status === "open" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
-                  
-                  return (
-                    <div 
-                      key={ticket.id} 
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'ticket', itemId: ticket.id }));
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className="p-3 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                      onClick={() => navigate(`/support/tickets`)}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">{ticket.number}</Badge>
-                            <h4 className="font-medium">{ticket.title}</h4>
-                            <Badge variant={priorityColor as any} className="text-xs">
-                              {ticket.priority}
-                            </Badge>
-                          </div>
-                          {ticket.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                              {ticket.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span><strong>Cliente:</strong> {ticket.customer_name}</span>
-                            <Badge className={statusColor}>
+          {/* Tickets */}
+          <Card className="shadow-sm">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-orange-600" />
+                Ticket ({tickets.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <div className="space-y-2">
+                {tickets.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-3 text-sm">
+                    Nessun ticket assegnato
+                  </p>
+                ) : (
+                  tickets.map((ticket) => {
+                    const priorityColor = ticket.priority === "high" ? "destructive" : 
+                                         ticket.priority === "medium" ? "default" : "secondary";
+                    const statusColor = ticket.status === "open" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
+                    
+                    return (
+                      <div 
+                        key={ticket.id} 
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify({ itemType: 'ticket', itemId: ticket.id }));
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className="p-2.5 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow text-sm"
+                        onClick={() => navigate(`/support/tickets`)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ticket.number}</Badge>
+                              <span className="font-medium truncate">{ticket.title}</span>
+                              <Badge variant={priorityColor as any} className="text-[10px] px-1.5 py-0">
+                                {ticket.priority}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{ticket.customer_name}</p>
+                            <Badge className={`${statusColor} text-[10px] px-1.5 py-0 mt-1`}>
                               {ticket.status === "open" ? "Aperto" : "In Lavorazione"}
                             </Badge>
                           </div>
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(`/support/tickets`); }} className="h-6 w-6 p-0">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/support/tickets`);
-                          }}
-                          className="h-7 w-7 p-0"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    );
+                  })
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      {/* Weekly Calendar Section (includes recurring tasks) */}
-      <WeeklyCalendar recurringTasks={recurringTasks} onExternalDrop={loadUserTasks} onRecurringTaskToggle={async (task) => {
-        if (!user) return;
-        try {
-          if (task.completed && task.completion_id) {
-            await supabase.from('recurring_task_completions').update({ completed: false, completed_at: null, completed_by: null }).eq('id', task.completion_id);
-          } else if (task.completion_id) {
-            await supabase.from('recurring_task_completions').update({ completed: true, completed_at: new Date().toISOString(), completed_by: user.id }).eq('id', task.completion_id);
-          } else {
-            await supabase.from('recurring_task_completions').insert({ recurring_task_id: task.id, week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd'), completed: true, completed_at: new Date().toISOString(), completed_by: user.id });
-          }
-          toast({ title: "Successo", description: task.completed ? "Task segnata come non completata" : "Task completata!" });
-          loadUserTasks();
-        } catch (error) {
-          console.error('Error toggling completion:', error);
-          toast({ title: "Errore", description: "Impossibile aggiornare lo stato", variant: "destructive" });
-        }
-      }} />
-
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent>
