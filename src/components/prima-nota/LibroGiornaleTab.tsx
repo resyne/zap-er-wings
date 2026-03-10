@@ -193,7 +193,8 @@ export function LibroGiornaleTab() {
         // Build maps
         const linesMap = new Map<string, PrimaNotaLine[]>();
         linesData?.forEach(l => { const arr = linesMap.get(l.prima_nota_id) || []; arr.push(l); linesMap.set(l.prima_nota_id, arr); });
-        const scadenzeMap = new Map(scadenzeData?.map(s => [s.id, s]) || []);
+        const scadenzeMap = new Map<string, any>();
+        scadenzeData?.forEach(s => scadenzeMap.set(s.id, s));
         const movimentiMap = new Map<string, (typeof movimentiData extends (infer T)[] | null ? T : never)>();
         movimentiData?.forEach(m => { if (m.prima_nota_id) movimentiMap.set(m.prima_nota_id, m); });
         const invoicesMap = new Map<string, (typeof invoicesData extends (infer T)[] | null ? T : never)>();
