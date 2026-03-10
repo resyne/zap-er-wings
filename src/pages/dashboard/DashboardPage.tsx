@@ -1182,150 +1182,24 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Weekly Recurring Tasks Section */}
-      {recurringTasks.length > 0 && (
-        <Card className="shadow-sm">
-          <CardHeader className="py-3 px-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Task Ricorrenti Settimanali
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-medium text-muted-foreground mb-3">
-              Settimana: {format(weekStart, 'dd MMM', { locale: it })} - {format(weekEnd, 'dd MMM yyyy', { locale: it })}
-            </div>
-            
-            <div className="space-y-4">
-              {weekDays.map(day => {
-                const dayTasks = recurringTasks.filter(t => t.day === day.value);
-                if (dayTasks.length === 0) return null;
-
-                // Check if this is today (getDay returns 0 for Sunday, so we adjust)
-                const today = new Date();
-                const currentDayOfWeek = getDay(today) === 0 ? 7 : getDay(today); // Convert Sunday from 0 to 7
-                const isToday = currentDayOfWeek === day.value;
-
-                return (
-                  <div key={day.value} className="space-y-2">
-                    <h4 className={`font-medium text-sm ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                      {day.label} {isToday && <Badge variant="default" className="ml-2">Oggi</Badge>}
-                    </h4>
-                    <div className="space-y-2">
-                      {dayTasks.map(task => {
-                        const getPriorityColorClass = (priority: string) => {
-                          switch (priority) {
-                            case 'urgent': return 'bg-red-500';
-                            case 'high': return 'bg-orange-500';
-                            case 'medium': return 'bg-yellow-500';
-                            case 'low': return 'bg-green-500';
-                            default: return 'bg-gray-500';
-                          }
-                        };
-
-                        return (
-                          <div
-                            key={task.id}
-                            className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
-                              task.completed 
-                                ? 'bg-muted/50' 
-                                : isToday 
-                                  ? 'border-primary border-2 bg-primary/5 shadow-md hover:shadow-lg' 
-                                  : 'hover:shadow-md'
-                            }`}
-                          >
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                              onClick={async () => {
-                                if (!user) return;
-                                
-                                try {
-                                  if (task.completed && task.completion_id) {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .update({ 
-                                        completed: false,
-                                        completed_at: null,
-                                        completed_by: null
-                                      })
-                                      .eq('id', task.completion_id);
-                                  } else if (task.completion_id) {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .update({ 
-                                        completed: true,
-                                        completed_at: new Date().toISOString(),
-                                        completed_by: user.id
-                                      })
-                                      .eq('id', task.completion_id);
-                                  } else {
-                                    await supabase
-                                      .from('recurring_task_completions')
-                                      .insert({
-                                        recurring_task_id: task.id,
-                                        week_start: format(weekStart, 'yyyy-MM-dd'),
-                                        week_end: format(weekEnd, 'yyyy-MM-dd'),
-                                        completed: true,
-                                        completed_at: new Date().toISOString(),
-                                        completed_by: user.id
-                                      });
-                                  }
-
-                                  toast({
-                                    title: "Successo",
-                                    description: task.completed ? "Task segnata come non completata" : "Task completata!"
-                                  });
-
-                                  loadUserTasks();
-                                } catch (error) {
-                                  console.error('Error toggling completion:', error);
-                                  toast({
-                                    title: "Errore",
-                                    description: "Impossibile aggiornare lo stato",
-                                    variant: "destructive"
-                                  });
-                                }
-                              }}
-                            >
-                              {task.completed ? (
-                                <CheckCircle2 className="w-5 h-5 text-green-600" />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full border-2 border-muted-foreground" />
-                              )}
-                            </Button>
-
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${getPriorityColorClass(task.priority)}`} />
-                                <span className={task.completed ? 'line-through text-muted-foreground' : 'font-medium'}>
-                                  {task.title}
-                                </span>
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {task.category}
-                                </Badge>
-                              </div>
-                              {task.description && (
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                  {task.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Weekly Calendar Section */}
-      <WeeklyCalendar />
+      {/* Weekly Calendar Section (includes recurring tasks) */}
+      <WeeklyCalendar recurringTasks={recurringTasks} onRecurringTaskToggle={async (task) => {
+        if (!user) return;
+        try {
+          if (task.completed && task.completion_id) {
+            await supabase.from('recurring_task_completions').update({ completed: false, completed_at: null, completed_by: null }).eq('id', task.completion_id);
+          } else if (task.completion_id) {
+            await supabase.from('recurring_task_completions').update({ completed: true, completed_at: new Date().toISOString(), completed_by: user.id }).eq('id', task.completion_id);
+          } else {
+            await supabase.from('recurring_task_completions').insert({ recurring_task_id: task.id, week_start: format(weekStart, 'yyyy-MM-dd'), week_end: format(weekEnd, 'yyyy-MM-dd'), completed: true, completed_at: new Date().toISOString(), completed_by: user.id });
+          }
+          toast({ title: "Successo", description: task.completed ? "Task segnata come non completata" : "Task completata!" });
+          loadUserTasks();
+        } catch (error) {
+          console.error('Error toggling completion:', error);
+          toast({ title: "Errore", description: "Impossibile aggiornare lo stato", variant: "destructive" });
+        }
+      }} />
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
