@@ -2473,10 +2473,10 @@ export default function RegistroContabilePage() {
 
   const getVatRegimeLabel = (regime: string) => {
     switch (regime) {
-      case 'domestica_imponibile': return 'Domestica Imponibile';
-      case 'ue_non_imponibile': return 'UE Non Imponibile';
-      case 'extra_ue': return 'Extra-UE';
-      case 'reverse_charge': return 'Reverse Charge';
+      case 'domestica_imponibile': return 'Ordinario (22%)';
+      case 'ue_non_imponibile': return 'Intra UE (0%)';
+      case 'extra_ue': return 'Extra UE';
+      case 'reverse_charge': return 'Reverse Charge (0%)';
       default: return regime;
     }
   };
