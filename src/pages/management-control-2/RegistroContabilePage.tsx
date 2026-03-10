@@ -3139,91 +3139,29 @@ export default function RegistroContabilePage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[1100px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Numero</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Soggetto</TableHead>
-                <TableHead>Regime IVA</TableHead>
-                <TableHead className="text-right">Imponibile</TableHead>
-                <TableHead className="text-right">IVA</TableHead>
-                <TableHead className="text-right">Totale</TableHead>
-                <TableHead>Stato Doc.</TableHead>
-                <TableHead>Stato Fin.</TableHead>
-                <TableHead>Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8">Caricamento...</TableCell>
-                </TableRow>
-              ) : filteredInvoices.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                    Nessuna fattura trovata
-                  </TableCell>
-                </TableRow>
-              ) : groupBy !== 'none' && groupedInvoices ? (
-                groupedInvoices.map(([key, group]) => {
-                  const totImponibile = group.invoices.reduce((s, i) => s + i.imponibile, 0);
-                  const totIva = group.invoices.reduce((s, i) => s + i.iva_amount, 0);
-                  const totTotale = group.invoices.reduce((s, i) => s + (i.invoice_type === 'acquisto' ? -i.total_amount : i.total_amount), 0);
-                  
-                  return (
-                    <React.Fragment key={key}>
-                      <TableRow className="bg-muted/30 border-t-2 border-t-border">
-                        <TableCell colSpan={5} className="py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="font-semibold text-sm capitalize">{group.label}</span>
-                            <span className="text-xs text-muted-foreground">({group.invoices.length})</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-medium text-muted-foreground py-2.5">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground py-2.5">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className={cn("text-right text-xs font-semibold py-2.5", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
-                          {totTotale >= 0 ? '+' : ''}€{totTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell colSpan={3} className="py-2.5" />
-                      </TableRow>
-                      {group.invoices.map((invoice) => (
-                        <TableRow 
-                          key={invoice.id}
-                          className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                          onClick={() => {
-                            setDetailsInvoice(invoice);
-                            setShowDetailsDialog(true);
-                          }}
-                        >
-                          {renderInvoiceRow(invoice)}
-                        </TableRow>
-                      ))}
-                    </React.Fragment>
-                  );
-                })
-              ) : (
-                filteredInvoices.map((invoice) => (
-                  <TableRow 
-                    key={invoice.id}
-                    className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                    onClick={() => {
-                      setDetailsInvoice(invoice);
-                      setShowDetailsDialog(true);
-                    }}
-                  >
-                    {renderInvoiceRow(invoice)}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <InvoiceRegistryTable
+          invoices={filteredInvoices as any}
+          isLoading={isLoading}
+          groupBy={groupBy}
+          grouped={(groupBy !== 'none' && groupedInvoices) ? (groupedInvoices as any) : null}
+          onOpenDetails={(invoice) => {
+            setDetailsInvoice(invoice as any);
+            setShowDetailsDialog(true);
+          }}
+          onEdit={(invoice) => openEditDialog(invoice as any)}
+          onRegister={(invoice) => {
+            setSelectedInvoice(invoice as any);
+            setShowRegisterDialog(true);
+          }}
+          onDelete={(invoice) => {
+            if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
+          }}
+          onRegenerate={(invoice) => {
+            if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
+          }}
+          isRegenerating={regeneratePrimaNotaMutation.isPending}
+          onGoScadenziario={() => (window.location.href = '/management-control-2/scadenziario')}
+        />
       )}
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
