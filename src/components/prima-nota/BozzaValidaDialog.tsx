@@ -578,6 +578,14 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                 </div>
               </div>
 
+              <div className="flex items-center justify-between p-2 rounded-md border bg-muted/30">
+                <Label className="text-xs">Incide su Conto Economico</Label>
+                <Switch
+                  checked={form.affects_income_statement}
+                  onCheckedChange={v => setForm(p => ({ ...p, affects_income_statement: v }))}
+                />
+              </div>
+
               <div className="space-y-1">
                 <Label className="text-xs">Conto (Piano dei Conti) *</Label>
                 <Select value={form.chart_account_id} onValueChange={v => setForm(p => ({ ...p, chart_account_id: v }))}>
