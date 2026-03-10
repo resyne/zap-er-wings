@@ -1,59 +1,15 @@
-import { useState, useCallback } from "react";
 import { AIDocumentUpload } from "@/components/dashboard/AIDocumentUpload";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useDropzone } from "react-dropzone";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import { 
-  Upload, 
-  Camera, 
-  Receipt, 
-  CreditCard, 
-  ArrowUp, 
-  ArrowDown,
-  Loader2,
-  CheckCircle,
-  X,
-} from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
-type FlowType = "spesa" | "incasso" | null;
-
-interface QuickEntryForm {
-  importo: string;
-  metodo_pagamento: string;
-  soggetto_nome: string;
-  riferimento: string;
-  descrizione: string;
-}
-
 export default function RegistroPage() {
-  const queryClient = useQueryClient();
-  const [activeFlow, setActiveFlow] = useState<FlowType>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
-  const [showQuickEntryDialog, setShowQuickEntryDialog] = useState(false);
-  const [quickEntryType, setQuickEntryType] = useState<"entrata" | "uscita">("uscita");
-  const [quickEntryForm, setQuickEntryForm] = useState<QuickEntryForm>({
-    importo: "",
-    metodo_pagamento: "cassa",
-    soggetto_nome: "",
-    riferimento: "",
-    descrizione: "",
-  });
 
   // Fetch my recent registrations
   const { data: myRegistrations = [], isLoading: loadingRegistrations } = useQuery({
