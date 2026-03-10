@@ -629,6 +629,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                 <>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Categoria</h4><p className="text-sm capitalize">{(selectedItem as Task).category}</p></div>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Priorità</h4><Badge className={priorityColors[(selectedItem as Task).priority]}>{priorityLabels[(selectedItem as Task).priority]}</Badge></div>
+                  <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Stato</h4><p className="text-sm capitalize">{(selectedItem as Task).status}</p></div>
                   {(selectedItem as Task).due_date && (
                     <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Scadenza</h4><p className="text-sm">{format(parseISO((selectedItem as Task).due_date!), "PPP 'alle' HH:mm", { locale: it })}</p></div>
                   )}
@@ -639,6 +640,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Numero</h4><p className="text-sm font-mono">{(selectedItem as Ticket).number}</p></div>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Cliente</h4><p className="text-sm">{(selectedItem as Ticket).customer_name}</p></div>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Priorità</h4><Badge className={priorityColors[(selectedItem as Ticket).priority]}>{priorityLabels[(selectedItem as Ticket).priority] || (selectedItem as Ticket).priority}</Badge></div>
+                  <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Stato</h4><p className="text-sm capitalize">{(selectedItem as Ticket).status}</p></div>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Data</h4><p className="text-sm">{format(parseISO((selectedItem as Ticket).scheduled_date), "PPP 'alle' HH:mm", { locale: it })}</p></div>
                 </>
               )}
@@ -653,11 +655,56 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                   </p></div>
                 </>
               )}
+              {selectedItem.item_type === 'lead_activity' && (
+                <>
+                  <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Tipo Attività</h4><p className="text-sm capitalize">{(selectedItem as LeadActivity).activity_type}</p></div>
+                  <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Stato</h4><p className="text-sm capitalize">{(selectedItem as LeadActivity).status || 'scheduled'}</p></div>
+                  <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Data</h4><p className="text-sm">{format(parseISO((selectedItem as LeadActivity).activity_date), "PPP 'alle' HH:mm", { locale: it })}</p></div>
+                  {(selectedItem as LeadActivity).notes && (
+                    <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Note</h4><p className="text-sm">{(selectedItem as LeadActivity).notes}</p></div>
+                  )}
+                </>
+              )}
               {selectedItem.item_type === 'recurring' && (
                 <>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Categoria</h4><p className="text-sm capitalize">{(selectedItem as RecurringTask).category}</p></div>
                   <div><h4 className="text-xs font-medium text-muted-foreground mb-1">Stato</h4><Badge variant={(selectedItem as RecurringTask).completed ? "default" : "outline"}>{(selectedItem as RecurringTask).completed ? 'Completata' : 'Da fare'}</Badge></div>
                 </>
+              )}
+
+              {/* Remove from calendar button */}
+              {selectedItem.item_type !== 'recurring' && (
+                <div className="pt-2 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={async () => {
+                      try {
+                        if (selectedItem.item_type === 'task') {
+                          await supabase.from('tasks').update({ due_date: null }).eq('id', selectedItem.id);
+                        } else if (selectedItem.item_type === 'event') {
+                          await supabase.from('calendar_events').delete().eq('id', selectedItem.id);
+                        } else if (selectedItem.item_type === 'ticket') {
+                          await supabase.from('tickets').update({ scheduled_date: null }).eq('id', selectedItem.id);
+                        } else if (selectedItem.item_type === 'lead_activity') {
+                          await supabase.from('lead_activities').update({ activity_date: new Date(0).toISOString() }).eq('id', selectedItem.id);
+                        }
+                        toast({ title: "Rimosso", description: "Elemento rimosso dal calendario" });
+                        setShowDetailsDialog(false);
+                        setSelectedItem(null);
+                        loadData();
+                        onExternalDrop?.();
+                      } catch (error) {
+                        console.error('Remove error:', error);
+                        toast({ title: "Errore", description: "Impossibile rimuovere l'elemento", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    {selectedItem.item_type === 'event' ? 'Elimina evento' : 'Rimuovi dal calendario'}
+                  </Button>
+                </div>
               )}
             </div>
           )}
