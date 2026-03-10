@@ -282,6 +282,11 @@ export default function RegistroContabilePage() {
   // Stato per mostrare la vista documenti operativi (separato dai filtri)
   const [showOperationalDocs, setShowOperationalDocs] = useState(false);
   
+  // Raggruppamento per periodo
+  type GroupByOption = 'none' | 'day' | 'week' | 'month' | 'quarter';
+  const [groupBy, setGroupBy] = useState<GroupByOption>('month');
+  const [expandedRegistryPeriods, setExpandedRegistryPeriods] = useState<Set<string>>(new Set());
+  
   // Stato per il dialog di conferma fattura duplicata
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateInvoiceInfo, setDuplicateInvoiceInfo] = useState<{ number: string; existing: InvoiceRegistry | null }>({ number: '', existing: null });
