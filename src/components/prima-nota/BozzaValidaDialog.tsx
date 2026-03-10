@@ -513,13 +513,11 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                 <div className="space-y-1">
                   <Label className="text-xs">Regime IVA</Label>
                   <Select value={form.iva_mode} onValueChange={v => {
-                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
-                    const isNoIva = noIvaModes.includes(v);
-                    const isRC = v === "ACQUISTO_RC_EDILE";
+                    const zeroIva = isZeroIvaMode(v);
                     const imp = form.imponibile;
                     const aliq = form.iva_aliquota;
-                    const iva = isNoIva ? 0 : imp * (aliq / 100);
-                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    const iva = zeroIva ? 0 : imp * (aliq / 100);
+                    const tot = zeroIva ? imp : imp + iva;
                     setForm(p => ({ ...p, iva_mode: v, iva_amount: iva, totale: tot }));
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
