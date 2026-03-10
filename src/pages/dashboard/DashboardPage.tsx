@@ -313,93 +313,12 @@ export function DashboardPage() {
         };
       }) || [];
 
-      // Load assigned orders (work orders, service orders, shipping orders)
-      const assignedOrdersList: AssignedOrder[] = [];
-
-      // Work orders
-      const { data: workOrders } = await supabase
-        .from('work_orders')
-        .select(`
-          id,
-          number,
-          title,
-          status,
-          created_at,
-          customers:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      workOrders?.forEach(wo => {
-        assignedOrdersList.push({
-          id: wo.id,
-          number: wo.number,
-          title: wo.title,
-          status: wo.status,
-          order_type: 'work_order',
-          customer_name: (wo.customers as any)?.name,
-          created_at: wo.created_at
-        });
-      });
-
-      // Service work orders
-      const { data: serviceOrders } = await supabase
-        .from('service_work_orders')
-        .select(`
-          id,
-          number,
-          title,
-          status,
-          created_at,
-          customers:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      serviceOrders?.forEach(so => {
-        assignedOrdersList.push({
-          id: so.id,
-          number: so.number,
-          title: so.title,
-          status: so.status,
-          order_type: 'service_order',
-          customer_name: (so.customers as any)?.name,
-          created_at: so.created_at
-        });
-      });
-
-      // Shipping orders
-      const { data: shippingOrders } = await supabase
-        .from('shipping_orders')
-        .select(`
-          id,
-          number,
-          status,
-          created_at,
-          companies:customer_id(name)
-        `)
-        .eq('back_office_manager', user.id)
-        .order('created_at', { ascending: false });
-
-      shippingOrders?.forEach(ship => {
-        assignedOrdersList.push({
-          id: ship.id,
-          number: ship.number,
-          title: `Commessa di Spedizione ${ship.number}`,
-          status: ship.status,
-          order_type: 'shipping_order',
-          customer_name: (ship.companies as any)?.name,
-          created_at: ship.created_at
-        });
-      });
-
       setActivities((activitiesData as any) || []);
       setRequests(requestsData || []);
       setTasks(tasksData || []);
       setLeadActivities(leadActivitiesData || []);
       setTickets(ticketsData || []);
       setRecurringTasks(userRecurringTasks);
-      setAssignedOrders(assignedOrdersList);
 
       // Load sticky notes
       const { data: notesData, error: notesError } = await supabase
