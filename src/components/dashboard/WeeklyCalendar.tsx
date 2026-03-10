@@ -45,7 +45,25 @@ interface Ticket {
   customer_name: string;
 }
 
-type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' });
+interface RecurringTask {
+  id: string;
+  task_template_id: string;
+  title: string;
+  description?: string;
+  day: number;
+  priority: string;
+  category: string;
+  is_active: boolean;
+  completed?: boolean;
+  completion_id?: string;
+}
+
+interface WeeklyCalendarProps {
+  recurringTasks?: RecurringTask[];
+  onRecurringTaskToggle?: (task: RecurringTask) => void;
+}
+
+type CalendarItem = (Task & { item_type: 'task' }) | (CalendarEvent & { item_type: 'event' }) | (Ticket & { item_type: 'ticket' }) | (RecurringTask & { item_type: 'recurring' });
 
 const statusColors = {
   todo: "bg-blue-100 text-blue-800 border-blue-200",
