@@ -173,7 +173,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
-      const [tasksRes, eventsRes, ticketsRes] = await Promise.all([
+      const [tasksRes, eventsRes, ticketsRes, activitiesRes] = await Promise.all([
         supabase.from('tasks').select('*').eq('assigned_to', user.id)
           .gte('due_date', weekStart.toISOString()).lte('due_date', weekEnd.toISOString())
           .not('due_date', 'is', null).eq('is_template', false),
@@ -182,13 +182,21 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         supabase.from('tickets').select('*').eq('assigned_to', user.id)
           .not('scheduled_date', 'is', null)
           .gte('scheduled_date', weekStart.toISOString()).lte('scheduled_date', weekEnd.toISOString()),
+        supabase.from('lead_activities').select('*, leads(company_name, contact_name)')
+          .eq('assigned_to', user.id)
+          .gte('activity_date', weekStart.toISOString()).lte('activity_date', weekEnd.toISOString()),
       ]);
       if (tasksRes.error) throw tasksRes.error;
       if (eventsRes.error) throw eventsRes.error;
       if (ticketsRes.error) throw ticketsRes.error;
+      if (activitiesRes.error) throw activitiesRes.error;
       setTasks(tasksRes.data || []);
       setEvents(eventsRes.data || []);
       setTickets(ticketsRes.data || []);
+      setLeadActivities((activitiesRes.data || []).map((a: any) => ({
+        ...a,
+        lead_name: a.leads?.company_name || a.leads?.contact_name || a.activity_type,
+      })));
     } catch (error) {
       console.error('Error loading data:', error);
       toast({ title: "Errore", description: "Errore nel caricamento dei dati", variant: "destructive" });
