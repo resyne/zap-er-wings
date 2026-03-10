@@ -616,10 +616,10 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-3">
-              {selectedItem.description && (
+              {getItemDescription(selectedItem) && (
                 <div>
                   <h4 className="text-xs font-medium text-muted-foreground mb-1">Descrizione</h4>
-                  <p className="text-sm">{selectedItem.description}</p>
+                  <p className="text-sm">{getItemDescription(selectedItem)}</p>
                 </div>
               )}
               {selectedItem.item_type === 'task' && (
