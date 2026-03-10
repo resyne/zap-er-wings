@@ -1798,7 +1798,7 @@ export default function PrimaNotaPage() {
                         </div>
                       </div>
                       <Badge variant="outline" className="text-amber-600 border-amber-300">
-                        Da classificare
+                        Da annotare
                       </Badge>
                     </div>
                   </CardContent>
