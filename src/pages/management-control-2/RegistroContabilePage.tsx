@@ -3217,39 +3217,31 @@ export default function RegistroContabilePage() {
                 </TableRow>
               ) : groupBy !== 'none' && groupedInvoices ? (
                 groupedInvoices.map(([key, group]) => {
-                  const isExpanded = expandedRegistryPeriods.has(key);
                   const totImponibile = group.invoices.reduce((s, i) => s + i.imponibile, 0);
                   const totIva = group.invoices.reduce((s, i) => s + i.iva_amount, 0);
                   const totTotale = group.invoices.reduce((s, i) => s + (i.invoice_type === 'acquisto' ? -i.total_amount : i.total_amount), 0);
-                  const vendite = group.invoices.filter(i => i.invoice_type === 'vendita').length;
-                  const acquisti = group.invoices.filter(i => i.invoice_type === 'acquisto').length;
                   
                   return (
                     <React.Fragment key={key}>
-                      <TableRow 
-                        className="bg-muted/40 hover:bg-muted/60 cursor-pointer border-b-0"
-                        onClick={() => toggleRegistryPeriod(key)}
-                      >
-                        <TableCell colSpan={5} className="py-3">
-                          <div className="flex items-center gap-3">
-                            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                            <span className="font-semibold text-sm">{group.label}</span>
-                            <Badge variant="secondary" className="text-xs">{group.invoices.length}</Badge>
-                            {vendite > 0 && <Badge className="bg-green-500/15 text-green-600 border-green-500/25 text-xs">{vendite} vendite</Badge>}
-                            {acquisti > 0 && <Badge className="bg-red-500/15 text-red-600 border-red-500/25 text-xs">{acquisti} acquisti</Badge>}
+                      <TableRow className="bg-muted/30 border-t-2 border-t-border">
+                        <TableCell colSpan={5} className="py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="font-semibold text-sm capitalize">{group.label}</span>
+                            <span className="text-xs text-muted-foreground">({group.invoices.length})</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right text-xs font-medium py-3">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground py-3">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className={cn("text-right text-xs font-bold py-3", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
+                        <TableCell className="text-right text-xs font-medium text-muted-foreground py-2.5">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground py-2.5">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className={cn("text-right text-xs font-semibold py-2.5", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
                           {totTotale >= 0 ? '+' : ''}€{totTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell colSpan={3} className="py-3" />
+                        <TableCell colSpan={3} className="py-2.5" />
                       </TableRow>
-                      {isExpanded && group.invoices.map((invoice) => (
+                      {group.invoices.map((invoice) => (
                         <TableRow 
                           key={invoice.id}
-                          className={cn("border-l-2 border-l-primary/20", invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : "")}
+                          className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
                           onClick={() => {
                             setDetailsInvoice(invoice);
                             setShowDetailsDialog(true);
@@ -3266,10 +3258,10 @@ export default function RegistroContabilePage() {
                   <TableRow 
                     key={invoice.id}
                     className={invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : ""}
-                          onClick={() => {
-                            setDetailsInvoice(invoice);
-                            setShowDetailsDialog(true);
-                          }}
+                    onClick={() => {
+                      setDetailsInvoice(invoice);
+                      setShowDetailsDialog(true);
+                    }}
                   >
                     {renderInvoiceRow(invoice)}
                   </TableRow>
