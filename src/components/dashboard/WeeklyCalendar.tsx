@@ -255,9 +255,13 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
       } else if (data.itemType === 'ticket') {
         const { error } = await supabase.from('tickets').update({ scheduled_date: newIso }).eq('id', data.itemId);
         if (error) throw error;
+      } else if (data.itemType === 'lead_activity') {
+        const { error } = await supabase.from('lead_activities').update({ activity_date: newIso }).eq('id', data.itemId);
+        if (error) throw error;
       }
-      toast({ title: "Spostato", description: "Elemento spostato con successo" });
+      toast({ title: "Spostato", description: "Elemento spostato nel calendario" });
       loadData();
+      onExternalDrop?.();
     } catch (error) {
       console.error('Drop error:', error);
       toast({ title: "Errore", description: "Impossibile spostare l'elemento", variant: "destructive" });
