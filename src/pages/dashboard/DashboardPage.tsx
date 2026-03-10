@@ -150,7 +150,7 @@ export function DashboardPage() {
   const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
-  const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
+  
   const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewItem, setPreviewItem] = useState<any>(null);
