@@ -3145,6 +3145,52 @@ export default function RegistroContabilePage() {
                     Nessuna fattura trovata
                   </TableCell>
                 </TableRow>
+              ) : groupBy !== 'none' && groupedInvoices ? (
+                groupedInvoices.map(([key, group]) => {
+                  const isExpanded = expandedRegistryPeriods.has(key);
+                  const totImponibile = group.invoices.reduce((s, i) => s + i.imponibile, 0);
+                  const totIva = group.invoices.reduce((s, i) => s + i.iva_amount, 0);
+                  const totTotale = group.invoices.reduce((s, i) => s + (i.invoice_type === 'acquisto' ? -i.total_amount : i.total_amount), 0);
+                  const vendite = group.invoices.filter(i => i.invoice_type === 'vendita').length;
+                  const acquisti = group.invoices.filter(i => i.invoice_type === 'acquisto').length;
+                  
+                  return (
+                    <React.Fragment key={key}>
+                      <TableRow 
+                        className="bg-muted/40 hover:bg-muted/60 cursor-pointer border-b-0"
+                        onClick={() => toggleRegistryPeriod(key)}
+                      >
+                        <TableCell colSpan={5} className="py-3">
+                          <div className="flex items-center gap-3">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                            <span className="font-semibold text-sm">{group.label}</span>
+                            <Badge variant="secondary" className="text-xs">{group.invoices.length}</Badge>
+                            {vendite > 0 && <Badge className="bg-green-500/15 text-green-600 border-green-500/25 text-xs">{vendite} vendite</Badge>}
+                            {acquisti > 0 && <Badge className="bg-red-500/15 text-red-600 border-red-500/25 text-xs">{acquisti} acquisti</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-medium py-3">€{totImponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground py-3">€{totIva.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className={cn("text-right text-xs font-bold py-3", totTotale >= 0 ? "text-green-600" : "text-red-600")}>
+                          {totTotale >= 0 ? '+' : ''}€{totTotale.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell colSpan={3} className="py-3" />
+                      </TableRow>
+                      {isExpanded && group.invoices.map((invoice) => (
+                        <TableRow 
+                          key={invoice.id}
+                          className={cn("border-l-2 border-l-primary/20", invoice.prima_nota_id ? "cursor-pointer hover:bg-muted/50" : "")}
+                          onClick={() => {
+                            setDetailsInvoice(invoice);
+                            setShowDetailsDialog(true);
+                          }}
+                        >
+                          {renderInvoiceRow(invoice)}
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  );
+                })
               ) : (
                 filteredInvoices.map((invoice) => (
                   <TableRow 
@@ -3155,102 +3201,7 @@ export default function RegistroContabilePage() {
                             setShowDetailsDialog(true);
                           }}
                   >
-                    <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: it })}</TableCell>
-                    <TableCell>{getTypeBadge(invoice.invoice_type)}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{invoice.subject_name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{invoice.subject_type}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs">{getVatRegimeLabel(invoice.vat_regime)}</span>
-                    </TableCell>
-                    <TableCell className="text-right">€{invoice.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">€{invoice.iva_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell className="text-right font-semibold">€{invoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</TableCell>
-                    <TableCell>{getRegistryStatusBadge(invoice.status as RegistryStatus, invoice.stornato)}</TableCell>
-                    <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                        {/* BOZZA: Modifica + Registra + Elimina */}
-                        {invoice.status === 'bozza' && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" />
-                              Modifica
-                            </Button>
-                            <Button size="sm" onClick={() => { setSelectedInvoice(invoice); setShowRegisterDialog(true); }}>
-                              <FileCheck className="w-3.5 h-3.5 mr-1" />
-                              Registra
-                            </Button>
-                            <Button 
-                              size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                              onClick={() => { if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice); }}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </>
-                        )}
-
-                        {/* DA RICLASSIFICARE (post-storno): Correggi + Rigenera */}
-                        {invoice.status === 'da_riclassificare' && (
-                          <>
-                            <Button size="sm" variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50" onClick={() => openEditDialog(invoice)}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" />
-                              Correggi
-                            </Button>
-                            <Button 
-                              size="sm"
-                              onClick={() => { if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice); }}
-                              disabled={regeneratePrimaNotaMutation.isPending}
-                            >
-                              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                              Rigenera
-                            </Button>
-                          </>
-                        )}
-
-                        {/* RETTIFICATO: bloccato */}
-                        {invoice.status === 'rettificato' && (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            <Lock className="w-3 h-3 mr-1" />
-                            Bloccato
-                          </Badge>
-                        )}
-
-                        {/* REGISTRATA / CONTABILIZZATO: solo info storno */}
-                        {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
-                          <span className="text-xs text-muted-foreground italic">
-                            Per modificare: Storna in Prima Nota
-                          </span>
-                        )}
-
-                        {/* Registrata senza prima_nota (anomalia) */}
-                        {invoice.status === 'registrata' && !invoice.prima_nota_id && (
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
-                            <Pencil className="w-3.5 h-3.5 mr-1" />
-                            Modifica
-                          </Button>
-                        )}
-
-                        {/* Scadenza link */}
-                        {invoice.scadenza_id && (
-                          <Button size="sm" variant="ghost" onClick={() => window.location.href = '/management-control-2/scadenziario'}>
-                            <LinkIcon className="w-3.5 h-3.5 mr-1" />
-                            Scadenza
-                          </Button>
-                        )}
-
-                        {/* Info storno */}
-                        {invoice.stornato && invoice.motivo_storno && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            Storno: {invoice.motivo_storno}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
+                    {renderInvoiceRow(invoice)}
                   </TableRow>
                 ))
               )}
