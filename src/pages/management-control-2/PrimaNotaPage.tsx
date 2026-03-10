@@ -988,7 +988,7 @@ export default function PrimaNotaPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-5 md:inline-flex">
+         <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-4 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Registro</span>
@@ -1000,19 +1000,14 @@ export default function PrimaNotaPage() {
             <span className="sm:hidden">Giornale</span>
           </TabsTrigger>
           <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
-            <AlertCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Da Annotare</span>
-            <span className="sm:hidden">Annotare</span>
-            {(pendingEntries.length + pendingDocuments.length + daClassificareEntries.length) > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
-                {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden sm:inline">Da Classificare</span>
+            <span className="sm:hidden">Classifica</span>
+            {(pendingEntries.length + pendingDocuments.length) > 0 && (
+              <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-xs h-5 min-w-5 flex items-center justify-center">
+                {pendingEntries.length + pendingDocuments.length}
               </Badge>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="classificazione" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
-            <ClipboardList className="h-4 w-4" />
-            <span className="hidden sm:inline">Classificazione</span>
-            <span className="sm:hidden">Classifica</span>
           </TabsTrigger>
           <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Wallet className="h-4 w-4" />
