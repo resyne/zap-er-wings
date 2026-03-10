@@ -24,8 +24,8 @@ import {
   FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
   ClipboardList, Wallet, Info, ArrowLeftRight
 } from "lucide-react";
-import { EventClassificationContent } from "./EventClassificationPage";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
+import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
