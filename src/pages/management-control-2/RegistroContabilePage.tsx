@@ -2586,7 +2586,7 @@ export default function RegistroContabilePage() {
             <div className="h-6 w-6 rounded-md bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
               <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
             </div>
-            <span className="text-xs text-muted-foreground">Da Classificare</span>
+            <span className="text-xs text-muted-foreground">Da Annotare</span>
           </div>
           <p className="text-xl font-bold text-amber-600">{stats.daClassificare}</p>
         </button>
