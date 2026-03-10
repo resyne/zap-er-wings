@@ -394,7 +394,8 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         )}
         {isRecurring && <span className="shrink-0">{recurringItem?.completed ? '✓' : '○'}</span>}
         {isTicket && <span className="shrink-0 font-mono">{(item as Ticket).number}</span>}
-        <span className="truncate">{item.title}</span>
+        {item.item_type === 'lead_activity' && <span className="shrink-0">📋</span>}
+        <span className="truncate">{getItemTitle(item)}</span>
       </div>
     );
   };
