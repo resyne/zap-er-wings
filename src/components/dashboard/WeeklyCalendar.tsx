@@ -434,6 +434,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-blue-300" /> Eventi</span>
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-orange-300" /> Ticket</span>
           <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-amber-300" /> Ricorrenti</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-sm bg-green-300" /> CRM</span>
         </div>
 
         {/* Calendar grid */}
