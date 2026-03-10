@@ -1064,9 +1064,9 @@ export default function PrimaNotaPage() {
             <ClipboardList className="h-4 w-4" />
             <span className="hidden sm:inline">Da Classificare</span>
             <span className="sm:hidden">Classifica</span>
-            {(pendingEntries.length + pendingDocuments.length) > 0 && (
+            {(bozze.length + pendingDocuments.length) > 0 && (
               <Badge variant="destructive" className="ml-1 px-1.5 py-0 text-xs h-5 min-w-5 flex items-center justify-center">
-                {pendingEntries.length + pendingDocuments.length}
+                {bozze.length + pendingDocuments.length}
               </Badge>
             )}
           </TabsTrigger>
