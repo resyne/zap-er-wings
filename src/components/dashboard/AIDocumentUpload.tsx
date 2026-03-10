@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -220,107 +220,79 @@ export function AIDocumentUpload() {
   };
 
   const handleFlowStart = (flow: "spesa" | "incasso") => {
-    if (flow === "spesa") {
-      setQuickEntryType("uscita");
-    } else {
-      setQuickEntryType("entrata");
-    }
+    setQuickEntryType(flow === "spesa" ? "uscita" : "entrata");
     setShowQuickEntryDialog(true);
   };
 
   return (
     <>
-      {/* Spesa / Incasso Action Buttons */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("spesa")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-2 group-hover:bg-destructive/20 transition-colors">
-              <Receipt className="h-5 w-5 sm:h-6 sm:w-6 text-destructive" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Spesa / Scontrino</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra una spesa o scontrino</CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card 
-          className="cursor-pointer hover:border-primary transition-colors group active:scale-[0.98]"
-          onClick={() => handleFlowStart("incasso")}
-        >
-          <CardHeader className="p-3 sm:p-6 pb-2 sm:pb-2">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-green-100 flex items-center justify-center mb-2 group-hover:bg-green-200 transition-colors">
-              <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-            </div>
-            <CardTitle className="text-sm sm:text-lg leading-tight">Incasso / Pagamento</CardTitle>
-            <CardDescription className="text-xs sm:text-sm hidden sm:block">Registra un incasso sul campo</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* AI Upload Zone */}
       <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
-            Carica documento con AI
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Trascina o scatta foto di un documento per la classificazione automatica
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-          {(isUploading || isAnalyzing) ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">
-                {isAnalyzing ? "Analisi AI in corso..." : "Caricamento..."}
-              </p>
-            </div>
-          ) : (
-            <>
+        <CardContent className="p-4">
+          {/* Compact action row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9"
+              onClick={() => handleFlowStart("spesa")}
+            >
+              <Receipt className="h-4 w-4 text-destructive" />
+              Spesa
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9"
+              onClick={() => handleFlowStart("incasso")}
+            >
+              <CreditCard className="h-4 w-4 text-green-600" />
+              Incasso
+            </Button>
+
+            <div className="h-5 w-px bg-border hidden sm:block" />
+
+            {/* Inline dropzone */}
+            {(isUploading || isAnalyzing) ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                {isAnalyzing ? "Analisi AI..." : "Caricamento..."}
+              </div>
+            ) : (
               <div
                 {...getRootProps()}
                 className={cn(
-                  "border-2 border-dashed rounded-lg p-6 sm:p-8 text-center cursor-pointer transition-colors",
-                  isDragActive ? "border-primary bg-primary/5" : "hover:bg-accent/50"
+                  "flex-1 min-w-[200px] border border-dashed rounded-md px-4 py-2 text-center cursor-pointer transition-colors text-sm",
+                  isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary hover:bg-accent/50"
                 )}
               >
                 <input {...getInputProps()} />
-                <Upload className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
-                {isDragActive ? (
-                  <p className="text-primary font-medium text-sm sm:text-base">Rilascia il file qui...</p>
-                ) : (
-                  <div>
-                    <p className="text-muted-foreground text-sm sm:text-base">Trascina un documento o clicca per caricarlo</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'AI riconoscerà automaticamente il tipo di documento</p>
-                  </div>
-                )}
+                <span className="text-muted-foreground flex items-center justify-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  {isDragActive ? "Rilascia qui..." : "Trascina documento o clicca"}
+                </span>
               </div>
+            )}
 
-              <div className="mt-3 sm:mt-4">
-                <label className="block">
-                  <Button variant="outline" className="w-full h-12 sm:h-10 text-base sm:text-sm" asChild>
-                    <div className="cursor-pointer">
-                      <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
-                      Scatta foto
-                    </div>
-                  </Button>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                  />
-                </label>
-              </div>
-            </>
-          )}
+            <label className="block sm:hidden">
+              <Button variant="ghost" size="sm" className="gap-2 h-9" asChild>
+                <div className="cursor-pointer">
+                  <Camera className="h-4 w-4" />
+                  Foto
+                </div>
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+              />
+            </label>
+          </div>
         </CardContent>
       </Card>
 
