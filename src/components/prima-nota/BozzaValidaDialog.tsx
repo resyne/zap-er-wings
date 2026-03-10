@@ -497,7 +497,16 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Regime IVA</Label>
-                  <Select value={form.iva_mode} onValueChange={v => setForm(p => ({ ...p, iva_mode: v }))}>
+                  <Select value={form.iva_mode} onValueChange={v => {
+                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
+                    const isNoIva = noIvaModes.includes(v);
+                    const isRC = v === "ACQUISTO_RC_EDILE";
+                    const imp = form.imponibile;
+                    const aliq = form.iva_aliquota;
+                    const iva = isNoIva ? 0 : imp * (aliq / 100);
+                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    setForm(p => ({ ...p, iva_mode: v, iva_amount: iva, totale: tot }));
+                  }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(IVA_MODE_LABELS).map(([k, v]) => (
@@ -508,7 +517,15 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Aliquota %</Label>
-                  <Input type="number" value={form.iva_aliquota} onChange={e => setForm(p => ({ ...p, iva_aliquota: parseFloat(e.target.value) || 0 }))} />
+                  <Input type="number" value={form.iva_aliquota} onChange={e => {
+                    const aliq = parseFloat(e.target.value) || 0;
+                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
+                    const isNoIva = noIvaModes.includes(form.iva_mode);
+                    const isRC = form.iva_mode === "ACQUISTO_RC_EDILE";
+                    const iva = isNoIva ? 0 : form.imponibile * (aliq / 100);
+                    const tot = isNoIva || isRC ? form.imponibile : form.imponibile + iva;
+                    setForm(p => ({ ...p, iva_aliquota: aliq, iva_amount: iva, totale: tot }));
+                  }} />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -516,8 +533,12 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Imponibile</Label>
                   <Input type="number" step="0.01" value={form.imponibile} onChange={e => {
                     const imp = parseFloat(e.target.value) || 0;
-                    const iva = imp * (form.iva_aliquota / 100);
-                    setForm(p => ({ ...p, imponibile: imp, iva_amount: iva, totale: imp + iva }));
+                    const noIvaModes = ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"];
+                    const isNoIva = noIvaModes.includes(form.iva_mode);
+                    const isRC = form.iva_mode === "ACQUISTO_RC_EDILE";
+                    const iva = isNoIva ? 0 : imp * (form.iva_aliquota / 100);
+                    const tot = isNoIva || isRC ? imp : imp + iva;
+                    setForm(p => ({ ...p, imponibile: imp, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
                 <div className="space-y-1">
