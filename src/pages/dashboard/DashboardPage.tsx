@@ -15,7 +15,7 @@ import {
   Clock, 
   AlertCircle, 
   Users, 
-  TrendingUp, 
+   
   Calendar,
   User,
   LogOut,
