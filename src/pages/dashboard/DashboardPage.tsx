@@ -1107,7 +1107,7 @@ export function DashboardPage() {
       </div>
 
       {/* Weekly Calendar Section (includes recurring tasks) */}
-      <WeeklyCalendar recurringTasks={recurringTasks} onRecurringTaskToggle={async (task) => {
+      <WeeklyCalendar recurringTasks={recurringTasks} onExternalDrop={loadUserTasks} onRecurringTaskToggle={async (task) => {
         if (!user) return;
         try {
           if (task.completed && task.completion_id) {
