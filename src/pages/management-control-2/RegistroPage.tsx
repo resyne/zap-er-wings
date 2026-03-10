@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { AIDocumentUpload } from "@/components/dashboard/AIDocumentUpload";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
@@ -312,58 +313,7 @@ export default function RegistroPage() {
       </div>
 
       {/* AI Upload Zone */}
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Upload className="h-4 w-4 sm:h-5 sm:w-5" />
-            Carica documento con AI
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Trascina o scatta foto di un documento per la classificazione automatica
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-          <div
-            {...getRootProps()}
-            className={cn(
-              "border-2 border-dashed rounded-lg p-6 sm:p-8 text-center cursor-pointer transition-colors",
-              isDragActive ? "border-primary bg-primary/5" : "hover:bg-accent/50"
-            )}
-          >
-            <input {...getInputProps()} />
-            <Upload className="h-8 w-8 sm:h-10 sm:w-10 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
-            {isDragActive ? (
-              <p className="text-primary font-medium text-sm sm:text-base">Rilascia il file qui...</p>
-            ) : (
-              <div>
-                <p className="text-muted-foreground text-sm sm:text-base">Trascina un documento o clicca per caricarlo</p>
-                <p className="text-xs text-muted-foreground mt-1">L'AI riconoscerà automaticamente il tipo di documento</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-3 sm:mt-4">
-            <label className="block">
-              <Button variant="outline" className="w-full h-12 sm:h-10 text-base sm:text-sm" asChild>
-                <div className="cursor-pointer">
-                  <Camera className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
-                  Scatta foto
-                </div>
-              </Button>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
-                }}
-              />
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+      <AIDocumentUpload />
 
       {/* My Registrations */}
       <Card>
