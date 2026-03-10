@@ -2767,6 +2767,23 @@ export default function RegistroContabilePage() {
             <SelectItem value="archiviato">Archiviato</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={groupBy} onValueChange={(v) => {
+          setGroupBy(v as GroupByOption);
+          // Auto-expand first 3 periods
+          setExpandedRegistryPeriods(new Set());
+        }}>
+          <SelectTrigger className="w-full md:w-[180px] h-10">
+            <Calendar className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Raggruppa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Nessun raggruppamento</SelectItem>
+            <SelectItem value="day">Per giorno</SelectItem>
+            <SelectItem value="week">Per settimana</SelectItem>
+            <SelectItem value="month">Per mese</SelectItem>
+            <SelectItem value="quarter">Per trimestre</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Vista Documentazione Operativa */}
