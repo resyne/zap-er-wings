@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,8 +21,11 @@ import {
   ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
   Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
   Filter, ChevronDown, Receipt, Percent, User, Banknote, 
-  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles
+  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
+  ClipboardList, Wallet
 } from "lucide-react";
+import { EventClassificationContent } from "./EventClassificationPage";
+import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // =====================================================
@@ -179,6 +182,7 @@ const RegistroContabileContent = lazy(() => import("./RegistroContabilePage"));
 export default function PrimaNotaPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("registro-contabile");
   const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
   const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
   const [rectificationReason, setRectificationReason] = useState("");
@@ -983,11 +987,11 @@ export default function PrimaNotaPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="registro-contabile" className="space-y-6">
-        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-5 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
-            <span className="hidden sm:inline">Registro Contabile</span>
+            <span className="hidden sm:inline">Registro</span>
             <span className="sm:hidden">Registro</span>
           </TabsTrigger>
           <TabsTrigger value="movements" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
@@ -1004,6 +1008,16 @@ export default function PrimaNotaPage() {
                 {pendingEntries.length + pendingDocuments.length + daClassificareEntries.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="classificazione" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
+            <ClipboardList className="h-4 w-4" />
+            <span className="hidden sm:inline">Classificazione</span>
+            <span className="sm:hidden">Classifica</span>
+          </TabsTrigger>
+          <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">Movimenti</span>
+            <span className="sm:hidden">Movimenti</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1759,17 +1773,16 @@ export default function PrimaNotaPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                  onClick={() => setActiveTab("classificazione")}
                 >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Apri Classificazione
+                  <ClipboardList className="h-4 w-4 mr-1" />
+                  Vai a Classificazione
                 </Button>
               </div>
               {daClassificareEntries.map((entry) => (
                 <Card
                   key={entry.id}
-                  className="hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => navigate("/management-control-2/classificazione-eventi")}
+                  className="hover:bg-accent/50 transition-colors"
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1887,6 +1900,16 @@ export default function PrimaNotaPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* CLASSIFICAZIONE TAB */}
+        <TabsContent value="classificazione" className="mt-0">
+          <EventClassificationContent />
+        </TabsContent>
+
+        {/* MOVIMENTI FINANZIARI TAB */}
+        <TabsContent value="movimenti-finanziari" className="mt-0">
+          <MovimentiFinanziariContent />
         </TabsContent>
       </Tabs>
 

@@ -138,6 +138,10 @@ const economicSubjectTypes = [
   { value: "progetto", label: "Progetto" },
 ];
 
+export function EventClassificationContent() {
+  return <EventClassificationPage />;
+}
+
 export default function EventClassificationPage() {
   const queryClient = useQueryClient();
   const [selectedEntry, setSelectedEntry] = useState<AccountingEntry | null>(null);

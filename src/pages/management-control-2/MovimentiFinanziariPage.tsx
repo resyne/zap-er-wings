@@ -59,6 +59,10 @@ const statoConfig = {
   contabilizzato: { label: "Contabilizzato", color: "bg-green-500", icon: CheckCircle },
 };
 
+export function MovimentiFinanziariContent() {
+  return <MovimentiFinanziariPage />;
+}
+
 export default function MovimentiFinanziariPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -130,26 +134,11 @@ export default function MovimentiFinanziariPage() {
   };
 
   const handleGoToClassification = () => {
-    navigate("/management-control-2/classificazione-eventi");
+    navigate("/management-control-2/prima-nota");
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Movimenti Finanziari</h1>
-          <p className="text-muted-foreground">
-            Gestione incassi, pagamenti, anticipi e rimborsi
-          </p>
-        </div>
-        {stats.daClassificare > 0 && (
-          <Button onClick={handleGoToClassification}>
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Vai a Classificazione Eventi ({stats.daClassificare})
-          </Button>
-        )}
-      </div>
-
+    <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-5">
         <Card>

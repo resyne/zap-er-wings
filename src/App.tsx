@@ -245,7 +245,7 @@ const App = () => (
                 <Route path="management-control/budget" element={<Suspense fallback={<PageLoader />}><BudgetPage /></Suspense>} />
                 <Route path="management-control/credits-debts" element={<Suspense fallback={<PageLoader />}><CreditsDebtsPage /></Suspense>} />
                 <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><RegistroPage /></Suspense>} />
-                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><MovimentiFinanziariPage /></Suspense>} />
+                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="management-control-2/setup-contabile" element={<Suspense fallback={<PageLoader />}><SetupContabilePage /></Suspense>} />
                 <Route path="management-control-2/chart-of-accounts" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
                 <Route path="management-control-2/cost-centers" element={<Suspense fallback={<PageLoader />}><CostCentersPage /></Suspense>} />
@@ -254,7 +254,7 @@ const App = () => (
                 <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
                 <Route path="contabilita/documenti" element={<Suspense fallback={<PageLoader />}><DocumentiPage /></Suspense>} />
                 <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
-                <Route path="management-control-2/classificazione-eventi" element={<Suspense fallback={<PageLoader />}><EventClassificationPage /></Suspense>} />
+                <Route path="management-control-2/classificazione-eventi" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
                 <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
                 <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />
