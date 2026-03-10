@@ -828,10 +828,10 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* CRM Activities (Lead + Opportunities) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
+        <Card className="shadow-sm">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
               Attività CRM
             </CardTitle>
           </CardHeader>
