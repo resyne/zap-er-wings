@@ -401,16 +401,7 @@ export default function DocumentiContabiliPage() {
   const { data: allDocs, isLoading: allLoading } = useAccountingDocuments();
 
   return (
-    <div className="container mx-auto py-6 space-y-6 max-w-[1600px]">
-      <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Documenti Contabili</h1>
-          <p className="text-muted-foreground">
-            Carica fatture e documenti — l'AI li analizza e classifica automaticamente
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
 
       {/* Upload Zone */}
       <DocumentUploadZone onUploadComplete={handleUploadComplete} />

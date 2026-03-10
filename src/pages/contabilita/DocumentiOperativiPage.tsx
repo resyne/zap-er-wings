@@ -7,16 +7,7 @@ export default function DocumentiOperativiPage() {
   const [activeTab, setActiveTab] = useState("ddt");
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Documenti Operativi</h1>
-          <p className="text-muted-foreground">
-            DDT, ordini, offerte accettate e rapporti di intervento
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
