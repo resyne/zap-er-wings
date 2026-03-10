@@ -417,9 +417,9 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
             </div>
 
             {/* All-day row */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/10">
-              <div className="text-[9px] text-muted-foreground px-1 py-1.5 flex items-start justify-end pr-2 border-r border-b border-border font-medium">
-                Giornata
+            <div className="grid grid-cols-[36px_repeat(7,1fr)] bg-muted/10">
+              <div className="text-[8px] text-muted-foreground px-0.5 py-1 flex items-start justify-end pr-1 border-r border-b border-border font-medium">
+                Giorn.
               </div>
               {weekDays.map((day, i) => {
                 const items = getItemsForDay(day);
