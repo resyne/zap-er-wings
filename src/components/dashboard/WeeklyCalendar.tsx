@@ -149,6 +149,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [leadActivities, setLeadActivities] = useState<LeadActivity[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
