@@ -2552,7 +2552,7 @@ export default function RegistroContabilePage() {
             setShowCreateDialog(true);
           }} className="h-10">
             <Plus className="w-4 h-4 mr-2" />
-            Nuova Fattura
+            Nuova Nota
           </Button>
         </div>
       </div>
@@ -3090,129 +3090,81 @@ export default function RegistroContabilePage() {
                     <TableCell>{getRegistryStatusBadge(invoice.status as RegistryStatus, invoice.stornato)}</TableCell>
                     <TableCell>{getFinancialStatusBadge(invoice.financial_status)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {/* EVENTO DA RICLASSIFICARE (post-storno) */}
-                        {invoice.status === 'da_riclassificare' && (
+                      <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        {/* BOZZA: Modifica + Registra + Elimina */}
+                        {invoice.status === 'bozza' && (
                           <>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => openEditDialog(invoice)}
-                              className="border-orange-500 text-orange-600 hover:bg-orange-50"
-                            >
-                              <Pencil className="w-4 h-4 mr-1" />
-                              Correggi
+                            <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" />
+                              Modifica
+                            </Button>
+                            <Button size="sm" onClick={() => { setSelectedInvoice(invoice); setShowRegisterDialog(true); }}>
+                              <FileCheck className="w-3.5 h-3.5 mr-1" />
+                              Registra
                             </Button>
                             <Button 
-                              size="sm" 
-                              onClick={() => {
-                                if (confirm('Rigenerare la Prima Nota per questo evento? Verranno create nuove scritture contabili.')) {
-                                  regeneratePrimaNotaMutation.mutate(invoice);
-                                }
-                              }}
-                              disabled={regeneratePrimaNotaMutation.isPending}
-                              className="bg-primary"
+                              size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                              onClick={() => { if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice); }}
                             >
-                              <RefreshCw className="w-4 h-4 mr-1" />
-                              Rigenera Prima Nota
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
-                          </>
-                        )}
-                        
-                        {/* EVENTO RETTIFICATO (bloccato) */}
-                        {invoice.status === 'rettificato' && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Lock className="w-4 h-4" />
-                            <span className="text-sm">Bloccato - Solo consultazione</span>
-                          </div>
-                        )}
-                        
-                        {/* EVENTO NORMALE (bozza, registrata, contabilizzato) */}
-                        {!['da_riclassificare', 'rettificato'].includes(invoice.status) && (
-                          <>
-                            {/* CASO 1: Bozza - Modifica libera */}
-                            {invoice.status === 'bozza' && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => openEditDialog(invoice)}
-                              >
-                                <Pencil className="w-4 h-4 mr-1" />
-                                Modifica
-                              </Button>
-                            )}
-                            
-                            {/* CASO 2: Registrata con prima_nota - BLOCCATA */}
-                            {invoice.status === 'registrata' && invoice.prima_nota_id && (
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
-                                  <Lock className="w-3 h-3 mr-1" />
-                                  In Prima Nota
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  Per modificare: Storna in Prima Nota
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* CASO 3: Registrata senza prima_nota (anomalia) - Modifica consentita */}
-                            {invoice.status === 'registrata' && !invoice.prima_nota_id && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => openEditDialog(invoice)}
-                              >
-                                <Pencil className="w-4 h-4 mr-1" />
-                                Modifica
-                              </Button>
-                            )}
-                            
-                            {invoice.status === 'bozza' && (
-                              <Button 
-                                size="sm" 
-                                onClick={() => {
-                                  setSelectedInvoice(invoice);
-                                  setShowRegisterDialog(true);
-                                }}
-                              >
-                                <FileCheck className="w-4 h-4 mr-1" />
-                                Registra
-                              </Button>
-                            )}
-                            {invoice.scadenza_id && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => window.location.href = '/management-control-2/scadenziario'}
-                              >
-                                <LinkIcon className="w-4 h-4 mr-1" />
-                                Scadenza
-                              </Button>
-                            )}
-                            {/* Elimina: solo per bozze non contabilizzate */}
-                            {invoice.status === 'bozza' && (
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm('Sei sicuro di voler eliminare questo elemento dal registro contabile?')) {
-                                    deleteInvoiceMutation.mutate(invoice);
-                                  }
-                                }}
-                                title="Elimina (solo per bozze)"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
                           </>
                         )}
 
-                        {/* Info storno se presente */}
+                        {/* DA RICLASSIFICARE (post-storno): Correggi + Rigenera */}
+                        {invoice.status === 'da_riclassificare' && (
+                          <>
+                            <Button size="sm" variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50" onClick={() => openEditDialog(invoice)}>
+                              <Pencil className="w-3.5 h-3.5 mr-1" />
+                              Correggi
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => { if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice); }}
+                              disabled={regeneratePrimaNotaMutation.isPending}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                              Rigenera
+                            </Button>
+                          </>
+                        )}
+
+                        {/* RETTIFICATO: bloccato */}
+                        {invoice.status === 'rettificato' && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            <Lock className="w-3 h-3 mr-1" />
+                            Bloccato
+                          </Badge>
+                        )}
+
+                        {/* REGISTRATA / CONTABILIZZATO: solo info storno */}
+                        {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Per modificare: Storna in Prima Nota
+                          </span>
+                        )}
+
+                        {/* Registrata senza prima_nota (anomalia) */}
+                        {invoice.status === 'registrata' && !invoice.prima_nota_id && (
+                          <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1" />
+                            Modifica
+                          </Button>
+                        )}
+
+                        {/* Scadenza link */}
+                        {invoice.scadenza_id && (
+                          <Button size="sm" variant="ghost" onClick={() => window.location.href = '/management-control-2/scadenziario'}>
+                            <LinkIcon className="w-3.5 h-3.5 mr-1" />
+                            Scadenza
+                          </Button>
+                        )}
+
+                        {/* Info storno */}
                         {invoice.stornato && invoice.motivo_storno && (
-                          <div className="text-xs text-muted-foreground ml-2">
-                            <span className="font-medium">Motivo storno:</span> {invoice.motivo_storno}
-                          </div>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            Storno: {invoice.motivo_storno}
+                          </span>
                         )}
                       </div>
                     </TableCell>
@@ -3232,9 +3184,11 @@ export default function RegistroContabilePage() {
         )}>
           <DialogHeader>
             <DialogTitle>
-              {isFiscalDocument(formData.event_type) ? 'Nuova Fattura' : 
-               formData.event_type === 'spesa_dipendente' ? 'Nuova Spesa Dipendente' : 
-               'Nuovo Incasso Dipendente'}
+              Nuova Nota — {formData.event_type === 'spesa_dipendente' ? 'Spesa Dipendente' : 
+               formData.event_type === 'incasso_dipendente' ? 'Incasso Dipendente' :
+               formData.event_type === 'fattura_acquisto' ? 'Fattura di Acquisto' :
+               formData.event_type === 'fattura_vendita' ? 'Fattura di Vendita' :
+               formData.event_type === 'nota_credito' ? 'Nota di Credito' : 'Seleziona tipo'}
             </DialogTitle>
           </DialogHeader>
           
