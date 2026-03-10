@@ -1270,10 +1270,10 @@ export function DashboardPage() {
 
       {/* Weekly Recurring Tasks Section */}
       {recurringTasks.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
+        <Card className="shadow-sm">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
               Task Ricorrenti Settimanali
             </CardTitle>
           </CardHeader>
