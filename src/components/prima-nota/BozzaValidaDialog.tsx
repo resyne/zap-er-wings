@@ -90,33 +90,7 @@ const financialStatuses = [
   { value: "da_incassare", label: "Da incassare" },
 ];
 
-const IVA_MODE_LABELS: Record<string, string> = {
-  ORDINARIO_22: "Ordinario (22%)",
-  REVERSE_CHARGE: "Reverse Charge (0%)",
-  INTRA_UE: "Intra UE (0%)",
-  EXTRA_UE: "Extra UE",
-};
-
-// Map legacy DB values to new keys
-const normalizeIvaMode = (mode: string | null): string => {
-  if (!mode) return "ORDINARIO_22";
-  const legacyMap: Record<string, string> = {
-    DOMESTICA_IMPONIBILE: "ORDINARIO_22",
-    CESSIONE_UE_NON_IMPONIBILE: "INTRA_UE",
-    CESSIONE_EXTRA_UE_NON_IMPONIBILE: "EXTRA_UE",
-    VENDITA_RC_EDILE: "REVERSE_CHARGE",
-    ACQUISTO_RC_EDILE: "REVERSE_CHARGE",
-  };
-  return legacyMap[mode] || (IVA_MODE_LABELS[mode] ? mode : "ORDINARIO_22");
-};
-
-const isZeroIvaMode = (mode: string) => ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE"].includes(mode);
-
-const formatPaymentMethod = (method: string | null) => {
-  if (!method) return "-";
-  const labels: Record<string, string> = { bonifico: "Bonifico", banca: "Banca", carta: "Carta", american_express: "American Express", contanti: "Contanti", cassa: "Cassa" };
-  return labels[method] || method;
-};
+import { IVA_MODE_LABELS, isZeroIvaMode, normalizeIvaMode, formatPaymentMethod, generateDoubleEntryLines } from "@/lib/accounting-utils";
 
 // =====================================================
 // COMPONENT
