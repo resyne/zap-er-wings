@@ -166,6 +166,7 @@ export function AIDocumentUpload() {
               soggetto_nome: extracted.supplier_name || "",
               riferimento: extracted.document_number || "",
               descrizione: extracted.notes || "",
+              in_attesa_fattura: false,
             });
             setShowQuickEntryDialog(true);
             toast.success("Documento riconosciuto e dati estratti!");
