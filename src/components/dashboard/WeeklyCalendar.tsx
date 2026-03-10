@@ -341,7 +341,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
         onDragStart={isDraggable ? (e) => handleDragStart(e, item) : undefined}
         className={`
           group flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] leading-tight font-medium border 
-          cursor-pointer truncate transition-all hover:shadow-sm
+          cursor-pointer overflow-hidden transition-all hover:shadow-sm max-w-full
           ${COLOR_MAP[item.item_type] || COLOR_MAP.event} 
           ${recurringItem?.completed ? 'opacity-40 line-through' : ''}
           ${isDraggable ? 'hover:ring-1 hover:ring-primary/30 active:scale-95' : ''}
