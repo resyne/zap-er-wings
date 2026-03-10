@@ -224,7 +224,8 @@ export function AIDocumentUpload() {
       descrizione: quickEntryForm.descrizione || undefined,
       allegato_url: uploadedFile?.url,
       allegato_nome: uploadedFile?.name,
-    });
+      in_attesa_fattura: quickEntryForm.in_attesa_fattura,
+    } as any);
   };
 
   const handleFlowStart = (flow: "spesa" | "incasso") => {
