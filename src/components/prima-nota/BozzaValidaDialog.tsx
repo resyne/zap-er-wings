@@ -735,7 +735,7 @@ function generateDoubleEntryLines(
   const lines: any[] = [];
   let lineOrder = 1;
 
-  if (ivaMode === "DOMESTICA_IMPONIBILE") {
+  if (ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE") {
     lines.push({
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "dynamic",
@@ -759,7 +759,8 @@ function generateDoubleEntryLines(
         description: `IVA ${ivaAliquota}%`,
       });
     }
-  } else if (["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE"].includes(ivaMode)) {
+  } else if (isZeroIvaMode(ivaMode) || ["CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode)) {
+    // Zero IVA modes: Reverse Charge, Intra UE, Extra UE
     lines.push({
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "dynamic",
@@ -772,29 +773,7 @@ function generateDoubleEntryLines(
       prima_nota_id: movementId, line_order: lineOrder++,
       account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
       dare: isRevenue ? 0 : totale, avere: isRevenue ? totale : 0,
-      description: `${isRevenue ? "Ricavi" : "Costi"} (Non imponibile)`,
-    });
-  } else if (ivaMode === "ACQUISTO_RC_EDILE") {
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-      dare: imponibile, avere: 0, description: "Costi (RC Edile)",
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : "DEBITI_FORNITORI",
-      chart_account_id: null,
-      dare: 0, avere: imponibile, description: isPaid ? "Pagamento" : "Debiti vs fornitori",
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: "IVA_CREDITO", chart_account_id: null,
-      dare: ivaAmount, avere: 0, description: `IVA a credito (RC) ${ivaAliquota}%`,
-    });
-    lines.push({
-      prima_nota_id: movementId, line_order: lineOrder++,
-      account_type: "dynamic", dynamic_account_key: "IVA_DEBITO", chart_account_id: null,
-      dare: 0, avere: ivaAmount, description: `IVA a debito (RC) ${ivaAliquota}%`,
+      description: `${isRevenue ? "Ricavi" : "Costi"} (${IVA_MODE_LABELS[ivaMode] || "Non imponibile"})`,
     });
   }
 
