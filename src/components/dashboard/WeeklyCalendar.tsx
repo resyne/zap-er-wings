@@ -91,7 +91,7 @@ const priorityLabels = {
   high: "Alta"
 };
 
-export function WeeklyCalendar() {
+export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle }: WeeklyCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
