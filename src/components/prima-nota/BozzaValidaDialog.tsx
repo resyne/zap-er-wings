@@ -198,7 +198,7 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         financial_status: entry.financial_status || "",
         payment_method: entry.payment_method || "",
         cfo_notes: entry.cfo_notes || "",
-        iva_mode: entry.iva_mode || "DOMESTICA_IMPONIBILE",
+        iva_mode: normalizeIvaMode(entry.iva_mode),
         iva_aliquota: entry.iva_aliquota || 22,
         imponibile: entry.imponibile || entry.amount || 0,
         iva_amount: entry.iva_amount || 0,
