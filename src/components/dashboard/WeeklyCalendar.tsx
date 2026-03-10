@@ -701,7 +701,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
                       }
                     }}
                   >
-                    <X className="w-4 h-4 mr-1" />
+                    <Trash2 className="w-4 h-4 mr-1" />
                     {selectedItem.item_type === 'event' ? 'Elimina evento' : 'Rimuovi dal calendario'}
                   </Button>
                 </div>
