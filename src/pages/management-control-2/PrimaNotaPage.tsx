@@ -1,387 +1,39 @@
-import { useState, useEffect, lazy, Suspense, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, lazy, Suspense } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { format, addMonths, startOfMonth, endOfQuarter } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { 
-  ArrowUp, ArrowDown, FileText, CheckCircle, Lock, RefreshCw,
-  Calendar, TrendingUp, TrendingDown, AlertCircle, Eye, Undo2,
-  Filter, ChevronDown, Receipt, Percent, User, Banknote, 
-  FileCheck, Download, ExternalLink, Paperclip, Building2, CreditCard, Sparkles,
-  ClipboardList, Wallet, Info, ArrowLeftRight, Clock
+import {
+  ArrowUp, ArrowDown, FileText, CheckCircle,
+  ChevronDown, Receipt, Sparkles,
+  ClipboardList, Wallet, Info, ArrowLeftRight
 } from "lucide-react";
 import { MovimentiFinanziariContent } from "./MovimentiFinanziariPage";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { PreMovementSection } from "@/components/prima-nota/PreMovementSection";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
-// =====================================================
-// INTERFACES
-// =====================================================
-
-interface PrimaNotaLine {
-  id: string;
-  prima_nota_id: string;
-  line_order: number;
-  chart_account_id: string | null;
-  structural_account_id: string | null;
-  account_type: string;
-  dynamic_account_key: string | null;
-  dare: number;
-  avere: number;
-  description: string | null;
-  chart_account?: { code: string; name: string } | null;
-  structural_account?: { code: string; name: string } | null;
-}
-
-interface PrimaNotaMovement {
-  id: string;
-  accounting_entry_id: string;
-  movement_type: string;
-  competence_date: string;
-  amount: number;
-  chart_account_id: string | null;
-  cost_center_id: string | null;
-  profit_center_id: string | null;
-  center_percentage: number | null;
-  description: string | null;
-  installment_number: number | null;
-  total_installments: number | null;
-  status: string;
-  rectified_by: string | null;
-  rectification_reason: string | null;
-  is_rectification: boolean;
-  original_movement_id: string | null;
-  created_at: string;
-  accounting_period: string | null;
-  // IVA fields
-  iva_mode: string | null;
-  iva_aliquota: number | null;
-  imponibile: number | null;
-  iva_amount: number | null;
-  totale: number | null;
-  payment_method: string | null;
-  // Joined data
-  chart_account?: { code: string; name: string } | null;
-  cost_center?: { code: string; name: string } | null;
-  profit_center?: { code: string; name: string } | null;
-  accounting_entry?: {
-    direction: string;
-    document_type: string;
-    document_date: string;
-    attachment_url: string;
-    iva_mode: string | null;
-    iva_aliquota: number | null;
-    imponibile: number | null;
-    iva_amount: number | null;
-    totale: number | null;
-    payment_method: string | null;
-    financial_status: string | null;
-  } | null;
-  lines?: PrimaNotaLine[];
-  // Linked data for display
-  linked_invoice?: {
-    id: string;
-    invoice_number: string;
-    invoice_type: string;
-    subject_name: string;
-    subject_type: string;
-    financial_status: string;
-    scadenza_id: string | null;
-    contabilizzazione_valida: boolean | null;
-  } | null;
-  linked_scadenza?: {
-    id: string;
-    stato: string;
-    importo_totale: number;
-    importo_residuo: number;
-    soggetto_nome: string | null;
-    soggetto_tipo: string | null;
-  } | null;
-  payment_attachments?: any[];
-}
-
-interface PendingEntry {
-  id: string;
-  direction: string;
-  document_type: string;
-  amount: number;
-  document_date: string;
-  event_type: string | null;
-  temporal_competence: string | null;
-  recurrence_start_date: string | null;
-  recurrence_end_date: string | null;
-  chart_account_id: string | null;
-  cost_center_id: string | null;
-  profit_center_id: string | null;
-  center_percentage: number | null;
-  financial_status: string | null;
-  affects_income_statement: boolean | null;
-  payment_method: string | null;
-  // IVA fields
-  iva_mode: string | null;
-  iva_aliquota: number | null;
-  imponibile: number | null;
-  iva_amount: number | null;
-  totale: number | null;
-  chart_account?: { code: string; name: string } | null;
-  cost_center?: { code: string; name: string } | null;
-  profit_center?: { code: string; name: string } | null;
-}
-
-// =====================================================
-// HELPER FUNCTIONS
-// =====================================================
-
-const IVA_MODE_LABELS: Record<string, string> = {
-  ORDINARIO_22: "Ordinario (22%)",
-  REVERSE_CHARGE: "Reverse Charge (0%)",
-  INTRA_UE: "Intra UE (0%)",
-  EXTRA_UE: "Extra UE",
-  // Legacy mappings for existing data
-  DOMESTICA_IMPONIBILE: "Ordinario (22%)",
-  CESSIONE_UE_NON_IMPONIBILE: "Intra UE (0%)",
-  CESSIONE_EXTRA_UE_NON_IMPONIBILE: "Extra UE",
-  VENDITA_RC_EDILE: "Reverse Charge (0%)",
-  ACQUISTO_RC_EDILE: "Reverse Charge (0%)",
-};
-
-const formatIvaMode = (mode: string | null) => {
-  if (!mode) return <span className="text-muted-foreground">-</span>;
-  return (
-    <Badge variant="outline" className="text-xs">
-      {IVA_MODE_LABELS[mode] || mode}
-    </Badge>
-  );
-};
-
-const formatPaymentMethod = (method: string | null) => {
-  if (!method) return "-";
-  const labels: Record<string, string> = {
-    banca: "Banca",
-    cassa: "Cassa",
-    carta: "Carta",
-  };
-  return labels[method] || method;
-};
-
-// =====================================================
-// MAIN COMPONENT
-// =====================================================
+import { LibroGiornaleTab } from "@/components/prima-nota/LibroGiornaleTab";
 
 const RegistroContabileContent = lazy(() => import("./RegistroContabilePage"));
 
 export default function PrimaNotaPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("registro-contabile");
-  const [selectedMovement, setSelectedMovement] = useState<PrimaNotaMovement | null>(null);
-  const [rectifyDialogOpen, setRectifyDialogOpen] = useState(false);
-  const [rectificationReason, setRectificationReason] = useState("");
   const [selectedBozza, setSelectedBozza] = useState<any>(null);
   const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
-  const [filterPeriodType, setFilterPeriodType] = useState<string>("month");
-  const [filterPeriod, setFilterPeriod] = useState<string>(format(new Date(), "yyyy-MM"));
-  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
-  const [filterDateTo, setFilterDateTo] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Calculate date range based on period type
-  const getDateRange = () => {
-    const now = new Date();
-    switch (filterPeriodType) {
-      case "month":
-        return { period: filterPeriod };
-      case "quarter": {
-        const q = parseInt(filterPeriod.split("-Q")[1] || "1");
-        const year = parseInt(filterPeriod.split("-Q")[0] || format(now, "yyyy"));
-        const quarterStart = new Date(year, (q - 1) * 3, 1);
-        return {
-          from: format(quarterStart, "yyyy-MM-dd"),
-          to: format(endOfQuarter(quarterStart), "yyyy-MM-dd"),
-        };
-      }
-      case "year":
-        return {
-          from: `${filterPeriod}-01-01`,
-          to: `${filterPeriod}-12-31`,
-        };
-      case "custom":
-        return {
-          from: filterDateFrom,
-          to: filterDateTo,
-        };
-      case "all":
-        return {};
-      default:
-        return { period: filterPeriod };
-    }
-  };
-
-  // Fetch prima nota movements with lines
-  const { data: movements = [], isLoading } = useQuery({
-    queryKey: ["prima-nota", filterPeriodType, filterPeriod, filterDateFrom, filterDateTo, filterStatus],
-    queryFn: async () => {
-      let query = supabase
-        .from("prima_nota")
-        .select(`
-          *,
-          chart_account:chart_of_accounts(code, name),
-          cost_center:cost_centers(code, name),
-          profit_center:profit_centers(code, name),
-          accounting_entry:accounting_entries!inner(
-            direction, document_type, document_date, attachment_url,
-            iva_mode, iva_aliquota, imponibile, iva_amount, totale,
-            payment_method, financial_status
-          )
-        `)
-        .order("competence_date", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      // Apply period filter based on type
-      if (filterPeriodType === "month" && filterPeriod) {
-        query = query.eq("accounting_period", filterPeriod);
-      } else if (filterPeriodType === "quarter" || filterPeriodType === "year" || filterPeriodType === "custom") {
-        const range = getDateRange();
-        if (range.from && range.to) {
-          query = query.gte("competence_date", range.from).lte("competence_date", range.to);
-        }
-      }
-
-      if (filterStatus !== "all") {
-        query = query.eq("status", filterStatus);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // Fetch lines for all movements
-      if (data && data.length > 0) {
-        const movementIds = data.map(m => m.id);
-        
-        // Fetch lines
-        const { data: linesData } = await supabase
-          .from("prima_nota_lines")
-          .select(`
-            *,
-            chart_account:chart_of_accounts(code, name),
-            structural_account:structural_accounts(code, name)
-          `)
-          .in("prima_nota_id", movementIds)
-          .order("line_order");
-        
-        // Fetch linked scadenza_movimenti (contains scadenza link)
-        const { data: movimentiData } = await supabase
-          .from("scadenza_movimenti")
-          .select("id, prima_nota_id, scadenza_id, attachments, importo, metodo_pagamento, note")
-          .in("prima_nota_id", movementIds);
-        
-        // Get scadenza IDs from movimenti
-        const scadenzaIds = movimentiData
-          ?.filter(mov => mov.scadenza_id)
-          .map(mov => mov.scadenza_id as string) || [];
-        
-        // Fetch linked scadenze with full data
-        const { data: scadenzeData } = scadenzaIds.length > 0 
-          ? await supabase
-              .from("scadenze")
-              .select(`
-                id, stato, importo_totale, importo_residuo, soggetto_nome, soggetto_tipo,
-                data_documento, data_scadenza, tipo, note, iva_mode,
-                evento_id
-              `)
-              .in("id", scadenzaIds)
-          : { data: [] };
-        
-        // Fetch linked invoices from invoice_registry (for additional context)
-        const { data: invoicesData } = await supabase
-          .from("invoice_registry")
-          .select(`
-            id, invoice_number, invoice_type, subject_name, subject_type,
-            financial_status, scadenza_id, contabilizzazione_valida, prima_nota_id
-          `)
-          .in("prima_nota_id", movementIds);
-        
-        // Build maps
-        const linesMap = new Map<string, PrimaNotaLine[]>();
-        linesData?.forEach(line => {
-          const existing = linesMap.get(line.prima_nota_id) || [];
-          existing.push(line);
-          linesMap.set(line.prima_nota_id, existing);
-        });
-        
-        const scadenzeMap = new Map<string, typeof scadenzeData[0]>();
-        scadenzeData?.forEach(sc => {
-          scadenzeMap.set(sc.id, sc);
-        });
-        
-        const movimentiMap = new Map<string, typeof movimentiData[0]>();
-        movimentiData?.forEach(mov => {
-          if (mov.prima_nota_id) movimentiMap.set(mov.prima_nota_id, mov);
-        });
-        
-        const invoicesMap = new Map<string, typeof invoicesData[0]>();
-        invoicesData?.forEach(inv => {
-          if (inv.prima_nota_id) invoicesMap.set(inv.prima_nota_id, inv);
-        });
-        
-        // Attach all data to movements
-        data.forEach(m => {
-          (m as PrimaNotaMovement).lines = linesMap.get(m.id) || [];
-          
-          // Get scadenza from scadenza_movimenti
-          const linkedMov = movimentiMap.get(m.id);
-          if (linkedMov?.scadenza_id) {
-            (m as PrimaNotaMovement).linked_scadenza = scadenzeMap.get(linkedMov.scadenza_id) || null;
-          }
-          
-          // Get invoice from invoice_registry
-          const linkedInv = invoicesMap.get(m.id);
-          if (linkedInv) {
-            (m as PrimaNotaMovement).linked_invoice = linkedInv;
-            // If no scadenza from movimenti, try from invoice
-            if (!linkedMov?.scadenza_id && linkedInv.scadenza_id) {
-              (m as PrimaNotaMovement).linked_scadenza = scadenzeMap.get(linkedInv.scadenza_id) || null;
-            }
-          }
-          
-          // Attachments from movimenti
-          const attachments = linkedMov?.attachments;
-          (m as PrimaNotaMovement).payment_attachments = attachments && Array.isArray(attachments) ? attachments : [];
-        });
-      }
-      
-      return data as PrimaNotaMovement[];
-    },
-  });
-
-  // Fetch ALL bozze (unified: da_classificare + in_classificazione + sospeso + pronto_prima_nota)
+  // Fetch bozze
   const { data: bozze = [] } = useQuery({
     queryKey: ["bozze-prima-nota"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("accounting_entries")
-        .select(`
-          *, 
-          chart_account:chart_of_accounts(code, name),
-          cost_center:cost_centers(code, name),
-          profit_center:profit_centers(code, name)
-        `)
+        .select(`*, chart_account:chart_of_accounts(code, name), cost_center:cost_centers(code, name), profit_center:profit_centers(code, name)`)
         .in("status", ["da_classificare", "in_classificazione", "sospeso", "pronto_prima_nota"])
         .is("pre_movement_status", null)
         .order("created_at", { ascending: false });
@@ -403,709 +55,39 @@ export default function PrimaNotaPage() {
     },
   });
 
-  // =====================================================
-  // FIX 1 & 2 & 4: Generate prima nota with double-entry lines
-  // =====================================================
-  const generateMutation = useMutation({
-    mutationFn: async (entry: PendingEntry) => {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-
-      // Calculate IVA values
-      const ivaMode = entry.iva_mode || "ORDINARIO_22";
-      const ivaAliquota = entry.iva_aliquota || 22;
-      const imponibile = entry.imponibile || entry.amount;
-      let ivaAmount = entry.iva_amount || 0;
-      let totale = entry.totale || entry.amount;
-
-      // Validate IVA based on mode
-      const isOrdinary = ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE";
-      const isZero = ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE", "CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode);
-
-      if (isOrdinary) {
-        if (!entry.iva_amount && !entry.totale) {
-          ivaAmount = imponibile * (ivaAliquota / 100);
-          totale = imponibile + ivaAmount;
-        }
-      } else if (isZero) {
-        ivaAmount = 0;
-        totale = imponibile;
-      }
-
-      const isRevenue = entry.event_type === "ricavo" || entry.direction === "entrata";
-      const isPaid = ["pagato", "incassato"].includes(entry.financial_status || "");
-      const paymentMethod = entry.payment_method || "banca";
-
-      // FIX 2: Single movement if paid immediately
-      const movementType = isPaid ? "economico" : "economico";
-      const description = isPaid 
-        ? `${isRevenue ? "Ricavo" : "Costo"} - Pagato subito`
-        : `${isRevenue ? "Ricavo" : "Costo"} - ${entry.temporal_competence === "rateizzata" ? "Rateizzato" : "Competenza immediata"}`;
-
-      // Create movements based on temporal competence
-      const movementsToCreate: any[] = [];
-      const linesToCreate: any[] = [];
-
-      // CASE A: Immediate or deferred competence - single movement
-      if (entry.temporal_competence !== "rateizzata") {
-        const movementId = crypto.randomUUID();
-        
-        movementsToCreate.push({
-          id: movementId,
-          accounting_entry_id: entry.id,
-          movement_type: movementType,
-          competence_date: entry.document_date,
-          amount: isRevenue ? totale : -totale,
-          chart_account_id: entry.chart_account_id,
-          cost_center_id: entry.cost_center_id,
-          profit_center_id: entry.profit_center_id,
-          center_percentage: entry.center_percentage || 100,
-          description,
-          status: "generato",
-          is_rectification: false,
-          iva_mode: ivaMode,
-          iva_aliquota: ivaAliquota,
-          imponibile,
-          iva_amount: ivaAmount,
-          totale,
-          payment_method: isPaid ? paymentMethod : null,
-          created_by: userId,
-        });
-
-        // FIX 1 & 4: Generate double-entry lines
-        const lines = generateDoubleEntryLines(
-          movementId,
-          isRevenue,
-          isPaid,
-          ivaMode,
-          ivaAliquota,
-          imponibile,
-          ivaAmount,
-          totale,
-          paymentMethod,
-          entry.chart_account_id
-        );
-        linesToCreate.push(...lines);
-      }
-      // CASE B: Installment competence - N movements
-      else if (entry.recurrence_start_date && entry.recurrence_end_date) {
-        const startDate = new Date(entry.recurrence_start_date);
-        const endDate = new Date(entry.recurrence_end_date);
-        
-        let months = 0;
-        let currentDate = startOfMonth(startDate);
-        while (currentDate <= endDate) {
-          months++;
-          currentDate = addMonths(currentDate, 1);
-        }
-
-        if (months > 0) {
-          const installmentImponibile = imponibile / months;
-          const installmentIva = ivaAmount / months;
-          const installmentTotale = totale / months;
-          
-          for (let i = 0; i < months; i++) {
-            const competenceDate = addMonths(startOfMonth(startDate), i);
-            const movementId = crypto.randomUUID();
-            
-            movementsToCreate.push({
-              id: movementId,
-              accounting_entry_id: entry.id,
-              movement_type: "economico",
-              competence_date: format(competenceDate, "yyyy-MM-dd"),
-              amount: isRevenue ? installmentTotale : -installmentTotale,
-              chart_account_id: entry.chart_account_id,
-              cost_center_id: entry.cost_center_id,
-              profit_center_id: entry.profit_center_id,
-              center_percentage: entry.center_percentage || 100,
-              description: `Competenza rateizzata ${i + 1}/${months}`,
-              installment_number: i + 1,
-              total_installments: months,
-              status: "generato",
-              is_rectification: false,
-              iva_mode: ivaMode,
-              iva_aliquota: ivaAliquota,
-              imponibile: installmentImponibile,
-              iva_amount: installmentIva,
-              totale: installmentTotale,
-              payment_method: null,
-              created_by: userId,
-            });
-
-            // Lines for each installment
-            const lines = generateDoubleEntryLines(
-              movementId,
-              isRevenue,
-              false, // Installments are not paid immediately
-              ivaMode,
-              ivaAliquota,
-              installmentImponibile,
-              installmentIva,
-              installmentTotale,
-              null,
-              entry.chart_account_id
-            );
-            linesToCreate.push(...lines);
-          }
-        }
-      }
-
-      // Insert movements
-      if (movementsToCreate.length > 0) {
-        const { error: insertError } = await supabase
-          .from("prima_nota")
-          .insert(movementsToCreate);
-
-        if (insertError) throw insertError;
-
-        // Insert lines
-        if (linesToCreate.length > 0) {
-          const { error: linesError } = await supabase
-            .from("prima_nota_lines")
-            .insert(linesToCreate);
-
-          if (linesError) throw linesError;
-        }
-      }
-
-      // Update entry status
-      const { error: updateError } = await supabase
-        .from("accounting_entries")
-        .update({ status: "registrato" })
-        .eq("id", entry.id);
-
-      if (updateError) throw updateError;
-
-      return movementsToCreate.length;
-    },
-    onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
-      toast.success(`Generati ${count} movimenti con scritture in partita doppia`);
-    },
-    onError: () => {
-      toast.error("Errore nella generazione della Prima Nota");
-    },
-  });
-
-  // Generate double-entry lines based on FIX 4 rules
-  function generateDoubleEntryLines(
-    movementId: string,
-    isRevenue: boolean,
-    isPaid: boolean,
-    ivaMode: string,
-    ivaAliquota: number,
-    imponibile: number,
-    ivaAmount: number,
-    totale: number,
-    paymentMethod: string | null,
-    chartAccountId: string | null
-  ): any[] {
-    const lines: any[] = [];
-    let lineOrder = 1;
-
-    // Determine DARE account (what we receive)
-    const dareAccountKey = isPaid 
-      ? paymentMethod?.toUpperCase() || "BANCA"
-      : isRevenue ? "CREDITI_CLIENTI" : "CONTO_ECONOMICO";
-
-    // Ordinario (22%) or legacy DOMESTICA_IMPONIBILE
-    const isOrdinary = ivaMode === "ORDINARIO_22" || ivaMode === "DOMESTICA_IMPONIBILE";
-    const isZeroIva = ["REVERSE_CHARGE", "INTRA_UE", "EXTRA_UE", "CESSIONE_UE_NON_IMPONIBILE", "CESSIONE_EXTRA_UE_NON_IMPONIBILE", "VENDITA_RC_EDILE", "ACQUISTO_RC_EDILE"].includes(ivaMode);
-
-    if (isOrdinary) {
-      lines.push({
-        prima_nota_id: movementId, line_order: lineOrder++,
-        account_type: "dynamic",
-        dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
-        chart_account_id: null,
-        dare: isRevenue ? totale : 0, avere: isRevenue ? 0 : totale,
-        description: isPaid ? `Incasso/Pagamento ${formatPaymentMethod(paymentMethod)}` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
-      });
-      lines.push({
-        prima_nota_id: movementId, line_order: lineOrder++,
-        account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-        dare: isRevenue ? 0 : imponibile, avere: isRevenue ? imponibile : 0,
-        description: isRevenue ? "Ricavi" : "Costi",
-      });
-      if (ivaAmount > 0) {
-        lines.push({
-          prima_nota_id: movementId, line_order: lineOrder++,
-          account_type: "dynamic", dynamic_account_key: isRevenue ? "IVA_DEBITO" : "IVA_CREDITO",
-          chart_account_id: null,
-          dare: isRevenue ? 0 : ivaAmount, avere: isRevenue ? ivaAmount : 0,
-          description: `IVA ${ivaAliquota}%`,
-        });
-      }
-    } else if (isZeroIva) {
-      lines.push({
-        prima_nota_id: movementId, line_order: lineOrder++,
-        account_type: "dynamic",
-        dynamic_account_key: isPaid ? (paymentMethod?.toUpperCase() || "BANCA") : (isRevenue ? "CREDITI_CLIENTI" : "DEBITI_FORNITORI"),
-        chart_account_id: null,
-        dare: isRevenue ? totale : 0, avere: isRevenue ? 0 : totale,
-        description: isPaid ? `Incasso/Pagamento ${formatPaymentMethod(paymentMethod)}` : (isRevenue ? "Crediti vs clienti" : "Debiti vs fornitori"),
-      });
-      lines.push({
-        prima_nota_id: movementId, line_order: lineOrder++,
-        account_type: "chart", chart_account_id: chartAccountId, dynamic_account_key: null,
-        dare: isRevenue ? 0 : totale, avere: isRevenue ? totale : 0,
-        description: `${isRevenue ? "Ricavi" : "Costi"} (${IVA_MODE_LABELS[ivaMode] || "Non imponibile"})`,
-      });
-    }
-
-    return lines;
-  }
-
-
-  // Rectify movement - with automatic Registro Contabile update
-  const rectifyMutation = useMutation({
-    mutationFn: async ({ movementId, reason }: { movementId: string; reason: string }) => {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      
-      const { data: original, error: fetchError } = await supabase
-        .from("prima_nota")
-        .select("*")
-        .eq("id", movementId)
-        .single();
-
-      if (fetchError || !original) throw fetchError;
-
-      // Create rectification movement
-      const { data: rectification, error: insertError } = await supabase
-        .from("prima_nota")
-        .insert({
-          accounting_entry_id: original.accounting_entry_id,
-          movement_type: original.movement_type,
-          competence_date: original.competence_date,
-          amount: -original.amount,
-          chart_account_id: original.chart_account_id,
-          cost_center_id: original.cost_center_id,
-          profit_center_id: original.profit_center_id,
-          center_percentage: original.center_percentage,
-          description: `RETTIFICA: ${reason}`,
-          status: "generato",
-          is_rectification: true,
-          original_movement_id: movementId,
-          iva_mode: original.iva_mode,
-          iva_aliquota: original.iva_aliquota,
-          imponibile: original.imponibile ? -original.imponibile : null,
-          iva_amount: original.iva_amount ? -original.iva_amount : null,
-          totale: original.totale ? -original.totale : null,
-          payment_method: original.payment_method,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Get original lines and create reversed lines
-      const { data: originalLines } = await supabase
-        .from("prima_nota_lines")
-        .select("*")
-        .eq("prima_nota_id", movementId);
-
-      if (originalLines && originalLines.length > 0) {
-        const reversedLines = originalLines.map(line => ({
-          prima_nota_id: rectification.id,
-          line_order: line.line_order,
-          chart_account_id: line.chart_account_id,
-          structural_account_id: line.structural_account_id,
-          account_type: line.account_type,
-          dynamic_account_key: line.dynamic_account_key,
-          dare: line.avere, // Swap dare/avere
-          avere: line.dare,
-          description: `RETTIFICA: ${line.description}`,
-        }));
-
-        await supabase.from("prima_nota_lines").insert(reversedLines);
-      }
-
-      // Mark original as rectified
-      const { error: updateError } = await supabase
-        .from("prima_nota")
-        .update({
-          status: "rettificato",
-          rectified_by: rectification.id,
-          rectification_reason: reason,
-        })
-        .eq("id", movementId);
-
-      if (updateError) throw updateError;
-
-      // =====================================================
-      // AUTOMATISMO POST-STORNO: Aggiorna Registro Contabile
-      // =====================================================
-      // Trova l'evento collegato a questa scrittura (via prima_nota_id)
-      const { data: linkedEvent } = await supabase
-        .from("invoice_registry")
-        .select("id, periodo_chiuso, evento_lockato, scadenza_id")
-        .eq("prima_nota_id", movementId)
-        .maybeSingle();
-
-      if (linkedEvent) {
-        const isPeriodoClosed = linkedEvent.periodo_chiuso || linkedEvent.evento_lockato;
-        
-        // Aggiorna l'evento nel Registro Contabile
-        const { error: registryError } = await supabase
-          .from("invoice_registry")
-          .update({
-            // 1.1 Stato evento
-            status: isPeriodoClosed ? "rettificato" : "da_riclassificare",
-            // 1.2 Validità contabile
-            contabilizzazione_valida: false,
-            // 1.3 Tracciamento storno (audit)
-            stornato: true,
-            data_storno: new Date().toISOString(),
-            utente_storno: userId,
-            motivo_storno: reason,
-            scrittura_stornata_id: movementId,
-            scrittura_storno_id: rectification.id,
-          })
-          .eq("id", linkedEvent.id);
-
-        if (registryError) {
-          console.error("Errore aggiornamento Registro Contabile:", registryError);
-        }
-
-        // =====================================================
-        // AGGIORNA SCADENZA: Saldo a 0 dopo storno
-        // =====================================================
-        // Se l'evento ha una scadenza collegata, la dobbiamo annullare
-        // perché il saldo contabile è ora 0 (storno ha neutralizzato)
-        if (linkedEvent.scadenza_id) {
-          const { error: scadenzaError } = await supabase
-            .from("scadenze")
-            .update({
-              stato: "stornata",
-              importo_residuo: 0,
-              note: `[STORNATA ${new Date().toLocaleDateString('it-IT')}] Motivo: ${reason}`
-            })
-            .eq("id", linkedEvent.scadenza_id);
-
-          if (scadenzaError) {
-            console.error("Errore aggiornamento Scadenza:", scadenzaError);
-          }
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
-      queryClient.invalidateQueries({ queryKey: ["invoice-registry"] });
-      toast.success("Movimento rettificato - Evento aggiornato nel Registro Contabile");
-      setRectifyDialogOpen(false);
-      setRectificationReason("");
-      setSelectedMovement(null);
-    },
-    onError: () => {
-      toast.error("Errore nella rettifica");
-    },
-  });
-
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string; icon: React.ReactNode }> = {
-      generato: { variant: "secondary", label: "Generato", icon: <FileText className="h-3 w-3" /> },
-      registrato: { variant: "default", label: "Registrato", icon: <CheckCircle className="h-3 w-3" /> },
-      bloccato: { variant: "outline", label: "Bloccato", icon: <Lock className="h-3 w-3" /> },
-      rettificato: { variant: "destructive", label: "Rettificato", icon: <Undo2 className="h-3 w-3" /> },
-    };
-    const config = variants[status] || { variant: "secondary", label: status, icon: null };
-    return (
-      <Badge variant={config.variant} className="gap-1">
-        {config.icon}
-        {config.label}
-      </Badge>
-    );
-  };
-
-  // Toggle row expansion
-  const toggleRowExpansion = (id: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedRows(newExpanded);
-  };
-
-  // Summary calculations
-  // Entrate/Uscite are calculated from financial accounts in prima_nota_lines:
-  // - If financial account (banca/carta/cassa) is in AVERE → USCITA (outflow)
-  // - If financial account (banca/carta/cassa) is in DARE → ENTRATA (inflow)
-  const summary = movements.reduce(
-    (acc, m) => {
-      // Exclude both rectified movements AND their rectifications from the economic summary
-      // When a movement is rectified, its original is excluded (status="rettificato")
-      // and the rectification entry should also be excluded since it only serves to neutralize
-      if (m.status === "rettificato" || m.is_rectification) return acc;
-      
-      const imponibile = m.imponibile || Math.abs(m.amount);
-      const iva = m.iva_amount || 0;
-      
-      // Economic part: Ricavi e Costi (only for active non-rectification movements)
-      if (m.amount > 0) {
-        acc.revenues += imponibile;
-        acc.ivaDebito += iva;
-      } else {
-        acc.costs += imponibile;
-        acc.ivaCredito += iva;
-      }
-      
-      // Financial part: Entrate e Uscite from prima_nota_lines
-      // Look for financial accounts (banca, carta, cassa) in the lines
-      if (m.lines && m.lines.length > 0) {
-        m.lines.forEach(line => {
-          const accountKey = line.dynamic_account_key?.toLowerCase() || "";
-          const isFinancialAccount = ["banca", "carta", "cassa"].includes(accountKey);
-          
-          if (isFinancialAccount) {
-            // DARE = money coming in (inflow), AVERE = money going out (outflow)
-            if (line.dare > 0) {
-              acc.inflows += line.dare;
-            }
-            if (line.avere > 0) {
-              acc.outflows += line.avere;
-            }
-          }
-        });
-      }
-      
-      return acc;
-    },
-    { revenues: 0, costs: 0, inflows: 0, outflows: 0, ivaDebito: 0, ivaCredito: 0 }
-  );
+  const totalPending = bozze.length + pendingDocuments.length;
 
   return (
     <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Receipt className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
-              <p className="text-sm text-muted-foreground">
-                Registro contabile, scritture in partita doppia e movimenti finanziari
-              </p>
-            </div>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Receipt className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
+          <p className="text-sm text-muted-foreground">Registro contabile, scritture e movimenti finanziari</p>
         </div>
       </div>
 
-      {/* Cruscotto Guida Prima Nota */}
-      <Collapsible>
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Info className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">Come utilizzare la Prima Nota</CardTitle>
-              </div>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-                  <ChevronDown className="h-4 w-4" />
-                  Dettagli
-                </Button>
-              </CollapsibleTrigger>
-            </div>
-            <CardDescription>
-              Tutti i movimenti che riguardano denaro o strumenti equivalenti — per ricostruire il flusso di cassa, allineare cassa e banca, generare il cash flow.
-            </CardDescription>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="pt-2">
-              <div className="grid gap-4 md:grid-cols-3">
-                {/* Entrate */}
-                <div className="rounded-lg border bg-background p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                      <ArrowUp className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <h4 className="font-semibold text-sm">Entrate</h4>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Incasso fattura cliente</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Vendita in contanti</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Bonifico ricevuto</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-emerald-500" /> Incasso POS</li>
-                  </ul>
-                </div>
+      {/* Guida collassabile */}
+      <GuideSection />
 
-                {/* Uscite */}
-                <div className="rounded-lg border bg-background p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                      <ArrowDown className="h-4 w-4 text-red-600" />
-                    </div>
-                    <h4 className="font-semibold text-sm">Uscite</h4>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento fornitore</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Spese bancarie</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento stipendi</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Pagamento F24</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500" /> Acquisto pagato subito</li>
-                  </ul>
-                </div>
-
-                {/* Movimenti interni */}
-                <div className="rounded-lg border bg-background p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <ArrowLeftRight className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <h4 className="font-semibold text-sm">Movimenti interni</h4>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1 pl-2">
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Giroconto banca → cassa</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Prelievo contanti</li>
-                    <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-blue-500" /> Versamento contanti</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
-                <p className="text-sm text-muted-foreground">
-                  👉 Questi movimenti devono sempre stare in prima nota perché servono per: <strong>ricostruire il flusso di cassa</strong>, <strong>allineare cassa e banca</strong> e <strong>generare il cash flow</strong>.
-                </p>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* ==================== BOZZE DA VALIDARE ==================== */}
-      {(bozze.length > 0 || pendingDocuments.length > 0) && (
-        <Card className="border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-700/30">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                  <ClipboardList className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Bozze da validare</CardTitle>
-                  <CardDescription className="text-xs">
-                    {bozze.length + pendingDocuments.length} moviment{(bozze.length + pendingDocuments.length) === 1 ? 'o' : 'i'} in attesa di validazione e contabilizzazione
-                  </CardDescription>
-                </div>
-              </div>
-              <Badge variant="destructive" className="px-2 py-1 text-sm">
-                {bozze.length + pendingDocuments.length}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2 space-y-2">
-            {/* AI Documents → convert to bozza on click */}
-            {pendingDocuments.map((doc: any) => {
-              const isVendita = doc.document_type === "fattura_vendita";
-              const customerName = doc.customers?.company_name || doc.customers?.name || doc.counterpart_name;
-              return (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={async () => {
-                    try {
-                      const direction = isVendita ? "entrata" : "uscita";
-                      const { data: newEntry, error: entryError } = await supabase
-                        .from("accounting_entries")
-                        .insert({
-                          direction,
-                          document_type: doc.document_type === "nota_credito" ? "nota_credito" : "fattura",
-                          amount: doc.total_amount || 0,
-                          document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
-                          attachment_url: doc.file_url,
-                          status: "da_classificare",
-                          iva_aliquota: doc.vat_rate,
-                          imponibile: doc.net_amount,
-                          iva_amount: doc.vat_amount,
-                          totale: doc.total_amount,
-                          iva_mode: "DOMESTICA_IMPONIBILE",
-                          note: `${isVendita ? "Fattura vendita" : "Fattura acquisto"} n.${doc.invoice_number || "?"} - ${customerName || ""}`,
-                        })
-                        .select()
-                        .single();
-                      if (entryError) throw entryError;
-                      await supabase.from("accounting_documents").update({ status: "classified", accounting_entry_id: newEntry.id }).eq("id", doc.id);
-                      queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
-                      queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
-                      setSelectedBozza(newEntry);
-                      setBozzaDialogOpen(true);
-                    } catch (err: any) {
-                      toast.error("Errore: " + (err.message || "Errore sconosciuto"));
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-1.5 rounded-full ${isVendita ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
-                      {isVendita ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">€ {(doc.total_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
-                        <Badge variant="outline" className="text-xs gap-1"><Sparkles className="h-3 w-3" />AI</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {doc.invoice_number && `N. ${doc.invoice_number} · `}
-                        {doc.invoice_date && format(new Date(doc.invoice_date), "dd MMM yyyy", { locale: it })}
-                        {customerName && ` · ${customerName}`}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Crea Bozza →</Badge>
-                </div>
-              );
-            })}
-
-            {/* Bozze Prima Nota */}
-            {bozze.map((bozza: any) => (
-              <div
-                key={bozza.id}
-                className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => { setSelectedBozza(bozza); setBozzaDialogOpen(true); }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-1.5 rounded-full ${bozza.direction === "entrata" ? "bg-green-100 text-green-600 dark:bg-green-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
-                    {bozza.direction === "entrata" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">€ {(bozza.totale || bozza.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
-                      <Badge variant="outline" className="text-xs capitalize">{(bozza.document_type || "").replace(/_/g, " ")}</Badge>
-                      <Badge variant={bozza.status === "pronto_prima_nota" ? "default" : "secondary"} className="text-xs">
-                        {bozza.status === "da_classificare" ? "Da validare" : 
-                         bozza.status === "in_classificazione" ? "In lavorazione" : 
-                         bozza.status === "pronto_prima_nota" ? "Pronto" : 
-                         bozza.status.replace(/_/g, " ")}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(bozza.document_date), "dd MMM yyyy", { locale: it })}
-                      {bozza.note && ` · ${bozza.note}`}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="default" size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); setSelectedBozza(bozza); setBozzaDialogOpen(true); }}>
-                  <CheckCircle className="h-3 w-3" />
-                  Valida
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {/* Bozze da validare */}
+      {totalPending > 0 && (
+        <BozzeSection
+          bozze={bozze}
+          pendingDocuments={pendingDocuments}
+          onSelectBozza={(b) => { setSelectedBozza(b); setBozzaDialogOpen(true); }}
+        />
       )}
 
-      {/* ==================== PRE-MOVIMENTI IN ATTESA FATTURA ==================== */}
+      {/* Pre-movimenti */}
       <PreMovementSection />
 
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-         <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
+        <TabsList className="h-11 p-1 bg-muted/60 backdrop-blur-sm w-full md:w-auto grid grid-cols-3 md:inline-flex">
           <TabsTrigger value="registro-contabile" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Registro Contabile</span>
@@ -1118,18 +100,16 @@ export default function PrimaNotaPage() {
           </TabsTrigger>
           <TabsTrigger value="movimenti-finanziari" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">
             <Wallet className="h-4 w-4" />
-            <span className="hidden sm:inline">Movimenti</span>
-            <span className="sm:hidden">Movimenti</span>
+            Movimenti
           </TabsTrigger>
         </TabsList>
 
-        {/* REGISTRO CONTABILE TAB */}
         <TabsContent value="registro-contabile" className="mt-0">
           <Suspense fallback={
             <div className="flex items-center justify-center py-16">
               <div className="text-center space-y-3">
                 <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Caricamento Registro Contabile...</p>
+                <p className="text-sm text-muted-foreground">Caricamento...</p>
               </div>
             </div>
           }>
@@ -1137,774 +117,206 @@ export default function PrimaNotaPage() {
           </Suspense>
         </TabsContent>
 
-        {/* MOVEMENTS TAB */}
         <TabsContent value="movements" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-wrap gap-4 items-center">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-sm">Periodo:</Label>
-                  <Select value={filterPeriodType} onValueChange={(val) => {
-                    setFilterPeriodType(val);
-                    if (val === "month") setFilterPeriod(format(new Date(), "yyyy-MM"));
-                    else if (val === "quarter") setFilterPeriod(`${format(new Date(), "yyyy")}-Q${Math.ceil((new Date().getMonth() + 1) / 3)}`);
-                    else if (val === "year") setFilterPeriod(format(new Date(), "yyyy"));
-                  }}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="month">Mese</SelectItem>
-                      <SelectItem value="quarter">Trimestre</SelectItem>
-                      <SelectItem value="year">Anno</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                      <SelectItem value="all">Tutto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {filterPeriodType === "month" && (
-                  <Input
-                    type="month"
-                    value={filterPeriod}
-                    onChange={(e) => setFilterPeriod(e.target.value)}
-                    className="w-40"
-                  />
-                )}
-
-                {filterPeriodType === "custom" && (
-                  <>
-                    <Input
-                      type="date"
-                      value={filterDateFrom}
-                      onChange={(e) => setFilterDateFrom(e.target.value)}
-                      className="w-36"
-                    />
-                    <span>-</span>
-                    <Input
-                      type="date"
-                      value={filterDateTo}
-                      onChange={(e) => setFilterDateTo(e.target.value)}
-                      className="w-36"
-                    />
-                  </>
-                )}
-
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-36">
-                    <SelectValue placeholder="Stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tutti</SelectItem>
-                    <SelectItem value="generato">Generato</SelectItem>
-                    <SelectItem value="registrato">Registrato</SelectItem>
-                    <SelectItem value="bloccato">Bloccato</SelectItem>
-                    <SelectItem value="rettificato">Rettificato</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <TrendingUp className="h-5 w-5" />
-                  <span className="text-sm font-medium">Ricavi (Imponibile)</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.revenues.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-                {summary.ivaDebito > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    IVA a debito: € {summary.ivaDebito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-600">
-                  <TrendingDown className="h-5 w-5" />
-                  <span className="text-sm font-medium">Costi (Imponibile)</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.costs.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-                {summary.ivaCredito > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    IVA a credito: € {summary.ivaCredito.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-blue-600">
-                  <ArrowUp className="h-5 w-5" />
-                  <span className="text-sm font-medium">Entrate</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.inflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-orange-600">
-                  <ArrowDown className="h-5 w-5" />
-                  <span className="text-sm font-medium">Uscite</span>
-                </div>
-                <p className="text-2xl font-bold mt-1">
-                  € {summary.outflows.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Movements List */}
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Caricamento...</div>
-          ) : movements.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-lg font-medium">Nessun movimento per questo periodo</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="w-8 p-3"></th>
-                        <th className="text-left p-3 text-sm font-medium">Data</th>
-                        <th className="text-left p-3 text-sm font-medium">Tipo</th>
-                        <th className="text-left p-3 text-sm font-medium">Conto</th>
-                        {/* FIX 5: IVA column */}
-                        <th className="text-center p-3 text-sm font-medium">IVA</th>
-                        {/* FIX 6: Separate amounts */}
-                        <th className="text-right p-3 text-sm font-medium">Imponibile</th>
-                        <th className="text-right p-3 text-sm font-medium">Totale</th>
-                        <th className="text-center p-3 text-sm font-medium">Stato</th>
-                        <th className="text-center p-3 text-sm font-medium">Azioni</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {movements.map((m) => (
-                        <>
-                          <tr 
-                            key={m.id} 
-                            className={`border-t hover:bg-muted/30 transition-colors cursor-pointer ${m.is_rectification ? "bg-yellow-50/50 dark:bg-yellow-900/10" : ""} ${m.status === "rettificato" ? "opacity-50" : ""}`}
-                            onClick={() => toggleRowExpansion(m.id)}
-                          >
-                            <td className="p-3">
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
-                                <ChevronDown className={`h-4 w-4 transition-transform ${expandedRows.has(m.id) ? "rotate-180" : ""}`} />
-                              </Button>
-                            </td>
-                            <td className="p-3 text-sm">
-                              {format(new Date(m.competence_date), "dd/MM/yyyy", { locale: it })}
-                              {m.installment_number && (
-                                <span className="text-xs text-muted-foreground ml-1">
-                                  ({m.installment_number}/{m.total_installments})
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              <Badge variant={m.movement_type === "economico" ? "default" : "outline"}>
-                                {m.movement_type === "economico" ? "Economico" : "Finanziario"}
-                              </Badge>
-                              {m.payment_method && (
-                                <Badge variant="secondary" className="ml-1 text-xs">
-                                  {formatPaymentMethod(m.payment_method)}
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="p-3 text-sm">
-                              {m.chart_account ? (
-                                <span>{m.chart_account.code} - {m.chart_account.name}</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            {/* FIX 5: IVA reference */}
-                            <td className="p-3 text-center">
-                              {m.iva_mode ? (
-                                <div className="flex flex-col items-center gap-1">
-                                  {formatIvaMode(m.iva_mode)}
-                                  {m.iva_aliquota && m.iva_mode === "DOMESTICA_IMPONIBILE" && (
-                                    <span className="text-xs text-muted-foreground">{m.iva_aliquota}%</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            {/* FIX 6: Imponibile */}
-                            <td className="p-3 text-sm text-right">
-                              {m.imponibile ? (
-                                <span className={m.amount >= 0 ? "text-green-600" : "text-red-600"}>
-                                  € {Math.abs(m.imponibile).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </td>
-                            {/* FIX 6: Totale (prominente) */}
-                            <td className={`p-3 text-sm text-right font-bold ${m.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                              € {Math.abs(m.totale || m.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                              {m.iva_amount && m.iva_amount > 0 && (
-                                <div className="text-xs font-normal text-muted-foreground">
-                                  (IVA: € {m.iva_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })})
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 text-center">
-                              {getStatusBadge(m.status)}
-                            </td>
-                            <td className="p-3 text-center">
-                              <div className="flex justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                {/* Visualizza dettagli */}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => setSelectedMovement(m)}
-                                  title="Visualizza dettagli"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                
-                                {/* STORNO - unica funzione ammessa in Prima Nota */}
-                                {/* Solo per movimenti registrati, non già rettificati, e non rettifiche */}
-                                {m.status === "registrato" && !m.is_rectification && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-orange-600"
-                                    title="Storna scrittura"
-                                    onClick={() => {
-                                      setSelectedMovement(m);
-                                      setRectifyDialogOpen(true);
-                                    }}
-                                  >
-                                    <Undo2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {/* FIX 1: Expandable double-entry lines */}
-                          {expandedRows.has(m.id) && (
-                            <tr key={`${m.id}-lines`}>
-                              <td colSpan={9} className="bg-muted/20 p-0">
-                                <div className="p-4 space-y-4">
-                                  
-                                  {/* 1️⃣ Riferimento all'evento sorgente */}
-                                  <div className="p-3 bg-background rounded-md border">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <FileText className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">Riferimento Evento Sorgente</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Tipo Evento</Label>
-                                        <p className="font-medium flex items-center gap-1">
-                                          {m.amount >= 0 ? (
-                                            <>
-                                              <TrendingUp className="h-3 w-3 text-green-600" />
-                                              Incasso
-                                            </>
-                                          ) : (
-                                            <>
-                                              <TrendingDown className="h-3 w-3 text-red-600" />
-                                              Pagamento
-                                            </>
-                                          )}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Documento</Label>
-                                        {m.linked_invoice ? (
-                                          <p className="font-medium">
-                                            Fattura n. {m.linked_invoice.invoice_number}
-                                          </p>
-                                        ) : (
-                                          <p className="text-muted-foreground">-</p>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">
-                                          {m.amount >= 0 ? "Cliente" : "Fornitore"}
-                                        </Label>
-                                        <p className="font-medium flex items-center gap-1">
-                                          {m.linked_invoice?.subject_type === "customer" ? (
-                                            <User className="h-3 w-3 text-muted-foreground" />
-                                          ) : (
-                                            <Building2 className="h-3 w-3 text-muted-foreground" />
-                                          )}
-                                          {m.linked_invoice?.subject_name || m.linked_scadenza?.soggetto_nome || "-"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">ID Evento</Label>
-                                        <p className="font-mono text-xs text-muted-foreground">
-                                          {m.accounting_entry_id?.slice(0, 8)}...
-                                        </p>
-                                      </div>
-                                    </div>
-                                    {m.linked_invoice && (
-                                      <div className="mt-2 pt-2 border-t text-sm text-muted-foreground">
-                                        {m.amount >= 0 ? "Incasso" : "Pagamento"} {m.linked_invoice.invoice_type === "fattura_vendita" ? "fattura vendita" : "fattura acquisto"} n. {m.linked_invoice.invoice_number} – {m.linked_invoice.subject_type === "customer" ? "Cliente" : "Fornitore"} {m.linked_invoice.subject_name}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* 2️⃣ Metodo di pagamento / incasso */}
-                                  <div className="p-3 bg-background rounded-md border">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <Banknote className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">Metodo di Pagamento</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Metodo</Label>
-                                        <p className="font-medium flex items-center gap-2">
-                                          {m.payment_method === "banca" && <CreditCard className="h-4 w-4" />}
-                                          {m.payment_method === "cassa" && <Banknote className="h-4 w-4" />}
-                                          {m.payment_method === "carta" && <CreditCard className="h-4 w-4" />}
-                                          {formatPaymentMethod(m.payment_method) || "Non specificato"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Conto Finanziario</Label>
-                                        <p className="font-medium">
-                                          {m.payment_method ? (
-                                            <Badge variant="outline">
-                                              {m.payment_method === "banca" ? "Banca c/c" : 
-                                               m.payment_method === "cassa" ? "Cassa contanti" :
-                                               m.payment_method === "carta" ? "Carta di credito" : m.payment_method}
-                                            </Badge>
-                                          ) : "-"}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Stato Finanziario</Label>
-                                        <p className="font-medium">
-                                          {m.accounting_entry?.financial_status === "incassato" ? (
-                                            <Badge className="bg-green-600">Incassato</Badge>
-                                          ) : m.accounting_entry?.financial_status === "pagato" ? (
-                                            <Badge className="bg-green-600">Pagato</Badge>
-                                          ) : m.accounting_entry?.financial_status === "da_incassare" ? (
-                                            <Badge variant="secondary">Da incassare</Badge>
-                                          ) : m.accounting_entry?.financial_status === "da_pagare" ? (
-                                            <Badge variant="secondary">Da pagare</Badge>
-                                          ) : (
-                                            <span className="text-muted-foreground">-</span>
-                                          )}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* 3️⃣ Stato operativo - Badge informativi */}
-                                  <div className="p-3 bg-background rounded-md border">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <CheckCircle className="h-4 w-4 text-primary" />
-                                      <span className="text-sm font-medium">Stato Operativo</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {/* Scadenza chiusa */}
-                                      {m.linked_scadenza?.stato === "chiusa" && (
-                                        <Badge className="bg-green-600 gap-1">
-                                          <CheckCircle className="h-3 w-3" />
-                                          Scadenza chiusa
-                                        </Badge>
-                                      )}
-                                      {m.linked_scadenza?.stato === "aperta" && (
-                                        <Badge variant="secondary" className="gap-1">
-                                          <Calendar className="h-3 w-3" />
-                                          Scadenza aperta (residuo: € {(m.linked_scadenza.importo_residuo || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })})
-                                        </Badge>
-                                      )}
-                                      {m.linked_scadenza?.stato === "stornata" && (
-                                        <Badge variant="destructive" className="gap-1">
-                                          <Undo2 className="h-3 w-3" />
-                                          Scadenza stornata
-                                        </Badge>
-                                      )}
-                                      
-                                      {/* Credito/Debito estinto */}
-                                      {m.linked_scadenza?.importo_residuo === 0 && m.linked_scadenza?.stato === "chiusa" && (
-                                        <Badge className="bg-blue-600 gap-1">
-                                          <FileCheck className="h-3 w-3" />
-                                          {m.amount >= 0 ? "Credito estinto" : "Debito estinto"}
-                                        </Badge>
-                                      )}
-                                      
-                                      {/* Generato automaticamente */}
-                                      {m.status === "generato" && (
-                                        <Badge variant="outline" className="gap-1">
-                                          <RefreshCw className="h-3 w-3" />
-                                          Generato automaticamente
-                                        </Badge>
-                                      )}
-                                      
-                                      {/* Contabilizzazione valida */}
-                                      {m.linked_invoice?.contabilizzazione_valida && (
-                                        <Badge variant="outline" className="gap-1 border-green-500 text-green-600">
-                                          <CheckCircle className="h-3 w-3" />
-                                          Contabilizzazione valida
-                                        </Badge>
-                                      )}
-                                      
-                                      {/* Is Rectification */}
-                                      {m.is_rectification && (
-                                        <Badge variant="destructive" className="gap-1">
-                                          <Undo2 className="h-3 w-3" />
-                                          Scrittura di storno
-                                        </Badge>
-                                      )}
-                                      
-                                      {/* No linked data */}
-                                      {!m.linked_invoice && !m.linked_scadenza && (
-                                        <span className="text-sm text-muted-foreground italic">Nessuna scadenza collegata</span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* 4️⃣ Allegati (solo consultazione) */}
-                                  {m.payment_attachments && m.payment_attachments.length > 0 && (
-                                    <div className="p-3 bg-background rounded-md border">
-                                      <div className="flex items-center gap-2 mb-3">
-                                        <Paperclip className="h-4 w-4 text-primary" />
-                                        <span className="text-sm font-medium">Allegati Pagamento</span>
-                                        <span className="text-xs text-muted-foreground">(solo consultazione)</span>
-                                      </div>
-                                      <div className="flex flex-wrap gap-2">
-                                        {m.payment_attachments.map((att: any, idx: number) => (
-                                          <a
-                                            key={idx}
-                                            href={att.file_url || att.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md hover:bg-muted/80 transition-colors text-sm"
-                                          >
-                                            {att.file_type?.includes("image") || att.type?.includes("image") ? (
-                                              <FileText className="h-4 w-4 text-blue-500" />
-                                            ) : att.file_type?.includes("pdf") || att.type?.includes("pdf") ? (
-                                              <FileText className="h-4 w-4 text-red-500" />
-                                            ) : (
-                                              <FileText className="h-4 w-4" />
-                                            )}
-                                            <span className="max-w-32 truncate">{att.file_name || att.name || `Allegato ${idx + 1}`}</span>
-                                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
-                                          </a>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Scritture Contabili (Partita Doppia) */}
-                                  <div className="flex items-center gap-2 mb-3">
-                                    <Receipt className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium">Scritture Contabili (Partita Doppia)</span>
-                                  </div>
-                                  {m.lines && m.lines.length > 0 ? (
-                                    <Table>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead className="w-12">#</TableHead>
-                                          <TableHead>Conto</TableHead>
-                                          <TableHead className="text-right w-32">DARE</TableHead>
-                                          <TableHead className="text-right w-32">AVERE</TableHead>
-                                          <TableHead>Descrizione</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {m.lines.map((line) => (
-                                          <TableRow key={line.id}>
-                                            <TableCell className="font-mono text-xs">{line.line_order}</TableCell>
-                                            <TableCell>
-                                              {line.chart_account ? (
-                                                <span>{line.chart_account.code} - {line.chart_account.name}</span>
-                                              ) : line.structural_account ? (
-                                                <span>{line.structural_account.code} - {line.structural_account.name}</span>
-                                              ) : line.dynamic_account_key ? (
-                                                <Badge variant="outline" className="font-mono text-xs">
-                                                  {line.dynamic_account_key}
-                                                </Badge>
-                                              ) : (
-                                                "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell className="text-right font-mono">
-                                              {line.dare > 0 ? (
-                                                <span className="text-blue-600">
-                                                  € {line.dare.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                                </span>
-                                              ) : (
-                                                "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell className="text-right font-mono">
-                                              {line.avere > 0 ? (
-                                                <span className="text-green-600">
-                                                  € {line.avere.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                                </span>
-                                              ) : (
-                                                "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                              {line.description}
-                                            </TableCell>
-                                          </TableRow>
-                                        ))}
-                                        {/* Totals row */}
-                                        <TableRow className="bg-muted/50 font-medium">
-                                          <TableCell colSpan={2} className="text-right">TOTALE</TableCell>
-                                          <TableCell className="text-right font-mono text-blue-600">
-                                            € {m.lines.reduce((sum, l) => sum + l.dare, 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                          </TableCell>
-                                          <TableCell className="text-right font-mono text-green-600">
-                                            € {m.lines.reduce((sum, l) => sum + l.avere, 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                          </TableCell>
-                                          <TableCell>
-                                            {m.lines.reduce((sum, l) => sum + l.dare, 0) === m.lines.reduce((sum, l) => sum + l.avere, 0) ? (
-                                              <Badge variant="default" className="gap-1">
-                                                <CheckCircle className="h-3 w-3" />
-                                                Bilanciato
-                                              </Badge>
-                                            ) : (
-                                              <Badge variant="destructive">Sbilanciato!</Badge>
-                                            )}
-                                          </TableCell>
-                                        </TableRow>
-                                      </TableBody>
-                                    </Table>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground italic">
-                                      Nessuna scrittura contabile (movimento precedente alla partita doppia)
-                                    </p>
-                                  )}
-                                  
-                                  {/* FIX 5: IVA section always visible */}
-                                  <div className="mt-4 p-3 bg-background rounded-md border">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Percent className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm font-medium">Riferimento IVA</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Regime</Label>
-                                        <p className="font-medium">{IVA_MODE_LABELS[m.iva_mode || ""] || "Non specificato"}</p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Aliquota</Label>
-                                        <p className="font-medium">{m.iva_aliquota ? `${m.iva_aliquota}%` : "-"}</p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Imponibile</Label>
-                                        <p className="font-medium">€ {(m.imponibile || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">IVA</Label>
-                                        <p className="font-medium">€ {(m.iva_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs text-muted-foreground">Totale</Label>
-                                        <p className="font-medium">€ {(m.totale || m.amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <LibroGiornaleTab />
         </TabsContent>
 
-
-
-
-
-        {/* MOVIMENTI FINANZIARI TAB */}
         <TabsContent value="movimenti-finanziari" className="mt-0">
           <MovimentiFinanziariContent />
         </TabsContent>
       </Tabs>
 
-      {/* Movement Detail Dialog */}
-      <Dialog open={!!selectedMovement && !rectifyDialogOpen} onOpenChange={(open) => !open && setSelectedMovement(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Dettaglio Movimento</DialogTitle>
-          </DialogHeader>
-          {selectedMovement && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Data Competenza</Label>
-                  <p className="font-medium">
-                    {format(new Date(selectedMovement.competence_date), "dd MMMM yyyy", { locale: it })}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Tipo</Label>
-                  <p className="font-medium capitalize">{selectedMovement.movement_type}</p>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Stato</Label>
-                  <div className="mt-1">{getStatusBadge(selectedMovement.status)}</div>
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Metodo Pagamento</Label>
-                  <p className="font-medium">{formatPaymentMethod(selectedMovement.payment_method)}</p>
-                </div>
-              </div>
+      <BozzaValidaDialog open={bozzaDialogOpen} onOpenChange={setBozzaDialogOpen} entry={selectedBozza} />
+    </div>
+  );
+}
 
-              <Separator />
+// =====================================================
+// GUIDE SECTION
+// =====================================================
 
-              {/* FIX 6: Prominent amount display */}
-              <Card className="bg-muted/30">
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Imponibile</Label>
-                      <p className="text-xl font-bold">
-                        € {(selectedMovement.imponibile || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">IVA</Label>
-                      <p className="text-xl font-bold">
-                        € {(selectedMovement.iva_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Totale</Label>
-                      <p className={`text-2xl font-bold ${selectedMovement.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        € {Math.abs(selectedMovement.totale || selectedMovement.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* FIX 5: IVA Section */}
-              <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">Regime IVA</Label>
-                <div className="flex items-center gap-4">
-                  {formatIvaMode(selectedMovement.iva_mode)}
-                  {selectedMovement.iva_aliquota && (
-                    <span className="text-sm">Aliquota: {selectedMovement.iva_aliquota}%</span>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              {selectedMovement.chart_account && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Piano dei Conti</Label>
-                  <p className="font-medium">
-                    {selectedMovement.chart_account.code} - {selectedMovement.chart_account.name}
-                  </p>
-                </div>
-              )}
-
-              {selectedMovement.description && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Descrizione</Label>
-                  <p>{selectedMovement.description}</p>
-                </div>
-              )}
-
-              {selectedMovement.is_rectification && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    Questo movimento è una rettifica
-                  </p>
-                </div>
-              )}
-
-              {selectedMovement.status === "rettificato" && selectedMovement.rectification_reason && (
-                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-                  <p className="text-sm text-red-800 dark:text-red-200">
-                    <strong>Rettificato:</strong> {selectedMovement.rectification_reason}
-                  </p>
-                </div>
-              )}
+function GuideSection() {
+  return (
+    <Collapsible>
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Come utilizzare la Prima Nota</CardTitle>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
+                <ChevronDown className="h-4 w-4" />
+                Dettagli
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CardDescription>
+            Tutti i movimenti che riguardano denaro o strumenti equivalenti — per ricostruire il flusso di cassa, allineare cassa e banca, generare il cash flow.
+          </CardDescription>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="pt-2">
+            <div className="grid gap-4 md:grid-cols-3">
+              <GuideCard icon={<ArrowUp className="h-4 w-4 text-emerald-600" />} title="Entrate" color="bg-emerald-100 dark:bg-emerald-900/30" dotColor="bg-emerald-500"
+                items={["Incasso fattura cliente", "Vendita in contanti", "Bonifico ricevuto", "Incasso POS"]} />
+              <GuideCard icon={<ArrowDown className="h-4 w-4 text-red-600" />} title="Uscite" color="bg-red-100 dark:bg-red-900/30" dotColor="bg-red-500"
+                items={["Pagamento fornitore", "Spese bancarie", "Pagamento stipendi", "Pagamento F24", "Acquisto pagato subito"]} />
+              <GuideCard icon={<ArrowLeftRight className="h-4 w-4 text-blue-600" />} title="Movimenti interni" color="bg-blue-100 dark:bg-blue-900/30" dotColor="bg-blue-500"
+                items={["Giroconto banca → cassa", "Prelievo contanti", "Versamento contanti"]} />
+            </div>
+            <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
+              <p className="text-sm text-muted-foreground">
+                👉 Questi movimenti servono per: <strong>ricostruire il flusso di cassa</strong>, <strong>allineare cassa e banca</strong> e <strong>generare il cash flow</strong>.
+              </p>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
 
-      {/* Rectify Dialog */}
-      <Dialog open={rectifyDialogOpen} onOpenChange={setRectifyDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rettifica Movimento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              La rettifica creerà un movimento opposto con scritture contabili inverse.
-            </p>
-            <div className="space-y-2">
-              <Label>Motivo della rettifica *</Label>
-              <Textarea
-                placeholder="Descrivi il motivo della rettifica..."
-                value={rectificationReason}
-                onChange={(e) => setRectificationReason(e.target.value)}
-              />
+function GuideCard({ icon, title, color, dotColor, items }: { icon: React.ReactNode; title: string; color: string; dotColor: string; items: string[] }) {
+  return (
+    <div className="rounded-lg border bg-background p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center`}>{icon}</div>
+        <h4 className="font-semibold text-sm">{title}</h4>
+      </div>
+      <ul className="text-sm text-muted-foreground space-y-1 pl-2">
+        {items.map(item => (
+          <li key={item} className="flex items-center gap-2"><span className={`h-1 w-1 rounded-full ${dotColor}`} />{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// =====================================================
+// BOZZE SECTION
+// =====================================================
+
+function BozzeSection({ bozze, pendingDocuments, onSelectBozza }: {
+  bozze: any[]; pendingDocuments: any[]; onSelectBozza: (b: any) => void;
+}) {
+  const queryClient = useQueryClient();
+  const total = bozze.length + pendingDocuments.length;
+
+  return (
+    <Card className="border-amber-300/50 bg-amber-50/50 dark:bg-amber-900/10 dark:border-amber-700/30">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <ClipboardList className="h-4 w-4 text-amber-600" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Bozze da validare</CardTitle>
+              <CardDescription className="text-xs">
+                {total} moviment{total === 1 ? 'o' : 'i'} in attesa di validazione e contabilizzazione
+              </CardDescription>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRectifyDialogOpen(false)}>
-              Annulla
-            </Button>
-            <Button
-              onClick={() => {
-                if (!rectificationReason.trim()) {
-                  toast.error("Inserisci un motivo per la rettifica");
-                  return;
-                }
-                if (selectedMovement) {
-                  rectifyMutation.mutate({
-                    movementId: selectedMovement.id,
-                    reason: rectificationReason,
-                  });
+          <Badge variant="destructive" className="px-2 py-1 text-sm">{total}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-2 space-y-2">
+        {/* AI Documents */}
+        {pendingDocuments.map((doc: any) => {
+          const isVendita = doc.document_type === "fattura_vendita";
+          const customerName = doc.customers?.company_name || doc.customers?.name || doc.counterpart_name;
+          return (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
+              onClick={async () => {
+                try {
+                  const direction = isVendita ? "entrata" : "uscita";
+                  const { data: newEntry, error: entryError } = await supabase
+                    .from("accounting_entries")
+                    .insert({
+                      direction,
+                      document_type: doc.document_type === "nota_credito" ? "nota_credito" : "fattura",
+                      amount: doc.total_amount || 0,
+                      document_date: doc.invoice_date || new Date().toISOString().split("T")[0],
+                      attachment_url: doc.file_url,
+                      status: "da_classificare",
+                      iva_aliquota: doc.vat_rate,
+                      imponibile: doc.net_amount,
+                      iva_amount: doc.vat_amount,
+                      totale: doc.total_amount,
+                      iva_mode: "DOMESTICA_IMPONIBILE",
+                      note: `${isVendita ? "Fattura vendita" : "Fattura acquisto"} n.${doc.invoice_number || "?"} - ${customerName || ""}`,
+                    })
+                    .select().single();
+                  if (entryError) throw entryError;
+                  await supabase.from("accounting_documents").update({ status: "classified", accounting_entry_id: newEntry.id }).eq("id", doc.id);
+                  queryClient.invalidateQueries({ queryKey: ["pending-accounting-documents"] });
+                  queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
+                  onSelectBozza(newEntry);
+                } catch (err: any) {
+                  toast.error("Errore: " + (err.message || "Errore sconosciuto"));
                 }
               }}
-              disabled={rectifyMutation.isPending}
             >
-              Conferma Rettifica
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div className="flex items-center gap-3">
+                <div className={`p-1.5 rounded-full ${isVendita ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
+                  {isVendita ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">€ {(doc.total_amount || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                    <Badge variant="outline" className="text-xs gap-1"><Sparkles className="h-3 w-3" />AI</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {doc.invoice_number && `N. ${doc.invoice_number} · `}
+                    {doc.invoice_date && format(new Date(doc.invoice_date), "dd MMM yyyy", { locale: it })}
+                    {customerName && ` · ${customerName}`}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs">Crea Bozza →</Badge>
+            </div>
+          );
+        })}
 
-      {/* Bozza Valida Dialog */}
-      <BozzaValidaDialog
-        open={bozzaDialogOpen}
-        onOpenChange={setBozzaDialogOpen}
-        entry={selectedBozza}
-      />
-    </div>
+        {/* Bozze */}
+        {bozze.map((bozza: any) => (
+          <div
+            key={bozza.id}
+            className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors cursor-pointer"
+            onClick={() => onSelectBozza(bozza)}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`p-1.5 rounded-full ${bozza.direction === "entrata" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" : "bg-red-100 text-red-600 dark:bg-red-900/30"}`}>
+                {bozza.direction === "entrata" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">€ {(bozza.totale || bozza.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                  <Badge variant="outline" className="text-xs capitalize">{(bozza.document_type || "").replace(/_/g, " ")}</Badge>
+                  <Badge variant={bozza.status === "pronto_prima_nota" ? "default" : "secondary"} className="text-xs">
+                    {bozza.status === "da_classificare" ? "Da validare" :
+                      bozza.status === "in_classificazione" ? "In lavorazione" :
+                        bozza.status === "pronto_prima_nota" ? "Pronto" :
+                          bozza.status.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(bozza.document_date), "dd MMM yyyy", { locale: it })}
+                  {bozza.note && ` · ${bozza.note}`}
+                </p>
+              </div>
+            </div>
+            <Button variant="default" size="sm" className="gap-1" onClick={(e) => { e.stopPropagation(); onSelectBozza(bozza); }}>
+              <CheckCircle className="h-3 w-3" />
+              Valida
+            </Button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
