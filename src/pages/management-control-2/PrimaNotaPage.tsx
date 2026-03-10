@@ -1992,6 +1992,13 @@ export default function PrimaNotaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bozza Valida Dialog */}
+      <BozzaValidaDialog
+        open={bozzaDialogOpen}
+        onOpenChange={setBozzaDialogOpen}
+        entry={selectedBozza}
+      />
     </div>
   );
 }
