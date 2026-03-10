@@ -823,7 +823,6 @@ export function DashboardPage() {
               ))}
             </div>
           </CardContent>
-          </CardContent>
         )}
       </Card>
 
