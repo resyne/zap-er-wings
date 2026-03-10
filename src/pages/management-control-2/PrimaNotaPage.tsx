@@ -1753,7 +1753,7 @@ export default function PrimaNotaPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileCheck className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Da Classificare</h3>
+                  <h3 className="font-semibold text-sm">Da Annotare</h3>
                   <Badge variant="secondary" className="text-xs">{daClassificareEntries.length}</Badge>
                 </div>
                 <Button
