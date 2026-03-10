@@ -219,15 +219,18 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
       const dayTickets = tickets
         .filter(t => isSameDay(parseISO(t.scheduled_date), day))
         .map(t => ({ ...t, item_type: 'ticket' as const }));
+      const dayLeadActivities = leadActivities
+        .filter(a => isSameDay(parseISO(a.activity_date), day))
+        .map(a => ({ ...a, item_type: 'lead_activity' as const }));
       const jsDay = day.getDay();
       const weekDay = jsDay === 0 ? 7 : jsDay;
       const dayRecurring = recurringTasks
         .filter(rt => rt.day === weekDay)
         .map(rt => ({ ...rt, item_type: 'recurring' as const }));
-      map.set(key, [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets]);
+      map.set(key, [...dayRecurring, ...dayTasks, ...dayEvents, ...dayTickets, ...dayLeadActivities]);
     });
     return map;
-  }, [weekDays, tasks, events, tickets, recurringTasks]);
+  }, [weekDays, tasks, events, tickets, leadActivities, recurringTasks]);
 
   const getItemsForDay = useCallback((day: Date) => {
     return itemsByDay.get(format(day, 'yyyy-MM-dd')) || [];
