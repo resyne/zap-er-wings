@@ -227,7 +227,11 @@ export function AIDocumentUpload() {
   return (
     <>
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Registra movimento</h3>
+            <p className="text-xs text-muted-foreground">Segnala una spesa o un incasso, oppure carica un documento per l'analisi automatica</p>
+          </div>
           {/* Compact action row */}
           <div className="flex items-center gap-3 flex-wrap">
             <Button
