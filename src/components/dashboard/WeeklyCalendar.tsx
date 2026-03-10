@@ -611,7 +611,7 @@ export function WeeklyCalendar({ recurringTasks = [], onRecurringTaskToggle, onE
               {getItemTitle(selectedItem)}
             </DialogTitle>
             <DialogDescription>
-              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : selectedItem?.item_type === 'recurring' ? 'Task Ricorrente' : 'Evento'}
+              {selectedItem?.item_type === 'task' ? 'Task' : selectedItem?.item_type === 'ticket' ? 'Ticket' : selectedItem?.item_type === 'recurring' ? 'Task Ricorrente' : selectedItem?.item_type === 'lead_activity' ? 'Attività CRM' : 'Evento'}
             </DialogDescription>
           </DialogHeader>
           {selectedItem && (
