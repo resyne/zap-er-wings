@@ -1,0 +1,2 @@
+ALTER TABLE public.accounting_entries DROP CONSTRAINT accounting_entries_payment_method_check;
+ALTER TABLE public.accounting_entries ADD CONSTRAINT accounting_entries_payment_method_check CHECK (payment_method = ANY (ARRAY['contanti'::text, 'carta'::text, 'bonifico'::text, 'anticipo_personale'::text, 'non_so'::text, 'american_express'::text, 'banca'::text, 'cassa'::text]));
