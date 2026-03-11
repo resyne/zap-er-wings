@@ -1155,12 +1155,12 @@ export default function RegistroContabilePage() {
       const { error } = await supabase
         .from('invoice_registry')
         .insert({
-          invoice_number: data.invoice_number,
+          invoice_number: data.invoice_number || `MOV-${Date.now()}`,
           invoice_date: data.invoice_date,
           invoice_type: data.invoice_type,
           subject_type: data.subject_type,
           subject_id: data.subject_id || null,
-          subject_name: data.subject_name,
+          subject_name: data.subject_name || 'Movimento manuale',
           imponibile: data.imponibile,
           iva_rate: data.iva_rate,
           iva_amount: ivaAmount,
@@ -1186,7 +1186,7 @@ export default function RegistroContabilePage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Fattura salvata come bozza');
+      toast.success('Movimento salvato');
       setShowCreateDialog(false);
       setFormData(initialFormData);
       setSplitEnabled(false);
@@ -3084,11 +3084,7 @@ export default function RegistroContabilePage() {
         )}>
           <DialogHeader>
             <DialogTitle>
-              Nuova Nota — {formData.event_type === 'spesa_dipendente' ? 'Spesa Dipendente' : 
-               formData.event_type === 'incasso_dipendente' ? 'Incasso Dipendente' :
-               formData.event_type === 'fattura_acquisto' ? 'Fattura di Acquisto' :
-               formData.event_type === 'fattura_vendita' ? 'Fattura di Vendita' :
-               formData.event_type === 'nota_credito' ? 'Nota di Credito' : 'Seleziona tipo'}
+              Nuova Nota
             </DialogTitle>
           </DialogHeader>
           
@@ -3129,322 +3125,192 @@ export default function RegistroContabilePage() {
             )}
             
             {/* Form Panel */}
-            <div className={cn("space-y-4", uploadedFile ? "w-1/2" : "w-full")}>
+            <div className={cn("space-y-5", uploadedFile ? "w-1/2" : "w-full")}>
           
-          {/* Selezione Tipo Evento */}
-          <div className="space-y-2 pb-4 border-b">
-            <Label className="text-base font-semibold">Tipo Registrazione *</Label>
-            <Select 
-              value={formData.event_type} 
-              onValueChange={(v: EventType) => {
-                setFormData(prev => {
-                  const updated = { ...prev, event_type: v };
-                  // Reset campi in base al tipo
-                  if (v === 'spesa_dipendente') {
-                    updated.invoice_type = 'acquisto';
-                    updated.subject_type = 'fornitore';
-                    updated.financial_status = 'pagata';
-                    updated.iva_rate = 0;
-                    updated.vat_regime = 'domestica_imponibile';
-                  } else if (v === 'incasso_dipendente') {
-                    updated.invoice_type = 'vendita';
-                    updated.subject_type = 'cliente';
-                    updated.financial_status = 'incassata';
-                    updated.iva_rate = 0;
-                    updated.vat_regime = 'domestica_imponibile';
-                  } else if (v === 'fattura_acquisto') {
-                    updated.invoice_type = 'acquisto';
-                    updated.subject_type = 'fornitore';
-                    updated.financial_status = 'da_pagare';
-                    updated.iva_rate = 22;
-                  } else if (v === 'fattura_vendita') {
-                    updated.invoice_type = 'vendita';
-                    updated.subject_type = 'cliente';
-                    updated.financial_status = 'da_incassare';
-                    updated.iva_rate = 22;
-                  } else if (v === 'nota_credito') {
-                    updated.invoice_type = 'nota_credito';
-                    updated.iva_rate = 22;
-                  }
-                  return updated;
-                });
-                // Reset subject
-                handleFormChange('subject_id', '');
-                handleFormChange('subject_name', '');
-                setSubjectSearch('');
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="spesa_dipendente">🧾 Spesa Dipendente (scontrino, ricevuta)</SelectItem>
-                <SelectItem value="incasso_dipendente">💵 Incasso Dipendente (contanti, POS)</SelectItem>
-                <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
-                <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
-                <SelectItem value="nota_credito">📋 Nota di Credito</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* ═══════════════════════════════════════════════ */}
+          {/* SEZIONE PRIMARIA — Dati finanziari essenziali  */}
+          {/* ═══════════════════════════════════════════════ */}
+          <div className="space-y-4 pb-4 border-b">
+            <Label className="text-base font-semibold">Movimento finanziario</Label>
             
-            {/* Info sul tipo selezionato */}
-            {!isFiscalDocument(formData.event_type) && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-2">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-amber-600">Documento NON fiscale</p>
-                    <p className="text-muted-foreground">
-                      {formData.event_type === 'spesa_dipendente' 
-                        ? 'Questa registrazione traccia l\'uscita ma NON genera contabilità ufficiale né IVA.' 
-                        : 'Questa registrazione traccia l\'entrata ma NON genera ricavo ufficiale né IVA.'}
-                    </p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Data */}
+              <div className="space-y-2">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={formData.invoice_date}
+                  onChange={(e) => handleFormChange('invoice_date', e.target.value)}
+                />
               </div>
-            )}
-            
-            {isFiscalDocument(formData.event_type) && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-2">
-                <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-green-600">Documento fiscale valido</p>
-                    <p className="text-muted-foreground">
-                      Genera contabilità ufficiale, IVA, Prima Nota e scadenze.
-                    </p>
-                  </div>
-                </div>
+              
+              {/* Tipo: Entrata / Uscita */}
+              <div className="space-y-2">
+                <Label>Tipo *</Label>
+                <Select 
+                  value={formData.invoice_type === 'vendita' ? 'entrata' : 'uscita'} 
+                  onValueChange={(v) => {
+                    const isEntrata = v === 'entrata';
+                    setFormData(prev => ({
+                      ...prev,
+                      invoice_type: isEntrata ? 'vendita' : 'acquisto',
+                      subject_type: isEntrata ? 'cliente' : 'fornitore',
+                      financial_status: isEntrata ? 'incassata' : 'pagata',
+                      event_type: isEntrata ? 'incasso_dipendente' : 'spesa_dipendente',
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrata">
+                      <span className="flex items-center gap-2">
+                        <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                        Entrata
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="uscita">
+                      <span className="flex items-center gap-2">
+                        <ArrowDownLeft className="w-4 h-4 text-red-500" />
+                        Uscita
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+              
+              {/* Importo */}
+              <div className="space-y-2">
+                <Label>Importo (€) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.imponibile || ''}
+                  onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
+                  placeholder="0,00"
+                />
+              </div>
+              
+              {/* Conto finanziario */}
+              <div className="space-y-2">
+                <Label>Conto finanziario *</Label>
+                <Select 
+                  value={formData.payment_method || ''} 
+                  onValueChange={(v) => handleFormChange('payment_method', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Dove è transitato?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="banca">🏦 Banca (Bonifico)</SelectItem>
+                    <SelectItem value="cassa">💵 Cassa (Contanti)</SelectItem>
+                    <SelectItem value="carta">💳 Carta</SelectItem>
+                    <SelectItem value="american_express">💳 American Express</SelectItem>
+                    <SelectItem value="contanti">🪙 Contanti (piccola cassa)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Descrizione — full width */}
+              <div className="col-span-2 space-y-2">
+                <Label>Descrizione *</Label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => handleFormChange('notes', e.target.value)}
+                  placeholder="Es: Pagamento fattura fornitore XYZ, Incasso cliente ABC..."
+                  rows={2}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Campi per SPESA DIPENDENTE */}
-            {formData.event_type === 'spesa_dipendente' && (
-              <>
-                <div className="space-y-2">
-                  <Label>Tipo Spesa *</Label>
-                  <Select value={formData.expense_type} onValueChange={(v) => handleFormChange('expense_type', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona tipo spesa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXPENSE_TYPES.map(t => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input
-                    type="date"
-                    value={formData.invoice_date}
-                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Importo *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.imponibile}
-                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Metodo di Pagamento *</Label>
-                  <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona metodo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map(m => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Centro di Costo *</Label>
-                  <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona centro" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {costCenters.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Riferimento Intervento</Label>
-                  <Select value={formData.service_report_id} onValueChange={(v) => handleFormChange('service_report_id', v === "__none__" ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Collega a intervento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {serviceReports.map(sr => (
-                        <SelectItem key={sr.id} value={sr.id}>
-                          {format(new Date(sr.intervention_date), 'dd/MM/yy', { locale: it })} - {sr.technician_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label>Note / Descrizione</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => handleFormChange('notes', e.target.value)}
-                    placeholder="Descrizione della spesa..."
-                  />
-                </div>
-              </>
-            )}
-            
-            {/* Campi per INCASSO DIPENDENTE */}
-            {formData.event_type === 'incasso_dipendente' && (
-              <>
-                <div className="space-y-2">
-                  <Label>Cliente (se noto)</Label>
-                  <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={subjectSearchOpen}
-                        className="w-full justify-between font-normal"
-                      >
-                        {formData.subject_name || 'Cerca cliente...'}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0" align="start">
-                      <Command>
-                        <CommandInput 
-                          placeholder="Cerca cliente..."
-                          value={subjectSearch}
-                          onValueChange={setSubjectSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>Nessun risultato</CommandEmpty>
-                          <CommandGroup className="max-h-60 overflow-auto">
-                            {filteredSubjects.map((subject) => (
-                              <CommandItem
-                                key={subject.id}
-                                value={subject.id}
-                                onSelect={() => {
-                                  handleFormChange('subject_id', subject.id);
-                                  handleFormChange('subject_name', subject.name);
-                                  setSubjectSearchOpen(false);
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", formData.subject_id === subject.id ? "opacity-100" : "opacity-0")} />
-                                <span className="font-medium">{subject.name}</span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input
-                    type="date"
-                    value={formData.invoice_date}
-                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Importo *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.imponibile}
-                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Metodo di Incasso *</Label>
-                  <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona metodo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map(m => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Riferimento Intervento</Label>
-                  <Select value={formData.service_report_id} onValueChange={(v) => handleFormChange('service_report_id', v === "__none__" ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Collega a intervento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {serviceReports.map(sr => (
-                        <SelectItem key={sr.id} value={sr.id}>
-                          {format(new Date(sr.intervention_date), 'dd/MM/yy', { locale: it })} - {sr.technician_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Centro di Ricavo</Label>
-                  <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona centro" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessuno</SelectItem>
-                      {profitCenters.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <Label>Note / Descrizione</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => handleFormChange('notes', e.target.value)}
-                    placeholder="Descrizione dell'incasso..."
-                  />
-                </div>
-              </>
-            )}
+          {/* ═══════════════════════════════════════════════ */}
+          {/* SEZIONE CONTABILE — Opzionale, collassabile     */}
+          {/* ═══════════════════════════════════════════════ */}
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground px-0 h-auto py-2">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <Receipt className="w-4 h-4" />
+                  Dettagli contabili (opzionale)
+                </span>
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-3">
+              
+              {/* Tipo Registrazione */}
+              <div className="space-y-2">
+                <Label>Tipo Registrazione</Label>
+                <Select 
+                  value={formData.event_type} 
+                  onValueChange={(v: EventType) => {
+                    setFormData(prev => {
+                      const updated = { ...prev, event_type: v };
+                      if (v === 'spesa_dipendente') {
+                        updated.invoice_type = 'acquisto';
+                        updated.subject_type = 'fornitore';
+                        updated.financial_status = 'pagata';
+                        updated.iva_rate = 0;
+                        updated.vat_regime = 'domestica_imponibile';
+                      } else if (v === 'incasso_dipendente') {
+                        updated.invoice_type = 'vendita';
+                        updated.subject_type = 'cliente';
+                        updated.financial_status = 'incassata';
+                        updated.iva_rate = 0;
+                        updated.vat_regime = 'domestica_imponibile';
+                      } else if (v === 'fattura_acquisto') {
+                        updated.invoice_type = 'acquisto';
+                        updated.subject_type = 'fornitore';
+                        updated.financial_status = 'da_pagare';
+                        updated.iva_rate = 22;
+                      } else if (v === 'fattura_vendita') {
+                        updated.invoice_type = 'vendita';
+                        updated.subject_type = 'cliente';
+                        updated.financial_status = 'da_incassare';
+                        updated.iva_rate = 22;
+                      } else if (v === 'nota_credito') {
+                        updated.invoice_type = 'nota_credito';
+                        updated.iva_rate = 22;
+                      }
+                      return updated;
+                    });
+                    handleFormChange('subject_id', '');
+                    handleFormChange('subject_name', '');
+                    setSubjectSearch('');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="spesa_dipendente">🧾 Spesa Dipendente</SelectItem>
+                    <SelectItem value="incasso_dipendente">💵 Incasso Dipendente</SelectItem>
+                    <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
+                    <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
+                    <SelectItem value="nota_credito">📋 Nota di Credito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Campi per FATTURE (documento fiscale) */}
-            {isFiscalDocument(formData.event_type) && (
-              <>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Numero fattura — solo per documenti fiscali */}
+                {isFiscalDocument(formData.event_type) && (
+                  <div className="space-y-2">
+                    <Label>Numero Fattura</Label>
+                    <Input
+                      value={formData.invoice_number}
+                      onChange={(e) => handleFormChange('invoice_number', e.target.value)}
+                      placeholder="FT-2026/001"
+                    />
+                  </div>
+                )}
+                
+                {/* Soggetto */}
                 <div className="space-y-2">
-                  <Label>Numero Fattura *</Label>
-                  <Input
-                    value={formData.invoice_number}
-                    onChange={(e) => handleFormChange('invoice_number', e.target.value)}
-                    placeholder="FT-2026/001"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data Fattura *</Label>
-                  <Input
-                    type="date"
-                    value={formData.invoice_date}
-                    onChange={(e) => handleFormChange('invoice_date', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{formData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+                  <Label>{formData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'}</Label>
                   <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -3453,14 +3319,14 @@ export default function RegistroContabilePage() {
                         aria-expanded={subjectSearchOpen}
                         className="w-full justify-between font-normal"
                       >
-                        {formData.subject_name || `Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                        {formData.subject_name || `Cerca ${formData.subject_type}...`}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0" align="start">
                       <Command>
                         <CommandInput 
-                          placeholder={`Cerca ${formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                          placeholder={`Cerca ${formData.subject_type}...`}
                           value={subjectSearch}
                           onValueChange={setSubjectSearch}
                         />
@@ -3474,8 +3340,7 @@ export default function RegistroContabilePage() {
                                   size="sm" 
                                   className="w-full"
                                   onClick={() => {
-                                    const subjectType: SubjectType = formData.invoice_type === 'vendita' ? 'cliente' : 'fornitore';
-                                    checkAndMatchSubject(subjectSearch.trim(), subjectType);
+                                    checkAndMatchSubject(subjectSearch.trim(), formData.subject_type);
                                     setSubjectSearchOpen(false);
                                   }}
                                 >
@@ -3517,49 +3382,42 @@ export default function RegistroContabilePage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <Label>Imponibile *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.imponibile}
-                    onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Aliquota IVA %</Label>
-                  <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="22">22%</SelectItem>
-                      <SelectItem value="10">10%</SelectItem>
-                      <SelectItem value="4">4%</SelectItem>
-                      <SelectItem value="0">0% (Esente)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Regime IVA</Label>
-                  <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
-                      <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
-                      <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
-                      <SelectItem value="extra_ue">Extra UE</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                {/* IVA */}
+                {isFiscalDocument(formData.event_type) && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Aliquota IVA %</Label>
+                      <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="22">22%</SelectItem>
+                          <SelectItem value="10">10%</SelectItem>
+                          <SelectItem value="4">4%</SelectItem>
+                          <SelectItem value="0">0% (Esente)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Regime IVA</Label>
+                      <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                          <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                          <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                          <SelectItem value="extra_ue">Extra UE</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+                
+                {/* Stato finanziario */}
                 <div className="space-y-2">
                   <Label>Stato Finanziario</Label>
                   <Select value={formData.financial_status} onValueChange={(v) => handleFormChange('financial_status', v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="da_incassare">Da Incassare</SelectItem>
                       <SelectItem value="da_pagare">Da Pagare</SelectItem>
@@ -3568,6 +3426,8 @@ export default function RegistroContabilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* Date scadenza e pagamento */}
                 <div className="space-y-2">
                   <Label>Data Scadenza</Label>
                   <Input
@@ -3584,28 +3444,23 @@ export default function RegistroContabilePage() {
                     onChange={(e) => handleFormChange('payment_date', e.target.value)}
                   />
                 </div>
-                
-                {/* Payment method - shown when paid */}
-                {(formData.financial_status === 'pagata' || formData.financial_status === 'incassata') && (
+
+                {/* Tipo spesa (solo per spese dipendente) */}
+                {formData.event_type === 'spesa_dipendente' && (
                   <div className="space-y-2">
-                    <Label>Metodo di Pagamento</Label>
-                    <Select value={formData.payment_method} onValueChange={(v) => handleFormChange('payment_method', v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona metodo" />
-                      </SelectTrigger>
+                    <Label>Tipo Spesa</Label>
+                    <Select value={formData.expense_type} onValueChange={(v) => handleFormChange('expense_type', v)}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona tipo spesa" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
-                        <SelectItem value="contanti">Contanti</SelectItem>
-                        <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
-                        <SelectItem value="assegno">Assegno</SelectItem>
-                        <SelectItem value="riba">RiBa</SelectItem>
-                        <SelectItem value="sdd">SDD (Addebito Diretto)</SelectItem>
+                        {EXPENSE_TYPES.map(t => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 )}
-                
-                {/* Document linking */}
+
+                {/* Documento operativo collegato */}
                 <div className="space-y-2">
                   <Label>Documento Operativo</Label>
                   <Select value={formData.source_document_type} onValueChange={(v) => {
@@ -3613,9 +3468,7 @@ export default function RegistroContabilePage() {
                     handleFormChange('source_document_type', next);
                     handleFormChange('source_document_id', '');
                   }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Collega documento (opzionale)" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Collega (opzionale)" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nessun collegamento</SelectItem>
                       <SelectItem value="ddt">DDT</SelectItem>
@@ -3629,9 +3482,7 @@ export default function RegistroContabilePage() {
                   <div className="space-y-2">
                     <Label>Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
                     <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona..." />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                       <SelectContent>
                         {formData.source_document_type === 'ddt' && ddts.map(d => (
                           <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
@@ -3655,16 +3506,14 @@ export default function RegistroContabilePage() {
                     </Select>
                   </div>
                 )}
-                
-                {/* Cost center and account for purchases */}
+
+                {/* Centri costo/ricavo */}
                 {formData.invoice_type === 'acquisto' && (
                   <>
                     <div className="space-y-2">
                       <Label>Centro di Costo</Label>
                       <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona centro di costo" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Seleziona centro di costo" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Nessuno</SelectItem>
                           {costCenters.map(cc => (
@@ -3676,9 +3525,7 @@ export default function RegistroContabilePage() {
                     <div className="space-y-2">
                       <Label>Conto di Costo</Label>
                       <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona conto" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Nessuno</SelectItem>
                           {costAccounts.map(a => (
@@ -3690,15 +3537,12 @@ export default function RegistroContabilePage() {
                   </>
                 )}
                 
-                {/* Profit center and revenue account for sales */}
                 {(formData.invoice_type === 'vendita' || formData.invoice_type === 'nota_credito') && (
                   <>
                     <div className="space-y-2">
                       <Label>Centro di Ricavo</Label>
                       <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona centro di ricavo" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Seleziona centro di ricavo" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Nessuno</SelectItem>
                           {profitCenters.map(pc => (
@@ -3710,9 +3554,7 @@ export default function RegistroContabilePage() {
                     <div className="space-y-2">
                       <Label>Conto di Ricavo</Label>
                       <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona conto" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Nessuno</SelectItem>
                           {revenueAccounts.map(a => (
@@ -3723,90 +3565,7 @@ export default function RegistroContabilePage() {
                     </div>
                   </>
                 )}
-                
-                <div className="col-span-2 space-y-2">
-                  <Label>Note</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => handleFormChange('notes', e.target.value)}
-                    placeholder="Note aggiuntive..."
-                  />
-                </div>
 
-                {/* Gestione Scadenze Multiple */}
-                {(formData.financial_status === 'da_incassare' || formData.financial_status === 'da_pagare') && (
-                  <div className="col-span-2 space-y-3 border rounded-lg p-4 bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-semibold flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Scadenze di Pagamento
-                      </Label>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={addScadenzaLine}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Aggiungi Scadenza
-                      </Button>
-                    </div>
-                    
-                    {scadenzeLines.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nessuna scadenza multipla. Verrà creata una singola scadenza con l'importo totale alla data di scadenza indicata.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {scadenzeLines.map((scad, idx) => (
-                          <div key={scad.id} className="flex items-center gap-3 p-2 bg-background rounded border">
-                            <span className="text-sm font-medium text-muted-foreground w-8">#{idx + 1}</span>
-                            <div className="flex-1 grid grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-xs">Data Scadenza</Label>
-                                <Input
-                                  type="date"
-                                  value={scad.due_date}
-                                  onChange={(e) => updateScadenzaLine(scad.id, 'due_date', e.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Importo €</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={scad.amount}
-                                  onChange={(e) => updateScadenzaLine(scad.id, 'amount', parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeScadenzaLine(scad.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <div className="flex justify-between items-center pt-2 border-t">
-                          <span className="text-sm text-muted-foreground">Totale scadenze:</span>
-                          <span className={`font-semibold ${Math.abs(getScadenzeTotal() - totalAmount) > 0.01 ? 'text-destructive' : 'text-green-600'}`}>
-                            €{getScadenzeTotal().toLocaleString('it-IT', { minimumFractionDigits: 2 })} / €{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        {Math.abs(getScadenzeTotal() - totalAmount) > 0.01 && (
-                          <p className="text-xs text-destructive">
-                            ⚠️ Il totale delle scadenze non corrisponde all'importo della fattura
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                
                 {/* Account Split Manager */}
                 <div className="col-span-2">
                   <AccountSplitManager
@@ -3824,10 +3583,61 @@ export default function RegistroContabilePage() {
                     onLinesChange={setSplitLines}
                   />
                 </div>
-              </>
-            )}
-          </div>
 
+                {/* Scadenze multiple */}
+                {(formData.financial_status === 'da_incassare' || formData.financial_status === 'da_pagare') && (
+                  <div className="col-span-2 space-y-3 border rounded-lg p-4 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Scadenze di Pagamento
+                      </Label>
+                      <Button type="button" variant="outline" size="sm" onClick={addScadenzaLine}>
+                        <Plus className="w-4 h-4 mr-1" />Aggiungi Scadenza
+                      </Button>
+                    </div>
+                    {scadenzeLines.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Nessuna scadenza multipla. Verrà creata una singola scadenza con l'importo totale alla data di scadenza indicata.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {scadenzeLines.map((scad, idx) => (
+                          <div key={scad.id} className="flex items-center gap-3 p-2 bg-background rounded border">
+                            <span className="text-sm font-medium text-muted-foreground w-8">#{idx + 1}</span>
+                            <div className="flex-1 grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-xs">Data Scadenza</Label>
+                                <Input type="date" value={scad.due_date} onChange={(e) => updateScadenzaLine(scad.id, 'due_date', e.target.value)} />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Importo €</Label>
+                                <Input type="number" step="0.01" value={scad.amount} onChange={(e) => updateScadenzaLine(scad.id, 'amount', parseFloat(e.target.value) || 0)} />
+                              </div>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeScadenzaLine(scad.id)} className="text-destructive hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <span className="text-sm text-muted-foreground">Totale scadenze:</span>
+                          <span className={`font-semibold ${Math.abs(getScadenzeTotal() - totalAmount) > 0.01 ? 'text-destructive' : 'text-green-600'}`}>
+                            €{getScadenzeTotal().toLocaleString('it-IT', { minimumFractionDigits: 2 })} / €{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {Math.abs(getScadenzeTotal() - totalAmount) > 0.01 && (
+                          <p className="text-xs text-destructive">⚠️ Il totale delle scadenze non corrisponde all'importo della fattura</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Riepilogo importo */}
           <Card className="bg-muted/50">
             <CardContent className="p-4">
               <div className="flex justify-between items-center">
@@ -3854,10 +3664,16 @@ export default function RegistroContabilePage() {
               Annulla
             </Button>
             <Button 
-              onClick={checkDuplicateAndSave}
-              disabled={!formData.invoice_number || !formData.subject_name || createMutation.isPending}
+              onClick={() => {
+                if (!formData.invoice_number && isFiscalDocument(formData.event_type)) {
+                  checkDuplicateAndSave();
+                } else {
+                  createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined });
+                }
+              }}
+              disabled={!formData.imponibile || !formData.payment_method || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
+              {createMutation.isPending ? 'Salvataggio...' : 'Salva'}
             </Button>
           </DialogFooter>
         </DialogContent>
