@@ -2696,6 +2696,8 @@ export default function RegistroContabilePage() {
         </div>
       </div>
 
+      {/* Bozze da validare */}
+      <BozzeDaValidareSection />
 
 
       {/* Filters */}

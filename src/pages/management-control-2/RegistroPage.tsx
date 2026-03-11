@@ -1,5 +1,4 @@
 import { AIDocumentUpload } from "@/components/dashboard/AIDocumentUpload";
-import { BozzeDaValidareSection } from "@/components/registro-contabile/BozzeDaValidareSection";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +34,6 @@ export default function RegistroPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <BozzeDaValidareSection />
       <AIDocumentUpload />
 
       <Card>
