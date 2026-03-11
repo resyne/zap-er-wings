@@ -1186,7 +1186,7 @@ export default function RegistroContabilePage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Fattura salvata come bozza');
+      toast.success('Movimento salvato');
       setShowCreateDialog(false);
       setFormData(initialFormData);
       setSplitEnabled(false);
