@@ -26,6 +26,7 @@ import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
 import { RegistryFiltersBar } from "@/components/registro-contabile/RegistryFiltersBar";
 import { InvoiceRegistryTable } from "@/components/registro-contabile/InvoiceRegistryTable";
+import { BozzeDaValidareSection } from "@/components/registro-contabile/BozzeDaValidareSection";
 import { 
   Plus, 
   FileCheck, 
@@ -2695,6 +2696,9 @@ export default function RegistroContabilePage() {
         </div>
       </div>
 
+
+      {/* Bozze da validare */}
+      <BozzeDaValidareSection />
 
       {/* Filters */}
       <RegistryFiltersBar
