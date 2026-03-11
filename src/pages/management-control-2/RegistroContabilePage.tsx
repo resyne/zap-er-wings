@@ -1155,12 +1155,12 @@ export default function RegistroContabilePage() {
       const { error } = await supabase
         .from('invoice_registry')
         .insert({
-          invoice_number: data.invoice_number,
+          invoice_number: data.invoice_number || `MOV-${Date.now()}`,
           invoice_date: data.invoice_date,
           invoice_type: data.invoice_type,
           subject_type: data.subject_type,
           subject_id: data.subject_id || null,
-          subject_name: data.subject_name,
+          subject_name: data.subject_name || 'Movimento manuale',
           imponibile: data.imponibile,
           iva_rate: data.iva_rate,
           iva_amount: ivaAmount,
