@@ -56,7 +56,8 @@ import {
   RefreshCw,
   Undo2,
   Lock,
-  UserPlus
+  UserPlus,
+  ArrowLeftRight
 } from "lucide-react";
 
 interface AccountSplitLine {
