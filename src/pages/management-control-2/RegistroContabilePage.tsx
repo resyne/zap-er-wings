@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -55,7 +56,8 @@ import {
   RefreshCw,
   Undo2,
   Lock,
-  UserPlus
+  UserPlus,
+  ArrowLeftRight
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -2683,16 +2685,132 @@ export default function RegistroContabilePage() {
               }}
             />
           </label>
-          <Button onClick={() => {
-            setUploadedFile(null);
-            setFormData(initialFormData);
-            setSplitEnabled(false);
-            setSplitLines([]);
-            setShowCreateDialog(true);
-          }} className="h-10">
-            <Plus className="w-4 h-4 mr-2" />
-            Nuova Nota
-          </Button>
+
+          {/* ENTRATA */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950">
+                <ArrowUpRight className="w-4 h-4" />
+                Entrata
+                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
+              {[
+                { label: "Incasso fattura cliente", event: "fattura_vendita" as EventType, desc: "Pagamento ricevuto da cliente" },
+                { label: "Vendita in contanti", event: "incasso_dipendente" as EventType, desc: "Vendita diretta / POS" },
+                { label: "Bonifico ricevuto", event: "incasso_dipendente" as EventType, desc: "Accredito su conto corrente" },
+                { label: "Incasso POS", event: "incasso_dipendente" as EventType, desc: "Pagamento con carta" },
+                { label: "Altro incasso", event: "incasso_dipendente" as EventType, desc: "Entrata generica" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => {
+                  setUploadedFile(null);
+                  setSplitEnabled(false);
+                  setSplitLines([]);
+                  setFormData({
+                    ...initialFormData,
+                    event_type: item.event,
+                    invoice_type: 'vendita',
+                    subject_type: 'cliente',
+                    financial_status: item.event === 'fattura_vendita' ? 'da_incassare' : 'incassata',
+                    iva_rate: item.event === 'fattura_vendita' ? 22 : 0,
+                    notes: item.label,
+                    payment_method: item.label.includes('contanti') ? 'contanti' : item.label.includes('POS') ? 'carta' : item.label.includes('Bonifico') ? 'banca' : '',
+                  });
+                  setShowCreateDialog(true);
+                }}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">{item.desc}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* USCITA */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-2 text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950">
+                <ArrowDownLeft className="w-4 h-4" />
+                Uscita
+                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
+              {[
+                { label: "Pagamento fornitore", event: "fattura_acquisto" as EventType, desc: "Fattura fornitore" },
+                { label: "Spese bancarie", event: "spesa_dipendente" as EventType, desc: "Commissioni, canoni, bolli" },
+                { label: "Pagamento stipendi", event: "spesa_dipendente" as EventType, desc: "Stipendi e contributi" },
+                { label: "Pagamento F24", event: "spesa_dipendente" as EventType, desc: "Imposte e tasse" },
+                { label: "Acquisto pagato subito", event: "spesa_dipendente" as EventType, desc: "Spesa immediata senza fattura" },
+                { label: "Altra uscita", event: "spesa_dipendente" as EventType, desc: "Uscita generica" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => {
+                  setUploadedFile(null);
+                  setSplitEnabled(false);
+                  setSplitLines([]);
+                  setFormData({
+                    ...initialFormData,
+                    event_type: item.event,
+                    invoice_type: 'acquisto',
+                    subject_type: 'fornitore',
+                    financial_status: item.event === 'fattura_acquisto' ? 'da_pagare' : 'pagata',
+                    iva_rate: item.event === 'fattura_acquisto' ? 22 : 0,
+                    notes: item.label,
+                    payment_method: item.label.includes('bancarie') ? 'banca' : item.label.includes('F24') ? 'banca' : item.label.includes('stipendi') ? 'banca' : '',
+                  });
+                  setShowCreateDialog(true);
+                }}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">{item.desc}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* MOVIMENTO INTERNO */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-2 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950">
+                <ArrowLeftRight className="w-4 h-4" />
+                Mov. Interno
+                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
+              {[
+                { label: "Giroconto banca → cassa", payFrom: "banca", payTo: "cassa" },
+                { label: "Giroconto cassa → banca", payFrom: "cassa", payTo: "banca" },
+                { label: "Prelievo contanti", payFrom: "banca", payTo: "contanti" },
+                { label: "Versamento contanti", payFrom: "contanti", payTo: "banca" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => {
+                  setUploadedFile(null);
+                  setSplitEnabled(false);
+                  setSplitLines([]);
+                  setFormData({
+                    ...initialFormData,
+                    event_type: 'spesa_dipendente',
+                    invoice_type: 'acquisto',
+                    subject_type: 'fornitore',
+                    financial_status: 'pagata',
+                    iva_rate: 0,
+                    notes: item.label,
+                    payment_method: item.payFrom,
+                  });
+                  setShowCreateDialog(true);
+                }}>
+                  <span className="font-medium">{item.label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
