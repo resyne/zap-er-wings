@@ -356,6 +356,10 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   </div>
                 </div>
 
+                {/* Linked Documents */}
+                <Separator />
+                <LinkedDocumentsSection entryId={entry.id} editing={editing} />
+
                 {/* Audit Log Section */}
                 <Separator />
                 <div className="space-y-3">
