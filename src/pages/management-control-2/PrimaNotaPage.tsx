@@ -13,14 +13,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, isWithinInterval } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
-  ChevronDown, Receipt, Wallet, Info, Plus, Search, Trash2,
+  ChevronDown, ChevronLeft, ChevronRight, Receipt, Wallet, Info, Plus, Search, Trash2,
   Calendar
 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
 
 // =====================================================
@@ -72,6 +73,38 @@ export default function PrimaNotaPage() {
   const [formData, setFormData] = useState<MovementFormData>(initialFormData);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [viewDate, setViewDate] = useState<Date>(new Date());
+
+  const getDateRange = useCallback(() => {
+    switch (viewMode) {
+      case 'day':
+        return { start: startOfDay(viewDate), end: endOfDay(viewDate) };
+      case 'week':
+        return { start: startOfWeek(viewDate, { weekStartsOn: 1 }), end: endOfWeek(viewDate, { weekStartsOn: 1 }) };
+      case 'month':
+        return { start: startOfMonth(viewDate), end: endOfMonth(viewDate) };
+    }
+  }, [viewMode, viewDate]);
+
+  const navigatePeriod = (direction: 'prev' | 'next') => {
+    const fn = direction === 'prev'
+      ? viewMode === 'day' ? subDays : viewMode === 'week' ? subWeeks : subMonths
+      : viewMode === 'day' ? addDays : viewMode === 'week' ? addWeeks : addMonths;
+    setViewDate(fn(viewDate, 1));
+  };
+
+  const getPeriodLabel = () => {
+    const range = getDateRange();
+    switch (viewMode) {
+      case 'day':
+        return format(viewDate, 'EEEE dd MMMM yyyy', { locale: it });
+      case 'week':
+        return `${format(range.start, 'dd MMM', { locale: it })} — ${format(range.end, 'dd MMM yyyy', { locale: it })}`;
+      case 'month':
+        return format(viewDate, 'MMMM yyyy', { locale: it });
+    }
+  };
 
   // Query movements from accounting_entries (filtered to financial movements only)
   const { data: movements = [], isLoading } = useQuery({
@@ -135,13 +168,20 @@ export default function PrimaNotaPage() {
     setShowCreateDialog(true);
   };
 
-  // Stats
-  const totEntrate = movements.filter(m => m.type === 'entrata').reduce((s, m) => s + m.amount, 0);
-  const totUscite = movements.filter(m => m.type === 'uscita').reduce((s, m) => s + m.amount, 0);
+  // Filter by date range first
+  const dateRange = getDateRange();
+  const periodMovements = movements.filter(m => {
+    const d = new Date(m.date);
+    return isWithinInterval(d, { start: dateRange.start, end: dateRange.end });
+  });
+
+  // Stats (based on period)
+  const totEntrate = periodMovements.filter(m => m.type === 'entrata').reduce((s, m) => s + m.amount, 0);
+  const totUscite = periodMovements.filter(m => m.type === 'uscita').reduce((s, m) => s + m.amount, 0);
   const saldo = totEntrate - totUscite;
 
-  // Filtered
-  const filtered = movements.filter(m => {
+  // Filtered (search + type on top of period)
+  const filtered = periodMovements.filter(m => {
     if (filterType !== 'all' && m.type !== filterType) return false;
     if (searchTerm && !m.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
@@ -158,6 +198,36 @@ export default function PrimaNotaPage() {
           <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
           <p className="text-sm text-muted-foreground">Movimenti finanziari — entrate, uscite e giroconti</p>
         </div>
+      </div>
+
+      {/* Period selector */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <button
+            className="px-3 py-1 text-sm font-semibold capitalize min-w-[200px] text-center hover:text-primary transition-colors"
+            onClick={() => setViewDate(new Date())}
+            title="Vai a oggi"
+          >
+            {getPeriodLabel()}
+          </button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'day' | 'week' | 'month')} className="bg-muted rounded-lg p-0.5">
+          <ToggleGroupItem value="day" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Giorno
+          </ToggleGroupItem>
+          <ToggleGroupItem value="week" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Settimana
+          </ToggleGroupItem>
+          <ToggleGroupItem value="month" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Mese
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Guida collassabile */}
