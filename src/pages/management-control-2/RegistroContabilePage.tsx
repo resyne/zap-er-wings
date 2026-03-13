@@ -1916,8 +1916,176 @@ export default function RegistroContabilePage() {
   });
 
   // =====================================================
-  // RIGENERA PRIMA NOTA - Per eventi stornati/da_riclassificare
+  // REGISTRA PAGAMENTO - Totale o parziale con Prima Nota
   // =====================================================
+  const paymentMutation = useMutation({
+    mutationFn: async (params: { invoice: InvoiceRegistry; payment: typeof paymentData }) => {
+      const { invoice, payment } = params;
+      const { data: user } = await supabase.auth.getUser();
+      
+      if (!invoice.scadenza_id) throw new Error('Nessuna scadenza collegata');
+      
+      // Recupera la scadenza corrente
+      const { data: scadenza, error: scadError } = await supabase
+        .from('scadenze')
+        .select('*')
+        .eq('id', invoice.scadenza_id)
+        .single();
+      
+      if (scadError || !scadenza) throw new Error('Scadenza non trovata');
+      
+      const paymentAmount = payment.amount;
+      const newResiduo = Math.max(0, scadenza.importo_residuo - paymentAmount);
+      const isFullyPaid = newResiduo < 0.01;
+      
+      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const payMethodKey = payment.payment_method?.toUpperCase() || 'BANCA';
+      
+      // 1. Crea movimento di Prima Nota per il pagamento
+      const primaNotaAmount = isAcquisto ? -paymentAmount : paymentAmount;
+      
+      const { data: primaNota, error: pnError } = await supabase
+        .from('prima_nota')
+        .insert({
+          competence_date: payment.payment_date,
+          movement_type: 'finanziario',
+          description: `${isAcquisto ? 'Pagamento' : 'Incasso'} ${isFullyPaid ? '' : 'parziale '}Fatt. ${invoice.invoice_number} - ${invoice.subject_name}`,
+          amount: primaNotaAmount,
+          status: 'registrato',
+          payment_method: payment.payment_method,
+          accounting_entry_id: invoice.accounting_entry_id,
+          created_by: user?.user?.id,
+        })
+        .select()
+        .single();
+      
+      if (pnError) throw pnError;
+      
+      // 2. Genera linee partita doppia per il pagamento
+      const lines: any[] = [];
+      let lineOrder = 1;
+      
+      if (isAcquisto) {
+        // Pagamento fornitore: DARE Debiti vs fornitori, AVERE Banca
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: 'DEBITI_FORNITORI',
+          chart_account_id: null,
+          dare: paymentAmount,
+          avere: 0,
+          description: 'Estinzione debito fornitore',
+        });
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: payMethodKey,
+          chart_account_id: null,
+          dare: 0,
+          avere: paymentAmount,
+          description: `Pagamento ${payment.payment_method}`,
+        });
+      } else {
+        // Incasso cliente: DARE Banca, AVERE Crediti vs clienti
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: payMethodKey,
+          chart_account_id: null,
+          dare: paymentAmount,
+          avere: 0,
+          description: `Incasso ${payment.payment_method}`,
+        });
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: 'CREDITI_CLIENTI',
+          chart_account_id: null,
+          dare: 0,
+          avere: paymentAmount,
+          description: 'Estinzione credito cliente',
+        });
+      }
+      
+      const { error: linesError } = await supabase
+        .from('prima_nota_lines')
+        .insert(lines);
+      if (linesError) throw linesError;
+      
+      // 3. Registra il movimento nella scadenza
+      const { error: movError } = await supabase
+        .from('scadenza_movimenti')
+        .insert({
+          scadenza_id: invoice.scadenza_id,
+          data_movimento: payment.payment_date,
+          importo: paymentAmount,
+          metodo_pagamento: payment.payment_method,
+          note: payment.notes || `${isFullyPaid ? 'Saldo totale' : 'Acconto parziale'} - Fatt. ${invoice.invoice_number}`,
+          prima_nota_id: primaNota.id,
+          evento_finanziario_id: invoice.accounting_entry_id,
+        });
+      if (movError) throw movError;
+      
+      // 4. Aggiorna la scadenza
+      const { error: scadUpdateError } = await supabase
+        .from('scadenze')
+        .update({
+          importo_residuo: newResiduo,
+          stato: isFullyPaid ? 'chiusa' : 'parziale',
+        })
+        .eq('id', invoice.scadenza_id);
+      if (scadUpdateError) throw scadUpdateError;
+      
+      // 5. Aggiorna lo stato finanziario della fattura
+      const newFinancialStatus = isFullyPaid 
+        ? (isAcquisto ? 'pagata' : 'incassata')
+        : invoice.financial_status; // Resta da_pagare/da_incassare se parziale
+      
+      const { error: invError } = await supabase
+        .from('invoice_registry')
+        .update({
+          financial_status: newFinancialStatus,
+          payment_date: isFullyPaid ? payment.payment_date : invoice.payment_date,
+          payment_method: payment.payment_method,
+        })
+        .eq('id', invoice.id);
+      if (invError) throw invError;
+      
+      // 6. Aggiorna accounting entry se completamente pagata
+      if (isFullyPaid && invoice.accounting_entry_id) {
+        await supabase
+          .from('accounting_entries')
+          .update({
+            financial_status: newFinancialStatus,
+            payment_date: payment.payment_date,
+            payment_method: payment.payment_method,
+          })
+          .eq('id', invoice.accounting_entry_id);
+      }
+      
+      return { isFullyPaid, paymentAmount, newResiduo };
+    },
+    onSuccess: (result) => {
+      const msg = result.isFullyPaid 
+        ? 'Pagamento totale registrato! Scadenza chiusa e Prima Nota aggiornata.'
+        : `Acconto di €${result.paymentAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })} registrato. Residuo: €${result.newResiduo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+      toast.success(msg);
+      setShowPaymentDialog(false);
+      setSelectedInvoice(null);
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
+      queryClient.invalidateQueries({ queryKey: ['prima-nota'] });
+    },
+    onError: (error) => {
+      toast.error('Errore nel pagamento: ' + error.message);
+    }
+  });
+
   const regeneratePrimaNotaMutation = useMutation({
     mutationFn: async (invoice: InvoiceRegistry) => {
       // Verifica che sia uno stato valido per rigenerazione
