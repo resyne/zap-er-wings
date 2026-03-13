@@ -126,13 +126,13 @@ export function RegistryFiltersBar({
           </div>
         )}
 
-        {/* Quick status shortcuts */}
+        {/* Quick document type shortcuts */}
         <div className="flex flex-wrap gap-2">
-          <QuickFilterButton active={filterStatus === "all"} onClick={() => onFilterStatusChange("all")}>Tutti</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "bozza"} onClick={() => onFilterStatusChange("bozza")}>Bozze</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "contabilizzato"} onClick={() => onFilterStatusChange("contabilizzato")}>Contabilizzati</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "stornati"} onClick={() => onFilterStatusChange("stornati")}>Stornati</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "rettificato"} onClick={() => onFilterStatusChange("rettificato")}>Bloccati</QuickFilterButton>
+          <QuickFilterButton active={filterType === "all"} onClick={() => onFilterTypeChange("all")}>Tutti</QuickFilterButton>
+          <QuickFilterButton active={filterType === "acquisto"} onClick={() => onFilterTypeChange("acquisto")}>Fatture Acquisto</QuickFilterButton>
+          <QuickFilterButton active={filterType === "vendita"} onClick={() => onFilterTypeChange("vendita")}>Fatture Vendita</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_credito"} onClick={() => onFilterTypeChange("nota_credito")}>Note di Credito</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_debito"} onClick={() => onFilterTypeChange("nota_debito")}>Note di Debito</QuickFilterButton>
         </div>
       </CardContent>
     </Card>
