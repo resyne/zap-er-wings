@@ -24,6 +24,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
+import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 
 // =====================================================
 // TYPES
