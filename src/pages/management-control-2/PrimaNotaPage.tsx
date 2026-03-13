@@ -200,6 +200,36 @@ export default function PrimaNotaPage() {
         </div>
       </div>
 
+      {/* Period selector */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <button
+            className="px-3 py-1 text-sm font-semibold capitalize min-w-[200px] text-center hover:text-primary transition-colors"
+            onClick={() => setViewDate(new Date())}
+            title="Vai a oggi"
+          >
+            {getPeriodLabel()}
+          </button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'day' | 'week' | 'month')} className="bg-muted rounded-lg p-0.5">
+          <ToggleGroupItem value="day" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Giorno
+          </ToggleGroupItem>
+          <ToggleGroupItem value="week" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Settimana
+          </ToggleGroupItem>
+          <ToggleGroupItem value="month" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Mese
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
       {/* Guida collassabile */}
       <GuideSection />
 
