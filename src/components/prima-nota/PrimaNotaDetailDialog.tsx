@@ -44,7 +44,7 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
       if (!entryId) return null;
       const { data, error } = await supabase
         .from("accounting_entries")
-        .select("*")
+        .select("*, cost_centers(name, code), profit_centers(name, code), chart_of_accounts(name, code)")
         .eq("id", entryId)
         .single();
       if (error) throw error;
