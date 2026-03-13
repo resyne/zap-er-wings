@@ -308,6 +308,25 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   </div>
                 </div>
 
+                {/* Soggetto Economico */}
+                <div className="space-y-1.5">
+                  {editing ? (
+                    <CustomerSearchSelect
+                      selectedCustomerId={formData.economic_subject_id || ""}
+                      onSelect={(id, name) => setFormData(p => ({
+                        ...p,
+                        economic_subject_id: id,
+                        economic_subject_type: id ? "cliente" : "",
+                      }))}
+                    />
+                  ) : (
+                    <>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Soggetto Economico</Label>
+                      <p className="text-sm font-medium">{entry.economic_subject_id ? (entry.economic_subject_type || "cliente") : "—"}</p>
+                    </>
+                  )}
+                </div>
+
                 {/* Conto finanziario */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Conto Finanziario</Label>
