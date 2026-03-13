@@ -266,6 +266,14 @@ function InvoiceRow({
               </DropdownMenuItem>
             )}
 
+            {/* Registra pagamento/incasso per fatture con scadenza aperta */}
+            {onPayment && invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
+              <DropdownMenuItem onClick={() => onPayment(invoice)}>
+                <FileCheck className="h-4 w-4 mr-2" />
+                {invoice.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuSeparator />
 
             {/* Modifica: disponibile per tutti tranne rettificato e periodo chiuso */}
