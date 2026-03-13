@@ -4189,145 +4189,11 @@ export default function RegistroContabilePage() {
                 </div>
               )}
 
-              {/* Form per spese dipendenti - CAMPI OBBLIGATORI */}
-              {formData.event_type === 'spesa_dipendente' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-medium mb-2">Campi obbligatori per spese dipendente:</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipo Spesa *</Label>
-                      <Select value={formData.expense_type} onValueChange={(v) => setFormData(prev => ({ ...prev, expense_type: v }))}>
-                        <SelectTrigger className={!formData.expense_type ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona tipo spesa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {EXPENSE_TYPES.map(t => (
-                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Centro di Costo *</Label>
-                      <Select value={formData.cost_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, cost_center_id: v === "__none__" ? "" : v }))}>
-                        <SelectTrigger className={!formData.cost_center_id ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona centro" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {costCenters.map(cc => (
-                            <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Metodo di Pagamento *</Label>
-                      <Select value={formData.payment_method} onValueChange={(v) => setFormData(prev => ({ ...prev, payment_method: v }))}>
-                        <SelectTrigger className={!formData.payment_method ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona metodo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAYMENT_METHODS.map(pm => (
-                            <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Dipendente che ha sostenuto la spesa *</Label>
-                      <Select value={formData.employee_id} onValueChange={(v) => {
-                        const emp = employees.find(e => e.id === v);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          employee_id: v === "__none__" ? "" : v,
-                          employee_name: emp ? emp.name : ""
-                        }));
-                      }}>
-                        <SelectTrigger className={!formData.employee_id ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona dipendente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map(e => (
-                            <SelectItem key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Documento allegato (scontrino/ricevuta) *</Label>
-                    {selectedEvent?.attachment_url ? (
-                      <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">Documento presente</span>
-                        <a 
-                          href={selectedEvent.attachment_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline ml-auto"
-                        >
-                          Visualizza
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
-                        <AlertCircle className="w-4 h-4 text-destructive" />
-                        <span className="text-sm text-destructive">Nessun documento allegato</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {formData.event_type === 'incasso_dipendente' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cliente</Label>
-                    <Select value={formData.subject_id} onValueChange={(v) => {
-                      const cust = customers.find(c => c.id === v);
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        subject_id: v === "__none__" ? "" : v,
-                        subject_name: cust ? (cust.company_name || cust.name) : ""
-                      }));
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Non specificato</SelectItem>
-                        {customers.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.company_name || c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Centro di Ricavo</Label>
-                    <Select value={formData.profit_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, profit_center_id: v === "__none__" ? "" : v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nessuno</SelectItem>
-                        {profitCenters.map(pc => (
-                          <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
               {/* Stato finale della registrazione */}
               <div className="space-y-2 pt-4 border-t">
                 <Label>Stato Finale *</Label>
                 <Select 
-                  value={formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
-                    ? 'non_rilevante' 
-                    : 'contabilizzato'}
+                  value="contabilizzato"
                   disabled
                 >
                   <SelectTrigger>
@@ -4340,9 +4206,7 @@ export default function RegistroContabilePage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
-                    ? 'Spese/incassi dipendenti non generano contabilità ufficiale'
-                    : 'Le fatture vengono contabilizzate automaticamente'}
+                  Le fatture vengono contabilizzate automaticamente
                 </p>
               </div>
             </div>
