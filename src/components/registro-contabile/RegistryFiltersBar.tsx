@@ -58,9 +58,10 @@ export function RegistryFiltersBar({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti i tipi</SelectItem>
-                <SelectItem value="vendita">Vendita</SelectItem>
-                <SelectItem value="acquisto">Acquisto</SelectItem>
-                <SelectItem value="da_classificare">Da Annotare</SelectItem>
+                <SelectItem value="vendita">Fatture Vendita</SelectItem>
+                <SelectItem value="acquisto">Fatture Acquisto</SelectItem>
+                <SelectItem value="nota_credito">Note di Credito</SelectItem>
+                <SelectItem value="nota_debito">Note di Debito</SelectItem>
               </SelectContent>
             </Select>
 
