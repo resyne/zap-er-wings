@@ -149,9 +149,10 @@ function QuickFilterButton({ active, onClick, children }: { active: boolean; onC
 
 function labelType(v: string) {
   const map: Record<string, string> = {
-    vendita: "Vendita",
-    acquisto: "Acquisto",
-    da_classificare: "Da Annotare",
+    vendita: "Fatture Vendita",
+    acquisto: "Fatture Acquisto",
+    nota_credito: "Note di Credito",
+    nota_debito: "Note di Debito",
     all: "Tutti",
   };
   return map[v] || v;
