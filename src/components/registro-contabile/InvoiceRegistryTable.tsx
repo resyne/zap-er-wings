@@ -180,6 +180,7 @@ function InvoiceRow({
   onRegister,
   onDelete,
   onRegenerate,
+  onPayment,
   isRegenerating,
   onGoScadenziario,
 }: {
@@ -189,6 +190,7 @@ function InvoiceRow({
   onRegister: (invoice: InvoiceRegistry) => void;
   onDelete: (invoice: InvoiceRegistry) => void;
   onRegenerate: (invoice: InvoiceRegistry) => void;
+  onPayment?: (invoice: InvoiceRegistry) => void;
   isRegenerating: boolean;
   onGoScadenziario: () => void;
 }) {
