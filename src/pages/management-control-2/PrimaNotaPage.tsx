@@ -518,7 +518,6 @@ export default function PrimaNotaPage() {
                     if (m.status === 'segnalazione') {
                       openValidateDialog(m.id);
                     }
-                    }
                   }}
                 >
                   <TableCell>
