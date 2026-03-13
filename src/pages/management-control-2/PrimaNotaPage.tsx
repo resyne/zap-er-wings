@@ -120,6 +120,7 @@ export default function PrimaNotaPage() {
       if (error) throw error;
       return (data || []).map(e => ({
         id: e.id,
+        code: e.account_code || '',
         date: e.document_date,
         type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
         amount: e.amount,
