@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
@@ -395,50 +396,52 @@ export default function ZAppPage() {
             <Banknote className="h-5 w-5 text-indigo-600" />
             <h3 className="font-bold text-sm text-foreground">Registra movimento</h3>
           </div>
+          <div className="grid grid-cols-2 gap-2.5 px-4 pb-4">
+            <button
+              onClick={() => openMovForm("uscita")}
+              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 p-3 active:scale-95 transition-transform"
+            >
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                <ArrowDownLeft className="h-5 w-5 text-red-600" />
+              </div>
+              <span className="font-semibold text-xs text-red-700">Spesa</span>
+            </button>
+            <button
+              onClick={() => openMovForm("entrata")}
+              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 active:scale-95 transition-transform"
+            >
+              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <ArrowUpRight className="h-5 w-5 text-emerald-600" />
+              </div>
+              <span className="font-semibold text-xs text-emerald-700">Incasso</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-          {!movOpen ? (
-            /* Buttons to choose type */
-            <div className="grid grid-cols-2 gap-2.5 px-4 pb-4">
-              <button
-                onClick={() => openMovForm("uscita")}
-                className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 p-3 active:scale-95 transition-transform"
-              >
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <ArrowDownLeft className="h-5 w-5 text-red-600" />
-                </div>
-                <span className="font-semibold text-xs text-red-700">Spesa</span>
-              </button>
-              <button
-                onClick={() => openMovForm("entrata")}
-                className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 active:scale-95 transition-transform"
-              >
-                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <ArrowUpRight className="h-5 w-5 text-emerald-600" />
-                </div>
-                <span className="font-semibold text-xs text-emerald-700">Incasso</span>
-              </button>
-            </div>
-          ) : movSuccess ? (
-            /* Success feedback */
-            <div className="flex flex-col items-center gap-2 py-6 px-4">
-              <CheckCircle className={cn("h-10 w-10", movType === "uscita" ? "text-red-500" : "text-emerald-500")} />
-              <p className="font-bold text-sm">{movType === "uscita" ? "Spesa registrata!" : "Incasso registrato!"}</p>
-              <p className="text-xs text-muted-foreground">Sarà classificato dall'amministrazione</p>
+      {/* Movement Dialog */}
+      <Dialog open={movOpen} onOpenChange={(open) => { if (!open) { setMovOpen(false); setMovSuccess(false); } }}>
+        <DialogContent className="max-w-sm mx-auto rounded-2xl p-0 overflow-hidden gap-0">
+          <DialogTitle className="sr-only">{movType === "uscita" ? "Registra Spesa" : "Registra Incasso"}</DialogTitle>
+          {movSuccess ? (
+            <div className="flex flex-col items-center gap-3 py-10 px-6">
+              <CheckCircle className={cn("h-14 w-14", movType === "uscita" ? "text-red-500" : "text-emerald-500")} />
+              <p className="font-bold text-lg">{movType === "uscita" ? "Spesa registrata!" : "Incasso registrato!"}</p>
+              <p className="text-sm text-muted-foreground">Sarà classificato dall'amministrazione</p>
             </div>
           ) : (
-            /* Inline form */
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-5 py-5 space-y-4">
               {/* Type toggle */}
               <div className="flex rounded-lg border overflow-hidden">
                 <button
                   onClick={() => setMovType("uscita")}
-                  className={cn("flex-1 py-2 text-xs font-bold transition-colors",
+                  className={cn("flex-1 py-2.5 text-sm font-bold transition-colors",
                     movType === "uscita" ? "bg-red-600 text-white" : "bg-muted/30 text-muted-foreground"
                   )}
                 >↓ Spesa</button>
                 <button
                   onClick={() => setMovType("entrata")}
-                  className={cn("flex-1 py-2 text-xs font-bold transition-colors",
+                  className={cn("flex-1 py-2.5 text-sm font-bold transition-colors",
                     movType === "entrata" ? "bg-emerald-600 text-white" : "bg-muted/30 text-muted-foreground"
                   )}
                 >↑ Incasso</button>
@@ -454,7 +457,7 @@ export default function ZAppPage() {
                   value={movImporto}
                   onChange={(e) => setMovImporto(e.target.value)}
                   placeholder="0,00"
-                  className="pl-10 h-14 text-2xl font-bold tabular-nums text-center border-2"
+                  className="pl-10 h-16 text-3xl font-bold tabular-nums text-center border-2"
                   autoFocus
                 />
               </div>
@@ -470,7 +473,7 @@ export default function ZAppPage() {
 
               {/* Photo */}
               {movFile ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border">
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border">
                   <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span className="text-xs truncate flex-1">{movFile.name}</span>
                   <button onClick={() => setMovFile(null)} className="p-0.5"><X className="h-3.5 w-3.5 text-muted-foreground" /></button>
@@ -478,43 +481,42 @@ export default function ZAppPage() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <label className="block">
-                    <div className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg border-2 border-dashed cursor-pointer active:bg-muted/30 transition-colors">
+                    <div className="flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed cursor-pointer active:bg-muted/30 transition-colors">
                       {movUploading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Camera className="h-4 w-4 text-muted-foreground" />}
-                      <span className="text-[11px] font-medium text-muted-foreground">{movUploading ? "..." : "📸 Foto"}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{movUploading ? "..." : "📸 Foto"}</span>
                     </div>
                     <input type="file" accept="image/*" capture="environment" className="hidden"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) handleMovFileUpload(f); }} />
                   </label>
                   <div {...getMovDropProps()}
-                    className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg border-2 border-dashed cursor-pointer active:bg-muted/30 transition-colors">
+                    className="flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed cursor-pointer active:bg-muted/30 transition-colors">
                     <input {...getMovInputProps()} />
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-[11px] font-medium text-muted-foreground">Galleria</span>
+                    <span className="text-xs font-medium text-muted-foreground">Galleria</span>
                   </div>
                 </div>
               )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-1">
-                <Button variant="ghost" size="sm" className="flex-1 text-xs" onClick={() => setMovOpen(false)}>
+                <Button variant="ghost" className="flex-1" onClick={() => setMovOpen(false)}>
                   Annulla
                 </Button>
                 <Button
-                  size="sm"
-                  className={cn("flex-1 text-xs gap-1.5 text-white",
+                  className={cn("flex-1 gap-2 text-white",
                     movType === "uscita" ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"
                   )}
                   disabled={!movImporto || parseFloat(movImporto) <= 0 || movMutation.isPending}
                   onClick={() => movMutation.mutate()}
                 >
-                  {movMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {movMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Invia
                 </Button>
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Other modules grid */}
       <div className="px-4 sm:px-6 pb-8">
