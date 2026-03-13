@@ -58,9 +58,10 @@ export function RegistryFiltersBar({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutti i tipi</SelectItem>
-                <SelectItem value="vendita">Vendita</SelectItem>
-                <SelectItem value="acquisto">Acquisto</SelectItem>
-                <SelectItem value="da_classificare">Da Annotare</SelectItem>
+                <SelectItem value="vendita">Fatture Vendita</SelectItem>
+                <SelectItem value="acquisto">Fatture Acquisto</SelectItem>
+                <SelectItem value="nota_credito">Note di Credito</SelectItem>
+                <SelectItem value="nota_debito">Note di Debito</SelectItem>
               </SelectContent>
             </Select>
 
@@ -125,13 +126,13 @@ export function RegistryFiltersBar({
           </div>
         )}
 
-        {/* Quick status shortcuts */}
+        {/* Quick document type shortcuts */}
         <div className="flex flex-wrap gap-2">
-          <QuickFilterButton active={filterStatus === "all"} onClick={() => onFilterStatusChange("all")}>Tutti</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "bozza"} onClick={() => onFilterStatusChange("bozza")}>Bozze</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "contabilizzato"} onClick={() => onFilterStatusChange("contabilizzato")}>Contabilizzati</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "stornati"} onClick={() => onFilterStatusChange("stornati")}>Stornati</QuickFilterButton>
-          <QuickFilterButton active={filterStatus === "rettificato"} onClick={() => onFilterStatusChange("rettificato")}>Bloccati</QuickFilterButton>
+          <QuickFilterButton active={filterType === "all"} onClick={() => onFilterTypeChange("all")}>Tutti</QuickFilterButton>
+          <QuickFilterButton active={filterType === "acquisto"} onClick={() => onFilterTypeChange("acquisto")}>Fatture Acquisto</QuickFilterButton>
+          <QuickFilterButton active={filterType === "vendita"} onClick={() => onFilterTypeChange("vendita")}>Fatture Vendita</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_credito"} onClick={() => onFilterTypeChange("nota_credito")}>Note di Credito</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_debito"} onClick={() => onFilterTypeChange("nota_debito")}>Note di Debito</QuickFilterButton>
         </div>
       </CardContent>
     </Card>
@@ -148,9 +149,10 @@ function QuickFilterButton({ active, onClick, children }: { active: boolean; onC
 
 function labelType(v: string) {
   const map: Record<string, string> = {
-    vendita: "Vendita",
-    acquisto: "Acquisto",
-    da_classificare: "Da Annotare",
+    vendita: "Fatture Vendita",
+    acquisto: "Fatture Acquisto",
+    nota_credito: "Note di Credito",
+    nota_debito: "Note di Debito",
     all: "Tutti",
   };
   return map[v] || v;
