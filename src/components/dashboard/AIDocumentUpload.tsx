@@ -2,14 +2,13 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Upload, Camera, Loader2, Receipt, CreditCard } from "lucide-react";
+import { Upload, Camera, Loader2, Receipt, CreditCard, ArrowDownLeft, ArrowUpRight, Banknote, Wallet, ScanLine } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
@@ -206,6 +205,11 @@ export function AIDocumentUpload() {
     noClick: false,
   });
 
+  const handleFlowStart = (flow: "spesa" | "incasso") => {
+    setQuickEntryType(flow === "spesa" ? "uscita" : "entrata");
+    setShowQuickEntryDialog(true);
+  };
+
   const handleQuickEntrySubmit = () => {
     if (!quickEntryForm.importo || parseFloat(quickEntryForm.importo) <= 0) {
       toast.error("Inserisci un importo valido");
@@ -229,143 +233,178 @@ export function AIDocumentUpload() {
     } as any);
   };
 
-  const handleFlowStart = (flow: "spesa" | "incasso") => {
-    setQuickEntryType(flow === "spesa" ? "uscita" : "entrata");
-    setShowQuickEntryDialog(true);
-  };
-
   return (
     <>
-      <Card>
-        <CardContent className="p-4 space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Registra movimento</h3>
-            <p className="text-xs text-muted-foreground">Segnala una spesa o un incasso, oppure carica un documento per l'analisi automatica</p>
+      {/* === HERO REGISTRATION SECTION === */}
+      <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/10 p-1">
+        <div className="rounded-xl bg-background/80 backdrop-blur-sm p-4 md:p-5 space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Banknote className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-bold text-foreground tracking-tight">Registra movimento</h3>
+              <p className="text-xs text-muted-foreground">Segnala spesa o incasso • Scansiona documento per analisi AI</p>
+            </div>
           </div>
-          {/* Compact action row */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-9"
+
+          {/* Action buttons — large, touch-friendly */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* SPESA button */}
+            <button
               onClick={() => handleFlowStart("spesa")}
+              className="group relative flex flex-col items-center gap-2 rounded-xl border-2 border-red-200 dark:border-red-900/50 bg-gradient-to-b from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-950/10 p-4 md:p-5 hover:border-red-400 hover:shadow-md active:scale-[0.97] transition-all duration-200"
             >
-              <Receipt className="h-4 w-4 text-destructive" />
-              Spesa
-            </Button>
+              <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center group-hover:bg-red-200 dark:group-hover:bg-red-800/40 transition-colors">
+                <ArrowDownLeft className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <span className="font-semibold text-sm text-red-700 dark:text-red-400">Registra Spesa</span>
+              <span className="text-[10px] text-red-600/60 dark:text-red-400/60 hidden sm:block">Fornitore, scontrino, acquisto</span>
+            </button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-9"
+            {/* INCASSO button */}
+            <button
               onClick={() => handleFlowStart("incasso")}
+              className="group relative flex flex-col items-center gap-2 rounded-xl border-2 border-emerald-200 dark:border-emerald-900/50 bg-gradient-to-b from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-950/10 p-4 md:p-5 hover:border-emerald-400 hover:shadow-md active:scale-[0.97] transition-all duration-200"
             >
-              <CreditCard className="h-4 w-4 text-green-600" />
-              Incasso
-            </Button>
-
-            <div className="h-5 w-px bg-border hidden sm:block" />
-
-            {/* Inline dropzone */}
-            {(isUploading || isAnalyzing) ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                {isAnalyzing ? "Analisi AI..." : "Caricamento..."}
+              <div className="h-12 w-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
+                <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-            ) : (
-              <div
-                {...getRootProps()}
-                className={cn(
-                  "flex-1 min-w-[200px] border border-dashed rounded-md px-4 py-2 text-center cursor-pointer transition-colors text-sm",
-                  isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary hover:bg-accent/50"
-                )}
-              >
-                <input {...getInputProps()} />
-                <span className="text-muted-foreground flex items-center justify-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  {isDragActive ? "Rilascia qui..." : "Trascina documento o clicca"}
-                </span>
-              </div>
-            )}
-
-            <label className="block sm:hidden">
-              <Button variant="ghost" size="sm" className="gap-2 h-9" asChild>
-                <div className="cursor-pointer">
-                  <Camera className="h-4 w-4" />
-                  Foto
-                </div>
-              </Button>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileUpload(file);
-                }}
-              />
-            </label>
+              <span className="font-semibold text-sm text-emerald-700 dark:text-emerald-400">Registra Incasso</span>
+              <span className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 hidden sm:block">Cliente, pagamento ricevuto</span>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Upload / Scan zone */}
+          {(isUploading || isAnalyzing) ? (
+            <div className="flex items-center justify-center gap-3 p-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="text-sm font-medium text-primary">
+                {isAnalyzing ? "Analisi AI in corso..." : "Caricamento documento..."}
+              </span>
+            </div>
+          ) : (
+            <div
+              {...getRootProps()}
+              className={cn(
+                "relative flex items-center gap-3 p-3 md:p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200",
+                isDragActive
+                  ? "border-primary bg-primary/10 shadow-inner"
+                  : "border-muted-foreground/20 hover:border-primary/50 hover:bg-accent/30"
+              )}
+            >
+              <input {...getInputProps()} />
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <ScanLine className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  {isDragActive ? "Rilascia il documento qui..." : "Scansiona o carica documento"}
+                </p>
+                <p className="text-xs text-muted-foreground hidden sm:block">
+                  Trascina qui fattura, scontrino o ricevuta — l'AI estrarrà i dati
+                </p>
+              </div>
+              <Upload className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+            </div>
+          )}
+
+          {/* Mobile camera button */}
+          <label className="block sm:hidden">
+            <div className="flex items-center justify-center gap-2 p-3 rounded-xl border border-muted bg-muted/30 active:bg-muted/60 transition-colors cursor-pointer">
+              <Camera className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Scatta foto al documento</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+            />
+          </label>
+        </div>
+      </div>
 
       {/* Quick Entry Dialog */}
       <Dialog open={showQuickEntryDialog} onOpenChange={(open) => { if (!open) resetQuickEntry(); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {quickEntryType === "uscita" ? "Registra Spesa" : "Registra Incasso"}
+            <DialogTitle className="flex items-center gap-2">
+              {quickEntryType === "uscita" ? (
+                <>
+                  <div className="h-8 w-8 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                    <ArrowDownLeft className="h-4 w-4 text-red-600" />
+                  </div>
+                  Registra Spesa
+                </>
+              ) : (
+                <>
+                  <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                    <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  Registra Incasso
+                </>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {uploadedFile && (
-              <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                📎 {uploadedFile.name}
+              <div className="text-xs text-muted-foreground bg-muted p-2 rounded-lg flex items-center gap-2">
+                <Receipt className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{uploadedFile.name}</span>
               </div>
             )}
-            <div>
-              <Label>Importo (€) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={quickEntryForm.importo}
-                onChange={(e) => setQuickEntryForm(f => ({ ...f, importo: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Importo (€) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="text-lg font-semibold h-12"
+                  value={quickEntryForm.importo}
+                  onChange={(e) => setQuickEntryForm(f => ({ ...f, importo: e.target.value }))}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Pagamento *</Label>
+                <Select
+                  value={quickEntryForm.metodo_pagamento}
+                  onValueChange={(v) => setQuickEntryForm(f => ({ ...f, metodo_pagamento: v }))}
+                >
+                  <SelectTrigger className="h-12"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cassa">🪙 Contanti</SelectItem>
+                    <SelectItem value="carta">💳 Carta</SelectItem>
+                    <SelectItem value="banca">🏦 Bonifico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Metodo di pagamento *</Label>
-              <Select
-                value={quickEntryForm.metodo_pagamento}
-                onValueChange={(v) => setQuickEntryForm(f => ({ ...f, metodo_pagamento: v }))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cassa">Contanti</SelectItem>
-                  <SelectItem value="carta">Carta</SelectItem>
-                  <SelectItem value="banca">Bonifico</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Soggetto</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Soggetto</Label>
               <Input
                 placeholder="Nome fornitore / cliente"
                 value={quickEntryForm.soggetto_nome}
                 onChange={(e) => setQuickEntryForm(f => ({ ...f, soggetto_nome: e.target.value }))}
               />
             </div>
-            <div>
-              <Label>Riferimento</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Riferimento</Label>
               <Input
                 placeholder="N. scontrino / fattura"
                 value={quickEntryForm.riferimento}
                 onChange={(e) => setQuickEntryForm(f => ({ ...f, riferimento: e.target.value }))}
               />
             </div>
-            <div>
-              <Label>Descrizione</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Descrizione</Label>
               <Textarea
                 placeholder="Note aggiuntive"
                 value={quickEntryForm.descrizione}
@@ -373,11 +412,11 @@ export function AIDocumentUpload() {
                 rows={2}
               />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/50">
+            <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/50">
               <div>
                 <Label className="text-sm font-medium">In attesa fattura</Label>
                 <p className="text-xs text-muted-foreground">
-                  Es. carta carburante Q8, carta aziendale — la fattura arriva dopo
+                  Carta carburante, abbonamento — la fattura arriva dopo
                 </p>
               </div>
               <Switch
@@ -391,6 +430,12 @@ export function AIDocumentUpload() {
             <Button
               onClick={handleQuickEntrySubmit}
               disabled={createMovimentoMutation.isPending}
+              className={cn(
+                "min-w-[120px]",
+                quickEntryType === "uscita"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              )}
             >
               {createMovimentoMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Registra
