@@ -17,6 +17,7 @@ import { Pencil, Save, X, Clock, User } from "lucide-react";
 import { formatEuro } from "@/lib/accounting-utils";
 import { cn } from "@/lib/utils";
 import { LinkedDocumentsSection } from "./LinkedDocumentsSection";
+import { CustomerSearchSelect } from "./CustomerSearchSelect";
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
   banca: "🏦 Banca",
@@ -53,7 +54,21 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     enabled: !!entryId && open,
   });
 
-  // Fetch audit logs for this entry
+  // Fetch linked customer name
+  const { data: linkedCustomer } = useQuery({
+    queryKey: ["customer-name", entry?.economic_subject_id],
+    queryFn: async () => {
+      if (!entry?.economic_subject_id) return null;
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name, company_name")
+        .eq("id", entry.economic_subject_id)
+        .single();
+      return data;
+    },
+    enabled: !!entry?.economic_subject_id,
+  });
+
   const { data: auditLogs = [] } = useQuery({
     queryKey: ["audit-logs", entryId],
     queryFn: async () => {
@@ -84,6 +99,8 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
         iva_aliquota: entry.iva_aliquota || "",
         iva_amount: entry.iva_amount || "",
         totale: entry.totale || "",
+        economic_subject_id: entry.economic_subject_id || "",
+        economic_subject_type: entry.economic_subject_type || "",
       });
       setEditing(false);
     }
@@ -155,6 +172,8 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     if (formData.iva_aliquota !== "" && Number(formData.iva_aliquota) !== Number(entry?.iva_aliquota || 0)) updates.iva_aliquota = Number(formData.iva_aliquota);
     if (formData.iva_amount !== "" && Number(formData.iva_amount) !== Number(entry?.iva_amount || 0)) updates.iva_amount = Number(formData.iva_amount);
     if (formData.totale !== "" && Number(formData.totale) !== Number(entry?.totale || 0)) updates.totale = Number(formData.totale);
+    if (formData.economic_subject_id !== (entry?.economic_subject_id || "")) updates.economic_subject_id = formData.economic_subject_id || null;
+    if (formData.economic_subject_type !== (entry?.economic_subject_type || "")) updates.economic_subject_type = formData.economic_subject_type || null;
 
     if (Object.keys(updates).length === 0) {
       toast.info("Nessuna modifica rilevata");
@@ -211,7 +230,7 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); if (entry) setFormData({ document_date: entry.document_date, direction: entry.direction, amount: entry.amount, note: entry.note || "", payment_method: entry.payment_method || "", cfo_notes: entry.cfo_notes || "", imponibile: entry.imponibile || "", iva_aliquota: entry.iva_aliquota || "", iva_amount: entry.iva_amount || "", totale: entry.totale || "" }); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); if (entry) setFormData({ document_date: entry.document_date, direction: entry.direction, amount: entry.amount, note: entry.note || "", payment_method: entry.payment_method || "", cfo_notes: entry.cfo_notes || "", imponibile: entry.imponibile || "", iva_aliquota: entry.iva_aliquota || "", iva_amount: entry.iva_amount || "", totale: entry.totale || "", economic_subject_id: entry.economic_subject_id || "", economic_subject_type: entry.economic_subject_type || "" }); }}>
                   <X className="h-3.5 w-3.5 mr-1" /> Annulla
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
@@ -301,6 +320,27 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                       <p className="font-bold text-lg">{entry.totale ? formatEuro(Number(entry.totale)) : "—"}</p>
                     )}
                   </div>
+                </div>
+
+                {/* Soggetto Economico */}
+                <div className="space-y-1.5">
+                  {editing ? (
+                    <CustomerSearchSelect
+                      selectedCustomerId={formData.economic_subject_id || ""}
+                      onSelect={(id, name) => setFormData(p => ({
+                        ...p,
+                        economic_subject_id: id,
+                        economic_subject_type: id ? "cliente" : "",
+                      }))}
+                    />
+                  ) : (
+                    <>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Soggetto Economico</Label>
+                      <p className="text-sm font-medium">
+                        {linkedCustomer ? (linkedCustomer.company_name || linkedCustomer.name) : "—"}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Conto finanziario */}
