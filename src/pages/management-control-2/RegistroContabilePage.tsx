@@ -2618,12 +2618,26 @@ export default function RegistroContabilePage() {
           {invoice.status === 'rettificato' && (
             <Badge variant="outline" className="text-muted-foreground"><Lock className="w-3 h-3 mr-1" />Bloccato</Badge>
           )}
-          {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
-            <span className="text-xs text-muted-foreground italic">Per modificare: Storna in Prima Nota</span>
-          )}
-          {invoice.status === 'registrata' && !invoice.prima_nota_id && (
+          {['registrata', 'contabilizzato'].includes(invoice.status) && (
             <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
               <Pencil className="w-3.5 h-3.5 mr-1" />Modifica
+            </Button>
+          )}
+          {/* Pulsante Registra Pagamento per fatture con scadenza aperta */}
+          {invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
+            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => {
+              setSelectedInvoice(invoice);
+              setPaymentData({
+                amount: invoice.total_amount,
+                payment_date: format(new Date(), 'yyyy-MM-dd'),
+                payment_method: invoice.payment_method || 'bonifico',
+                notes: '',
+                is_partial: false
+              });
+              setShowPaymentDialog(true);
+            }}>
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
             </Button>
           )}
           {invoice.scadenza_id && (
