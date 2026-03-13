@@ -435,6 +435,27 @@ export default function PrimaNotaPage() {
         </div>
       </div>
 
+      {/* Segnalazioni banner */}
+      {segnalazioniCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              {segnalazioniCount} segnalazion{segnalazioniCount === 1 ? 'e' : 'i'} da validare
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Movimenti segnalati dal personale operativo via Z-APP — richiedono validazione CFO</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-amber-300 text-amber-700 hover:bg-amber-100 text-xs shrink-0"
+            onClick={() => setFilterType('segnalazione')}
+          >
+            Mostra
+          </Button>
+        </div>
+      )}
+
       {/* Search & Filter bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
@@ -460,6 +481,9 @@ export default function PrimaNotaPage() {
           </ToggleGroupItem>
           <ToggleGroupItem value="uscita" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-red-600">
             ↓ Uscite
+          </ToggleGroupItem>
+          <ToggleGroupItem value="segnalazione" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-amber-600">
+            ⚠ Segnalazioni {segnalazioniCount > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] bg-amber-100 text-amber-700">{segnalazioniCount}</Badge>}
           </ToggleGroupItem>
         </ToggleGroup>
       </div>
