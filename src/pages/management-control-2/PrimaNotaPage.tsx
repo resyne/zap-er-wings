@@ -152,6 +152,8 @@ export default function PrimaNotaPage() {
     }
   };
 
+  const segnalazioniCount = movements.filter(m => m.status === 'segnalazione').length;
+
   // Generate progressive code for the date: PN-YYYYMMDD-01
   const generateCode = async (date: string) => {
     const dateFormatted = date.replace(/-/g, '');
