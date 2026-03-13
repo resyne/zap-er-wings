@@ -507,11 +507,11 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Aliquota %</Label>
-                  <Input type="number" value={form.iva_aliquota} onChange={e => {
+                  <Input type="number" value={form.iva_aliquota} readOnly={isZeroIvaMode(form.iva_mode)} className={isZeroIvaMode(form.iva_mode) ? "bg-muted/50" : ""} onChange={e => {
                     const aliq = parseFloat(e.target.value) || 0;
                     const zeroIva = isZeroIvaMode(form.iva_mode);
                     const iva = zeroIva ? 0 : form.imponibile * (aliq / 100);
-                    const tot = zeroIva ? form.imponibile : form.imponibile + iva;
+                    const tot = form.imponibile + iva;
                     setForm(p => ({ ...p, iva_aliquota: aliq, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
