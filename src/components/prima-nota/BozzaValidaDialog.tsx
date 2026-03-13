@@ -173,9 +173,9 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         payment_method: entry.payment_method || "",
         cfo_notes: entry.cfo_notes || "",
         iva_mode: normalizeIvaMode(entry.iva_mode),
-        iva_aliquota: entry.iva_aliquota || 22,
+        iva_aliquota: entry.iva_aliquota ?? (isZeroIvaMode(normalizeIvaMode(entry.iva_mode)) ? 0 : 22),
         imponibile: entry.imponibile || entry.amount || 0,
-        iva_amount: entry.iva_amount || 0,
+        iva_amount: entry.iva_amount ?? 0,
         totale: entry.totale || entry.amount || 0,
       });
     }
@@ -490,27 +490,28 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Regime IVA</Label>
                   <Select value={form.iva_mode} onValueChange={v => {
                     const zeroIva = isZeroIvaMode(v);
+                    const newAliq = zeroIva ? 0 : 22;
                     const imp = form.imponibile;
-                    const aliq = form.iva_aliquota;
-                    const iva = zeroIva ? 0 : imp * (aliq / 100);
-                    const tot = zeroIva ? imp : imp + iva;
-                    setForm(p => ({ ...p, iva_mode: v, iva_amount: iva, totale: tot }));
+                    const iva = zeroIva ? 0 : imp * (newAliq / 100);
+                    const tot = imp + iva;
+                    setForm(p => ({ ...p, iva_mode: v, iva_aliquota: newAliq, iva_amount: iva, totale: tot }));
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(IVA_MODE_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
-                      ))}
+                      <SelectItem value="ORDINARIO_22">Ordinario (22%)</SelectItem>
+                      <SelectItem value="REVERSE_CHARGE">Reverse Charge (0%)</SelectItem>
+                      <SelectItem value="INTRA_UE">Intra UE (0%)</SelectItem>
+                      <SelectItem value="EXTRA_UE">Extra UE (0%)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Aliquota %</Label>
-                  <Input type="number" value={form.iva_aliquota} onChange={e => {
+                  <Input type="number" value={form.iva_aliquota} readOnly={isZeroIvaMode(form.iva_mode)} className={isZeroIvaMode(form.iva_mode) ? "bg-muted/50" : ""} onChange={e => {
                     const aliq = parseFloat(e.target.value) || 0;
                     const zeroIva = isZeroIvaMode(form.iva_mode);
                     const iva = zeroIva ? 0 : form.imponibile * (aliq / 100);
-                    const tot = zeroIva ? form.imponibile : form.imponibile + iva;
+                    const tot = form.imponibile + iva;
                     setForm(p => ({ ...p, iva_aliquota: aliq, iva_amount: iva, totale: tot }));
                   }} />
                 </div>
