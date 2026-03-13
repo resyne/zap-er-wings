@@ -236,6 +236,14 @@ export default function RegistroContabilePage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: 0,
+    payment_date: format(new Date(), 'yyyy-MM-dd'),
+    payment_method: 'bonifico',
+    notes: '',
+    is_partial: false
+  });
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showClassifyDialog, setShowClassifyDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
@@ -1908,8 +1916,176 @@ export default function RegistroContabilePage() {
   });
 
   // =====================================================
-  // RIGENERA PRIMA NOTA - Per eventi stornati/da_riclassificare
+  // REGISTRA PAGAMENTO - Totale o parziale con Prima Nota
   // =====================================================
+  const paymentMutation = useMutation({
+    mutationFn: async (params: { invoice: InvoiceRegistry; payment: typeof paymentData }) => {
+      const { invoice, payment } = params;
+      const { data: user } = await supabase.auth.getUser();
+      
+      if (!invoice.scadenza_id) throw new Error('Nessuna scadenza collegata');
+      
+      // Recupera la scadenza corrente
+      const { data: scadenza, error: scadError } = await supabase
+        .from('scadenze')
+        .select('*')
+        .eq('id', invoice.scadenza_id)
+        .single();
+      
+      if (scadError || !scadenza) throw new Error('Scadenza non trovata');
+      
+      const paymentAmount = payment.amount;
+      const newResiduo = Math.max(0, scadenza.importo_residuo - paymentAmount);
+      const isFullyPaid = newResiduo < 0.01;
+      
+      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const payMethodKey = payment.payment_method?.toUpperCase() || 'BANCA';
+      
+      // 1. Crea movimento di Prima Nota per il pagamento
+      const primaNotaAmount = isAcquisto ? -paymentAmount : paymentAmount;
+      
+      const { data: primaNota, error: pnError } = await supabase
+        .from('prima_nota')
+        .insert({
+          competence_date: payment.payment_date,
+          movement_type: 'finanziario',
+          description: `${isAcquisto ? 'Pagamento' : 'Incasso'} ${isFullyPaid ? '' : 'parziale '}Fatt. ${invoice.invoice_number} - ${invoice.subject_name}`,
+          amount: primaNotaAmount,
+          status: 'registrato',
+          payment_method: payment.payment_method,
+          accounting_entry_id: invoice.accounting_entry_id,
+          created_by: user?.user?.id,
+        })
+        .select()
+        .single();
+      
+      if (pnError) throw pnError;
+      
+      // 2. Genera linee partita doppia per il pagamento
+      const lines: any[] = [];
+      let lineOrder = 1;
+      
+      if (isAcquisto) {
+        // Pagamento fornitore: DARE Debiti vs fornitori, AVERE Banca
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: 'DEBITI_FORNITORI',
+          chart_account_id: null,
+          dare: paymentAmount,
+          avere: 0,
+          description: 'Estinzione debito fornitore',
+        });
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: payMethodKey,
+          chart_account_id: null,
+          dare: 0,
+          avere: paymentAmount,
+          description: `Pagamento ${payment.payment_method}`,
+        });
+      } else {
+        // Incasso cliente: DARE Banca, AVERE Crediti vs clienti
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: payMethodKey,
+          chart_account_id: null,
+          dare: paymentAmount,
+          avere: 0,
+          description: `Incasso ${payment.payment_method}`,
+        });
+        lines.push({
+          prima_nota_id: primaNota.id,
+          line_order: lineOrder++,
+          account_type: 'dynamic',
+          dynamic_account_key: 'CREDITI_CLIENTI',
+          chart_account_id: null,
+          dare: 0,
+          avere: paymentAmount,
+          description: 'Estinzione credito cliente',
+        });
+      }
+      
+      const { error: linesError } = await supabase
+        .from('prima_nota_lines')
+        .insert(lines);
+      if (linesError) throw linesError;
+      
+      // 3. Registra il movimento nella scadenza
+      const { error: movError } = await supabase
+        .from('scadenza_movimenti')
+        .insert({
+          scadenza_id: invoice.scadenza_id,
+          data_movimento: payment.payment_date,
+          importo: paymentAmount,
+          metodo_pagamento: payment.payment_method,
+          note: payment.notes || `${isFullyPaid ? 'Saldo totale' : 'Acconto parziale'} - Fatt. ${invoice.invoice_number}`,
+          prima_nota_id: primaNota.id,
+          evento_finanziario_id: invoice.accounting_entry_id,
+        });
+      if (movError) throw movError;
+      
+      // 4. Aggiorna la scadenza
+      const { error: scadUpdateError } = await supabase
+        .from('scadenze')
+        .update({
+          importo_residuo: newResiduo,
+          stato: isFullyPaid ? 'chiusa' : 'parziale',
+        })
+        .eq('id', invoice.scadenza_id);
+      if (scadUpdateError) throw scadUpdateError;
+      
+      // 5. Aggiorna lo stato finanziario della fattura
+      const newFinancialStatus = isFullyPaid 
+        ? (isAcquisto ? 'pagata' : 'incassata')
+        : invoice.financial_status; // Resta da_pagare/da_incassare se parziale
+      
+      const { error: invError } = await supabase
+        .from('invoice_registry')
+        .update({
+          financial_status: newFinancialStatus,
+          payment_date: isFullyPaid ? payment.payment_date : invoice.payment_date,
+          payment_method: payment.payment_method,
+        })
+        .eq('id', invoice.id);
+      if (invError) throw invError;
+      
+      // 6. Aggiorna accounting entry se completamente pagata
+      if (isFullyPaid && invoice.accounting_entry_id) {
+        await supabase
+          .from('accounting_entries')
+          .update({
+            financial_status: newFinancialStatus,
+            payment_date: payment.payment_date,
+            payment_method: payment.payment_method,
+          })
+          .eq('id', invoice.accounting_entry_id);
+      }
+      
+      return { isFullyPaid, paymentAmount, newResiduo };
+    },
+    onSuccess: (result) => {
+      const msg = result.isFullyPaid 
+        ? 'Pagamento totale registrato! Scadenza chiusa e Prima Nota aggiornata.'
+        : `Acconto di €${result.paymentAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })} registrato. Residuo: €${result.newResiduo.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+      toast.success(msg);
+      setShowPaymentDialog(false);
+      setSelectedInvoice(null);
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
+      queryClient.invalidateQueries({ queryKey: ['prima-nota'] });
+    },
+    onError: (error) => {
+      toast.error('Errore nel pagamento: ' + error.message);
+    }
+  });
+
   const regeneratePrimaNotaMutation = useMutation({
     mutationFn: async (invoice: InvoiceRegistry) => {
       // Verifica che sia uno stato valido per rigenerazione
@@ -2610,12 +2786,26 @@ export default function RegistroContabilePage() {
           {invoice.status === 'rettificato' && (
             <Badge variant="outline" className="text-muted-foreground"><Lock className="w-3 h-3 mr-1" />Bloccato</Badge>
           )}
-          {['registrata', 'contabilizzato'].includes(invoice.status) && invoice.prima_nota_id && (
-            <span className="text-xs text-muted-foreground italic">Per modificare: Storna in Prima Nota</span>
-          )}
-          {invoice.status === 'registrata' && !invoice.prima_nota_id && (
+          {['registrata', 'contabilizzato'].includes(invoice.status) && (
             <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
               <Pencil className="w-3.5 h-3.5 mr-1" />Modifica
+            </Button>
+          )}
+          {/* Pulsante Registra Pagamento per fatture con scadenza aperta */}
+          {invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
+            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => {
+              setSelectedInvoice(invoice);
+              setPaymentData({
+                amount: invoice.total_amount,
+                payment_date: format(new Date(), 'yyyy-MM-dd'),
+                payment_method: invoice.payment_method || 'bonifico',
+                notes: '',
+                is_partial: false
+              });
+              setShowPaymentDialog(true);
+            }}>
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
             </Button>
           )}
           {invoice.scadenza_id && (
@@ -3131,6 +3321,18 @@ export default function RegistroContabilePage() {
             if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
           }}
           isRegenerating={regeneratePrimaNotaMutation.isPending}
+          onPayment={(invoice) => {
+            const inv = invoice as any as InvoiceRegistry;
+            setSelectedInvoice(inv);
+            setPaymentData({
+              amount: inv.total_amount,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+              payment_method: inv.payment_method || 'bonifico',
+              notes: '',
+              is_partial: false
+            });
+            setShowPaymentDialog(true);
+          }}
           onGoScadenziario={() => (window.location.href = '/management-control-2/scadenziario')}
         />
       )}
@@ -4402,6 +4604,121 @@ export default function RegistroContabilePage() {
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
               Crea Fattura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Registra Pagamento */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              {selectedInvoice?.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Fattura:</span>
+                    <span className="font-mono font-medium">{selectedInvoice.invoice_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Soggetto:</span>
+                    <span>{selectedInvoice.subject_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Totale fattura:</span>
+                    <span className="font-bold">€{selectedInvoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="partial-payment"
+                    checked={paymentData.is_partial}
+                    onChange={(e) => setPaymentData(prev => ({
+                      ...prev,
+                      is_partial: e.target.checked,
+                      amount: e.target.checked ? prev.amount : selectedInvoice.total_amount
+                    }))}
+                    className="rounded border-muted-foreground/30"
+                  />
+                  <Label htmlFor="partial-payment" className="text-sm cursor-pointer">Pagamento parziale (acconto)</Label>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Importo {paymentData.is_partial ? 'acconto' : ''} (€) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={selectedInvoice.total_amount}
+                    value={paymentData.amount || ''}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    disabled={!paymentData.is_partial}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Data {selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'} *</Label>
+                  <Input
+                    type="date"
+                    value={paymentData.payment_date}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date: e.target.value }))}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Metodo di pagamento *</Label>
+                  <Select value={paymentData.payment_method} onValueChange={(v) => setPaymentData(prev => ({ ...prev, payment_method: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Note (opzionale)</Label>
+                  <Textarea
+                    value={paymentData.notes}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                    placeholder="Es: Bonifico n. 12345"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                <p className="text-muted-foreground">Verrà creato automaticamente:</p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                  <li>Movimento di Prima Nota ({selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'})</li>
+                  <li>Scrittura partita doppia</li>
+                  <li>Movimento sullo scadenziario</li>
+                  {!paymentData.is_partial && <li>Chiusura scadenza</li>}
+                </ul>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Annulla</Button>
+            <Button
+              onClick={() => selectedInvoice && paymentMutation.mutate({ invoice: selectedInvoice, payment: paymentData })}
+              disabled={paymentMutation.isPending || !paymentData.amount || paymentData.amount <= 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {paymentMutation.isPending ? 'Registrazione...' : paymentData.is_partial ? 'Registra Acconto' : 'Registra Pagamento'}
             </Button>
           </DialogFooter>
         </DialogContent>

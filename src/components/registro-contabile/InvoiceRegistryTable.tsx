@@ -58,6 +58,7 @@ type Props = {
   onRegister: (invoice: InvoiceRegistry) => void;
   onDelete: (invoice: InvoiceRegistry) => void;
   onRegenerate: (invoice: InvoiceRegistry) => void;
+  onPayment?: (invoice: InvoiceRegistry) => void;
   isRegenerating: boolean;
   onGoScadenziario: () => void;
 };
@@ -72,6 +73,7 @@ export function InvoiceRegistryTable({
   onRegister,
   onDelete,
   onRegenerate,
+  onPayment,
   isRegenerating,
   onGoScadenziario,
 }: Props) {
@@ -112,6 +114,7 @@ export function InvoiceRegistryTable({
                       onRegister={onRegister}
                       onDelete={onDelete}
                       onRegenerate={onRegenerate}
+                      onPayment={onPayment}
                       isRegenerating={isRegenerating}
                       onGoScadenziario={onGoScadenziario}
                     />
@@ -128,6 +131,7 @@ export function InvoiceRegistryTable({
                   onRegister={onRegister}
                   onDelete={onDelete}
                   onRegenerate={onRegenerate}
+                  onPayment={onPayment}
                   isRegenerating={isRegenerating}
                   onGoScadenziario={onGoScadenziario}
                 />
@@ -176,6 +180,7 @@ function InvoiceRow({
   onRegister,
   onDelete,
   onRegenerate,
+  onPayment,
   isRegenerating,
   onGoScadenziario,
 }: {
@@ -185,6 +190,7 @@ function InvoiceRow({
   onRegister: (invoice: InvoiceRegistry) => void;
   onDelete: (invoice: InvoiceRegistry) => void;
   onRegenerate: (invoice: InvoiceRegistry) => void;
+  onPayment?: (invoice: InvoiceRegistry) => void;
   isRegenerating: boolean;
   onGoScadenziario: () => void;
 }) {
@@ -257,6 +263,14 @@ function InvoiceRow({
               <DropdownMenuItem onClick={onGoScadenziario}>
                 <LinkIcon className="h-4 w-4 mr-2" />
                 Vai a Scadenziario
+              </DropdownMenuItem>
+            )}
+
+            {/* Registra pagamento/incasso per fatture con scadenza aperta */}
+            {onPayment && invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
+              <DropdownMenuItem onClick={() => onPayment(invoice)}>
+                <FileCheck className="h-4 w-4 mr-2" />
+                {invoice.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
               </DropdownMenuItem>
             )}
 
