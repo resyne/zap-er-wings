@@ -1,17 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDropzone } from "react-dropzone";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   FileText, DollarSign, Package2, Wrench, CalendarDays, MessageCircle,
   Smartphone, ShoppingCart, Settings, MessageSquare, Clock, LogIn, LogOut,
   Coffee, Play, MapPin, AlertTriangle, CheckCircle2, History,
-  Banknote, ArrowDownLeft, ArrowUpRight
+  Banknote, ArrowDownLeft, ArrowUpRight, Camera, Loader2, CheckCircle, X,
+  ImageIcon, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { useAttendance } from "@/hooks/useAttendance";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const sections = [
   {
