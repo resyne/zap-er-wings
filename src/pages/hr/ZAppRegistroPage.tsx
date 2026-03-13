@@ -31,8 +31,9 @@ type EntryType = "uscita" | "entrata";
 export default function ZAppRegistroPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const [step, setStep] = useState<"choose" | "form">("choose");
+  const [step, setStep] = useState<"choose" | "form" | "rimborsi">("choose");
   const [entryType, setEntryType] = useState<EntryType>("uscita");
   const [importo, setImporto] = useState("");
   const [descrizione, setDescrizione] = useState("");
@@ -40,6 +41,23 @@ export default function ZAppRegistroPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
   const [submitted, setSubmitted] = useState(false);
+
+  // Query rimborsi dipendente
+  const { data: rimborsi = [] } = useQuery({
+    queryKey: ["rimborsi-dipendente", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("movimenti_finanziari")
+        .select("*")
+        .eq("created_by", user.id)
+        .eq("metodo_pagamento", "anticipo_dipendente")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
 
   const createMutation = useMutation({
     mutationFn: async (data: {
