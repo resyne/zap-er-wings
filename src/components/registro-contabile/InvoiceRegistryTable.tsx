@@ -77,31 +77,52 @@ export function InvoiceRegistryTable({
   isRegenerating,
   onGoScadenziario,
 }: Props) {
+  if (isLoading) {
+    return (
+      <Card className="border shadow-sm">
+        <CardContent className="py-16 text-center text-muted-foreground">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-sm">Caricamento registro...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <Card className="border shadow-sm">
+        <CardContent className="py-16 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center">
+              <FileText className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Nessun documento trovato</p>
+              <p className="text-sm text-muted-foreground">Carica una fattura per iniziare</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
+    <Card className="border shadow-sm overflow-hidden">
       <CardContent className="p-0 overflow-x-auto">
         <Table className="min-w-[980px]">
           <TableHeader>
-            <TableRow>
-              <TableHead>Documento</TableHead>
-              <TableHead>Soggetto</TableHead>
-              <TableHead className="text-right">Importi</TableHead>
-              <TableHead>Stati</TableHead>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Documento</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Soggetto</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Importi</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stati</TableHead>
               <TableHead className="text-right w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">Caricamento...</TableCell>
-              </TableRow>
-            ) : invoices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Nessun documento trovato
-                </TableCell>
-              </TableRow>
-            ) : groupBy !== "none" && grouped ? (
+            {groupBy !== "none" && grouped ? (
               grouped.map(([key, group]) => (
                 <React.Fragment key={key}>
                   <GroupHeaderRow group={group} />

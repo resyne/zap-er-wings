@@ -5,10 +5,10 @@ const RegistroContabileContent = lazy(() => import("@/pages/management-control-2
 
 export default function RegistroContabilePage() {
   return (
-    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-6">
+    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+        <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
           <Receipt className="h-5 w-5 text-primary" />
         </div>
         <div>

@@ -2827,11 +2827,13 @@ export default function RegistroContabilePage() {
       
       {/* Drag overlay */}
       {isDragActive && (
-        <div className="fixed inset-0 bg-primary/10 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border-2 border-dashed border-primary rounded-2xl p-12 text-center shadow-2xl">
-            <Upload className="w-16 h-16 mx-auto mb-4 text-primary animate-bounce" />
-            <p className="text-xl font-semibold text-primary">Rilascia la fattura qui</p>
-            <p className="text-muted-foreground mt-2">AI analizzerà automaticamente il documento</p>
+        <div className="fixed inset-0 bg-primary/5 backdrop-blur-md z-50 flex items-center justify-center">
+          <div className="bg-card border-2 border-primary rounded-3xl p-16 text-center shadow-2xl max-w-md">
+            <div className="h-20 w-20 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Upload className="w-10 h-10 text-primary animate-bounce" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">Rilascia qui</p>
+            <p className="text-muted-foreground mt-2 text-sm">L'AI analizzerà automaticamente i documenti</p>
           </div>
         </div>
       )}
@@ -2839,13 +2841,15 @@ export default function RegistroContabilePage() {
       {/* Uploading/Analyzing overlay */}
       {(isUploading || isAnalyzing) && !showUploadProgress && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border rounded-2xl p-8 text-center shadow-2xl">
-            <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
-            <p className="text-lg font-semibold">
-              {isUploading ? "Caricamento..." : "Analisi AI in corso..."}
+          <div className="bg-card border rounded-3xl p-10 text-center shadow-2xl max-w-sm">
+            <div className="h-16 w-16 mx-auto mb-5 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+            <p className="text-lg font-semibold text-foreground">
+              {isAnalyzing ? "Analisi AI in corso..." : "Caricamento..."}
             </p>
-            <p className="text-muted-foreground mt-2">
-              {isAnalyzing ? "Estraggo i dati dalla fattura" : "Attendi qualche secondo"}
+            <p className="text-muted-foreground mt-2 text-sm">
+              {isAnalyzing ? "Estraggo i dati dal documento" : "Attendi qualche secondo"}
             </p>
           </div>
         </div>
@@ -2899,52 +2903,76 @@ export default function RegistroContabilePage() {
         </Dialog>
       )}
 
-      {/* Toolbar: dropzone + carica */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-        {/* Compact dropzone */}
+      {/* Hero Upload Area */}
+      <Card className="overflow-hidden border-2 border-dashed border-primary/20 bg-gradient-to-br from-primary/[0.03] to-primary/[0.08] hover:border-primary/40 transition-all duration-300 group">
         <div
           {...getRootProps()}
-          className={cn(
-            "flex-1 border border-dashed rounded-xl px-5 py-3.5 flex items-center gap-4 transition-colors cursor-pointer",
-            isDragActive
-              ? "border-primary bg-primary/5"
-              : "border-muted-foreground/25 bg-muted/20 hover:bg-muted/40"
-          )}
+          className="cursor-pointer"
         >
           <input {...getInputProps()} />
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Upload className="w-4.5 h-4.5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">
-              {isDragActive ? "Rilascia i file qui..." : "Trascina documenti qui (anche multipli)"}
-            </p>
-            <p className="text-xs text-muted-foreground">PDF, XML o immagine — l'AI pre-compila i dati e crea/collega clienti/fornitori</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 flex-shrink-0">
-          <label>
-            <Button variant="outline" size="default" asChild className="h-10">
-              <div className="cursor-pointer">
-                <Upload className="w-4 h-4 mr-2" />
-                Carica
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              {/* Icon area */}
+              <div className="relative flex-shrink-0">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors group-hover:scale-105 duration-300">
+                  <Upload className="w-7 h-7 text-primary" />
+                </div>
+                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-primary-foreground">AI</span>
+                </div>
               </div>
-            </Button>
-            <input
-              type="file"
-              accept="image/*,application/pdf,text/xml,application/xml,.xml,.p7m"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                if (files.length > 0) handleMultiFileUpload(files);
-                e.target.value = '';
-              }}
-            />
-          </label>
+              
+              {/* Text */}
+              <div className="flex-1 text-center md:text-left space-y-1.5">
+                <h3 className="text-lg font-semibold tracking-tight">
+                  {isDragActive ? "Rilascia i file qui..." : "Importa fatture e documenti fiscali"}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-lg">
+                  Trascina qui PDF, XML o immagini — anche multipli. L'AI analizza automaticamente i dati, 
+                  riconosce clienti e fornitori e pre-compila la registrazione.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start pt-1">
+                  <Badge variant="secondary" className="text-xs font-normal gap-1">
+                    <FileText className="h-3 w-3" />
+                    PDF
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs font-normal gap-1">
+                    <FileText className="h-3 w-3" />
+                    XML / FatturaPA
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs font-normal gap-1">
+                    <Camera className="h-3 w-3" />
+                    Foto / Immagini
+                  </Badge>
+                </div>
+              </div>
+              
+              {/* CTA Button */}
+              <div className="flex-shrink-0">
+                <label>
+                  <Button size="lg" asChild className="gap-2 shadow-md cursor-pointer">
+                    <div>
+                      <Upload className="w-4 h-4" />
+                      Carica documenti
+                    </div>
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf,text/xml,application/xml,.xml,.p7m"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) handleMultiFileUpload(files);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </CardContent>
         </div>
-      </div>
+      </Card>
 
 
 
