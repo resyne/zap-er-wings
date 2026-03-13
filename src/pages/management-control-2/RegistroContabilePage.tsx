@@ -3347,11 +3347,9 @@ export default function RegistroContabilePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="spesa_dipendente">🧾 Spesa Dipendente</SelectItem>
-                    <SelectItem value="incasso_dipendente">💵 Incasso Dipendente</SelectItem>
                     <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
-                    <SelectItem value="nota_credito">📋 Nota di Credito</SelectItem>
+                    <SelectItem value="nota_credito">📋 Nota di Credito/Debito</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
