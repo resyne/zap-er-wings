@@ -130,10 +130,26 @@ export default function PrimaNotaPage() {
     }
   });
 
+  // Generate progressive code for the date: PN-YYYYMMDD-01
+  const generateCode = async (date: string) => {
+    const dateFormatted = date.replace(/-/g, '');
+    const prefix = `PN-${dateFormatted}`;
+    
+    const { count } = await supabase
+      .from('accounting_entries')
+      .select('*', { count: 'exact', head: true })
+      .like('account_code', `${prefix}-%`);
+    
+    const nextNum = String((count || 0) + 1).padStart(2, '0');
+    return `${prefix}-${nextNum}`;
+  };
+
   // Create movement
   const createMutation = useMutation({
     mutationFn: async (data: MovementFormData) => {
       const { data: user } = await supabase.auth.getUser();
+      const code = await generateCode(data.date);
+      
       const { error } = await supabase
         .from('accounting_entries')
         .insert({
@@ -149,6 +165,7 @@ export default function PrimaNotaPage() {
           cfo_notes: data.notes || null,
           attachment_url: '',
           user_id: user?.user?.id,
+          account_code: code,
         });
       if (error) throw error;
     },
