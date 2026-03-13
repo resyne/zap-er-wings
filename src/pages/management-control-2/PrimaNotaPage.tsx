@@ -112,31 +112,33 @@ export default function PrimaNotaPage() {
   };
 
   // Query movements from accounting_entries (filtered to financial movements only)
-  const { data: movements = [], isLoading } = useQuery({
+  const { data: rawEntries = [], isLoading } = useQuery({
     queryKey: ['prima-nota-movements'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_entries')
         .select('*')
-        .in('event_type', ['movimento_finanziario', 'costo', 'ricavo'])
+        .in('status', ['classificato', 'registrato', 'segnalazione', 'da_classificare', 'in_classificazione', 'pronto_prima_nota'])
         .order('document_date', { ascending: false })
         .limit(200);
       if (error) throw error;
-      return (data || []).map(e => ({
-        id: e.id,
-        code: e.account_code || '',
-        date: e.document_date,
-        type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
-        amount: e.amount,
-        description: e.note || '',
-        financial_account: e.payment_method || '',
-        notes: e.cfo_notes,
-        created_at: e.created_at,
-        status: e.status || 'classificato',
-        attachment_url: e.attachment_url || null,
-      }));
+      return data || [];
     }
   });
+
+  const movements: FinancialMovement[] = rawEntries.map(e => ({
+    id: e.id,
+    code: e.account_code || '',
+    date: e.document_date,
+    type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
+    amount: e.amount,
+    description: e.note || '',
+    financial_account: e.payment_method || '',
+    notes: e.cfo_notes,
+    created_at: e.created_at,
+    status: e.status || 'classificato',
+    attachment_url: e.attachment_url || null,
+  }));
 
   // Count segnalazioni for banner
   const segnalazioniCount = movements.filter(m => m.status === 'segnalazione').length;
