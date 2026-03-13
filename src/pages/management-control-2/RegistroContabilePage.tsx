@@ -1850,21 +1850,8 @@ export default function RegistroContabilePage() {
     }
   });
 
-              iva_amount: ivaAmount,
-              iva_aliquota: updates.iva_rate,
-              competence_date: updates.invoice_date,
-              payment_method: isPaid ? paymentMethod : null
-            })
-            .eq('id', invoice.prima_nota_id);
 
-          if (primaNotaError) throw primaNotaError;
 
-          // Rigenera le linee di partita doppia
-          // Elimina le vecchie linee
-          await supabase
-            .from('prima_nota_lines')
-            .delete()
-            .eq('prima_nota_id', invoice.prima_nota_id);
 
           // Genera le nuove linee
           const primaNotaLines: any[] = [];
