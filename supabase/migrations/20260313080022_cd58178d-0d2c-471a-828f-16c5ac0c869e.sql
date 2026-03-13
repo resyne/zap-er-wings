@@ -1,0 +1,2 @@
+ALTER TABLE accounting_entries DROP CONSTRAINT accounting_entries_status_check;
+ALTER TABLE accounting_entries ADD CONSTRAINT accounting_entries_status_check CHECK (status = ANY (ARRAY['da_classificare'::text, 'classificato'::text, 'registrato'::text, 'pronto_prima_nota'::text, 'sospeso'::text, 'richiesta_integrazione'::text, 'segnalazione'::text]));
