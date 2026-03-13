@@ -236,6 +236,14 @@ export default function RegistroContabilePage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: 0,
+    payment_date: format(new Date(), 'yyyy-MM-dd'),
+    payment_method: 'bonifico',
+    notes: '',
+    is_partial: false
+  });
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showClassifyDialog, setShowClassifyDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRegistry | null>(null);
