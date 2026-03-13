@@ -265,6 +265,28 @@ export default function PrimaNotaPage() {
 
   const currentTypeConfig = typeConfig[formData.type];
 
+  if (roleLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto px-4 md:px-6 max-w-[1600px]">
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <ShieldAlert className="h-16 w-16 text-destructive/50" />
+          <h2 className="text-xl font-semibold text-foreground">Accesso riservato</h2>
+          <p className="text-muted-foreground text-center max-w-md">
+            La Prima Nota è accessibile solo al CFO. Se ritieni di dover accedere a questa sezione, contatta l'amministratore.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
       {/* Header + Period selector combined */}
