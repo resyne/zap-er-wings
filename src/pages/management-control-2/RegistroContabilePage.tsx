@@ -128,7 +128,7 @@ interface InvoiceRegistry {
 }
 
 // Tipi evento del registro contabile
-type EventType = 'spesa_dipendente' | 'incasso_dipendente' | 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
+type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
