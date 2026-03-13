@@ -253,13 +253,13 @@ export default function ZAppRegistroPage() {
       {/* Header */}
       <div className="px-4 pt-4 pb-3 flex items-center gap-3">
         <button
-          onClick={() => step === "form" ? setStep("choose") : navigate("/hr/z-app")}
+          onClick={() => step === "form" || step === "rimborsi" ? setStep("choose") : navigate("/hr/z-app")}
           className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
         >
           <ArrowLeft className="h-5 w-5 text-white" />
         </button>
         <h1 className="text-lg font-bold text-white">
-          {step === "choose" ? "Segnala movimento" : isSpesa ? "Registra Spesa" : "Registra Incasso"}
+          {step === "choose" ? "Segnala movimento" : step === "rimborsi" ? "Anticipi & Rimborsi" : isSpesa ? "Registra Spesa" : "Registra Incasso"}
         </h1>
       </div>
 
