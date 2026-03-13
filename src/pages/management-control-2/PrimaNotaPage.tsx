@@ -24,6 +24,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
+import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 
 // =====================================================
 // TYPES
@@ -111,61 +112,47 @@ export default function PrimaNotaPage() {
   };
 
   // Query movements from accounting_entries (filtered to financial movements only)
-  const { data: movements = [], isLoading } = useQuery({
+  const { data: rawEntries = [], isLoading } = useQuery({
     queryKey: ['prima-nota-movements'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_entries')
         .select('*')
-        .in('event_type', ['movimento_finanziario', 'costo', 'ricavo'])
+        .in('status', ['classificato', 'registrato', 'segnalazione', 'da_classificare', 'in_classificazione', 'pronto_prima_nota'])
         .order('document_date', { ascending: false })
         .limit(200);
       if (error) throw error;
-      return (data || []).map(e => ({
-        id: e.id,
-        code: e.account_code || '',
-        date: e.document_date,
-        type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
-        amount: e.amount,
-        description: e.note || '',
-        financial_account: e.payment_method || '',
-        notes: e.cfo_notes,
-        created_at: e.created_at,
-        status: e.status || 'classificato',
-        attachment_url: e.attachment_url || null,
-      }));
+      return data || [];
     }
   });
 
-  // Count segnalazioni for banner
+  const movements: FinancialMovement[] = rawEntries.map(e => ({
+    id: e.id,
+    code: e.account_code || '',
+    date: e.document_date,
+    type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
+    amount: e.amount,
+    description: e.note || '',
+    financial_account: e.payment_method || '',
+    notes: e.cfo_notes,
+    created_at: e.created_at,
+    status: e.status || 'classificato',
+    attachment_url: e.attachment_url || null,
+  }));
+
+  // State for BozzaValidaDialog
+  const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
+  const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
+
+  const openValidateDialog = (movementId: string) => {
+    const fullEntry = rawEntries.find(e => e.id === movementId);
+    if (fullEntry) {
+      setSelectedEntryForValidation(fullEntry);
+      setBozzaDialogOpen(true);
+    }
+  };
+
   const segnalazioniCount = movements.filter(m => m.status === 'segnalazione').length;
-
-  // Validate segnalazione mutation
-  const validateMutation = useMutation({
-    mutationFn: async ({ id, cfoNotes }: { id: string; cfoNotes?: string }) => {
-      const code = await generateCode(new Date().toISOString().split('T')[0]);
-      const { error } = await supabase
-        .from('accounting_entries')
-        .update({ 
-          status: 'classificato',
-          account_code: code,
-          cfo_notes: cfoNotes || null,
-          classified_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Segnalazione validata e registrata in Prima Nota');
-      queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
-      setValidateDialogId(null);
-      setValidateNotes('');
-    },
-    onError: (e) => toast.error('Errore: ' + e.message),
-  });
-
-  const [validateDialogId, setValidateDialogId] = useState<string | null>(null);
-  const [validateNotes, setValidateNotes] = useState('');
 
   // Generate progressive code for the date: PN-YYYYMMDD-01
   const generateCode = async (date: string) => {
@@ -529,8 +516,7 @@ export default function PrimaNotaPage() {
                   )}
                   onClick={() => {
                     if (m.status === 'segnalazione') {
-                      setValidateDialogId(m.id);
-                      setValidateNotes('');
+                      openValidateDialog(m.id);
                     }
                   }}
                 >
@@ -594,7 +580,7 @@ export default function PrimaNotaPage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-                              onClick={(e) => { e.stopPropagation(); setValidateDialogId(m.id); setValidateNotes(''); }}
+                              onClick={(e) => { e.stopPropagation(); openValidateDialog(m.id); }}
                             >
                               <CheckCircle2 className="h-4 w-4" />
                             </Button>
@@ -746,82 +732,12 @@ export default function PrimaNotaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Validate segnalazione dialog */}
-      <Dialog open={!!validateDialogId} onOpenChange={(open) => { if (!open) setValidateDialogId(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              Valida Segnalazione
-            </DialogTitle>
-          </DialogHeader>
-          {validateDialogId && (() => {
-            const entry = movements.find(m => m.id === validateDialogId);
-            if (!entry) return null;
-            return (
-              <div className="space-y-4">
-                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Codice</span>
-                    <code className="text-xs font-mono text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{entry.code}</code>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Data</span>
-                    <span className="text-sm font-medium">{format(new Date(entry.date), 'dd/MM/yyyy', { locale: it })}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Tipo</span>
-                    <Badge variant="outline" className={cn("text-xs", entry.type === 'entrata' ? "text-emerald-700 border-emerald-200" : "text-red-700 border-red-200")}>
-                      {entry.type === 'entrata' ? '↑ Incasso' : '↓ Spesa'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Importo</span>
-                    <span className={cn("text-lg font-bold", entry.type === 'entrata' ? "text-emerald-600" : "text-red-600")}>
-                      € {entry.amount.toFixed(2)}
-                    </span>
-                  </div>
-                  {entry.description && (
-                    <div className="pt-2 border-t">
-                      <span className="text-xs text-muted-foreground">Descrizione</span>
-                      <p className="text-sm mt-0.5">{entry.description}</p>
-                    </div>
-                  )}
-                  {entry.attachment_url && entry.attachment_url !== '' && (
-                    <div className="pt-2 border-t">
-                      <a href={entry.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                        📎 Visualizza allegato
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Note CFO (opzionale)</Label>
-                  <Textarea
-                    value={validateNotes}
-                    onChange={(e) => setValidateNotes(e.target.value)}
-                    placeholder="Annotazioni sulla validazione..."
-                    rows={2}
-                    className="resize-none"
-                  />
-                </div>
-              </div>
-            );
-          })()}
-          <DialogFooter className="gap-2">
-            <Button variant="ghost" onClick={() => setValidateDialogId(null)}>Annulla</Button>
-            <Button
-              onClick={() => validateDialogId && validateMutation.mutate({ id: validateDialogId, cfoNotes: validateNotes })}
-              disabled={validateMutation.isPending}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {validateMutation.isPending ? 'Validazione...' : 'Valida e Registra'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Validate segnalazione via BozzaValidaDialog */}
+      <BozzaValidaDialog
+        open={bozzaDialogOpen}
+        onOpenChange={setBozzaDialogOpen}
+        entry={selectedEntryForValidation}
+      />
     </div>
   );
 }
