@@ -594,7 +594,7 @@ export default function PrimaNotaPage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-                              onClick={() => { setValidateDialogId(m.id); setValidateNotes(''); }}
+                              onClick={(e) => { e.stopPropagation(); setValidateDialogId(m.id); setValidateNotes(''); }}
                             >
                               <CheckCircle2 className="h-4 w-4" />
                             </Button>
