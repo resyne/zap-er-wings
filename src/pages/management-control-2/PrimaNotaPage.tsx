@@ -500,7 +500,9 @@ export default function PrimaNotaPage() {
                 <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
                 <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
+                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
                 <TableHead className="w-[140px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
+                <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
