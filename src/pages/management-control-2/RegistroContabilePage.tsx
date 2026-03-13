@@ -4597,6 +4597,121 @@ export default function RegistroContabilePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Registra Pagamento */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              {selectedInvoice?.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Fattura:</span>
+                    <span className="font-mono font-medium">{selectedInvoice.invoice_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Soggetto:</span>
+                    <span>{selectedInvoice.subject_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Totale fattura:</span>
+                    <span className="font-bold">€{selectedInvoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="partial-payment"
+                    checked={paymentData.is_partial}
+                    onChange={(e) => setPaymentData(prev => ({
+                      ...prev,
+                      is_partial: e.target.checked,
+                      amount: e.target.checked ? prev.amount : selectedInvoice.total_amount
+                    }))}
+                    className="rounded border-muted-foreground/30"
+                  />
+                  <Label htmlFor="partial-payment" className="text-sm cursor-pointer">Pagamento parziale (acconto)</Label>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Importo {paymentData.is_partial ? 'acconto' : ''} (€) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={selectedInvoice.total_amount}
+                    value={paymentData.amount || ''}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    disabled={!paymentData.is_partial}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Data {selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'} *</Label>
+                  <Input
+                    type="date"
+                    value={paymentData.payment_date}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date: e.target.value }))}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Metodo di pagamento *</Label>
+                  <Select value={paymentData.payment_method} onValueChange={(v) => setPaymentData(prev => ({ ...prev, payment_method: v }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Note (opzionale)</Label>
+                  <Textarea
+                    value={paymentData.notes}
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={2}
+                    placeholder="Es: Bonifico n. 12345"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                <p className="text-muted-foreground">Verrà creato automaticamente:</p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                  <li>Movimento di Prima Nota ({selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'})</li>
+                  <li>Scrittura partita doppia</li>
+                  <li>Movimento sullo scadenziario</li>
+                  {!paymentData.is_partial && <li>Chiusura scadenza</li>}
+                </ul>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Annulla</Button>
+            <Button
+              onClick={() => selectedInvoice && paymentMutation.mutate({ invoice: selectedInvoice, payment: paymentData })}
+              disabled={paymentMutation.isPending || !paymentData.amount || paymentData.amount <= 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {paymentMutation.isPending ? 'Registrazione...' : paymentData.is_partial ? 'Registra Acconto' : 'Registra Pagamento'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Similar Subject Dialog */}
       <SimilarSubjectDialog
         open={similarDialogOpen}
