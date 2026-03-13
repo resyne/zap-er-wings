@@ -73,6 +73,38 @@ export default function PrimaNotaPage() {
   const [formData, setFormData] = useState<MovementFormData>(initialFormData);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('month');
+  const [viewDate, setViewDate] = useState<Date>(new Date());
+
+  const getDateRange = useCallback(() => {
+    switch (viewMode) {
+      case 'day':
+        return { start: startOfDay(viewDate), end: endOfDay(viewDate) };
+      case 'week':
+        return { start: startOfWeek(viewDate, { weekStartsOn: 1 }), end: endOfWeek(viewDate, { weekStartsOn: 1 }) };
+      case 'month':
+        return { start: startOfMonth(viewDate), end: endOfMonth(viewDate) };
+    }
+  }, [viewMode, viewDate]);
+
+  const navigatePeriod = (direction: 'prev' | 'next') => {
+    const fn = direction === 'prev'
+      ? viewMode === 'day' ? subDays : viewMode === 'week' ? subWeeks : subMonths
+      : viewMode === 'day' ? addDays : viewMode === 'week' ? addWeeks : addMonths;
+    setViewDate(fn(viewDate, 1));
+  };
+
+  const getPeriodLabel = () => {
+    const range = getDateRange();
+    switch (viewMode) {
+      case 'day':
+        return format(viewDate, 'EEEE dd MMMM yyyy', { locale: it });
+      case 'week':
+        return `${format(range.start, 'dd MMM', { locale: it })} — ${format(range.end, 'dd MMM yyyy', { locale: it })}`;
+      case 'month':
+        return format(viewDate, 'MMMM yyyy', { locale: it });
+    }
+  };
 
   // Query movements from accounting_entries (filtered to financial movements only)
   const { data: movements = [], isLoading } = useQuery({
