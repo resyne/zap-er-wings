@@ -158,6 +158,8 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     if (formData.iva_aliquota !== "" && Number(formData.iva_aliquota) !== Number(entry?.iva_aliquota || 0)) updates.iva_aliquota = Number(formData.iva_aliquota);
     if (formData.iva_amount !== "" && Number(formData.iva_amount) !== Number(entry?.iva_amount || 0)) updates.iva_amount = Number(formData.iva_amount);
     if (formData.totale !== "" && Number(formData.totale) !== Number(entry?.totale || 0)) updates.totale = Number(formData.totale);
+    if (formData.economic_subject_id !== (entry?.economic_subject_id || "")) updates.economic_subject_id = formData.economic_subject_id || null;
+    if (formData.economic_subject_type !== (entry?.economic_subject_type || "")) updates.economic_subject_type = formData.economic_subject_type || null;
 
     if (Object.keys(updates).length === 0) {
       toast.info("Nessuna modifica rilevata");
