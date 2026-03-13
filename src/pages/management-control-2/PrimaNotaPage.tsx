@@ -29,11 +29,12 @@ import { formatEuro } from "@/lib/accounting-utils";
 // =====================================================
 interface FinancialMovement {
   id: string;
+  code: string;
   date: string;
   type: 'entrata' | 'uscita' | 'movimento_interno';
   amount: number;
   description: string;
-  financial_account: string; // banca, cassa, carta, contanti
+  financial_account: string;
   notes: string | null;
   created_at: string;
 }
@@ -119,6 +120,7 @@ export default function PrimaNotaPage() {
       if (error) throw error;
       return (data || []).map(e => ({
         id: e.id,
+        code: e.account_code || '',
         date: e.document_date,
         type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
         amount: e.amount,
@@ -130,10 +132,26 @@ export default function PrimaNotaPage() {
     }
   });
 
+  // Generate progressive code for the date: PN-YYYYMMDD-01
+  const generateCode = async (date: string) => {
+    const dateFormatted = date.replace(/-/g, '');
+    const prefix = `PN-${dateFormatted}`;
+    
+    const { count } = await supabase
+      .from('accounting_entries')
+      .select('*', { count: 'exact', head: true })
+      .like('account_code', `${prefix}-%`);
+    
+    const nextNum = String((count || 0) + 1).padStart(2, '0');
+    return `${prefix}-${nextNum}`;
+  };
+
   // Create movement
   const createMutation = useMutation({
     mutationFn: async (data: MovementFormData) => {
       const { data: user } = await supabase.auth.getUser();
+      const code = await generateCode(data.date);
+      
       const { error } = await supabase
         .from('accounting_entries')
         .insert({
@@ -149,6 +167,7 @@ export default function PrimaNotaPage() {
           cfo_notes: data.notes || null,
           attachment_url: '',
           user_id: user?.user?.id,
+          account_code: code,
         });
       if (error) throw error;
     },
@@ -416,7 +435,8 @@ export default function PrimaNotaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
+                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
                 <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
                 <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
@@ -425,10 +445,10 @@ export default function PrimaNotaPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-16">
+                  <TableCell colSpan={6} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
@@ -440,6 +460,9 @@ export default function PrimaNotaPage() {
                 </TableRow>
               ) : filtered.map((m, idx) => (
                 <TableRow key={m.id} className="group hover:bg-muted/20 transition-colors">
+                  <TableCell>
+                    <code className="text-[11px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{m.code || '—'}</code>
+                  </TableCell>
                   <TableCell className="text-sm font-medium tabular-nums">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                   <TableCell>
                     <div className={cn(
