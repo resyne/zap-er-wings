@@ -409,6 +409,7 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota-movements"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
       toast.success("Bozza salvata");
       onOpenChange(false);
