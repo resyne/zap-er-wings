@@ -85,6 +85,8 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
         iva_aliquota: entry.iva_aliquota || "",
         iva_amount: entry.iva_amount || "",
         totale: entry.totale || "",
+        economic_subject_id: entry.economic_subject_id || "",
+        economic_subject_type: entry.economic_subject_type || "",
       });
       setEditing(false);
     }
