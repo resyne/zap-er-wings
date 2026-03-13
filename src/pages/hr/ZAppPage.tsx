@@ -495,6 +495,31 @@ export default function ZAppPage() {
                 className="resize-none text-sm"
               />
 
+              {/* Payment method */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Metodo di pagamento</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {paymentMethods.map((pm) => (
+                    <button
+                      key={pm.value}
+                      type="button"
+                      onClick={() => setMovPayment(pm.value)}
+                      className={cn(
+                        "py-2 px-2.5 rounded-lg text-xs font-medium border transition-colors text-left",
+                        movPayment === pm.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+                {movPayment === "anticipo_dipendente" && (
+                  <p className="text-[10px] text-amber-600 font-medium">⚠️ Verrà tracciato come "da rimborsare"</p>
+                )}
+              </div>
+
               {/* Photo */}
               {movFile ? (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border">
