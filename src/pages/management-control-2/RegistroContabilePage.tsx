@@ -273,6 +273,8 @@ export default function RegistroContabilePage() {
   const [pendingSubjectName, setPendingSubjectName] = useState("");
   const [pendingSubjectType, setPendingSubjectType] = useState<"cliente" | "fornitore">("fornitore");
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+  const costCentersRef = useRef<any[]>([]);
+  const accountsRef = useRef<any[]>([]);
   
   // Invoice details dialog
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
