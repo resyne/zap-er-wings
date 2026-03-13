@@ -1,20 +1,21 @@
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, Search, Eye, Archive, FileText, CheckCircle2, AlertCircle, Truck } from "lucide-react";
+import { Upload, Loader2, Search, Eye, Archive, FileText, CheckCircle2, AlertCircle, Truck, Camera } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { findSimilarSubjects } from "@/lib/fuzzyMatch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface UploadQueueItem {
   file: File;
@@ -66,7 +67,6 @@ export default function DdtSection() {
     };
 
     try {
-      // 1. Upload file
       updateStatus("uploading");
       const fileName = `ddt_${Date.now()}_${file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -77,7 +77,6 @@ export default function DdtSection() {
       const { data: urlData } = supabase.storage.from("document-attachments").getPublicUrl(fileName);
       const fileUrl = urlData.publicUrl;
 
-      // 2. AI Analysis
       updateStatus("analyzing");
       const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-ddt", {
         body: { imageUrl: fileUrl, direction: "auto" },
@@ -89,14 +88,12 @@ export default function DdtSection() {
 
       const extracted = aiResult.data;
 
-      // 3. Find or create customer/supplier
       updateStatus("saving");
       let customerId: string | null = null;
       let supplierId: string | null = null;
       let direction = extracted.ddt_tipo === "fornitore" ? "inbound" : "outbound";
 
       if (direction === "outbound" && extracted.destinatario_name) {
-        // Match customer
         const matches = findSimilarSubjects(
           extracted.destinatario_name,
           customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
@@ -105,17 +102,12 @@ export default function DdtSection() {
 
         if (extracted.destinatario_vat) {
           const vatMatch = customers.find(c => c.tax_id && c.tax_id === extracted.destinatario_vat);
-          if (vatMatch) {
-            customerId = vatMatch.id;
-          }
+          if (vatMatch) customerId = vatMatch.id;
         }
 
-        if (!customerId && matches.length > 0) {
-          customerId = matches[0].id;
-        }
+        if (!customerId && matches.length > 0) customerId = matches[0].id;
 
         if (!customerId) {
-          // Generate a temp code
           const tempCode = `AUTO-${Date.now().toString().slice(-6)}`;
           const { data: newCust } = await supabase.from("customers").insert({
             name: extracted.destinatario_name,
@@ -128,7 +120,6 @@ export default function DdtSection() {
           if (newCust) customerId = newCust.id;
         }
       } else if (direction === "inbound" && extracted.intestazione_name) {
-        // Match supplier
         const matches = findSimilarSubjects(
           extracted.intestazione_name,
           suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
@@ -137,14 +128,10 @@ export default function DdtSection() {
 
         if (extracted.intestazione_vat) {
           const vatMatch = suppliers.find(s => s.tax_id && s.tax_id === extracted.intestazione_vat);
-          if (vatMatch) {
-            supplierId = vatMatch.id;
-          }
+          if (vatMatch) supplierId = vatMatch.id;
         }
 
-        if (!supplierId && matches.length > 0) {
-          supplierId = matches[0].id;
-        }
+        if (!supplierId && matches.length > 0) supplierId = matches[0].id;
 
         if (!supplierId) {
           const tempCode = `AUTO-${Date.now().toString().slice(-6)}`;
@@ -160,7 +147,6 @@ export default function DdtSection() {
         }
       }
 
-      // 4. Insert DDT
       const ddtNumber = extracted.ddt_number || `DDT-${Date.now().toString().slice(-6)}`;
       const { error: insertError } = await supabase.from("ddts").insert({
         ddt_number: ddtNumber,
@@ -186,7 +172,6 @@ export default function DdtSection() {
       });
 
       if (insertError) throw new Error("Salvataggio fallito: " + insertError.message);
-
       updateStatus("done", { ddtNumber });
     } catch (err: any) {
       updateStatus("error", { error: err.message });
@@ -236,65 +221,123 @@ export default function DdtSection() {
   };
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>DDT</CardTitle>
-              <CardDescription>Documenti di trasporto — carica PDF per analisi automatica</CardDescription>
+    <div className="space-y-4">
+      {/* Hero Upload Area */}
+      <Card className="overflow-hidden border-2 border-dashed border-primary/20 bg-gradient-to-br from-primary/[0.03] to-primary/[0.08] hover:border-primary/40 transition-all duration-300 group">
+        <div {...getRootProps()} className="cursor-pointer">
+          <input {...getInputProps()} />
+          <CardContent className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-center gap-5">
+              <div className="relative flex-shrink-0">
+                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors group-hover:scale-105 duration-300">
+                  <Truck className="w-6 h-6 text-primary" />
+                </div>
+                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-primary-foreground">AI</span>
+                </div>
+              </div>
+              
+              <div className="flex-1 text-center md:text-left space-y-1">
+                <h3 className="text-lg font-semibold tracking-tight">
+                  {isDragActive ? "Rilascia i DDT qui..." : "Importa DDT con analisi AI"}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-lg">
+                  Trascina PDF o immagini dei DDT — l'AI riconosce destinatari, fornitori, articoli e crea automaticamente le anagrafiche.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 justify-center md:justify-start pt-1">
+                  <Badge variant="secondary" className="text-xs font-normal gap-1">
+                    <FileText className="h-3 w-3" /> PDF
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs font-normal gap-1">
+                    <Camera className="h-3 w-3" /> Foto
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    Multi-file
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="flex-shrink-0">
+                <label>
+                  <Button size="lg" asChild className="gap-2 shadow-md cursor-pointer">
+                    <div>
+                      <Upload className="w-4 h-4" />
+                      Carica DDT
+                    </div>
+                  </Button>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) handleMultiFileUpload(files);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
-                <Archive className="h-4 w-4 mr-1" /> {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Drop Zone */}
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
-            }`}
-          >
-            <input {...getInputProps()} />
-            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {isDragActive ? "Rilascia i file qui..." : "Trascina PDF dei DDT qui, oppure clicca per selezionare"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Supporta più file contemporaneamente (PDF, immagini)</p>
-          </div>
+          </CardContent>
+        </div>
+      </Card>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Cerca DDT..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-          </div>
+      {/* Search + Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Cerca DDT per numero o controparte..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
+        </div>
+        <Button
+          variant={showArchived ? "default" : "ghost"}
+          size="sm"
+          className="h-9 text-xs"
+          onClick={() => setShowArchived(!showArchived)}
+        >
+          <Archive className="h-3.5 w-3.5 mr-1.5" />
+          {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
+        </Button>
+      </div>
 
-          {/* Table */}
-          {isLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="h-6 w-6 animate-spin" />
+      {/* Table */}
+      {isLoading ? (
+        <Card className="border shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">Caricamento DDT...</p>
             </div>
-          ) : filteredDdts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-              <Truck className="h-8 w-8 mb-2" />
-              <p>Nessun DDT trovato</p>
+          </CardContent>
+        </Card>
+      ) : filteredDdts.length === 0 ? (
+        <Card className="border shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center">
+                <Truck className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">Nessun DDT trovato</p>
+                <p className="text-sm text-muted-foreground">Carica un DDT per iniziare</p>
+              </div>
             </div>
-          ) : (
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border shadow-sm overflow-hidden">
+          <CardContent className="p-0">
             <ScrollArea className="h-[500px]">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Numero</TableHead>
-                    <TableHead>Direzione</TableHead>
-                    <TableHead>Controparte</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Articoli</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead className="text-right">Azioni</TableHead>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Numero</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Direzione</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Controparte</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Articoli</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                    <TableHead className="text-right w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -306,36 +349,38 @@ export default function DdtSection() {
                       : ddtData?.destinatario;
 
                     return (
-                      <TableRow key={ddt.id} className={ddt.archived ? "opacity-50" : ""}>
-                        <TableCell className="font-medium">{ddt.ddt_number}</TableCell>
+                      <TableRow key={ddt.id} className={cn("hover:bg-muted/50", ddt.archived && "opacity-50")}>
+                        <TableCell className="font-mono font-medium">{ddt.ddt_number}</TableCell>
                         <TableCell>
-                          <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"}>
+                          <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"} className="text-xs">
                             {ddt.direction === "inbound" ? "Entrata" : "Uscita"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{counterpart || "-"}</TableCell>
-                        <TableCell>
+                        <TableCell className="max-w-[200px] truncate">{counterpart || "—"}</TableCell>
+                        <TableCell className="text-sm">
                           {ddt.document_date
                             ? format(new Date(ddt.document_date), "dd/MM/yyyy", { locale: it })
                             : ddt.created_at
                             ? format(new Date(ddt.created_at), "dd/MM/yyyy", { locale: it })
-                            : "-"}
+                            : "—"}
                         </TableCell>
-                        <TableCell>{itemCount > 0 ? `${itemCount} righe` : "-"}</TableCell>
+                        <TableCell>{itemCount > 0 ? <Badge variant="outline" className="text-xs">{itemCount} righe</Badge> : "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{ddt.status || "ricevuto"}</Badge>
+                          <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
                         </TableCell>
-                        <TableCell className="text-right space-x-1">
-                          {ddt.attachment_url && (
-                            <Button variant="ghost" size="icon" asChild>
-                              <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                                <Eye className="h-4 w-4" />
-                              </a>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {ddt.attachment_url && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-3.5 w-3.5" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
+                              <Archive className="h-3.5 w-3.5" />
                             </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
-                            <Archive className="h-4 w-4" />
-                          </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -343,31 +388,36 @@ export default function DdtSection() {
                 </TableBody>
               </Table>
             </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upload Progress Dialog */}
       <Dialog open={showUploadProgress} onOpenChange={setShowUploadProgress}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Elaborazione DDT ({completedCount}/{totalCount})</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="w-5 h-5 text-primary" />
+              Elaborazione DDT ({completedCount}/{totalCount})
+            </DialogTitle>
           </DialogHeader>
           <Progress value={progressPercent} className="mb-4" />
           <ScrollArea className="max-h-[300px]">
             <div className="space-y-2">
               {uploadQueue.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
-                  {item.status === "done" ? (
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                  ) : item.status === "error" ? (
-                    <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                  ) : item.status === "pending" ? (
-                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  ) : (
-                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                  )}
-                  <span className="truncate flex-1">{item.file.name}</span>
+                <div key={i} className="flex items-center gap-3 text-sm p-3 rounded-lg bg-muted/50">
+                  <div className="flex-shrink-0">
+                    {item.status === "done" ? (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    ) : item.status === "error" ? (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    ) : item.status === "pending" ? (
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    )}
+                  </div>
+                  <span className="truncate flex-1 font-medium">{item.file.name}</span>
                   <span className="text-xs text-muted-foreground shrink-0">
                     {item.status === "uploading" && "Caricamento..."}
                     {item.status === "analyzing" && "Analisi AI..."}
@@ -379,8 +429,15 @@ export default function DdtSection() {
               ))}
             </div>
           </ScrollArea>
+          {uploadQueue.every(q => q.status === "done" || q.status === "error") && (
+            <DialogFooter>
+              <Button onClick={() => { setShowUploadProgress(false); setUploadQueue([]); }}>
+                Chiudi
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

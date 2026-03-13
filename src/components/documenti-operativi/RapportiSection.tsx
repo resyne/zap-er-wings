@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Loader2, Wrench } from "lucide-react";
+import { Search, Wrench, Archive } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Bozza", variant: "outline" },
@@ -59,72 +60,93 @@ export default function RapportiSection() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Rapporti di Intervento</CardTitle>
-            <CardDescription>Rapporti delle attività di assistenza tecnica</CardDescription>
-          </div>
-          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
-            {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="relative">
+    <div className="space-y-4">
+      {/* Search + Filter bar */}
+      <div className="flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cerca rapporti..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Cerca rapporti per numero, tecnico o cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
+        <Button
+          variant={showArchived ? "default" : "ghost"}
+          size="sm"
+          className="h-9 text-xs"
+          onClick={() => setShowArchived(!showArchived)}
+        >
+          <Archive className="h-3.5 w-3.5 mr-1.5" />
+          {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
+        </Button>
+      </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-            <Wrench className="h-8 w-8 mb-2" /><p>Nessun rapporto trovato</p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[500px]">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Numero</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tecnico</TableHead>
-                  <TableHead>Importo</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead>Fatturato</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(report => {
-                  const st = statusLabels[report.status] || { label: report.status, variant: "outline" as const };
-                  return (
-                    <TableRow key={report.id} className={report.archived ? "opacity-50" : ""}>
-                      <TableCell className="font-medium">{report.report_number || "-"}</TableCell>
-                      <TableCell className="max-w-[180px] truncate">{custMap.get(report.customer_id || "") || "-"}</TableCell>
-                      <TableCell>{format(new Date(report.intervention_date), "dd/MM/yyyy", { locale: it })}</TableCell>
-                      <TableCell><Badge variant="outline">{report.intervention_type}</Badge></TableCell>
-                      <TableCell>{report.technician_name || "-"}</TableCell>
-                      <TableCell>{report.total_amount != null ? `€ ${report.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "-"}</TableCell>
-                      <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
-                      <TableCell>
-                        {report.invoiced ? (
-                          <Badge variant="default">{report.invoice_number || "Sì"}</Badge>
-                        ) : (
-                          <Badge variant="outline">No</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+      {/* Table */}
+      {isLoading ? (
+        <Card className="border shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">Caricamento rapporti...</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card className="border shadow-sm">
+          <CardContent className="py-16 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center">
+                <Wrench className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">Nessun rapporto trovato</p>
+                <p className="text-sm text-muted-foreground">I rapporti di intervento appariranno qui</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border shadow-sm overflow-hidden">
+          <CardContent className="p-0">
+            <ScrollArea className="h-[500px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Numero</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Cliente</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tecnico</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Importo</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fatturato</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map(report => {
+                    const st = statusLabels[report.status] || { label: report.status, variant: "outline" as const };
+                    return (
+                      <TableRow key={report.id} className={cn("hover:bg-muted/50", report.archived && "opacity-50")}>
+                        <TableCell className="font-mono font-medium">{report.report_number || "—"}</TableCell>
+                        <TableCell className="max-w-[180px] truncate">{custMap.get(report.customer_id || "") || "—"}</TableCell>
+                        <TableCell className="text-sm">{format(new Date(report.intervention_date), "dd/MM/yyyy", { locale: it })}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{report.intervention_type}</Badge></TableCell>
+                        <TableCell>{report.technician_name || "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{report.total_amount != null ? `€ ${report.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "—"}</TableCell>
+                        <TableCell><Badge variant={st.variant} className="text-xs">{st.label}</Badge></TableCell>
+                        <TableCell>
+                          {report.invoiced ? (
+                            <Badge variant="default" className="text-xs">{report.invoice_number || "Sì"}</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">No</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
