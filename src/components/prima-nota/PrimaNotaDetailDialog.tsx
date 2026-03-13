@@ -16,6 +16,7 @@ import { it } from "date-fns/locale";
 import { Pencil, Save, X, Clock, User } from "lucide-react";
 import { formatEuro } from "@/lib/accounting-utils";
 import { cn } from "@/lib/utils";
+import { LinkedDocumentsSection } from "./LinkedDocumentsSection";
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
   banca: "🏦 Banca",
