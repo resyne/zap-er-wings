@@ -259,10 +259,13 @@ export default function RegistroContabilePage() {
   const [editSubjectSearchOpen, setEditSubjectSearchOpen] = useState(false);
   const [editSubjectSearch, setEditSubjectSearch] = useState("");
   
-  // Drag & drop AI states
+  // Drag & drop AI states - multi file queue
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<{ file: File; status: 'pending' | 'uploading' | 'analyzing' | 'done' | 'error'; result?: any; error?: string }[]>([]);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   
   // Similar subject dialog states
   const [similarDialogOpen, setSimilarDialogOpen] = useState(false);
