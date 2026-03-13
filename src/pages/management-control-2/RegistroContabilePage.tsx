@@ -2827,11 +2827,13 @@ export default function RegistroContabilePage() {
       
       {/* Drag overlay */}
       {isDragActive && (
-        <div className="fixed inset-0 bg-primary/10 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border-2 border-dashed border-primary rounded-2xl p-12 text-center shadow-2xl">
-            <Upload className="w-16 h-16 mx-auto mb-4 text-primary animate-bounce" />
-            <p className="text-xl font-semibold text-primary">Rilascia la fattura qui</p>
-            <p className="text-muted-foreground mt-2">AI analizzerà automaticamente il documento</p>
+        <div className="fixed inset-0 bg-primary/5 backdrop-blur-md z-50 flex items-center justify-center">
+          <div className="bg-card border-2 border-primary rounded-3xl p-16 text-center shadow-2xl max-w-md">
+            <div className="h-20 w-20 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Upload className="w-10 h-10 text-primary animate-bounce" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">Rilascia qui</p>
+            <p className="text-muted-foreground mt-2 text-sm">L'AI analizzerà automaticamente i documenti</p>
           </div>
         </div>
       )}
@@ -2839,13 +2841,15 @@ export default function RegistroContabilePage() {
       {/* Uploading/Analyzing overlay */}
       {(isUploading || isAnalyzing) && !showUploadProgress && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-card border rounded-2xl p-8 text-center shadow-2xl">
-            <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
-            <p className="text-lg font-semibold">
-              {isUploading ? "Caricamento..." : "Analisi AI in corso..."}
+          <div className="bg-card border rounded-3xl p-10 text-center shadow-2xl max-w-sm">
+            <div className="h-16 w-16 mx-auto mb-5 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            </div>
+            <p className="text-lg font-semibold text-foreground">
+              {isAnalyzing ? "Analisi AI in corso..." : "Caricamento..."}
             </p>
-            <p className="text-muted-foreground mt-2">
-              {isAnalyzing ? "Estraggo i dati dalla fattura" : "Attendi qualche secondo"}
+            <p className="text-muted-foreground mt-2 text-sm">
+              {isAnalyzing ? "Estraggo i dati dal documento" : "Attendi qualche secondo"}
             </p>
           </div>
         </div>
