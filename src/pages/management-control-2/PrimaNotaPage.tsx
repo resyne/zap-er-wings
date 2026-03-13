@@ -38,6 +38,8 @@ interface FinancialMovement {
   financial_account: string;
   notes: string | null;
   created_at: string;
+  status: string;
+  attachment_url: string | null;
 }
 
 interface MovementFormData {
