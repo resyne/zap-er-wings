@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, DollarSign, Package2, Wrench, CalendarDays, MessageCircle,
   Smartphone, ShoppingCart, Settings, MessageSquare, Clock, LogIn, LogOut,
-  Coffee, Play, MapPin, AlertTriangle, CheckCircle2, History
+  Coffee, Play, MapPin, AlertTriangle, CheckCircle2, History,
+  Banknote, ArrowDownLeft, ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
