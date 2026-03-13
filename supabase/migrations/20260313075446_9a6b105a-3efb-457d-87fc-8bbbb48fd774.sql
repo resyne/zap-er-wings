@@ -1,0 +1,2 @@
+ALTER TABLE movimenti_finanziari DROP CONSTRAINT movimenti_finanziari_stato_check;
+ALTER TABLE movimenti_finanziari ADD CONSTRAINT movimenti_finanziari_stato_check CHECK (stato::text = ANY (ARRAY['grezzo', 'da_verificare', 'da_classificare', 'allocato', 'contabilizzato', 'segnalazione']::text[]));
