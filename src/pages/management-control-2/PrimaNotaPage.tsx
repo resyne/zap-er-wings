@@ -140,35 +140,17 @@ export default function PrimaNotaPage() {
     attachment_url: e.attachment_url || null,
   }));
 
-  // Count segnalazioni for banner
-  const segnalazioniCount = movements.filter(m => m.status === 'segnalazione').length;
+  // State for BozzaValidaDialog
+  const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
+  const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
 
-  // Validate segnalazione mutation
-  const validateMutation = useMutation({
-    mutationFn: async ({ id, cfoNotes }: { id: string; cfoNotes?: string }) => {
-      const code = await generateCode(new Date().toISOString().split('T')[0]);
-      const { error } = await supabase
-        .from('accounting_entries')
-        .update({ 
-          status: 'classificato',
-          account_code: code,
-          cfo_notes: cfoNotes || null,
-          classified_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Segnalazione validata e registrata in Prima Nota');
-      queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
-      setValidateDialogId(null);
-      setValidateNotes('');
-    },
-    onError: (e) => toast.error('Errore: ' + e.message),
-  });
-
-  const [validateDialogId, setValidateDialogId] = useState<string | null>(null);
-  const [validateNotes, setValidateNotes] = useState('');
+  const openValidateDialog = (movementId: string) => {
+    const fullEntry = rawEntries.find(e => e.id === movementId);
+    if (fullEntry) {
+      setSelectedEntryForValidation(fullEntry);
+      setBozzaDialogOpen(true);
+    }
+  };
 
   // Generate progressive code for the date: PN-YYYYMMDD-01
   const generateCode = async (date: string) => {
