@@ -346,8 +346,8 @@ export default function RegistroContabilePage() {
     };
   }, []);
 
-  // Apply extracted data to form
-  const applyExtractedToForm = useCallback((extracted: any, fileUrl: string, subjectResult: any) => {
+  // Apply extracted data to form - costCenters/accounts passed as params to avoid hoisting issues
+  const applyExtractedToForm = useCallback((extracted: any, fileUrl: string, subjectResult: any, costCentersList?: any[], accountsList?: any[]) => {
     const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
     const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim();
 
@@ -391,23 +391,19 @@ export default function RegistroContabilePage() {
     };
 
     const findCostCenter = (hint?: string): string => {
-      if (!hint || costCenters.length === 0) return '';
+      if (!hint || !costCentersList || costCentersList.length === 0) return '';
       const hintLower = hint.toLowerCase();
-      const match = costCenters.find(cc => cc.name.toLowerCase().includes(hintLower) || hintLower.includes(cc.name.toLowerCase()));
+      const match = costCentersList.find((cc: any) => cc.name.toLowerCase().includes(hintLower) || hintLower.includes(cc.name.toLowerCase()));
       return match?.id || '';
     };
 
-    const findAccount = (accountHint?: string, expenseCategory?: string): string => {
-      if (accounts.length === 0) return '';
-      if (accountHint) {
-        const hintLower = accountHint.toLowerCase();
-        const match = accounts.find(acc => acc.name.toLowerCase().includes(hintLower) || hintLower.includes(acc.name.toLowerCase()));
-        if (match) return match.id;
-      }
-      return '';
+    const findAccount = (accountHint?: string): string => {
+      if (!accountHint || !accountsList || accountsList.length === 0) return '';
+      const hintLower = accountHint.toLowerCase();
+      const match = accountsList.find((acc: any) => acc.name.toLowerCase().includes(hintLower) || hintLower.includes(acc.name.toLowerCase()));
+      return match?.id || '';
     };
 
-    // If backend already matched/created a subject, use it
     let subjectId = '';
     let subjectName = counterpartName;
     if (subjectResult) {
@@ -431,19 +427,18 @@ export default function RegistroContabilePage() {
       due_date: extracted.due_date || prev.due_date,
       payment_method: mapPaymentMethod(extracted.payment_method) || prev.payment_method,
       cost_center_id: findCostCenter(extracted.cost_center_hint) || prev.cost_center_id,
-      cost_account_id: findAccount(extracted.account_hint, extracted.expense_category) || prev.cost_account_id,
+      cost_account_id: findAccount(extracted.account_hint) || prev.cost_account_id,
       expense_type: extracted.expense_category || prev.expense_type,
       notes: extracted.invoice_description ? `Oggetto: ${extracted.invoice_description}` : prev.notes,
       attachment_url: fileUrl,
     }));
 
-    // If no backend match was found, do client-side fuzzy check
     if (!subjectResult && counterpartName) {
       setTimeout(() => {
         checkAndMatchSubject(counterpartName, subjectType, counterpartTaxId);
       }, 500);
     }
-  }, [costCenters, accounts]);
+  }, []);
 
   // Handle single file upload (opens create dialog)
   const handleFileUpload = useCallback(async (file: File) => {
