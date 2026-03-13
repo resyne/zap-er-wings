@@ -108,6 +108,100 @@ export default function ZAppPage() {
   const { currentStatus, todayEvents, todayWorkMinutes, clockEvent } = useAttendance();
   const [processing, setProcessing] = useState(false);
   const [now, setNow] = useState(new Date());
+  const queryClient = useQueryClient();
+
+  // Inline movement form state
+  const [movOpen, setMovOpen] = useState(false);
+  const [movType, setMovType] = useState<"uscita" | "entrata">("uscita");
+  const [movImporto, setMovImporto] = useState("");
+  const [movDesc, setMovDesc] = useState("");
+  const [movFile, setMovFile] = useState<{ name: string; url: string } | null>(null);
+  const [movUploading, setMovUploading] = useState(false);
+  const [movSuccess, setMovSuccess] = useState(false);
+
+  const movMutation = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const today = new Date().toISOString().split("T")[0];
+      const amount = parseFloat(movImporto);
+
+      const { error: e1 } = await supabase.from("movimenti_finanziari").insert({
+        data_movimento: today,
+        direzione: movType,
+        importo: amount,
+        metodo_pagamento: "cassa" as "banca" | "cassa" | "carta",
+        descrizione: movDesc || null,
+        allegato_url: movFile?.url || null,
+        allegato_nome: movFile?.name || null,
+        stato: "da_classificare",
+        created_by: userData.user?.id,
+      });
+      if (e1) throw e1;
+
+      const { error: e2 } = await supabase.from("accounting_entries").insert({
+        direction: movType,
+        document_type: "scontrino",
+        amount,
+        document_date: today,
+        attachment_url: movFile?.url || "",
+        note: movDesc || null,
+        status: "da_classificare",
+        user_id: userData.user?.id,
+      });
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prima-nota-movements"] });
+      queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
+      setMovSuccess(true);
+      setTimeout(() => {
+        setMovOpen(false);
+        setMovSuccess(false);
+        setMovImporto("");
+        setMovDesc("");
+        setMovFile(null);
+      }, 2000);
+    },
+    onError: () => toast.error("Errore nella registrazione"),
+  });
+
+  const handleMovFileUpload = async (file: File) => {
+    setMovUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `uploads/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("accounting-attachments").upload(path, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from("accounting-attachments").getPublicUrl(path);
+      setMovFile({ name: file.name, url: data.publicUrl });
+      toast.success("Foto caricata");
+    } catch {
+      toast.error("Errore upload");
+    } finally {
+      setMovUploading(false);
+    }
+  };
+
+  const onMovDrop = useCallback((files: File[]) => {
+    if (files[0]) handleMovFileUpload(files[0]);
+  }, []);
+
+  const { getRootProps: getMovDropProps, getInputProps: getMovInputProps } = useDropzone({
+    onDrop: onMovDrop,
+    accept: { "image/*": [], "application/pdf": [] },
+    maxFiles: 1,
+    noClick: false,
+    noKeyboard: true,
+  });
+
+  const openMovForm = (type: "uscita" | "entrata") => {
+    setMovType(type);
+    setMovImporto("");
+    setMovDesc("");
+    setMovFile(null);
+    setMovSuccess(false);
+    setMovOpen(true);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
