@@ -1,0 +1,1 @@
+UPDATE accounting_entries SET status = 'segnalazione' WHERE id = '0aa1c505-4d6f-4ce6-9a61-1e9b6694ea34'
