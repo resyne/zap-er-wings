@@ -2686,131 +2686,74 @@ export default function RegistroContabilePage() {
             />
           </label>
 
-          {/* ENTRATA */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950">
-                <ArrowUpRight className="w-4 h-4" />
-                Entrata
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
-              {[
-                { label: "Incasso fattura cliente", event: "fattura_vendita" as EventType, desc: "Pagamento ricevuto da cliente" },
-                { label: "Vendita in contanti", event: "incasso_dipendente" as EventType, desc: "Vendita diretta / POS" },
-                { label: "Bonifico ricevuto", event: "incasso_dipendente" as EventType, desc: "Accredito su conto corrente" },
-                { label: "Incasso POS", event: "incasso_dipendente" as EventType, desc: "Pagamento con carta" },
-                { label: "Altro incasso", event: "incasso_dipendente" as EventType, desc: "Entrata generica" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => {
-                  setUploadedFile(null);
-                  setSplitEnabled(false);
-                  setSplitLines([]);
-                  setFormData({
-                    ...initialFormData,
-                    event_type: item.event,
-                    invoice_type: 'vendita',
-                    subject_type: 'cliente',
-                    financial_status: item.event === 'fattura_vendita' ? 'da_incassare' : 'incassata',
-                    iva_rate: item.event === 'fattura_vendita' ? 22 : 0,
-                    notes: item.label,
-                    payment_method: item.label.includes('contanti') ? 'contanti' : item.label.includes('POS') ? 'carta' : item.label.includes('Bonifico') ? 'banca' : '',
-                  });
-                  setShowCreateDialog(true);
-                }}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">{item.desc}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Fattura di Vendita */}
+          <Button
+            variant="outline"
+            className="h-10 gap-2"
+            onClick={() => {
+              setUploadedFile(null);
+              setSplitEnabled(false);
+              setSplitLines([]);
+              setFormData({
+                ...initialFormData,
+                event_type: 'fattura_vendita',
+                invoice_type: 'vendita',
+                subject_type: 'cliente',
+                financial_status: 'da_incassare',
+                iva_rate: 22,
+              });
+              setShowCreateDialog(true);
+            }}
+          >
+            <ArrowUpRight className="w-4 h-4" />
+            Fattura Vendita
+          </Button>
 
-          {/* USCITA */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950">
-                <ArrowDownLeft className="w-4 h-4" />
-                Uscita
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
-              {[
-                { label: "Pagamento fornitore", event: "fattura_acquisto" as EventType, desc: "Fattura fornitore" },
-                { label: "Spese bancarie", event: "spesa_dipendente" as EventType, desc: "Commissioni, canoni, bolli" },
-                { label: "Pagamento stipendi", event: "spesa_dipendente" as EventType, desc: "Stipendi e contributi" },
-                { label: "Pagamento F24", event: "spesa_dipendente" as EventType, desc: "Imposte e tasse" },
-                { label: "Acquisto pagato subito", event: "spesa_dipendente" as EventType, desc: "Spesa immediata senza fattura" },
-                { label: "Altra uscita", event: "spesa_dipendente" as EventType, desc: "Uscita generica" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => {
-                  setUploadedFile(null);
-                  setSplitEnabled(false);
-                  setSplitLines([]);
-                  setFormData({
-                    ...initialFormData,
-                    event_type: item.event,
-                    invoice_type: 'acquisto',
-                    subject_type: 'fornitore',
-                    financial_status: item.event === 'fattura_acquisto' ? 'da_pagare' : 'pagata',
-                    iva_rate: item.event === 'fattura_acquisto' ? 22 : 0,
-                    notes: item.label,
-                    payment_method: item.label.includes('bancarie') ? 'banca' : item.label.includes('F24') ? 'banca' : item.label.includes('stipendi') ? 'banca' : '',
-                  });
-                  setShowCreateDialog(true);
-                }}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">{item.desc}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Fattura di Acquisto */}
+          <Button
+            variant="outline"
+            className="h-10 gap-2"
+            onClick={() => {
+              setUploadedFile(null);
+              setSplitEnabled(false);
+              setSplitLines([]);
+              setFormData({
+                ...initialFormData,
+                event_type: 'fattura_acquisto',
+                invoice_type: 'acquisto',
+                subject_type: 'fornitore',
+                financial_status: 'da_pagare',
+                iva_rate: 22,
+              });
+              setShowCreateDialog(true);
+            }}
+          >
+            <ArrowDownLeft className="w-4 h-4" />
+            Fattura Acquisto
+          </Button>
 
-          {/* MOVIMENTO INTERNO */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950">
-                <ArrowLeftRight className="w-4 h-4" />
-                Mov. Interno
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
-              {[
-                { label: "Giroconto banca → cassa", payFrom: "banca", payTo: "cassa" },
-                { label: "Giroconto cassa → banca", payFrom: "cassa", payTo: "banca" },
-                { label: "Prelievo contanti", payFrom: "banca", payTo: "contanti" },
-                { label: "Versamento contanti", payFrom: "contanti", payTo: "banca" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => {
-                  setUploadedFile(null);
-                  setSplitEnabled(false);
-                  setSplitLines([]);
-                  setFormData({
-                    ...initialFormData,
-                    event_type: 'spesa_dipendente',
-                    invoice_type: 'acquisto',
-                    subject_type: 'fornitore',
-                    financial_status: 'pagata',
-                    iva_rate: 0,
-                    notes: item.label,
-                    payment_method: item.payFrom,
-                  });
-                  setShowCreateDialog(true);
-                }}>
-                  <span className="font-medium">{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Nota di Credito / Debito */}
+          <Button
+            variant="outline"
+            className="h-10 gap-2"
+            onClick={() => {
+              setUploadedFile(null);
+              setSplitEnabled(false);
+              setSplitLines([]);
+              setFormData({
+                ...initialFormData,
+                event_type: 'nota_credito',
+                invoice_type: 'nota_credito',
+                subject_type: 'fornitore',
+                financial_status: 'da_incassare',
+                iva_rate: 22,
+              });
+              setShowCreateDialog(true);
+            }}
+          >
+            <Receipt className="w-4 h-4" />
+            Nota di Credito
+          </Button>
         </div>
       </div>
 
@@ -3404,11 +3347,9 @@ export default function RegistroContabilePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="spesa_dipendente">🧾 Spesa Dipendente</SelectItem>
-                    <SelectItem value="incasso_dipendente">💵 Incasso Dipendente</SelectItem>
                     <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
-                    <SelectItem value="nota_credito">📋 Nota di Credito</SelectItem>
+                    <SelectItem value="nota_credito">📋 Nota di Credito/Debito</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -4351,11 +4292,9 @@ export default function RegistroContabilePage() {
                     <SelectValue placeholder="Seleziona tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="spesa_dipendente">Spesa Dipendente (no fattura)</SelectItem>
-                    <SelectItem value="incasso_dipendente">Incasso Dipendente (no fattura)</SelectItem>
                     <SelectItem value="fattura_acquisto">Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">Fattura di Vendita</SelectItem>
-                    <SelectItem value="nota_credito">Nota di Credito</SelectItem>
+                    <SelectItem value="nota_credito">Nota di Credito/Debito</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
