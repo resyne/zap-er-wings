@@ -115,11 +115,15 @@ export default function DdtSection() {
         }
 
         if (!customerId) {
+          // Generate a temp code
+          const tempCode = `AUTO-${Date.now().toString().slice(-6)}`;
           const { data: newCust } = await supabase.from("customers").insert({
             name: extracted.destinatario_name,
             company_name: extracted.destinatario_name,
+            code: tempCode,
             tax_id: extracted.destinatario_vat || null,
             address: extracted.destinatario_address || null,
+            incomplete_registry: true,
           }).select("id").single();
           if (newCust) customerId = newCust.id;
         }
