@@ -19,8 +19,9 @@ import { cn } from "@/lib/utils";
 import {
   ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
   ChevronDown, ChevronLeft, ChevronRight, Receipt, Wallet, Info, Plus, Search, Trash2,
-  Calendar
+  Calendar, AlertCircle, CheckCircle2, Eye
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
 
@@ -37,6 +38,8 @@ interface FinancialMovement {
   financial_account: string;
   notes: string | null;
   created_at: string;
+  status: string;
+  attachment_url: string | null;
 }
 
 interface MovementFormData {
@@ -128,9 +131,41 @@ export default function PrimaNotaPage() {
         financial_account: e.payment_method || '',
         notes: e.cfo_notes,
         created_at: e.created_at,
+        status: e.status || 'classificato',
+        attachment_url: e.attachment_url || null,
       }));
     }
   });
+
+  // Count segnalazioni for banner
+  const segnalazioniCount = movements.filter(m => m.status === 'segnalazione').length;
+
+  // Validate segnalazione mutation
+  const validateMutation = useMutation({
+    mutationFn: async ({ id, cfoNotes }: { id: string; cfoNotes?: string }) => {
+      const code = await generateCode(new Date().toISOString().split('T')[0]);
+      const { error } = await supabase
+        .from('accounting_entries')
+        .update({ 
+          status: 'classificato',
+          account_code: code,
+          cfo_notes: cfoNotes || null,
+          classified_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Segnalazione validata e registrata in Prima Nota');
+      queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
+      setValidateDialogId(null);
+      setValidateNotes('');
+    },
+    onError: (e) => toast.error('Errore: ' + e.message),
+  });
+
+  const [validateDialogId, setValidateDialogId] = useState<string | null>(null);
+  const [validateNotes, setValidateNotes] = useState('');
 
   // Generate progressive code for the date: PN-YYYYMMDD-01
   const generateCode = async (date: string) => {
@@ -201,7 +236,8 @@ export default function PrimaNotaPage() {
 
   // Filtered (search + type on top of period)
   const filtered = periodMovements.filter(m => {
-    if (filterType !== 'all' && m.type !== filterType) return false;
+    if (filterType === 'segnalazione' && m.status !== 'segnalazione') return false;
+    if (filterType !== 'all' && filterType !== 'segnalazione' && m.type !== filterType) return false;
     if (searchTerm && !m.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
@@ -400,6 +436,27 @@ export default function PrimaNotaPage() {
         </div>
       </div>
 
+      {/* Segnalazioni banner */}
+      {segnalazioniCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              {segnalazioniCount} segnalazion{segnalazioniCount === 1 ? 'e' : 'i'} da validare
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Movimenti segnalati dal personale operativo via Z-APP — richiedono validazione CFO</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-amber-300 text-amber-700 hover:bg-amber-100 text-xs shrink-0"
+            onClick={() => setFilterType('segnalazione')}
+          >
+            Mostra
+          </Button>
+        </div>
+      )}
+
       {/* Search & Filter bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
@@ -426,6 +483,9 @@ export default function PrimaNotaPage() {
           <ToggleGroupItem value="uscita" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-red-600">
             ↓ Uscite
           </ToggleGroupItem>
+          <ToggleGroupItem value="segnalazione" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-amber-600">
+            ⚠ Segnalazioni {segnalazioniCount > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px] bg-amber-100 text-amber-700">{segnalazioniCount}</Badge>}
+          </ToggleGroupItem>
         </ToggleGroup>
       </div>
 
@@ -440,15 +500,17 @@ export default function PrimaNotaPage() {
                 <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
                 <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
+                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
                 <TableHead className="w-[140px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
+                <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-16">
+                  <TableCell colSpan={8} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
@@ -458,10 +520,15 @@ export default function PrimaNotaPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : filtered.map((m, idx) => (
-                <TableRow key={m.id} className="group hover:bg-muted/20 transition-colors">
+              ) : filtered.map((m) => (
+                <TableRow key={m.id} className={cn("group hover:bg-muted/20 transition-colors", m.status === 'segnalazione' && "bg-amber-50/50 dark:bg-amber-950/10")}>
                   <TableCell>
-                    <code className="text-[11px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{m.code || '—'}</code>
+                    <code className={cn(
+                      "text-[11px] font-mono px-1.5 py-0.5 rounded",
+                      m.status === 'segnalazione' 
+                        ? "text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-950/50" 
+                        : "text-muted-foreground bg-muted/50"
+                    )}>{m.code || '—'}</code>
                   </TableCell>
                   <TableCell className="text-sm font-medium tabular-nums">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                   <TableCell>
@@ -474,17 +541,56 @@ export default function PrimaNotaPage() {
                       {m.type === 'entrata' ? 'Entrata' : 'Uscita'}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{m.description || '—'}</TableCell>
+                  <TableCell className="text-sm">
+                    {m.description || '—'}
+                    {m.attachment_url && m.attachment_url !== '' && (
+                      <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex items-center text-[10px] text-primary hover:underline">
+                        📎 allegato
+                      </a>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                       {FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '—'}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {m.status === 'segnalazione' ? (
+                      <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Segnalazione
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400 gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Validato
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className={cn(
                     "text-sm font-bold text-right tabular-nums",
                     m.type === 'entrata' ? "text-emerald-600" : "text-red-600"
                   )}>
                     {m.type === 'entrata' ? '+' : '−'} {formatEuro(m.amount, { absolute: true })}
+                  </TableCell>
+                  <TableCell>
+                    {m.status === 'segnalazione' && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                              onClick={() => { setValidateDialogId(m.id); setValidateNotes(''); }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Valida segnalazione</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -625,6 +731,83 @@ export default function PrimaNotaPage() {
               {createMutation.isPending ? 'Salvataggio...' : 'Registra Movimento'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Validate segnalazione dialog */}
+      <Dialog open={!!validateDialogId} onOpenChange={(open) => { if (!open) setValidateDialogId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Valida Segnalazione
+            </DialogTitle>
+          </DialogHeader>
+          {validateDialogId && (() => {
+            const entry = movements.find(m => m.id === validateDialogId);
+            if (!entry) return null;
+            return (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Codice</span>
+                    <code className="text-xs font-mono text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{entry.code}</code>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Data</span>
+                    <span className="text-sm font-medium">{format(new Date(entry.date), 'dd/MM/yyyy', { locale: it })}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Tipo</span>
+                    <Badge variant="outline" className={cn("text-xs", entry.type === 'entrata' ? "text-emerald-700 border-emerald-200" : "text-red-700 border-red-200")}>
+                      {entry.type === 'entrata' ? '↑ Incasso' : '↓ Spesa'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Importo</span>
+                    <span className={cn("text-lg font-bold", entry.type === 'entrata' ? "text-emerald-600" : "text-red-600")}>
+                      € {entry.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  {entry.description && (
+                    <div className="pt-2 border-t">
+                      <span className="text-xs text-muted-foreground">Descrizione</span>
+                      <p className="text-sm mt-0.5">{entry.description}</p>
+                    </div>
+                  )}
+                  {entry.attachment_url && entry.attachment_url !== '' && (
+                    <div className="pt-2 border-t">
+                      <a href={entry.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                        📎 Visualizza allegato
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Note CFO (opzionale)</Label>
+                  <Textarea
+                    value={validateNotes}
+                    onChange={(e) => setValidateNotes(e.target.value)}
+                    placeholder="Annotazioni sulla validazione..."
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setValidateDialogId(null)}>Annulla</Button>
+            <Button
+              onClick={() => validateDialogId && validateMutation.mutate({ id: validateDialogId, cfoNotes: validateNotes })}
+              disabled={validateMutation.isPending}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {validateMutation.isPending ? 'Validazione...' : 'Valida e Registra'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
