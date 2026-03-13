@@ -262,12 +262,16 @@ function InvoiceRow({
 
             <DropdownMenuSeparator />
 
+            {/* Modifica: disponibile per tutti tranne rettificato e periodo chiuso */}
+            {invoice.status !== "rettificato" && (
+              <DropdownMenuItem onClick={() => onEdit(invoice)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Modifica
+              </DropdownMenuItem>
+            )}
+
             {invoice.status === "bozza" && (
               <>
-                <DropdownMenuItem onClick={() => onEdit(invoice)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Modifica
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onRegister(invoice)}>
                   <FileCheck className="h-4 w-4 mr-2" />
                   Registra
@@ -280,29 +284,16 @@ function InvoiceRow({
             )}
 
             {invoice.status === "da_riclassificare" && (
-              <>
-                <DropdownMenuItem onClick={() => onEdit(invoice)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Correggi
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onRegenerate(invoice)} disabled={isRegenerating}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Rigenera Prima Nota
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem onClick={() => onRegenerate(invoice)} disabled={isRegenerating}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Rigenera Prima Nota
+              </DropdownMenuItem>
             )}
 
             {invoice.status === "rettificato" && (
               <DropdownMenuItem disabled>
                 <Lock className="h-4 w-4 mr-2" />
                 Evento bloccato
-              </DropdownMenuItem>
-            )}
-
-            {(["registrata", "contabilizzato"].includes(invoice.status) && invoice.prima_nota_id) && (
-              <DropdownMenuItem disabled>
-                <FileText className="h-4 w-4 mr-2" />
-                Per modificare: Storna in Prima Nota
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>

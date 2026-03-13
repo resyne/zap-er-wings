@@ -1584,27 +1584,11 @@ export default function RegistroContabilePage() {
   });
 
   // Mutation per modificare fatture
-  // REGOLA ERP: Una fattura già registrata con prima_nota NON può essere modificata direttamente
-  // - CASO 1 (bozza, da_riclassificare): Modifica libera
-  // - CASO 2 (registrata con prima_nota_id): Blocco! Deve passare da Storno in Prima Nota
+  // Modifica consentita per tutti gli stati tranne rettificato/periodo chiuso
+  // Per fatture registrate con prima_nota, aggiorna in cascata Prima Nota, accounting entry e scadenze
   const updateInvoiceMutation = useMutation({
     mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData; accountSplits?: AccountSplitLine[] }) => {
       const { invoice, updates, accountSplits } = data;
-      
-      // ========================================================
-      // BLOCCO MODIFICA PER FATTURE GIÀ CONTABILIZZATE
-      // ========================================================
-      // Se la fattura ha status 'registrata' E ha una prima_nota_id,
-      // significa che ha già generato scritture contabili in Prima Nota.
-      // In questo caso NON è consentita la modifica diretta.
-      // L'utente deve prima STORNARE in Prima Nota, poi correggere e rigenerare.
-      if (invoice.status === 'registrata' && invoice.prima_nota_id) {
-        throw new Error(
-          'BLOCCO ERP: Questa fattura ha già generato una Prima Nota. ' +
-          'Non è possibile modificarla direttamente. ' +
-          'Vai in Prima Nota → Storna la scrittura → Poi correggi e rigenera dal Registro Contabile.'
-        );
-      }
       
       // Se è in stato 'rettificato' o bloccato, blocca sempre
       if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
@@ -1627,12 +1611,8 @@ export default function RegistroContabilePage() {
           }))
         : null;
       
-      // Se c'è split, NON usare i valori singoli di conto/centro (usare solo lo split)
       const hasSplit = splitsToSave && splitsToSave.length > 0;
 
-      // ========================================================
-      // MODIFICA CONSENTITA: bozza oppure da_riclassificare
-      // ========================================================
       // Aggiorna la fattura nel registro
       const { error: invoiceError } = await supabase
         .from('invoice_registry')
@@ -1654,40 +1634,28 @@ export default function RegistroContabilePage() {
           payment_method: updates.payment_method || null,
           source_document_type: updates.source_document_type || null,
           source_document_id: updates.source_document_id || null,
-          // Se c'è split, i campi singoli devono essere null (usa solo split)
           cost_center_id: hasSplit ? null : (updates.cost_center_id || null),
           profit_center_id: hasSplit ? null : (updates.profit_center_id || null),
           cost_account_id: hasSplit ? null : (updates.cost_account_id || null),
           revenue_account_id: hasSplit ? null : (updates.revenue_account_id || null),
           notes: updates.notes || null,
           account_splits: splitsToSave,
-          // Se era da_riclassificare dopo storno, invalidiamo i vecchi riferimenti
-          // (saranno ricreati con Rigenera Prima Nota)
           contabilizzazione_valida: invoice.status === 'da_riclassificare' ? false : invoice.contabilizzazione_valida
         })
         .eq('id', invoice.id);
 
       if (invoiceError) throw invoiceError;
 
-      // Per fatture da_riclassificare NON aggiorniamo la prima nota esistente
-      // (quella è stata stornata). L'utente deve cliccare "Rigenera Prima Nota"
-      // dopo aver corretto i dati.
-      
       // ========================================================
-      // NOTA: Il blocco sotto per 'registrata' non verrà mai eseguito
-      // perché abbiamo bloccato sopra. Lo manteniamo per legacy/sicurezza.
+      // CASCATA: aggiorna documenti collegati per fatture registrate
       // ========================================================
-      if (invoice.status === 'registrata' && !invoice.prima_nota_id) {
-        // Caso raro: fattura registrata senza prima nota (anomalia)
+      if (invoice.prima_nota_id || invoice.accounting_entry_id || invoice.scadenza_id) {
         const isAcquisto = updates.invoice_type === 'acquisto';
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
         const paymentMethod = updates.payment_method || 'bonifico';
         const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
-        
-        // Recupera lo split
-        const hasSplit = accountSplits && accountSplits.length > 0;
 
-        // Aggiorna prima nota se esiste
+        // Aggiorna Prima Nota se esiste
         if (invoice.prima_nota_id) {
           const { error: primaNotaError } = await supabase
             .from('prima_nota')
@@ -1705,19 +1673,15 @@ export default function RegistroContabilePage() {
           if (primaNotaError) throw primaNotaError;
 
           // Rigenera le linee di partita doppia
-          // Elimina le vecchie linee
           await supabase
             .from('prima_nota_lines')
             .delete()
             .eq('prima_nota_id', invoice.prima_nota_id);
 
-          // Genera le nuove linee
           const primaNotaLines: any[] = [];
           let lineOrder = 1;
 
           if (isAcquisto) {
-            // ACQUISTO (Costo)
-            // AVERE: Contropartita (Debiti fornitori o metodo pagamento)
             primaNotaLines.push({
               prima_nota_id: invoice.prima_nota_id,
               line_order: lineOrder++,
@@ -1729,7 +1693,6 @@ export default function RegistroContabilePage() {
               description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
             });
 
-            // DARE: Costi - usa split se presente
             if (hasSplit) {
               for (const split of accountSplits!) {
                 const account = accounts.find(a => a.id === split.account_id);
@@ -1757,7 +1720,6 @@ export default function RegistroContabilePage() {
               });
             }
 
-            // DARE: IVA a credito
             if (ivaAmount > 0) {
               primaNotaLines.push({
                 prima_nota_id: invoice.prima_nota_id,
@@ -1771,8 +1733,6 @@ export default function RegistroContabilePage() {
               });
             }
           } else {
-            // VENDITA (Ricavo)
-            // DARE: Contropartita (Crediti clienti o metodo pagamento)
             primaNotaLines.push({
               prima_nota_id: invoice.prima_nota_id,
               line_order: lineOrder++,
@@ -1784,7 +1744,6 @@ export default function RegistroContabilePage() {
               description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
             });
 
-            // AVERE: Ricavi - usa split se presente
             if (hasSplit) {
               for (const split of accountSplits!) {
                 const account = accounts.find(a => a.id === split.account_id);
@@ -1812,7 +1771,6 @@ export default function RegistroContabilePage() {
               });
             }
 
-            // AVERE: IVA a debito
             if (ivaAmount > 0) {
               primaNotaLines.push({
                 prima_nota_id: invoice.prima_nota_id,
@@ -1827,12 +1785,10 @@ export default function RegistroContabilePage() {
             }
           }
 
-          // Inserisci le nuove linee
           if (primaNotaLines.length > 0) {
             const { error: linesError } = await supabase
               .from('prima_nota_lines')
               .insert(primaNotaLines);
-
             if (linesError) throw linesError;
           }
         }
@@ -1860,7 +1816,6 @@ export default function RegistroContabilePage() {
 
         // Aggiorna scadenza se esiste
         if (invoice.scadenza_id) {
-          // Se pagata/incassata, chiudi la scadenza
           const scadenzaStato = isPaid ? 'chiusa' : 'aperta';
           const importoResiduo = isPaid ? 0 : totalAmount;
 
@@ -1888,11 +1843,13 @@ export default function RegistroContabilePage() {
       setEditSplitEnabled(false);
       setEditSplitLines([]);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
     },
     onError: (error) => {
       toast.error('Errore nella modifica: ' + error.message);
     }
   });
+
 
   // Mutation per eliminare dal registro contabile
   // IMPORTANTE: Solo per elementi NON contabilizzati (bozza)
