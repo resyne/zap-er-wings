@@ -1,87 +1,47 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  ArrowUp,
-  ArrowDown,
-  Receipt,
-  CreditCard,
-  Upload,
+  ArrowDownLeft,
+  ArrowUpRight,
   Camera,
   Loader2,
   CheckCircle,
   X,
-  Plus,
+  ImageIcon,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pdfFirstPageToPngBlob } from "@/lib/pdfFirstPageToPng";
-import { format } from "date-fns";
-import { it } from "date-fns/locale";
 
-interface QuickEntryForm {
-  importo: string;
-  metodo_pagamento: string;
-  soggetto_nome: string;
-  riferimento: string;
-  descrizione: string;
-}
+type EntryType = "uscita" | "entrata";
 
 export default function ZAppRegistroPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"tutti" | "entrate" | "uscite">("tutti");
-  const [showEntryDialog, setShowEntryDialog] = useState(false);
-  const [entryType, setEntryType] = useState<"entrata" | "uscita">("uscita");
+
+  const [step, setStep] = useState<"choose" | "form">("choose");
+  const [entryType, setEntryType] = useState<EntryType>("uscita");
+  const [importo, setImporto] = useState("");
+  const [descrizione, setDescrizione] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
-  const [form, setForm] = useState<QuickEntryForm>({
-    importo: "",
-    metodo_pagamento: "cassa",
-    soggetto_nome: "",
-    riferimento: "",
-    descrizione: "",
-  });
+  const [submitted, setSubmitted] = useState(false);
 
-  // Fetch registrations (same table as RegistroPage)
-  const { data: registrations = [], isLoading } = useQuery({
-    queryKey: ["zapp-registrations"],
-    queryFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return [];
-
-      const { data, error } = await supabase
-        .from("movimenti_finanziari")
-        .select("*")
-        .eq("created_by", userData.user.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Create movimento mutation (same as RegistroPage)
   const createMutation = useMutation({
-    mutationFn: async (movimento: {
-      direzione: "entrata" | "uscita";
+    mutationFn: async (data: {
+      direzione: EntryType;
       importo: number;
-      metodo_pagamento: string;
-      soggetto_nome?: string;
-      riferimento?: string;
-      descrizione?: string;
+      descrizione: string;
       allegato_url?: string;
       allegato_nome?: string;
     }) => {
@@ -90,60 +50,39 @@ export default function ZAppRegistroPage() {
 
       const { error: movError } = await supabase.from("movimenti_finanziari").insert({
         data_movimento: today,
-        direzione: movimento.direzione,
-        importo: movimento.importo,
-        metodo_pagamento: movimento.metodo_pagamento as "banca" | "cassa" | "carta",
-        soggetto_nome: movimento.soggetto_nome || null,
-        riferimento: movimento.riferimento || null,
-        descrizione: movimento.descrizione || null,
-        allegato_url: movimento.allegato_url || null,
-        allegato_nome: movimento.allegato_nome || null,
+        direzione: data.direzione,
+        importo: data.importo,
+        metodo_pagamento: "cassa" as "banca" | "cassa" | "carta",
+        descrizione: data.descrizione || null,
+        allegato_url: data.allegato_url || null,
+        allegato_nome: data.allegato_nome || null,
         stato: "da_classificare",
         created_by: userData.user?.id,
       });
-
       if (movError) throw movError;
 
       const { error: accError } = await supabase.from("accounting_entries").insert({
-        direction: movimento.direzione,
+        direction: data.direzione,
         document_type: "scontrino",
-        amount: movimento.importo,
+        amount: data.importo,
         document_date: today,
-        attachment_url: movimento.allegato_url || "",
-        payment_method: movimento.metodo_pagamento,
-        subject_type: null,
-        note: movimento.soggetto_nome
-          ? `Soggetto: ${movimento.soggetto_nome}${movimento.descrizione ? ` - ${movimento.descrizione}` : ""}`
-          : movimento.descrizione || null,
+        attachment_url: data.allegato_url || "",
+        note: data.descrizione || null,
         status: "da_classificare",
         user_id: userData.user?.id,
       });
-
       if (accError) throw accError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["zapp-registrations"] });
-      queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["movimenti-finanziari"] });
-      toast.success("Movimento registrato!");
-      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["prima-nota-movements"] });
+      setSubmitted(true);
     },
     onError: () => {
       toast.error("Errore durante la registrazione");
     },
   });
-
-  const resetForm = () => {
-    setShowEntryDialog(false);
-    setUploadedFile(null);
-    setForm({
-      importo: "",
-      metodo_pagamento: "cassa",
-      soggetto_nome: "",
-      riferimento: "",
-      descrizione: "",
-    });
-  };
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
@@ -155,21 +94,19 @@ export default function ZAppRegistroPage() {
       const { error: uploadError } = await supabase.storage
         .from("accounting-attachments")
         .upload(filePath, file);
-
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
         .from("accounting-attachments")
         .getPublicUrl(filePath);
 
-      const uploadedFileData = { name: file.name, url: urlData.publicUrl };
+      setUploadedFile({ name: file.name, url: urlData.publicUrl });
 
-      // AI Analysis
+      // Try AI analysis
       setIsAnalyzing(true);
       try {
         let analysisUrl: string | null = urlData.publicUrl;
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
+        const isPdf = file.type === "application/pdf";
         if (isPdf) {
           try {
             const pngBlob = await pdfFirstPageToPngBlob(file);
@@ -186,42 +123,23 @@ export default function ZAppRegistroPage() {
           const { data: analysisData } = await supabase.functions.invoke("analyze-document", {
             body: { imageUrl: analysisUrl },
           });
-
           if (analysisData?.success && analysisData?.data) {
-            const extracted = analysisData.data;
-            setUploadedFile(uploadedFileData);
-            const isEntrata = extracted.direction === "entrata";
-            setEntryType(isEntrata ? "entrata" : "uscita");
-            setForm({
-              importo: extracted.amount ? String(extracted.amount) : "",
-              metodo_pagamento: extracted.payment_method === "contanti" ? "cassa" :
-                extracted.payment_method === "carta" ? "carta" :
-                  extracted.payment_method === "bonifico" ? "banca" : "cassa",
-              soggetto_nome: extracted.supplier_name || "",
-              riferimento: extracted.document_number || "",
-              descrizione: extracted.notes || "",
-            });
-            setShowEntryDialog(true);
-            toast.success("Documento analizzato con AI!");
-          } else {
-            setUploadedFile(uploadedFileData);
-            setShowEntryDialog(true);
-            toast.info("Compila manualmente i dati");
+            const ext = analysisData.data;
+            if (ext.amount) setImporto(String(ext.amount));
+            if (ext.notes) setDescrizione(ext.notes);
+            if (ext.direction === "entrata") setEntryType("entrata");
+            toast.success("Documento analizzato!");
           }
-        } else {
-          setUploadedFile(uploadedFileData);
-          setShowEntryDialog(true);
-          toast.info("Compila manualmente i dati");
         }
       } catch {
-        setUploadedFile(uploadedFileData);
-        setShowEntryDialog(true);
-        toast.info("Compila manualmente i dati");
+        // Continue without AI
       } finally {
         setIsAnalyzing(false);
       }
+
+      toast.success("Foto caricata");
     } catch {
-      toast.error("Errore upload file");
+      toast.error("Errore nel caricamento");
     } finally {
       setIsUploading(false);
     }
@@ -237,340 +155,303 @@ export default function ZAppRegistroPage() {
     accept: { "image/*": [], "application/pdf": [] },
     maxFiles: 1,
     noClick: false,
+    noKeyboard: true,
   });
 
   const handleSubmit = () => {
-    if (!form.importo || parseFloat(form.importo) <= 0) {
+    const amount = parseFloat(importo);
+    if (!amount || amount <= 0) {
       toast.error("Inserisci un importo valido");
       return;
     }
-
     createMutation.mutate({
       direzione: entryType,
-      importo: parseFloat(form.importo),
-      metodo_pagamento: form.metodo_pagamento,
-      soggetto_nome: form.soggetto_nome || undefined,
-      riferimento: form.riferimento || undefined,
-      descrizione: form.descrizione || undefined,
+      importo: amount,
+      descrizione,
       allegato_url: uploadedFile?.url,
       allegato_nome: uploadedFile?.name,
     });
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(value);
+  const resetAll = () => {
+    setStep("choose");
+    setImporto("");
+    setDescrizione("");
+    setUploadedFile(null);
+    setSubmitted(false);
+  };
 
-  const filtered = registrations.filter((r: any) => {
-    if (activeTab === "entrate") return r.direzione === "entrata";
-    if (activeTab === "uscite") return r.direzione === "uscita";
-    return true;
-  });
+  const selectType = (type: EntryType) => {
+    setEntryType(type);
+    setStep("form");
+  };
 
-  const totaleEntrate = registrations
-    .filter((r: any) => r.direzione === "entrata")
-    .reduce((sum: number, r: any) => sum + Number(r.importo), 0);
-  const totaleUscite = registrations
-    .filter((r: any) => r.direzione === "uscita")
-    .reduce((sum: number, r: any) => sum + Number(r.importo), 0);
+  const isSpesa = entryType === "uscita";
+  const accentColor = isSpesa ? "red" : "emerald";
+
+  // Success screen
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-600 to-indigo-700 flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <div className={cn(
+            "h-20 w-20 rounded-full flex items-center justify-center mb-6",
+            isSpesa ? "bg-red-100" : "bg-emerald-100"
+          )}>
+            <CheckCircle className={cn("h-10 w-10", isSpesa ? "text-red-600" : "text-emerald-600")} />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isSpesa ? "Spesa registrata!" : "Incasso registrato!"}
+          </h2>
+          <p className="text-indigo-200 text-sm mb-8">
+            Il movimento è stato inviato e sarà classificato dall'amministrazione.
+          </p>
+          <div className="flex gap-3 w-full max-w-xs">
+            <Button
+              variant="outline"
+              className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
+              onClick={resetAll}
+            >
+              Nuovo movimento
+            </Button>
+            <Button
+              className="flex-1 bg-white text-indigo-700 hover:bg-white/90"
+              onClick={() => navigate("/hr/z-app")}
+            >
+              Torna a Z-APP
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-600 to-indigo-700 flex flex-col">
       {/* Header */}
-      <div className="bg-green-600 text-white px-4 py-4 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/hr/z-app")} className="p-1 -ml-1">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold">Registro Incasso/Spese</h1>
-            <p className="text-green-100 text-xs">Gestisci movimenti finanziari</p>
+      <div className="px-4 pt-4 pb-3 flex items-center gap-3">
+        <button
+          onClick={() => step === "form" ? setStep("choose") : navigate("/hr/z-app")}
+          className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center active:scale-90 transition-transform"
+        >
+          <ArrowLeft className="h-5 w-5 text-white" />
+        </button>
+        <h1 className="text-lg font-bold text-white">
+          {step === "choose" ? "Segnala movimento" : isSpesa ? "Registra Spesa" : "Registra Incasso"}
+        </h1>
+      </div>
+
+      {/* STEP 1: Choose type */}
+      {step === "choose" && (
+        <div className="flex-1 flex flex-col px-5 pt-6">
+          <p className="text-indigo-200 text-sm text-center mb-8">
+            Cosa vuoi segnalare?
+          </p>
+
+          <div className="space-y-4 max-w-sm mx-auto w-full">
+            {/* Spesa button */}
+            <button
+              onClick={() => selectType("uscita")}
+              className="w-full flex items-center gap-4 p-5 bg-white rounded-2xl shadow-lg active:scale-[0.97] transition-transform"
+            >
+              <div className="h-14 w-14 rounded-2xl bg-red-100 flex items-center justify-center shrink-0">
+                <ArrowDownLeft className="h-7 w-7 text-red-600" />
+              </div>
+              <div className="text-left">
+                <span className="text-lg font-bold text-foreground">Spesa</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Scontrini, carburante, materiale, pranzi...</p>
+              </div>
+            </button>
+
+            {/* Incasso button */}
+            <button
+              onClick={() => selectType("entrata")}
+              className="w-full flex items-center gap-4 p-5 bg-white rounded-2xl shadow-lg active:scale-[0.97] transition-transform"
+            >
+              <div className="h-14 w-14 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
+                <ArrowUpRight className="h-7 w-7 text-emerald-600" />
+              </div>
+              <div className="text-left">
+                <span className="text-lg font-bold text-foreground">Incasso</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Pagamenti ricevuti, contanti, assegni...</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Photo shortcut */}
+          <div className="mt-8 max-w-sm mx-auto w-full">
+            <p className="text-indigo-200 text-xs text-center mb-3">oppure scatta direttamente una foto</p>
+            <label className="block">
+              <div className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-white/30 bg-white/5 cursor-pointer active:bg-white/10 transition-colors">
+                {isUploading || isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                    <span className="text-white text-sm font-medium">
+                      {isAnalyzing ? "Analisi AI..." : "Caricamento..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-5 w-5 text-white" />
+                    <span className="text-white text-sm font-medium">📸 Scatta foto scontrino</span>
+                  </>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setEntryType("uscita");
+                    setStep("form");
+                    handleFileUpload(file);
+                  }
+                }}
+              />
+            </label>
           </div>
         </div>
-      </div>
+      )}
 
-
-      {/* Quick Actions */}
-      <div className="px-4 grid grid-cols-2 gap-3">
-        <button
-          onClick={() => { setEntryType("entrata"); setShowEntryDialog(true); }}
-          className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl active:scale-95 transition-transform"
-        >
-          <div className="h-10 w-10 rounded-xl bg-green-500 flex items-center justify-center">
-            <CreditCard className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-semibold text-sm text-green-800">Incasso</span>
-        </button>
-        <button
-          onClick={() => { setEntryType("uscita"); setShowEntryDialog(true); }}
-          className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl active:scale-95 transition-transform"
-        >
-          <div className="h-10 w-10 rounded-xl bg-red-500 flex items-center justify-center">
-            <Receipt className="h-5 w-5 text-white" />
-          </div>
-          <span className="font-semibold text-sm text-red-800">Spesa</span>
-        </button>
-      </div>
-
-      {/* AI Upload */}
-      <div className="px-4 mt-3">
-        <div
-          {...getRootProps()}
-          className="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors hover:bg-accent/50 bg-white"
-        >
-          <input {...getInputProps()} />
-          {isUploading || isAnalyzing ? (
-            <div className="flex items-center justify-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">{isAnalyzing ? "Analisi AI..." : "Caricamento..."}</span>
+      {/* STEP 2: Form */}
+      {step === "form" && (
+        <div className="flex-1 flex flex-col px-5 pt-2 pb-6">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden max-w-sm mx-auto w-full">
+            {/* Type toggle */}
+            <div className="flex border-b">
+              <button
+                onClick={() => setEntryType("uscita")}
+                className={cn(
+                  "flex-1 py-3 text-sm font-bold transition-colors",
+                  isSpesa ? "bg-red-600 text-white" : "bg-muted/30 text-muted-foreground"
+                )}
+              >
+                ↓ Spesa
+              </button>
+              <button
+                onClick={() => setEntryType("entrata")}
+                className={cn(
+                  "flex-1 py-3 text-sm font-bold transition-colors",
+                  !isSpesa ? "bg-emerald-600 text-white" : "bg-muted/30 text-muted-foreground"
+                )}
+              >
+                ↑ Incasso
+              </button>
             </div>
-          ) : (
-            <div className="flex items-center justify-center gap-3">
-              <Upload className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Carica documento o scatta foto</span>
-            </div>
-          )}
-        </div>
-        <label className="block mt-2">
-          <Button variant="outline" className="w-full h-11" asChild>
-            <div className="cursor-pointer">
-              <Camera className="h-4 w-4 mr-2" />
-              Scatta foto scontrino
-            </div>
-          </Button>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFileUpload(file);
-            }}
-          />
-        </label>
-      </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 px-4 mt-4">
-        {(["tutti", "entrate", "uscite"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-4 py-2 rounded-full text-sm font-medium transition-colors",
-              activeTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {tab === "tutti" ? "Tutti" : tab === "entrate" ? "Entrate" : "Uscite"}
-          </button>
-        ))}
-      </div>
+            <div className="p-5 space-y-4">
+              {/* Amount — BIG */}
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Importo *</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl font-bold text-muted-foreground/40">€</span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={importo}
+                    onChange={(e) => setImporto(e.target.value)}
+                    placeholder="0,00"
+                    className="pl-14 h-16 text-3xl font-bold tabular-nums border-2 focus:border-primary text-center"
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-      {/* Movement List */}
-      <div className="p-4 space-y-2 pb-24">
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">Caricamento...</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">Nessun movimento trovato</div>
-        ) : (
-          filtered.map((reg: any) => (
-            <div key={reg.id} className="bg-white rounded-xl p-3 shadow-sm border border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {reg.direzione === "entrata" ? (
-                    <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
-                      <ArrowUp className="h-4 w-4 text-green-600" />
+              {/* Description */}
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Descrizione <span className="normal-case font-normal">(opzionale)</span></Label>
+                <Textarea
+                  value={descrizione}
+                  onChange={(e) => setDescrizione(e.target.value)}
+                  placeholder="Es: Gasolio furgone, pranzo cantiere..."
+                  rows={2}
+                  className="mt-1.5 resize-none"
+                />
+              </div>
+
+              {/* Photo attachment */}
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Foto / Allegato</Label>
+                <div className="mt-1.5">
+                  {uploadedFile ? (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/30 border">
+                      <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="text-xs text-foreground truncate flex-1">{uploadedFile.name}</span>
+                      <button onClick={() => setUploadedFile(null)} className="p-1">
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
                     </div>
                   ) : (
-                    <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
-                      <ArrowDown className="h-4 w-4 text-red-600" />
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Camera */}
+                      <label className="block">
+                        <div className="flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 border-dashed cursor-pointer hover:bg-muted/30 active:bg-muted/50 transition-colors">
+                          {isUploading || isAnalyzing ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          ) : (
+                            <Camera className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            {isAnalyzing ? "Analisi..." : "Scatta foto"}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file);
+                          }}
+                        />
+                      </label>
+
+                      {/* Gallery / File */}
+                      <div
+                        {...getRootProps()}
+                        className="flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 border-dashed cursor-pointer hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                      >
+                        <input {...getInputProps()} />
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-[11px] font-medium text-muted-foreground">Galleria</span>
+                      </div>
                     </div>
                   )}
-                  <div>
-                    <p className="text-sm font-medium truncate max-w-[180px]">
-                      {reg.soggetto_nome || reg.descrizione || (reg.direzione === "entrata" ? "Incasso" : "Spesa")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(reg.data_movimento), "dd MMM yyyy", { locale: it })} · {reg.metodo_pagamento}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={cn(
-                    "font-semibold text-sm",
-                    reg.direzione === "entrata" ? "text-green-600" : "text-red-600"
-                  )}>
-                    {reg.direzione === "entrata" ? "+" : "-"}{formatCurrency(Number(reg.importo))}
-                  </p>
-                  <Badge variant={reg.stato === "contabilizzato" ? "default" : "secondary"} className="text-[10px] mt-0.5">
-                    {reg.stato === "contabilizzato" ? "Registrato" : "Da classificare"}
-                  </Badge>
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
 
-      {/* FAB */}
-      <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-2">
-        <Button
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg bg-primary"
-          onClick={() => { setEntryType("uscita"); setShowEntryDialog(true); }}
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
-
-      {/* Entry Dialog */}
-      <Dialog open={showEntryDialog} onOpenChange={setShowEntryDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {entryType === "uscita" ? (
-                <>
-                  <Receipt className="h-5 w-5 text-red-600" />
-                  Registra Spesa
-                </>
-              ) : (
-                <>
-                  <CreditCard className="h-5 w-5 text-green-600" />
-                  Registra Incasso
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Toggle entrata/uscita */}
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
-              onClick={() => setEntryType("entrata")}
-              className={cn(
-                "flex-1 py-2.5 text-sm font-medium transition-colors",
-                entryType === "entrata" ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"
-              )}
-            >
-              Incasso
-            </button>
-            <button
-              onClick={() => setEntryType("uscita")}
-              className={cn(
-                "flex-1 py-2.5 text-sm font-medium transition-colors",
-                entryType === "uscita" ? "bg-red-600 text-white" : "bg-muted text-muted-foreground"
-              )}
-            >
-              Spesa
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {/* File upload */}
-            <div
-              {...getRootProps()}
-              className={cn(
-                "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                uploadedFile ? "border-green-500 bg-green-50" : "hover:bg-accent/50"
-              )}
-            >
-              <input {...getInputProps()} />
-              {uploadedFile ? (
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="text-sm truncate max-w-[200px]">{uploadedFile.name}</span>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setUploadedFile(null); }}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Allega documento</p>
-                </>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Importo *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                className="h-12 text-lg"
-                value={form.importo}
-                onChange={(e) => setForm((prev) => ({ ...prev, importo: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Metodo pagamento *</Label>
-              <Select
-                value={form.metodo_pagamento}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, metodo_pagamento: value }))}
+            {/* Submit */}
+            <div className="px-5 pb-5">
+              <Button
+                onClick={handleSubmit}
+                disabled={!importo || parseFloat(importo) <= 0 || createMutation.isPending}
+                className={cn(
+                  "w-full h-14 text-base font-bold rounded-xl gap-2 shadow-md text-white",
+                  isSpesa
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-emerald-600 hover:bg-emerald-700"
+                )}
               >
-                <SelectTrigger className="h-12">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cassa">Contanti</SelectItem>
-                  <SelectItem value="carta">Carta</SelectItem>
-                  <SelectItem value="banca">Bonifico</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Soggetto</Label>
-              <Input
-                placeholder="Nome cliente/fornitore"
-                className="h-12"
-                value={form.soggetto_nome}
-                onChange={(e) => setForm((prev) => ({ ...prev, soggetto_nome: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Riferimento</Label>
-              <Input
-                placeholder="Es. numero scontrino"
-                className="h-12"
-                value={form.riferimento}
-                onChange={(e) => setForm((prev) => ({ ...prev, riferimento: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Descrizione</Label>
-              <Textarea
-                placeholder="Note..."
-                value={form.descrizione}
-                onChange={(e) => setForm((prev) => ({ ...prev, descrizione: e.target.value }))}
-                rows={2}
-              />
+                {createMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    {isSpesa ? "Invia Spesa" : "Invia Incasso"}
+                  </>
+                )}
+              </Button>
             </div>
           </div>
-
-          <DialogFooter className="flex-col gap-2">
-            <Button variant="outline" onClick={resetForm} className="w-full h-12">
-              Annulla
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending}
-              className={cn(
-                "w-full h-12",
-                entryType === "uscita" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
-              )}
-            >
-              {createMutation.isPending ? "Salvataggio..." : "Registra"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }
