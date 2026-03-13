@@ -147,8 +147,12 @@ export default function DdtSection() {
         }
 
         if (!supplierId) {
+          const tempCode = `AUTO-${Date.now().toString().slice(-6)}`;
+          const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
           const { data: newSup } = await supabase.from("suppliers").insert({
             name: extracted.intestazione_name,
+            code: tempCode,
+            access_code: accessCode,
             tax_id: extracted.intestazione_vat || null,
             address: extracted.intestazione_address || null,
           }).select("id").single();
