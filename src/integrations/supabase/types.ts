@@ -6115,6 +6115,7 @@ export type Database = {
           soggetto_nome: string | null
           soggetto_tipo: string | null
           stato: string
+          stato_rimborso: string | null
           tipo_allocazione: string | null
           updated_at: string
         }
@@ -6143,6 +6144,7 @@ export type Database = {
           soggetto_nome?: string | null
           soggetto_tipo?: string | null
           stato?: string
+          stato_rimborso?: string | null
           tipo_allocazione?: string | null
           updated_at?: string
         }
@@ -6171,6 +6173,7 @@ export type Database = {
           soggetto_nome?: string | null
           soggetto_tipo?: string | null
           stato?: string
+          stato_rimborso?: string | null
           tipo_allocazione?: string | null
           updated_at?: string
         }
