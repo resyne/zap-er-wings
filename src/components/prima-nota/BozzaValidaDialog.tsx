@@ -371,6 +371,7 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota-movements"] });
       queryClient.invalidateQueries({ queryKey: ["pending-prima-nota-entries"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-entries-to-classify"] });
       queryClient.invalidateQueries({ queryKey: ["bozze-prima-nota"] });
