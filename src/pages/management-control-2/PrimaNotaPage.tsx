@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
+import { PrimaNotaDetailDialog } from "@/components/prima-nota/PrimaNotaDetailDialog";
 
 // =====================================================
 // TYPES
@@ -144,6 +145,10 @@ export default function PrimaNotaPage() {
   // State for BozzaValidaDialog
   const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
   const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
+
+  // State for detail dialog
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   const openValidateDialog = (movementId: string) => {
     const fullEntry = rawEntries.find(e => e.id === movementId);
@@ -536,6 +541,9 @@ export default function PrimaNotaPage() {
                   onClick={() => {
                     if (m.status === 'segnalazione') {
                       openValidateDialog(m.id);
+                    } else {
+                      setDetailEntryId(m.id);
+                      setDetailDialogOpen(true);
                     }
                   }}
                 >
@@ -641,6 +649,13 @@ export default function PrimaNotaPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Detail/Edit dialog */}
+      <PrimaNotaDetailDialog
+        entryId={detailEntryId}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+      />
 
       {/* Guida collassabile — at the bottom */}
       <GuideSection />
