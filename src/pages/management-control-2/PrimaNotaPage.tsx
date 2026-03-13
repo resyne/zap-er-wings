@@ -18,9 +18,10 @@ import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
   ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
-  ChevronDown, Receipt, Wallet, Info, Plus, Search, Trash2,
+  ChevronDown, ChevronLeft, ChevronRight, Receipt, Wallet, Info, Plus, Search, Trash2,
   Calendar
 } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
 
 // =====================================================
