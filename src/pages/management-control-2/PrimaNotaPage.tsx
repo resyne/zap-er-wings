@@ -516,8 +516,8 @@ export default function PrimaNotaPage() {
                   )}
                   onClick={() => {
                     if (m.status === 'segnalazione') {
-                      setValidateDialogId(m.id);
-                      setValidateNotes('');
+                      openValidateDialog(m.id);
+                    }
                     }
                   }}
                 >
