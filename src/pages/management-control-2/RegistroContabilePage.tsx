@@ -449,6 +449,7 @@ export default function RegistroContabilePage() {
 
       const result = await processSingleFile(file);
       if (result) {
+        // Note: costCenters/accounts will be available by the time user triggers upload
         applyExtractedToForm(result.extracted, result.fileUrl, result.subjectResult);
         setUploadedFile({ name: file.name, url: result.fileUrl });
         
