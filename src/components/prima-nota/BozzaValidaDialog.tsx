@@ -485,6 +485,12 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
               {isClassifying ? "Classificazione in corso..." : "Classifica con AI"}
             </Button>
 
+            {/* Customer Selection */}
+            <CustomerSearchSelect
+              selectedCustomerId={form.economic_subject_id}
+              onSelect={(id, name) => setForm(p => ({ ...p, economic_subject_id: id, economic_subject_type: id ? "cliente" : "" }))}
+            />
+
             <Separator />
 
             {/* IVA Section */}
