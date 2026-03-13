@@ -490,17 +490,18 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
                   <Label className="text-xs">Regime IVA</Label>
                   <Select value={form.iva_mode} onValueChange={v => {
                     const zeroIva = isZeroIvaMode(v);
+                    const newAliq = zeroIva ? 0 : 22;
                     const imp = form.imponibile;
-                    const aliq = form.iva_aliquota;
-                    const iva = zeroIva ? 0 : imp * (aliq / 100);
-                    const tot = zeroIva ? imp : imp + iva;
-                    setForm(p => ({ ...p, iva_mode: v, iva_amount: iva, totale: tot }));
+                    const iva = zeroIva ? 0 : imp * (newAliq / 100);
+                    const tot = imp + iva;
+                    setForm(p => ({ ...p, iva_mode: v, iva_aliquota: newAliq, iva_amount: iva, totale: tot }));
                   }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(IVA_MODE_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
-                      ))}
+                      <SelectItem value="ORDINARIO_22">Ordinario (22%)</SelectItem>
+                      <SelectItem value="REVERSE_CHARGE">Reverse Charge (0%)</SelectItem>
+                      <SelectItem value="INTRA_UE">Intra UE (0%)</SelectItem>
+                      <SelectItem value="EXTRA_UE">Extra UE (0%)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
