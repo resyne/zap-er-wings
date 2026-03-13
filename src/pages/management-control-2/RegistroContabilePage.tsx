@@ -2682,7 +2682,7 @@ export default function RegistroContabilePage() {
       )}
       
       {/* Uploading/Analyzing overlay */}
-      {(isUploading || isAnalyzing) && (
+      {(isUploading || isAnalyzing) && !showUploadProgress && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card border rounded-2xl p-8 text-center shadow-2xl">
             <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
@@ -2696,16 +2696,75 @@ export default function RegistroContabilePage() {
         </div>
       )}
 
+      {/* Multi-file upload progress dialog */}
+      {showUploadProgress && (
+        <Dialog open={showUploadProgress} onOpenChange={(open) => {
+          if (!open && uploadQueue.every(q => q.status === 'done' || q.status === 'error')) {
+            setShowUploadProgress(false);
+            setUploadQueue([]);
+          }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Import Documenti ({uploadQueue.filter(q => q.status === 'done').length}/{uploadQueue.length})
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {uploadQueue.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <div className="flex-shrink-0">
+                    {item.status === 'pending' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                    {(item.status === 'uploading' || item.status === 'analyzing') && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+                    {item.status === 'done' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                    {item.status === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.status === 'pending' && 'In attesa...'}
+                      {item.status === 'uploading' && 'Caricamento...'}
+                      {item.status === 'analyzing' && 'Analisi AI...'}
+                      {item.status === 'done' && (item.result?.invoice_number ? `Fatt. ${item.result.invoice_number} — €${item.result.total_amount || 0}` : 'Registrato')}
+                      {item.status === 'error' && (item.error || 'Errore')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {uploadQueue.every(q => q.status === 'done' || q.status === 'error') && (
+              <DialogFooter>
+                <Button onClick={() => { setShowUploadProgress(false); setUploadQueue([]); }}>
+                  Chiudi
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Toolbar: dropzone + carica */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         {/* Compact dropzone */}
-        <div className="flex-1 border border-dashed border-muted-foreground/25 rounded-xl px-5 py-3.5 flex items-center gap-4 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer">
+        <div
+          {...getRootProps()}
+          className={cn(
+            "flex-1 border border-dashed rounded-xl px-5 py-3.5 flex items-center gap-4 transition-colors cursor-pointer",
+            isDragActive
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 bg-muted/20 hover:bg-muted/40"
+          )}
+        >
+          <input {...getInputProps()} />
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
             <Upload className="w-4.5 h-4.5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">Trascina un documento qui</p>
-            <p className="text-xs text-muted-foreground">PDF o immagine — l'AI pre-compila i dati</p>
+            <p className="text-sm font-medium truncate">
+              {isDragActive ? "Rilascia i file qui..." : "Trascina documenti qui (anche multipli)"}
+            </p>
+            <p className="text-xs text-muted-foreground">PDF, XML o immagine — l'AI pre-compila i dati e crea/collega clienti/fornitori</p>
           </div>
         </div>
         
@@ -2719,11 +2778,13 @@ export default function RegistroContabilePage() {
             </Button>
             <input
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,application/pdf,text/xml,application/xml,.xml,.p7m"
+              multiple
               className="hidden"
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileUpload(file);
+                const files = Array.from(e.target.files || []);
+                if (files.length > 0) handleMultiFileUpload(files);
+                e.target.value = '';
               }}
             />
           </label>
