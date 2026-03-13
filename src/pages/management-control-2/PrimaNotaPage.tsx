@@ -77,6 +77,7 @@ const FINANCIAL_ACCOUNTS: Record<string, string> = {
 // MAIN PAGE
 // =====================================================
 export default function PrimaNotaPage() {
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [formData, setFormData] = useState<MovementFormData>(initialFormData);
