@@ -236,7 +236,8 @@ export default function PrimaNotaPage() {
 
   // Filtered (search + type on top of period)
   const filtered = periodMovements.filter(m => {
-    if (filterType !== 'all' && m.type !== filterType) return false;
+    if (filterType === 'segnalazione' && m.status !== 'segnalazione') return false;
+    if (filterType !== 'all' && filterType !== 'segnalazione' && m.type !== filterType) return false;
     if (searchTerm && !m.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
