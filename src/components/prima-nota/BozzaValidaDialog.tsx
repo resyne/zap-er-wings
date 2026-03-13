@@ -180,6 +180,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         imponibile: entry.imponibile || entry.amount || 0,
         iva_amount: entry.iva_amount ?? 0,
         totale: entry.totale || entry.amount || 0,
+        economic_subject_id: entry.economic_subject_id || "",
+        economic_subject_type: entry.economic_subject_type || "cliente",
       });
     }
   }, [entry, open]);
