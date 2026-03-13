@@ -119,6 +119,16 @@ export default function ZAppPage() {
   const [movFile, setMovFile] = useState<{ name: string; url: string } | null>(null);
   const [movUploading, setMovUploading] = useState(false);
   const [movSuccess, setMovSuccess] = useState(false);
+  const [movPayment, setMovPayment] = useState("contanti");
+
+  const paymentMethods = [
+    { value: "carta_aziendale", label: "Carta Aziendale" },
+    { value: "anticipo_dipendente", label: "Anticipo Dipendente" },
+    { value: "contanti", label: "Contanti" },
+    { value: "carta_q8", label: "Carta Q8" },
+    { value: "american_express", label: "Carta Amex" },
+    { value: "banca_intesa", label: "Banca Intesa" },
+  ];
 
   const movMutation = useMutation({
     mutationFn: async () => {
@@ -139,13 +149,14 @@ export default function ZAppPage() {
         data_movimento: today,
         direzione: movType,
         importo: amount,
-        metodo_pagamento: "cassa" as "banca" | "cassa" | "carta",
+        metodo_pagamento: movPayment as any,
         descrizione: movDesc || null,
         allegato_url: movFile?.url || null,
         allegato_nome: movFile?.name || null,
         stato: "segnalazione",
+        stato_rimborso: movPayment === "anticipo_dipendente" ? "da_rimborsare" : null,
         created_by: userData.user?.id,
-      });
+      } as any);
       if (e1) throw e1;
 
       const { error: e2 } = await supabase.from("accounting_entries").insert({
@@ -157,7 +168,7 @@ export default function ZAppPage() {
         note: movDesc || null,
         status: "segnalazione",
         event_type: "movimento_finanziario",
-        payment_method: "cassa",
+        payment_method: movPayment,
         account_code: code,
         user_id: userData.user?.id,
       });
@@ -213,6 +224,7 @@ export default function ZAppPage() {
     setMovDesc("");
     setMovFile(null);
     setMovSuccess(false);
+    setMovPayment("contanti");
     setMovOpen(true);
   };
 
@@ -482,6 +494,31 @@ export default function ZAppPage() {
                 rows={2}
                 className="resize-none text-sm"
               />
+
+              {/* Payment method */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Metodo di pagamento</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {paymentMethods.map((pm) => (
+                    <button
+                      key={pm.value}
+                      type="button"
+                      onClick={() => setMovPayment(pm.value)}
+                      className={cn(
+                        "py-2 px-2.5 rounded-lg text-xs font-medium border transition-colors text-left",
+                        movPayment === pm.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+                {movPayment === "anticipo_dipendente" && (
+                  <p className="text-[10px] text-amber-600 font-medium">⚠️ Verrà tracciato come "da rimborsare"</p>
+                )}
+              </div>
 
               {/* Photo */}
               {movFile ? (
