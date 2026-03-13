@@ -3321,6 +3321,18 @@ export default function RegistroContabilePage() {
             if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
           }}
           isRegenerating={regeneratePrimaNotaMutation.isPending}
+          onPayment={(invoice) => {
+            const inv = invoice as any as InvoiceRegistry;
+            setSelectedInvoice(inv);
+            setPaymentData({
+              amount: inv.total_amount,
+              payment_date: format(new Date(), 'yyyy-MM-dd'),
+              payment_method: inv.payment_method || 'bonifico',
+              notes: '',
+              is_partial: false
+            });
+            setShowPaymentDialog(true);
+          }}
           onGoScadenziario={() => (window.location.href = '/management-control-2/scadenziario')}
         />
       )}
