@@ -224,6 +224,7 @@ export default function ZAppPage() {
     setMovDesc("");
     setMovFile(null);
     setMovSuccess(false);
+    setMovPayment("contanti");
     setMovOpen(true);
   };
 
