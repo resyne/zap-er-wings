@@ -259,10 +259,13 @@ export default function RegistroContabilePage() {
   const [editSubjectSearchOpen, setEditSubjectSearchOpen] = useState(false);
   const [editSubjectSearch, setEditSubjectSearch] = useState("");
   
-  // Drag & drop AI states
+  // Drag & drop AI states - multi file queue
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<{ file: File; status: 'pending' | 'uploading' | 'analyzing' | 'done' | 'error'; result?: any; error?: string }[]>([]);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   
   // Similar subject dialog states
   const [similarDialogOpen, setSimilarDialogOpen] = useState(false);
@@ -287,267 +290,315 @@ export default function RegistroContabilePage() {
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateInvoiceInfo, setDuplicateInvoiceInfo] = useState<{ number: string; existing: InvoiceRegistry | null }>({ number: '', existing: null });
 
+  // Process a single file: upload to storage + AI analysis
+  const processSingleFile = useCallback(async (file: File): Promise<{ extracted: any; fileUrl: string; subjectResult: any } | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `invoices/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+    const isXml = file.type === "text/xml" || file.type === "application/xml" || 
+      file.name.toLowerCase().endsWith(".xml") || file.name.toLowerCase().endsWith(".p7m");
+
+    const { error: uploadError } = await supabase.storage
+      .from("accounting-attachments")
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from("accounting-attachments")
+      .getPublicUrl(fileName);
+
+    let analysisUrl: string | null = urlData.publicUrl;
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    // For PDFs, generate a PNG preview for vision analysis
+    if (isPdf && !isXml) {
+      try {
+        const pngBlob = await pdfFirstPageToPngBlob(file);
+        const previewPath = `invoices/${Date.now()}-preview.png`;
+        const { error: previewUploadError } = await supabase.storage
+          .from("accounting-attachments")
+          .upload(previewPath, pngBlob, { contentType: "image/png" });
+        if (previewUploadError) throw previewUploadError;
+        const { data: previewUrlData } = supabase.storage
+          .from("accounting-attachments")
+          .getPublicUrl(previewPath);
+        analysisUrl = previewUrlData.publicUrl;
+      } catch (previewErr) {
+        console.warn("PDF preview generation failed:", previewErr);
+        analysisUrl = null;
+      }
+    }
+
+    if (!analysisUrl) return null;
+
+    const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
+      "analyze-invoice",
+      { body: { imageUrl: analysisUrl, fileType: file.type, fileName: file.name } }
+    );
+
+    if (analysisError) throw analysisError;
+    if (!analysisData?.success || !analysisData?.data) return null;
+
+    return {
+      extracted: analysisData.data,
+      fileUrl: urlData.publicUrl,
+      subjectResult: analysisData.subjectResult || null,
+    };
+  }, []);
+
+  // Apply extracted data to form - costCenters/accounts passed as params to avoid hoisting issues
+  const applyExtractedToForm = useCallback((extracted: any, fileUrl: string, subjectResult: any, costCentersList?: any[], accountsList?: any[]) => {
+    const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
+    const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim();
+
+    const isOurCompany = (name?: string, taxId?: string) => {
+      const n = normalize(name);
+      const t = normalizeTaxId(taxId);
+      return n.includes("climatel") || t === "03895390650";
+    };
+
+    const supplierName: string = extracted.supplier_name || "";
+    const supplierTaxId: string = extracted.supplier_tax_id || "";
+    const customerName: string = extracted.customer_name || "";
+    const customerTaxId: string = extracted.customer_tax_id || "";
+
+    const isPurchase = isOurCompany(customerName, customerTaxId) && !isOurCompany(supplierName, supplierTaxId);
+    const isSale = isOurCompany(supplierName, supplierTaxId) && !isOurCompany(customerName, customerTaxId);
+
+    let invoiceType: InvoiceType = 'acquisto';
+    if (extracted.invoice_type === 'nota_credito') invoiceType = 'nota_credito';
+    else if (isPurchase) invoiceType = 'acquisto';
+    else if (isSale) invoiceType = 'vendita';
+    else if (extracted.invoice_type) invoiceType = extracted.invoice_type;
+
+    let eventType: EventType = invoiceType === 'vendita' ? 'fattura_vendita' : 'fattura_acquisto';
+    let subjectType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
+    let financialStatus: FinancialStatus = subjectType === 'cliente' ? 'da_incassare' : 'da_pagare';
+
+    if (invoiceType === 'nota_credito') {
+      eventType = 'nota_credito';
+      subjectType = isSale ? 'cliente' : isPurchase ? 'fornitore' : 'fornitore';
+      financialStatus = subjectType === 'fornitore' ? 'da_incassare' : 'da_pagare';
+    }
+
+    const counterpartName = invoiceType === 'vendita' ? customerName : supplierName;
+    const counterpartTaxId = invoiceType === 'vendita' ? customerTaxId : supplierTaxId;
+
+    const mapPaymentMethod = (aiMethod?: string): string => {
+      if (!aiMethod) return '';
+      const map: Record<string, string> = { 'bonifico': 'bonifico', 'carta': 'carta', 'contanti': 'contanti', 'assegno': 'assegno', 'pos': 'pos' };
+      return map[aiMethod.toLowerCase()] || '';
+    };
+
+    const findCostCenter = (hint?: string): string => {
+      if (!hint || !costCentersList || costCentersList.length === 0) return '';
+      const hintLower = hint.toLowerCase();
+      const match = costCentersList.find((cc: any) => cc.name.toLowerCase().includes(hintLower) || hintLower.includes(cc.name.toLowerCase()));
+      return match?.id || '';
+    };
+
+    const findAccount = (accountHint?: string): string => {
+      if (!accountHint || !accountsList || accountsList.length === 0) return '';
+      const hintLower = accountHint.toLowerCase();
+      const match = accountsList.find((acc: any) => acc.name.toLowerCase().includes(hintLower) || hintLower.includes(acc.name.toLowerCase()));
+      return match?.id || '';
+    };
+
+    let subjectId = '';
+    let subjectName = counterpartName;
+    if (subjectResult) {
+      subjectId = subjectResult.id;
+      if (subjectResult.name) subjectName = subjectResult.name;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      event_type: eventType,
+      invoice_number: extracted.invoice_number || prev.invoice_number,
+      invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
+      invoice_type: invoiceType,
+      subject_type: subjectType,
+      subject_id: subjectId,
+      subject_name: subjectName || prev.subject_name,
+      imponibile: extracted.imponibile || prev.imponibile,
+      iva_rate: extracted.iva_rate ?? prev.iva_rate,
+      vat_regime: extracted.vat_regime || prev.vat_regime,
+      financial_status: financialStatus,
+      due_date: extracted.due_date || prev.due_date,
+      payment_method: mapPaymentMethod(extracted.payment_method) || prev.payment_method,
+      cost_center_id: findCostCenter(extracted.cost_center_hint) || prev.cost_center_id,
+      cost_account_id: findAccount(extracted.account_hint) || prev.cost_account_id,
+      expense_type: extracted.expense_category || prev.expense_type,
+      notes: extracted.invoice_description ? `Oggetto: ${extracted.invoice_description}` : prev.notes,
+      attachment_url: fileUrl,
+    }));
+
+    if (!subjectResult && counterpartName) {
+      setTimeout(() => {
+        checkAndMatchSubject(counterpartName, subjectType, counterpartTaxId);
+      }, 500);
+    }
+  }, []);
+
+  // Handle single file upload (opens create dialog)
   const handleFileUpload = useCallback(async (file: File) => {
     setIsUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `invoices/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("accounting-attachments")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("accounting-attachments")
-        .getPublicUrl(fileName);
-
-      setUploadedFile({ name: file.name, url: urlData.publicUrl });
-      
-      // AI analysis
       setIsAnalyzing(true);
-      toast.info("Analizzo la fattura con AI...");
+      toast.info("Analizzo il documento con AI...");
 
-      try {
-        let analysisUrl: string | null = urlData.publicUrl;
-        const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
-        if (isPdf) {
-          try {
-            toast.info("PDF rilevato: genero anteprima per analisi AI…");
-            const pngBlob = await pdfFirstPageToPngBlob(file);
-            const previewPath = `invoices/${Date.now()}-preview.png`;
-
-            const { error: previewUploadError } = await supabase.storage
-              .from("accounting-attachments")
-              .upload(previewPath, pngBlob, { contentType: "image/png" });
-
-            if (previewUploadError) throw previewUploadError;
-
-            const { data: previewUrlData } = supabase.storage
-              .from("accounting-attachments")
-              .getPublicUrl(previewPath);
-
-            analysisUrl = previewUrlData.publicUrl;
-          } catch (previewErr) {
-            console.warn("PDF preview generation failed:", previewErr);
-            analysisUrl = null;
-            toast.error("Non riesco a leggere il PDF: compila i dati manualmente");
-          }
+      const result = await processSingleFile(file);
+      if (result) {
+        // Note: costCenters/accounts will be available by the time user triggers upload
+        applyExtractedToForm(result.extracted, result.fileUrl, result.subjectResult);
+        setUploadedFile({ name: file.name, url: result.fileUrl });
+        
+        if (result.subjectResult?.action === 'created') {
+          toast.success(`Nuovo ${result.subjectResult.type} creato: ${result.subjectResult.name}`);
+          queryClient.invalidateQueries({ queryKey: [result.subjectResult.type === 'cliente' ? 'customers-list' : 'suppliers-list'] });
+        } else if (result.subjectResult?.action === 'matched') {
+          toast.success(`${result.subjectResult.type === 'cliente' ? 'Cliente' : 'Fornitore'} trovato e aggiornato`);
         }
 
-        if (analysisUrl) {
-          const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
-            "analyze-invoice",
-            { body: { imageUrl: analysisUrl } }
-          );
-
-          if (analysisError) {
-            console.error("Analysis error:", analysisError);
-            toast.error("Errore nell'analisi AI, compila i dati manualmente");
-          } else if (analysisData?.success && analysisData?.data) {
-            const extracted = analysisData.data;
-            console.log("AI extracted invoice data:", extracted);
-
-            const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
-            const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim();
-
-            // Riconoscimento "noi" (minimo): CLIMATEL per nome o P.IVA
-            const isOurCompany = (name?: string, taxId?: string) => {
-              const n = normalize(name);
-              const t = normalizeTaxId(taxId);
-              return n.includes("climatel") || t === "03895390650";
-            };
-
-            const supplierName: string = extracted.supplier_name || "";
-            const supplierTaxId: string = extracted.supplier_tax_id || "";
-            const customerName: string = extracted.customer_name || extracted.subject_name || "";
-            const customerTaxId: string = extracted.customer_tax_id || extracted.subject_tax_id || "";
-
-            const isPurchase = isOurCompany(customerName, customerTaxId) && !isOurCompany(supplierName, supplierTaxId);
-            const isSale = isOurCompany(supplierName, supplierTaxId) && !isOurCompany(customerName, customerTaxId);
-
-            // Deriva tipo documento: se "destinatario = noi" => acquisto (fornitore = chi emette)
-            let invoiceType: InvoiceType = 'acquisto';
-            if (extracted.invoice_type === 'nota_credito') {
-              invoiceType = 'nota_credito';
-            } else if (isPurchase) {
-              invoiceType = 'acquisto';
-            } else if (isSale) {
-              invoiceType = 'vendita';
-            } else if (extracted.invoice_type) {
-              invoiceType = extracted.invoice_type;
-            }
-
-            let eventType: EventType = invoiceType === 'vendita' ? 'fattura_vendita' : 'fattura_acquisto';
-            let subjectType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
-            let financialStatus: FinancialStatus = subjectType === 'cliente' ? 'da_incassare' : 'da_pagare';
-
-            if (invoiceType === 'nota_credito') {
-              eventType = 'nota_credito';
-              subjectType = isSale ? 'cliente' : isPurchase ? 'fornitore' : (extracted.subject_type || 'fornitore');
-              financialStatus = subjectType === 'fornitore' ? 'da_incassare' : 'da_pagare';
-            }
-
-            const counterpartName =
-              invoiceType === 'vendita'
-                ? (customerName || extracted.subject_name || '')
-                : invoiceType === 'acquisto'
-                  ? (supplierName || extracted.subject_name || '')
-                  : (subjectType === 'fornitore'
-                      ? (supplierName || extracted.subject_name || '')
-                      : (customerName || extracted.subject_name || ''));
-
-            const counterpartTaxId =
-              invoiceType === 'vendita'
-                ? (customerTaxId || '')
-                : invoiceType === 'acquisto'
-                  ? (supplierTaxId || '')
-                  : (subjectType === 'fornitore' ? (supplierTaxId || '') : (customerTaxId || ''));
-
-            // Map AI payment method to our format
-            const mapPaymentMethod = (aiMethod?: string): string => {
-              if (!aiMethod) return '';
-              const map: Record<string, string> = {
-                'bonifico': 'bonifico',
-                'carta': 'carta',
-                'contanti': 'contanti',
-                'assegno': 'assegno',
-                'pos': 'pos'
-              };
-              return map[aiMethod.toLowerCase()] || '';
-            };
-
-            // Find matching cost center based on AI hint
-            const findCostCenter = (hint?: string): string => {
-              if (!hint || costCenters.length === 0) return '';
-              const hintLower = hint.toLowerCase();
-              const match = costCenters.find(cc => 
-                cc.name.toLowerCase().includes(hintLower) || 
-                cc.code.toLowerCase().includes(hintLower)
-              );
-              return match?.id || '';
-            };
-
-            // Find matching account based on AI hint and expense category
-            const findAccount = (accountHint?: string, expenseCategory?: string): string => {
-              if (accounts.length === 0) return '';
-              
-              // Try account hint first
-              if (accountHint) {
-                const hintLower = accountHint.toLowerCase();
-                const match = accounts.find(acc => 
-                  acc.name.toLowerCase().includes(hintLower) ||
-                  hintLower.includes(acc.name.toLowerCase())
-                );
-                if (match) return match.id;
-              }
-
-              // Try expense category mapping
-              if (expenseCategory) {
-                const categoryMap: Record<string, string[]> = {
-                  'carburante': ['carburante', 'carburanti', 'benzina', 'gasolio'],
-                  'pedaggi': ['pedaggi', 'autostrada', 'autostrade'],
-                  'materiali': ['materiali', 'materie prime', 'acquisti'],
-                  'servizi': ['servizi', 'prestazioni'],
-                  'consulenza': ['consulenza', 'consulenze', 'professionali'],
-                  'utenze': ['utenze', 'telefono', 'energia', 'gas', 'acqua'],
-                  'affitto': ['affitto', 'locazione', 'canoni'],
-                  'manutenzione': ['manutenzione', 'riparazioni'],
-                  'assicurazioni': ['assicurazione', 'assicurazioni'],
-                  'formazione': ['formazione', 'corsi'],
-                  'marketing': ['marketing', 'pubblicità', 'promozione'],
-                  'trasporti': ['trasporti', 'spedizioni', 'corriere']
-                };
-
-                const keywords = categoryMap[expenseCategory] || [];
-                for (const keyword of keywords) {
-                  const match = accounts.find(acc => 
-                    acc.name.toLowerCase().includes(keyword)
-                  );
-                  if (match) return match.id;
-                }
-              }
-
-              return '';
-            };
-
-            // Build notes with invoice description
-            const buildNotes = (existingNotes?: string, description?: string): string => {
-              const parts: string[] = [];
-              if (description) parts.push(`Oggetto: ${description}`);
-              if (existingNotes) parts.push(existingNotes);
-              return parts.join('\n');
-            };
-
-            setFormData(prev => ({
-              ...prev,
-              event_type: eventType,
-              invoice_number: extracted.invoice_number || prev.invoice_number,
-              invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
-              invoice_type: invoiceType,
-              subject_type: subjectType,
-              subject_name: counterpartName || prev.subject_name,
-              imponibile: extracted.imponibile || prev.imponibile,
-              iva_rate: extracted.iva_rate ?? prev.iva_rate,
-              vat_regime: extracted.vat_regime || prev.vat_regime,
-              financial_status: financialStatus,
-              due_date: extracted.due_date || prev.due_date,
-              payment_method: mapPaymentMethod(extracted.payment_method) || prev.payment_method,
-              cost_center_id: findCostCenter(extracted.cost_center_hint) || prev.cost_center_id,
-              cost_account_id: findAccount(extracted.account_hint, extracted.expense_category) || prev.cost_account_id,
-              expense_type: extracted.expense_category || prev.expense_type,
-              notes: buildNotes(extracted.notes, extracted.invoice_description) || prev.notes,
-              attachment_url: urlData.publicUrl
-            }));
-
-            // Check for similar subjects (anagrafica) usando nome + P.IVA quando disponibile
-            if (counterpartName) {
-              setTimeout(() => {
-                checkAndMatchSubject(counterpartName, subjectType, counterpartTaxId);
-              }, 500);
-            }
-
-            if (extracted.confidence === "high") {
-              toast.success("Fattura analizzata con successo!");
-            } else if (extracted.confidence === "medium") {
-              toast.info("Fattura analizzata, verifica i dati estratti");
-            } else {
-              toast.info("Alcuni dati potrebbero essere incompleti");
-            }
-          } else {
-            toast.info("Non è stato possibile estrarre dati, compila manualmente");
-          }
-        }
-      } catch (aiError) {
-        console.error("AI analysis failed:", aiError);
-        toast.error("Analisi AI non disponibile");
-      } finally {
-        setIsAnalyzing(false);
+        const confidence = result.extracted.confidence;
+        if (confidence === "high") toast.success("Documento analizzato con successo!");
+        else if (confidence === "medium") toast.info("Documento analizzato, verifica i dati");
+        else toast.info("Alcuni dati potrebbero essere incompleti");
+      } else {
+        toast.error("Non è stato possibile analizzare il documento");
       }
 
       setShowCreateDialog(true);
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Errore durante il caricamento del file");
+      toast.error("Errore durante il caricamento");
     } finally {
       setIsUploading(false);
+      setIsAnalyzing(false);
     }
-  }, []);
+  }, [processSingleFile, applyExtractedToForm, queryClient]);
+
+  // Handle multi-file upload: process each file, save directly
+  const handleMultiFileUpload = useCallback(async (files: File[]) => {
+    if (files.length === 1) {
+      handleFileUpload(files[0]);
+      return;
+    }
+
+    const queue = files.map(f => ({ file: f, status: 'pending' as const }));
+    setUploadQueue(queue);
+    setShowUploadProgress(true);
+    setCurrentUploadIndex(0);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      setCurrentUploadIndex(i);
+      setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'uploading' } : item));
+
+      try {
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'analyzing' } : item));
+
+        const result = await processSingleFile(files[i]);
+        if (!result) {
+          setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: 'Analisi fallita' } : item));
+          errorCount++;
+          continue;
+        }
+
+        const extracted = result.extracted;
+        const normalize = (v?: string) => (v ?? "").toLowerCase().trim();
+        const normalizeTaxId = (v?: string) => (v ?? "").replace(/\s+/g, "").trim();
+        const isOurCompany = (name?: string, taxId?: string) => {
+          const n = normalize(name);
+          const t = normalizeTaxId(taxId);
+          return n.includes("climatel") || t === "03895390650";
+        };
+
+        const supplierName = extracted.supplier_name || "";
+        const supplierTaxId = extracted.supplier_tax_id || "";
+        const customerName = extracted.customer_name || "";
+        const customerTaxId = extracted.customer_tax_id || "";
+        const isPurchase = isOurCompany(customerName, customerTaxId);
+        const isSale = isOurCompany(supplierName, supplierTaxId);
+
+        let invoiceType: InvoiceType = 'acquisto';
+        if (extracted.invoice_type === 'nota_credito') invoiceType = 'nota_credito';
+        else if (isPurchase) invoiceType = 'acquisto';
+        else if (isSale) invoiceType = 'vendita';
+        else if (extracted.invoice_type) invoiceType = extracted.invoice_type;
+
+        const subjectType: SubjectType = invoiceType === 'vendita' ? 'cliente' : 'fornitore';
+        const financialStatus: FinancialStatus = subjectType === 'cliente' ? 'da_incassare' : 'da_pagare';
+        const counterpartName = invoiceType === 'vendita' ? customerName : supplierName;
+        const ivaAmount = (extracted.imponibile || 0) * ((extracted.iva_rate || 22) / 100);
+        const totalAmount = (extracted.imponibile || 0) + ivaAmount;
+
+        const { data: user } = await supabase.auth.getUser();
+
+        // Save directly to invoice_registry
+        const { error: insertError } = await supabase.from('invoice_registry').insert({
+          invoice_number: extracted.invoice_number || `DOC-${Date.now()}`,
+          invoice_date: extracted.invoice_date || format(new Date(), 'yyyy-MM-dd'),
+          invoice_type: invoiceType,
+          subject_type: subjectType,
+          subject_id: result.subjectResult?.id || null,
+          subject_name: result.subjectResult?.name || counterpartName || 'Sconosciuto',
+          imponibile: extracted.imponibile || 0,
+          iva_rate: extracted.iva_rate ?? 22,
+          iva_amount: extracted.iva_amount || ivaAmount,
+          total_amount: extracted.total_amount || totalAmount,
+          vat_regime: extracted.vat_regime || 'domestica_imponibile',
+          status: 'bozza',
+          financial_status: financialStatus,
+          due_date: extracted.due_date || null,
+          payment_method: extracted.payment_method || null,
+          notes: extracted.invoice_description ? `Oggetto: ${extracted.invoice_description}` : null,
+          attachment_url: result.fileUrl,
+          created_by: user?.user?.id,
+        });
+
+        if (insertError) throw insertError;
+
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'done', result: extracted } : item));
+        successCount++;
+
+        if (result.subjectResult?.action === 'created') {
+          queryClient.invalidateQueries({ queryKey: [result.subjectResult.type === 'cliente' ? 'customers-list' : 'suppliers-list'] });
+        }
+
+        // Small delay between files to avoid rate limits
+        if (i < files.length - 1) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      } catch (err: any) {
+        console.error(`Error processing file ${files[i].name}:`, err);
+        setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: err.message || 'Errore' } : item));
+        errorCount++;
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+    queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+
+    if (successCount > 0) toast.success(`${successCount} documenti registrati con successo`);
+    if (errorCount > 0) toast.error(`${errorCount} documenti con errori`);
+  }, [handleFileUpload, processSingleFile, queryClient]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
+    if (acceptedFiles.length > 0) handleMultiFileUpload(acceptedFiles);
+  }, [handleMultiFileUpload]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       "image/*": [],
       "application/pdf": [],
+      "text/xml": [],
+      "application/xml": [],
     },
-    maxFiles: 1,
+    maxFiles: 20,
     noClick: true,
     noKeyboard: true,
   });
@@ -2631,7 +2682,7 @@ export default function RegistroContabilePage() {
       )}
       
       {/* Uploading/Analyzing overlay */}
-      {(isUploading || isAnalyzing) && (
+      {(isUploading || isAnalyzing) && !showUploadProgress && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card border rounded-2xl p-8 text-center shadow-2xl">
             <Loader2 className="w-12 h-12 mx-auto mb-4 text-primary animate-spin" />
@@ -2645,16 +2696,75 @@ export default function RegistroContabilePage() {
         </div>
       )}
 
+      {/* Multi-file upload progress dialog */}
+      {showUploadProgress && (
+        <Dialog open={showUploadProgress} onOpenChange={(open) => {
+          if (!open && uploadQueue.every(q => q.status === 'done' || q.status === 'error')) {
+            setShowUploadProgress(false);
+            setUploadQueue([]);
+          }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Import Documenti ({uploadQueue.filter(q => q.status === 'done').length}/{uploadQueue.length})
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {uploadQueue.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <div className="flex-shrink-0">
+                    {item.status === 'pending' && <Clock className="w-4 h-4 text-muted-foreground" />}
+                    {(item.status === 'uploading' || item.status === 'analyzing') && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
+                    {item.status === 'done' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                    {item.status === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.status === 'pending' && 'In attesa...'}
+                      {item.status === 'uploading' && 'Caricamento...'}
+                      {item.status === 'analyzing' && 'Analisi AI...'}
+                      {item.status === 'done' && (item.result?.invoice_number ? `Fatt. ${item.result.invoice_number} — €${item.result.total_amount || 0}` : 'Registrato')}
+                      {item.status === 'error' && (item.error || 'Errore')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {uploadQueue.every(q => q.status === 'done' || q.status === 'error') && (
+              <DialogFooter>
+                <Button onClick={() => { setShowUploadProgress(false); setUploadQueue([]); }}>
+                  Chiudi
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Toolbar: dropzone + carica */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         {/* Compact dropzone */}
-        <div className="flex-1 border border-dashed border-muted-foreground/25 rounded-xl px-5 py-3.5 flex items-center gap-4 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer">
+        <div
+          {...getRootProps()}
+          className={cn(
+            "flex-1 border border-dashed rounded-xl px-5 py-3.5 flex items-center gap-4 transition-colors cursor-pointer",
+            isDragActive
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 bg-muted/20 hover:bg-muted/40"
+          )}
+        >
+          <input {...getInputProps()} />
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
             <Upload className="w-4.5 h-4.5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">Trascina un documento qui</p>
-            <p className="text-xs text-muted-foreground">PDF o immagine — l'AI pre-compila i dati</p>
+            <p className="text-sm font-medium truncate">
+              {isDragActive ? "Rilascia i file qui..." : "Trascina documenti qui (anche multipli)"}
+            </p>
+            <p className="text-xs text-muted-foreground">PDF, XML o immagine — l'AI pre-compila i dati e crea/collega clienti/fornitori</p>
           </div>
         </div>
         
@@ -2668,11 +2778,13 @@ export default function RegistroContabilePage() {
             </Button>
             <input
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,application/pdf,text/xml,application/xml,.xml,.p7m"
+              multiple
               className="hidden"
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileUpload(file);
+                const files = Array.from(e.target.files || []);
+                if (files.length > 0) handleMultiFileUpload(files);
+                e.target.value = '';
               }}
             />
           </label>
