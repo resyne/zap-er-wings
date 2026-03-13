@@ -1,10 +1,17 @@
-import { useState } from "react";
-import { Suspense, lazy } from "react";
+import { useState, Suspense, lazy } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ShoppingCart, Truck, Wrench, CheckSquare, Receipt, Loader2 } from "lucide-react";
+import DdtSection from "@/components/documenti-operativi/DdtSection";
+import OrdiniSection from "@/components/documenti-operativi/OrdiniSection";
+import OfferteAccettateSection from "@/components/documenti-operativi/OfferteAccettateSection";
+import RapportiSection from "@/components/documenti-operativi/RapportiSection";
 
 const GiustificativiSection = lazy(() => import("../management-control-2/RegistroPage"));
+
+const Fallback = () => (
+  <Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>
+);
 
 export default function DocumentiOperativiPage() {
   const [activeTab, setActiveTab] = useState("ddt");
@@ -36,63 +43,23 @@ export default function DocumentiOperativiPage() {
         </TabsList>
 
         <TabsContent value="ddt" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>DDT</CardTitle>
-              <CardDescription>Documenti di trasporto emessi e ricevuti</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                <p>Sezione DDT — in fase di sviluppo</p>
-              </div>
-            </CardContent>
-          </Card>
+          <DdtSection />
         </TabsContent>
 
         <TabsContent value="ordini" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ordini</CardTitle>
-              <CardDescription>Ordini di vendita confermati</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                <p>Sezione ordini — in fase di sviluppo</p>
-              </div>
-            </CardContent>
-          </Card>
+          <OrdiniSection />
         </TabsContent>
 
         <TabsContent value="offerte" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Offerte Accettate</CardTitle>
-              <CardDescription>Offerte commerciali accettate dal cliente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                <p>Sezione offerte accettate — in fase di sviluppo</p>
-              </div>
-            </CardContent>
-          </Card>
+          <OfferteAccettateSection />
         </TabsContent>
 
         <TabsContent value="rapporti" className="mt-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rapporti di Intervento</CardTitle>
-              <CardDescription>Rapporti delle attività di assistenza tecnica</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                <p>Sezione rapporti di intervento — in fase di sviluppo</p>
-              </div>
-            </CardContent>
-          </Card>
+          <RapportiSection />
         </TabsContent>
 
         <TabsContent value="giustificativi" className="mt-0">
-          <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
+          <Suspense fallback={<Fallback />}>
             <GiustificativiSection />
           </Suspense>
         </TabsContent>
