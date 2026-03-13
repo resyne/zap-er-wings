@@ -336,9 +336,21 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   ) : (
                     <>
                       <Label className="text-xs text-muted-foreground uppercase tracking-wider">Soggetto Economico</Label>
-                      <p className="text-sm font-medium">
-                        {linkedCustomer ? (linkedCustomer.company_name || linkedCustomer.name) : "—"}
-                      </p>
+                      {linkedCustomer ? (
+                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg border bg-muted/20">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{linkedCustomer.company_name || linkedCustomer.name}</p>
+                            {linkedCustomer.company_name && (
+                              <p className="text-xs text-muted-foreground truncate">{linkedCustomer.name}</p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Nessun soggetto associato</p>
+                      )}
                     </>
                   )}
                 </div>
