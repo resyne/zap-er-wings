@@ -1,16 +1,13 @@
-import { useState } from "react";
 import { Suspense, lazy } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, ClipboardCheck, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { ClipboardCheck, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-const DocumentiContabiliPage = lazy(() => import("./DocumentiContabiliPage"));
 const DocumentiOperativiPage = lazy(() => import("./DocumentiOperativiPage"));
 
 function useUnlinkedDocuments() {
@@ -143,53 +140,23 @@ function UnlinkedDocumentsAlert() {
 }
 
 export default function DocumentiPage() {
-  const [activeTab, setActiveTab] = useState("contabili");
-  const { data: unlinkedData } = useUnlinkedDocuments();
-  const unlinkedCount = unlinkedData?.totalUnlinked || 0;
-
   return (
     <div className="container mx-auto py-6 space-y-6" style={{ maxWidth: "1600px" }}>
       <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8 text-primary" />
+        <ClipboardCheck className="h-8 w-8 text-primary" />
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Documenti</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Documenti Operativi</h1>
           <p className="text-muted-foreground">
-            Documenti contabili e operativi
+            DDT, Ordini, Offerte, Rapporti di Intervento e Giustificativi
           </p>
         </div>
       </div>
 
       <UnlinkedDocumentsAlert />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="contabili" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Documenti Contabili
-          </TabsTrigger>
-          <TabsTrigger value="operativi" className="flex items-center gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Documenti Operativi
-            {unlinkedCount > 0 && (
-              <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
-                {unlinkedCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="contabili" className="mt-0">
-          <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
-            <DocumentiContabiliPage />
-          </Suspense>
-        </TabsContent>
-
-        <TabsContent value="operativi" className="mt-0">
-          <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
-            <DocumentiOperativiPage />
-          </Suspense>
-        </TabsContent>
-      </Tabs>
+      <Suspense fallback={<Card><CardContent className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
+        <DocumentiOperativiPage />
+      </Suspense>
     </div>
   );
 }

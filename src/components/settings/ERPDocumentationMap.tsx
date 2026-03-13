@@ -175,7 +175,7 @@ const erpSections: SectionDoc[] = [
     section: "Controllo di Gestione 2 (Contabilità Avanzata)",
     color: "bg-fuchsia-100 text-fuchsia-800",
     pages: [
-      { title: "Documenti", path: "/contabilita/documenti", icon: FileText, description: "Documenti contabili, operativi e giustificativi unificati con sistema di collegamento e alert." },
+      { title: "Documenti Operativi", path: "/contabilita/documenti", icon: FileText, description: "DDT, ordini, offerte, rapporti di intervento e giustificativi con sistema di collegamento e alert." },
       { title: "Movimenti Finanziari", path: "/management-control-2/movimenti-finanziari", icon: DollarSign, description: "Dettaglio flussi finanziari: incassi, pagamenti, anticipi e riconciliazione bancaria." },
       { title: "Setup Contabile", path: "/management-control-2/setup-contabile", icon: Settings, description: "Configurazione piano dei conti, centri di costo/ricavo e motore contabile automatico." },
       { title: "Prima Nota Contabile", path: "/management-control-2/prima-nota", icon: Database, description: "Registro contabile, scritture in partita doppia e classificazione fatture emesse e ricevute." },

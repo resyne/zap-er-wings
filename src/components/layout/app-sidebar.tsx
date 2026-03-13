@@ -179,7 +179,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Registro Contabile", url: "/contabilita/registro-contabile", icon: FileText },
-      { title: "Documenti", url: "/contabilita/documenti", icon: FileText },
+      { title: "Documenti Operativi", url: "/contabilita/documenti", icon: ClipboardCheck },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
       { title: "Mastrino Contabile", url: "/management-control-2/mastrino", icon: PieChart },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile", icon: Settings },
