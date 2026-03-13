@@ -118,6 +118,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
     imponibile: 0,
     iva_amount: 0,
     totale: 0,
+    economic_subject_id: "",
+    economic_subject_type: "cliente" as string,
   });
 
   // Load reference data
