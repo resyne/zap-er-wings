@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -197,6 +198,24 @@ export default function PrimaNotaPage() {
       toast.success('Movimento registrato');
       setShowCreateDialog(false);
       setFormData(initialFormData);
+      queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
+    },
+    onError: (error) => {
+      toast.error('Errore: ' + error.message);
+    }
+  });
+
+  // Delete movement
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('accounting_entries')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Movimento eliminato');
       queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
     },
     onError: (error) => {
@@ -572,23 +591,49 @@ export default function PrimaNotaPage() {
                     {m.type === 'entrata' ? '+' : '−'} {formatEuro(m.amount, { absolute: true })}
                   </TableCell>
                   <TableCell>
-                    {m.status === 'segnalazione' && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-                              onClick={(e) => { e.stopPropagation(); openValidateDialog(m.id); }}
+                    <div className="flex items-center gap-1 justify-end">
+                      {m.status === 'segnalazione' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                                onClick={(e) => { e.stopPropagation(); openValidateDialog(m.id); }}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Valida segnalazione</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Elimina movimento</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Sei sicuro di voler eliminare "{m.description}" di {formatEuro(m.amount)}? Questa azione non può essere annullata.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annulla</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMutation.mutate(m.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Valida segnalazione</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                              Elimina
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
