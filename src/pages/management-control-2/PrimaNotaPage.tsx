@@ -650,6 +650,13 @@ export default function PrimaNotaPage() {
         </CardContent>
       </Card>
 
+      {/* Detail/Edit dialog */}
+      <PrimaNotaDetailDialog
+        entryId={detailEntryId}
+        open={detailDialogOpen}
+        onOpenChange={setDetailDialogOpen}
+      />
+
       {/* Guida collassabile — at the bottom */}
       <GuideSection />
 
