@@ -187,180 +187,198 @@ export default function PrimaNotaPage() {
     return true;
   });
 
+  const typeConfig = {
+    entrata: { label: 'Entrata', icon: ArrowUpRight, color: 'emerald', gradient: 'from-emerald-500 to-emerald-600' },
+    uscita: { label: 'Uscita', icon: ArrowDownLeft, color: 'red', gradient: 'from-red-500 to-red-600' },
+    movimento_interno: { label: 'Mov. Interno', icon: ArrowLeftRight, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
+  };
+
+  const currentTypeConfig = typeConfig[formData.type];
+
   return (
-    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Receipt className="h-5 w-5 text-primary" />
+    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
+      {/* Header + Period selector combined */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
+              <p className="text-sm text-muted-foreground">Movimenti finanziari — entrate, uscite e giroconti</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Prima Nota</h1>
-          <p className="text-sm text-muted-foreground">Movimenti finanziari — entrate, uscite e giroconti</p>
+
+        {/* Period bar */}
+        <div className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigatePeriod('prev')}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button
+              className="px-2 py-0.5 text-sm font-semibold capitalize min-w-[180px] text-center rounded-md hover:bg-muted transition-colors"
+              onClick={() => setViewDate(new Date())}
+              title="Vai a oggi"
+            >
+              {getPeriodLabel()}
+            </button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigatePeriod('next')}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'day' | 'week' | 'month')} className="bg-muted/60 rounded-lg p-0.5">
+              <ToggleGroupItem value="day" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Giorno
+              </ToggleGroupItem>
+              <ToggleGroupItem value="week" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Settimana
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+                Mese
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => setViewDate(new Date())}
+            >
+              Oggi
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Period selector */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border bg-card p-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('prev')}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <button
-            className="px-3 py-1 text-sm font-semibold capitalize min-w-[200px] text-center hover:text-primary transition-colors"
-            onClick={() => setViewDate(new Date())}
-            title="Vai a oggi"
-          >
-            {getPeriodLabel()}
-          </button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigatePeriod('next')}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {/* Stats + Quick actions in one row */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Stats */}
+        <div className="lg:col-span-5 grid grid-cols-3 gap-3">
+          <Card className="overflow-hidden border-0 shadow-sm">
+            <div className="h-1 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+            <CardContent className="p-4">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Entrate</p>
+              <p className="text-xl font-bold text-emerald-600 mt-1">{formatEuro(totEntrate)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{periodMovements.filter(m => m.type === 'entrata').length} movimenti</p>
+            </CardContent>
+          </Card>
+          <Card className="overflow-hidden border-0 shadow-sm">
+            <div className="h-1 bg-gradient-to-r from-red-400 to-red-600" />
+            <CardContent className="p-4">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Uscite</p>
+              <p className="text-xl font-bold text-red-600 mt-1">{formatEuro(totUscite)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{periodMovements.filter(m => m.type === 'uscita').length} movimenti</p>
+            </CardContent>
+          </Card>
+          <Card className="overflow-hidden border-0 shadow-sm">
+            <div className={cn("h-1 bg-gradient-to-r", saldo >= 0 ? "from-emerald-400 to-emerald-600" : "from-red-400 to-red-600")} />
+            <CardContent className="p-4">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Saldo</p>
+              <p className={cn("text-xl font-bold mt-1", saldo >= 0 ? "text-emerald-600" : "text-red-600")}>{formatEuro(saldo)}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{periodMovements.length} totali</p>
+            </CardContent>
+          </Card>
         </div>
-        <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'day' | 'week' | 'month')} className="bg-muted rounded-lg p-0.5">
-          <ToggleGroupItem value="day" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
-            Giorno
-          </ToggleGroupItem>
-          <ToggleGroupItem value="week" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
-            Settimana
-          </ToggleGroupItem>
-          <ToggleGroupItem value="month" className="text-xs px-3 h-7 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
-            Mese
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
 
-      {/* Guida collassabile */}
-      <GuideSection />
+        {/* Quick action buttons */}
+        <div className="lg:col-span-7 grid grid-cols-3 gap-3">
+          {/* ENTRATA */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="group relative flex flex-col items-center gap-2 rounded-xl border bg-card p-5 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 text-center w-full overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-12 w-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-foreground">Entrata</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Incassi e bonifici</p>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40 absolute bottom-2 right-2" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
+              {[
+                { label: "Incasso fattura cliente", account: "banca" },
+                { label: "Vendita in contanti", account: "contanti" },
+                { label: "Bonifico ricevuto", account: "banca" },
+                { label: "Incasso POS", account: "carta" },
+                { label: "Altro incasso", account: "" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'entrata', description: item.label, financial_account: item.account })}>
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <ArrowUp className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Entrate</p>
-              <p className="text-lg font-bold text-emerald-600">{formatEuro(totEntrate)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <ArrowDown className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Uscite</p>
-              <p className="text-lg font-bold text-red-600">{formatEuro(totUscite)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Wallet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Saldo</p>
-              <p className={cn("text-lg font-bold", saldo >= 0 ? "text-emerald-600" : "text-red-600")}>{formatEuro(saldo)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* USCITA */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="group relative flex flex-col items-center gap-2 rounded-xl border bg-card p-5 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 text-center w-full overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-400 to-red-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-12 w-12 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ArrowDownLeft className="h-6 w-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-foreground">Uscita</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Pagamenti e spese</p>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40 absolute bottom-2 right-2" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
+              {[
+                { label: "Pagamento fornitore", account: "banca" },
+                { label: "Spese bancarie", account: "banca" },
+                { label: "Pagamento stipendi", account: "banca" },
+                { label: "Pagamento F24", account: "banca" },
+                { label: "Acquisto pagato subito", account: "" },
+                { label: "Altra uscita", account: "" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'uscita', description: item.label, financial_account: item.account })}>
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      {/* Quick Action Buttons — prominent */}
-      <div className="grid grid-cols-3 gap-3">
-        {/* ENTRATA */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="group flex items-center gap-3 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-950/10 p-4 hover:border-emerald-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
-              <div className="h-11 w-11 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
-                <ArrowUpRight className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="font-bold text-sm text-emerald-700 dark:text-emerald-400">Entrata</span>
-                <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/50 hidden lg:block">Incassi e bonifici ricevuti</p>
-              </div>
-              <ChevronDown className="h-4 w-4 text-emerald-400 shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
-            {[
-              { label: "Incasso fattura cliente", account: "banca" },
-              { label: "Vendita in contanti", account: "contanti" },
-              { label: "Bonifico ricevuto", account: "banca" },
-              { label: "Incasso POS", account: "carta" },
-              { label: "Altro incasso", account: "" },
-            ].map((item) => (
-              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'entrata', description: item.label, financial_account: item.account })}>
-                <span className="font-medium">{item.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* USCITA */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="group flex items-center gap-3 rounded-xl border-2 border-red-200 dark:border-red-800/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-950/10 p-4 hover:border-red-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
-              <div className="h-11 w-11 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0 group-hover:bg-red-200 dark:group-hover:bg-red-800/40 transition-colors">
-                <ArrowDownLeft className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="font-bold text-sm text-red-700 dark:text-red-400">Uscita</span>
-                <p className="text-[10px] text-red-600/60 dark:text-red-400/50 hidden lg:block">Pagamenti e spese</p>
-              </div>
-              <ChevronDown className="h-4 w-4 text-red-400 shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
-            {[
-              { label: "Pagamento fornitore", account: "banca" },
-              { label: "Spese bancarie", account: "banca" },
-              { label: "Pagamento stipendi", account: "banca" },
-              { label: "Pagamento F24", account: "banca" },
-              { label: "Acquisto pagato subito", account: "" },
-              { label: "Altra uscita", account: "" },
-            ].map((item) => (
-              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'uscita', description: item.label, financial_account: item.account })}>
-                <span className="font-medium">{item.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* MOVIMENTO INTERNO */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="group flex items-center gap-3 rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-950/10 p-4 hover:border-blue-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
-              <div className="h-11 w-11 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
-                <ArrowLeftRight className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="font-bold text-sm text-blue-700 dark:text-blue-400">Mov. Interno</span>
-                <p className="text-[10px] text-blue-600/60 dark:text-blue-400/50 hidden lg:block">Giroconti e trasferimenti</p>
-              </div>
-              <ChevronDown className="h-4 w-4 text-blue-400 shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
-            {[
-              { label: "Giroconto banca → cassa", account: "banca" },
-              { label: "Giroconto cassa → banca", account: "cassa" },
-              { label: "Prelievo contanti", account: "banca" },
-              { label: "Versamento contanti", account: "contanti" },
-            ].map((item) => (
-              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'movimento_interno', description: item.label, financial_account: item.account })}>
-                <span className="font-medium">{item.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          {/* MOVIMENTO INTERNO */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="group relative flex flex-col items-center gap-2 rounded-xl border bg-card p-5 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200 text-center w-full overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-12 w-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ArrowLeftRight className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-foreground">Mov. Interno</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Giroconti</p>
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40 absolute bottom-2 right-2" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
+              {[
+                { label: "Giroconto banca → cassa", account: "banca" },
+                { label: "Giroconto cassa → banca", account: "cassa" },
+                { label: "Prelievo contanti", account: "banca" },
+                { label: "Versamento contanti", account: "contanti" },
+              ].map((item) => (
+                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'movimento_interno', description: item.label, financial_account: item.account })}>
+                  {item.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Search & Filter bar */}
@@ -371,58 +389,79 @@ export default function PrimaNotaPage() {
             placeholder="Cerca movimenti..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-card"
           />
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutti</SelectItem>
-            <SelectItem value="entrata">Entrate</SelectItem>
-            <SelectItem value="uscita">Uscite</SelectItem>
-          </SelectContent>
-        </Select>
+        <ToggleGroup
+          type="single"
+          value={filterType}
+          onValueChange={(v) => v && setFilterType(v)}
+          className="bg-muted/50 rounded-lg p-0.5"
+        >
+          <ToggleGroupItem value="all" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm">
+            Tutti
+          </ToggleGroupItem>
+          <ToggleGroupItem value="entrata" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-emerald-600">
+            ↑ Entrate
+          </ToggleGroupItem>
+          <ToggleGroupItem value="uscita" className="text-xs px-3 h-8 rounded-md data-[state=on]:bg-background data-[state=on]:shadow-sm data-[state=on]:text-red-600">
+            ↓ Uscite
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Movements table */}
-      <Card>
+      <Card className="border-0 shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[110px]">Data</TableHead>
-                <TableHead className="w-[100px]">Tipo</TableHead>
-                <TableHead>Descrizione</TableHead>
-                <TableHead className="w-[140px]">Conto</TableHead>
-                <TableHead className="w-[130px] text-right">Importo</TableHead>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
+                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
+                <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
+                <TableHead className="w-[140px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nessun movimento trovato</TableCell></TableRow>
-              ) : filtered.map(m => (
-                <TableRow key={m.id}>
-                  <TableCell className="text-sm">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn(
-                      "text-xs",
-                      m.type === 'entrata' && "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400",
-                      m.type === 'uscita' && "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400",
-                    )}>
-                      {m.type === 'entrata' ? '↑ Entrata' : '↓ Uscita'}
-                    </Badge>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
+                        <Receipt className="h-6 w-6 text-muted-foreground/40" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Nessun movimento nel periodo</p>
+                      <p className="text-xs text-muted-foreground/60">Usa i pulsanti sopra per registrare un movimento</p>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-sm">{m.description || '-'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '-'}</TableCell>
+                </TableRow>
+              ) : filtered.map((m, idx) => (
+                <TableRow key={m.id} className="group hover:bg-muted/20 transition-colors">
+                  <TableCell className="text-sm font-medium tabular-nums">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
+                  <TableCell>
+                    <div className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                      m.type === 'entrata' && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400",
+                      m.type === 'uscita' && "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
+                    )}>
+                      {m.type === 'entrata' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
+                      {m.type === 'entrata' ? 'Entrata' : 'Uscita'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{m.description || '—'}</TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                      {FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '—'}
+                    </span>
+                  </TableCell>
                   <TableCell className={cn(
-                    "text-sm font-semibold text-right",
+                    "text-sm font-bold text-right tabular-nums",
                     m.type === 'entrata' ? "text-emerald-600" : "text-red-600"
                   )}>
-                    {m.type === 'entrata' ? '+' : '-'} {formatEuro(m.amount, { absolute: true })}
+                    {m.type === 'entrata' ? '+' : '−'} {formatEuro(m.amount, { absolute: true })}
                   </TableCell>
                 </TableRow>
               ))}
@@ -431,81 +470,116 @@ export default function PrimaNotaPage() {
         </CardContent>
       </Card>
 
-      {/* Create dialog */}
+      {/* Guida collassabile — at the bottom */}
+      <GuideSection />
+
+      {/* Create dialog — redesigned */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {formData.type === 'entrata' ? '↑ Nuova Entrata' : formData.type === 'uscita' ? '↓ Nuova Uscita' : '↔ Movimento Interno'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+          {/* Colored header */}
+          <div className={cn(
+            "px-6 py-5 text-white bg-gradient-to-r",
+            currentTypeConfig.gradient
+          )}>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center">
+                <currentTypeConfig.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">
+                  {formData.type === 'entrata' ? 'Nuova Entrata' : formData.type === 'uscita' ? 'Nuova Uscita' : 'Movimento Interno'}
+                </h2>
+                <p className="text-sm text-white/70">{formData.description || 'Inserisci i dettagli del movimento'}</p>
+              </div>
+            </div>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Data */}
+          <div className="p-6 space-y-5">
+            {/* Amount — prominent */}
             <div className="space-y-2">
-              <Label>Data *</Label>
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-              />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Importo</Label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">€</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.amount || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0,00"
+                  className="pl-12 h-14 text-2xl font-bold tabular-nums border-2 focus:border-primary"
+                />
+              </div>
             </div>
 
-            {/* Tipo */}
-            <div className="space-y-2">
-              <Label>Tipo *</Label>
-              <Select value={formData.type} onValueChange={(v: 'entrata' | 'uscita' | 'movimento_interno') => setFormData(prev => ({ ...prev, type: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="entrata">↑ Entrata</SelectItem>
-                  <SelectItem value="uscita">↓ Uscita</SelectItem>
-                  <SelectItem value="movimento_interno">↔ Mov. Interno</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Date + Type row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Data</Label>
+                <Input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Tipo</Label>
+                <Select value={formData.type} onValueChange={(v: 'entrata' | 'uscita' | 'movimento_interno') => setFormData(prev => ({ ...prev, type: v }))}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrata">↑ Entrata</SelectItem>
+                    <SelectItem value="uscita">↓ Uscita</SelectItem>
+                    <SelectItem value="movimento_interno">↔ Mov. Interno</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Importo */}
+            {/* Financial account — visual cards */}
             <div className="space-y-2">
-              <Label>Importo (€) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.amount || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                placeholder="0,00"
-              />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Conto finanziario</Label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { key: 'banca', label: 'Banca', icon: '🏦' },
+                  { key: 'cassa', label: 'Cassa', icon: '💵' },
+                  { key: 'carta', label: 'Carta', icon: '💳' },
+                  { key: 'american_express', label: 'Amex', icon: '💳' },
+                  { key: 'contanti', label: 'Contanti', icon: '🪙' },
+                ].map(acc => (
+                  <button
+                    key={acc.key}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, financial_account: acc.key }))}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 text-xs font-medium transition-all",
+                      formData.financial_account === acc.key
+                        ? "border-primary bg-primary/5 text-primary shadow-sm"
+                        : "border-transparent bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:border-muted"
+                    )}
+                  >
+                    <span className="text-lg">{acc.icon}</span>
+                    <span>{acc.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Conto finanziario */}
+            {/* Description */}
             <div className="space-y-2">
-              <Label>Conto finanziario *</Label>
-              <Select value={formData.financial_account} onValueChange={(v) => setFormData(prev => ({ ...prev, financial_account: v }))}>
-                <SelectTrigger><SelectValue placeholder="Dove è transitato?" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="banca">🏦 Banca</SelectItem>
-                  <SelectItem value="cassa">💵 Cassa</SelectItem>
-                  <SelectItem value="carta">💳 Carta</SelectItem>
-                  <SelectItem value="american_express">💳 American Express</SelectItem>
-                  <SelectItem value="contanti">🪙 Contanti</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Descrizione */}
-            <div className="col-span-2 space-y-2">
-              <Label>Descrizione *</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Descrizione</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Es: Pagamento fattura fornitore XYZ..."
                 rows={2}
+                className="resize-none"
               />
             </div>
 
-            {/* Note aggiuntive */}
-            <div className="col-span-2 space-y-2">
-              <Label>Note (opzionale)</Label>
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Note <span className="normal-case font-normal">(opzionale)</span></Label>
               <Input
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
@@ -514,15 +588,20 @@ export default function PrimaNotaPage() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Annulla</Button>
+          {/* Footer */}
+          <div className="px-6 py-4 bg-muted/20 border-t flex items-center justify-between">
+            <Button variant="ghost" onClick={() => setShowCreateDialog(false)} className="text-muted-foreground">
+              Annulla
+            </Button>
             <Button
               onClick={() => createMutation.mutate(formData)}
               disabled={!formData.amount || !formData.financial_account || !formData.description || createMutation.isPending}
+              className={cn("gap-2 px-6 bg-gradient-to-r text-white shadow-md hover:shadow-lg transition-shadow", currentTypeConfig.gradient)}
             >
+              <currentTypeConfig.icon className="h-4 w-4" />
               {createMutation.isPending ? 'Salvataggio...' : 'Registra Movimento'}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -535,31 +614,28 @@ export default function PrimaNotaPage() {
 function GuideSection() {
   return (
     <Collapsible>
-      <Card className="border-primary/20 bg-primary/5">
-        <CardHeader className="pb-2">
+      <Card className="border-dashed border-muted-foreground/20 bg-muted/10">
+        <CardHeader className="pb-2 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Info className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Come utilizzare la Prima Nota</CardTitle>
+              <Info className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Guida rapida alla Prima Nota</span>
             </div>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground">
-                <ChevronDown className="h-4 w-4" />
-                Dettagli
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground h-7">
+                <ChevronDown className="h-3.5 w-3.5" />
+                Mostra
               </Button>
             </CollapsibleTrigger>
           </div>
-          <CardDescription>
-            Registra tutti i movimenti di denaro — per ricostruire il flusso di cassa, allineare cassa e banca.
-          </CardDescription>
         </CardHeader>
         <CollapsibleContent>
-          <CardContent className="pt-2">
-            <div className="grid gap-4 md:grid-cols-3">
-              <GuideCard icon={<ArrowUp className="h-4 w-4 text-emerald-600" />} title="Entrate" color="bg-emerald-100 dark:bg-emerald-900/30" dotColor="bg-emerald-500"
+          <CardContent className="pt-0 pb-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <GuideCard icon={<ArrowUpRight className="h-4 w-4 text-emerald-600" />} title="Entrate" color="bg-emerald-100 dark:bg-emerald-900/30" dotColor="bg-emerald-500"
                 items={["Incasso fattura cliente", "Vendita in contanti", "Bonifico ricevuto", "Incasso POS"]} />
-              <GuideCard icon={<ArrowDown className="h-4 w-4 text-red-600" />} title="Uscite" color="bg-red-100 dark:bg-red-900/30" dotColor="bg-red-500"
-                items={["Pagamento fornitore", "Spese bancarie", "Pagamento stipendi", "Pagamento F24", "Acquisto pagato subito"]} />
+              <GuideCard icon={<ArrowDownLeft className="h-4 w-4 text-red-600" />} title="Uscite" color="bg-red-100 dark:bg-red-900/30" dotColor="bg-red-500"
+                items={["Pagamento fornitore", "Spese bancarie", "Pagamento stipendi", "Pagamento F24"]} />
               <GuideCard icon={<ArrowLeftRight className="h-4 w-4 text-blue-600" />} title="Movimenti interni" color="bg-blue-100 dark:bg-blue-900/30" dotColor="bg-blue-500"
                 items={["Giroconto banca → cassa", "Prelievo contanti", "Versamento contanti"]} />
             </div>
@@ -572,14 +648,14 @@ function GuideSection() {
 
 function GuideCard({ icon, title, color, dotColor, items }: { icon: React.ReactNode; title: string; color: string; dotColor: string; items: string[] }) {
   return (
-    <div className="rounded-lg border bg-background p-4 space-y-2">
+    <div className="rounded-lg border bg-background p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <div className={`h-8 w-8 rounded-full ${color} flex items-center justify-center`}>{icon}</div>
-        <h4 className="font-semibold text-sm">{title}</h4>
+        <div className={`h-7 w-7 rounded-lg ${color} flex items-center justify-center`}>{icon}</div>
+        <h4 className="font-semibold text-xs">{title}</h4>
       </div>
-      <ul className="text-sm text-muted-foreground space-y-1 pl-2">
+      <ul className="text-xs text-muted-foreground space-y-0.5 pl-1">
         {items.map(item => (
-          <li key={item} className="flex items-center gap-2"><span className={`h-1 w-1 rounded-full ${dotColor}`} />{item}</li>
+          <li key={item} className="flex items-center gap-1.5"><span className={`h-1 w-1 rounded-full ${dotColor}`} />{item}</li>
         ))}
       </ul>
     </div>
