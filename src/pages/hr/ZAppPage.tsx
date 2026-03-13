@@ -149,13 +149,14 @@ export default function ZAppPage() {
         data_movimento: today,
         direzione: movType,
         importo: amount,
-        metodo_pagamento: "cassa" as "banca" | "cassa" | "carta",
+        metodo_pagamento: movPayment as any,
         descrizione: movDesc || null,
         allegato_url: movFile?.url || null,
         allegato_nome: movFile?.name || null,
         stato: "segnalazione",
+        stato_rimborso: movPayment === "anticipo_dipendente" ? "da_rimborsare" : null,
         created_by: userData.user?.id,
-      });
+      } as any);
       if (e1) throw e1;
 
       const { error: e2 } = await supabase.from("accounting_entries").insert({
@@ -167,7 +168,7 @@ export default function ZAppPage() {
         note: movDesc || null,
         status: "segnalazione",
         event_type: "movimento_finanziario",
-        payment_method: "cassa",
+        payment_method: movPayment,
         account_code: code,
         user_id: userData.user?.id,
       });
