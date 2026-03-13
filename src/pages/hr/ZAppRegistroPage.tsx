@@ -298,6 +298,27 @@ export default function ZAppRegistroPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">Pagamenti ricevuti, contanti, assegni...</p>
               </div>
             </button>
+
+            {/* Rimborsi button */}
+            <button
+              onClick={() => setStep("rimborsi")}
+              className="w-full flex items-center gap-4 p-5 bg-white rounded-2xl shadow-lg active:scale-[0.97] transition-transform"
+            >
+              <div className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
+                <Wallet className="h-7 w-7 text-amber-600" />
+              </div>
+              <div className="text-left">
+                <span className="text-lg font-bold text-foreground">Anticipi & Rimborsi</span>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Stato dei tuoi anticipi personali
+                  {rimborsi.filter((r: any) => r.stato_rimborso === "da_rimborsare").length > 0 && (
+                    <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                      {rimborsi.filter((r: any) => r.stato_rimborso === "da_rimborsare").length} in attesa
+                    </span>
+                  )}
+                </p>
+              </div>
+            </button>
           </div>
 
           {/* Photo shortcut */}
@@ -334,6 +355,57 @@ export default function ZAppRegistroPage() {
                 }}
               />
             </label>
+          </div>
+        </div>
+      )}
+
+      {/* Rimborsi view */}
+      {step === "rimborsi" && (
+        <div className="flex-1 flex flex-col px-5 pt-2 pb-6">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden max-w-sm mx-auto w-full">
+            <div className="p-4 border-b">
+              <h3 className="font-bold text-sm text-foreground">I tuoi anticipi personali</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Spese pagate di tasca tua in attesa di rimborso</p>
+            </div>
+            {rimborsi.length === 0 ? (
+              <div className="p-8 text-center">
+                <Wallet className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Nessun anticipo registrato</p>
+              </div>
+            ) : (
+              <div className="divide-y max-h-[60vh] overflow-y-auto">
+                {rimborsi.map((r: any) => (
+                  <div key={r.id} className="p-4 flex items-center gap-3">
+                    <div className={cn(
+                      "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
+                      r.stato_rimborso === "rimborsato" ? "bg-emerald-100" : "bg-amber-100"
+                    )}>
+                      {r.stato_rimborso === "rimborsato" 
+                        ? <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
+                        : <ClockIcon className="h-4.5 w-4.5 text-amber-600" />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold">€ {Number(r.importo).toFixed(2)}</span>
+                        <span className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                          r.stato_rimborso === "rimborsato" 
+                            ? "bg-emerald-100 text-emerald-700" 
+                            : "bg-amber-100 text-amber-700"
+                        )}>
+                          {r.stato_rimborso === "rimborsato" ? "Rimborsato" : "Da rimborsare"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{r.descrizione || "Anticipo personale"}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        {new Date(r.data_movimento).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
