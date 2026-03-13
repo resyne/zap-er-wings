@@ -126,6 +126,15 @@ export default function ZAppPage() {
       const today = new Date().toISOString().split("T")[0];
       const amount = parseFloat(movImporto);
 
+      // Generate progressive code: SGN-YYYYMMDD-01
+      const dateFormatted = today.replace(/-/g, '');
+      const prefix = `SGN-${dateFormatted}`;
+      const { count } = await supabase
+        .from('accounting_entries')
+        .select('*', { count: 'exact', head: true })
+        .like('account_code', `${prefix}-%`);
+      const code = `${prefix}-${String((count || 0) + 1).padStart(2, '0')}`;
+
       const { error: e1 } = await supabase.from("movimenti_finanziari").insert({
         data_movimento: today,
         direzione: movType,
@@ -134,7 +143,7 @@ export default function ZAppPage() {
         descrizione: movDesc || null,
         allegato_url: movFile?.url || null,
         allegato_nome: movFile?.name || null,
-        stato: "da_classificare",
+        stato: "segnalazione",
         created_by: userData.user?.id,
       });
       if (e1) throw e1;
@@ -146,7 +155,10 @@ export default function ZAppPage() {
         document_date: today,
         attachment_url: movFile?.url || "",
         note: movDesc || null,
-        status: "da_classificare",
+        status: "segnalazione",
+        event_type: "movimento_finanziario",
+        payment_method: "cassa",
+        account_code: code,
         user_id: userData.user?.id,
       });
       if (e2) throw e2;
