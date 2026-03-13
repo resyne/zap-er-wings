@@ -19,6 +19,7 @@ import {
   ExternalLink, Eye, FileText, Trash2, Send
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CustomerSearchSelect } from "./CustomerSearchSelect";
 
 // =====================================================
 // TYPES
@@ -117,6 +118,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
     imponibile: 0,
     iva_amount: 0,
     totale: 0,
+    economic_subject_id: "",
+    economic_subject_type: "cliente" as string,
   });
 
   // Load reference data
@@ -177,6 +180,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
         imponibile: entry.imponibile || entry.amount || 0,
         iva_amount: entry.iva_amount ?? 0,
         totale: entry.totale || entry.amount || 0,
+        economic_subject_id: entry.economic_subject_id || "",
+        economic_subject_type: entry.economic_subject_type || "cliente",
       });
     }
   }, [entry, open]);
@@ -248,6 +253,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
           classified_by: userId,
           classified_at: new Date().toISOString(),
           status: "registrato",
+          economic_subject_id: form.economic_subject_id || null,
+          economic_subject_type: form.economic_subject_type || null,
         })
         .eq("id", entry.id);
 
@@ -479,6 +486,12 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
               {isClassifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {isClassifying ? "Classificazione in corso..." : "Classifica con AI"}
             </Button>
+
+            {/* Customer Selection */}
+            <CustomerSearchSelect
+              selectedCustomerId={form.economic_subject_id}
+              onSelect={(id, name) => setForm(p => ({ ...p, economic_subject_id: id, economic_subject_type: id ? "cliente" : "" }))}
+            />
 
             <Separator />
 
