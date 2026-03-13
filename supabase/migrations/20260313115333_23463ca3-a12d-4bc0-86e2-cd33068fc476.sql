@@ -1,0 +1,1 @@
+UPDATE movimenti_finanziari SET stato = 'segnalazione' WHERE id = '8e4711f5-8687-4c09-bcce-0a55f9a509b7'
