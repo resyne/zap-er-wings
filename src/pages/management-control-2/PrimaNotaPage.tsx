@@ -200,9 +200,101 @@ export default function PrimaNotaPage() {
         </Card>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-        {/* Search */}
+      {/* Quick Action Buttons — prominent */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* ENTRATA */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="group flex items-center gap-3 rounded-xl border-2 border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-950/10 p-4 hover:border-emerald-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
+              <div className="h-11 w-11 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/40 transition-colors">
+                <ArrowUpRight className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-sm text-emerald-700 dark:text-emerald-400">Entrata</span>
+                <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/50 hidden lg:block">Incassi e bonifici ricevuti</p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-emerald-400 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
+            {[
+              { label: "Incasso fattura cliente", account: "banca" },
+              { label: "Vendita in contanti", account: "contanti" },
+              { label: "Bonifico ricevuto", account: "banca" },
+              { label: "Incasso POS", account: "carta" },
+              { label: "Altro incasso", account: "" },
+            ].map((item) => (
+              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'entrata', description: item.label, financial_account: item.account })}>
+                <span className="font-medium">{item.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* USCITA */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="group flex items-center gap-3 rounded-xl border-2 border-red-200 dark:border-red-800/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-950/10 p-4 hover:border-red-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
+              <div className="h-11 w-11 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0 group-hover:bg-red-200 dark:group-hover:bg-red-800/40 transition-colors">
+                <ArrowDownLeft className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-sm text-red-700 dark:text-red-400">Uscita</span>
+                <p className="text-[10px] text-red-600/60 dark:text-red-400/50 hidden lg:block">Pagamenti e spese</p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-red-400 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
+            {[
+              { label: "Pagamento fornitore", account: "banca" },
+              { label: "Spese bancarie", account: "banca" },
+              { label: "Pagamento stipendi", account: "banca" },
+              { label: "Pagamento F24", account: "banca" },
+              { label: "Acquisto pagato subito", account: "" },
+              { label: "Altra uscita", account: "" },
+            ].map((item) => (
+              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'uscita', description: item.label, financial_account: item.account })}>
+                <span className="font-medium">{item.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* MOVIMENTO INTERNO */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="group flex items-center gap-3 rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-950/10 p-4 hover:border-blue-400 hover:shadow-md active:scale-[0.97] transition-all duration-200 text-left w-full">
+              <div className="h-11 w-11 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/40 transition-colors">
+                <ArrowLeftRight className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-sm text-blue-700 dark:text-blue-400">Mov. Interno</span>
+                <p className="text-[10px] text-blue-600/60 dark:text-blue-400/50 hidden lg:block">Giroconti e trasferimenti</p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-blue-400 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
+            {[
+              { label: "Giroconto banca → cassa", account: "banca" },
+              { label: "Giroconto cassa → banca", account: "cassa" },
+              { label: "Prelievo contanti", account: "banca" },
+              { label: "Versamento contanti", account: "contanti" },
+            ].map((item) => (
+              <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'movimento_interno', description: item.label, financial_account: item.account })}>
+                <span className="font-medium">{item.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Search & Filter bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -212,10 +304,8 @@ export default function PrimaNotaPage() {
             className="pl-9"
           />
         </div>
-
-        {/* Filter */}
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -224,84 +314,6 @@ export default function PrimaNotaPage() {
             <SelectItem value="uscita">Uscite</SelectItem>
           </SelectContent>
         </Select>
-
-        {/* Action buttons */}
-        <div className="flex gap-2 flex-shrink-0">
-          {/* ENTRATA */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950">
-                <ArrowUpRight className="w-4 h-4" />
-                Entrata
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di entrata</DropdownMenuLabel>
-              {[
-                { label: "Incasso fattura cliente", account: "banca" },
-                { label: "Vendita in contanti", account: "contanti" },
-                { label: "Bonifico ricevuto", account: "banca" },
-                { label: "Incasso POS", account: "carta" },
-                { label: "Altro incasso", account: "" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'entrata', description: item.label, financial_account: item.account })}>
-                  <span className="font-medium">{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* USCITA */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-red-700 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950">
-                <ArrowDownLeft className="w-4 h-4" />
-                Uscita
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di uscita</DropdownMenuLabel>
-              {[
-                { label: "Pagamento fornitore", account: "banca" },
-                { label: "Spese bancarie", account: "banca" },
-                { label: "Pagamento stipendi", account: "banca" },
-                { label: "Pagamento F24", account: "banca" },
-                { label: "Acquisto pagato subito", account: "" },
-                { label: "Altra uscita", account: "" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'uscita', description: item.label, financial_account: item.account })}>
-                  <span className="font-medium">{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* MOVIMENTO INTERNO */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2 text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-700 dark:hover:bg-blue-950">
-                <ArrowLeftRight className="w-4 h-4" />
-                Mov. Interno
-                <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Tipo di movimento interno</DropdownMenuLabel>
-              {[
-                { label: "Giroconto banca → cassa", account: "banca" },
-                { label: "Giroconto cassa → banca", account: "cassa" },
-                { label: "Prelievo contanti", account: "banca" },
-                { label: "Versamento contanti", account: "contanti" },
-              ].map((item) => (
-                <DropdownMenuItem key={item.label} onClick={() => openCreateDialog({ type: 'movimento_interno', description: item.label, financial_account: item.account })}>
-                  <span className="font-medium">{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
 
       {/* Movements table */}
