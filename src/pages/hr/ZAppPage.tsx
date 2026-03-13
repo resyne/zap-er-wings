@@ -119,6 +119,16 @@ export default function ZAppPage() {
   const [movFile, setMovFile] = useState<{ name: string; url: string } | null>(null);
   const [movUploading, setMovUploading] = useState(false);
   const [movSuccess, setMovSuccess] = useState(false);
+  const [movPayment, setMovPayment] = useState("contanti");
+
+  const paymentMethods = [
+    { value: "carta_aziendale", label: "Carta Aziendale" },
+    { value: "anticipo_dipendente", label: "Anticipo Dipendente" },
+    { value: "contanti", label: "Contanti" },
+    { value: "carta_q8", label: "Carta Q8" },
+    { value: "american_express", label: "Carta Amex" },
+    { value: "banca_intesa", label: "Banca Intesa" },
+  ];
 
   const movMutation = useMutation({
     mutationFn: async () => {
