@@ -359,7 +359,7 @@ export default function DdtSection() {
               {uploadQueue.map((item, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
                   {item.status === "done" ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                   ) : item.status === "error" ? (
                     <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                   ) : item.status === "pending" ? (
