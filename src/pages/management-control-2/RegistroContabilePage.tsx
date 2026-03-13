@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
@@ -273,6 +273,8 @@ export default function RegistroContabilePage() {
   const [pendingSubjectName, setPendingSubjectName] = useState("");
   const [pendingSubjectType, setPendingSubjectType] = useState<"cliente" | "fornitore">("fornitore");
   const [isCreatingSubject, setIsCreatingSubject] = useState(false);
+  const costCentersRef = useRef<any[]>([]);
+  const accountsRef = useRef<any[]>([]);
   
   // Invoice details dialog
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -391,16 +393,18 @@ export default function RegistroContabilePage() {
     };
 
     const findCostCenter = (hint?: string): string => {
-      if (!hint || !costCentersList || costCentersList.length === 0) return '';
+      const centers = costCentersList ?? costCentersRef.current;
+      if (!hint || !centers || centers.length === 0) return '';
       const hintLower = hint.toLowerCase();
-      const match = costCentersList.find((cc: any) => cc.name.toLowerCase().includes(hintLower) || hintLower.includes(cc.name.toLowerCase()));
+      const match = centers.find((cc: any) => cc.name.toLowerCase().includes(hintLower) || hintLower.includes(cc.name.toLowerCase()));
       return match?.id || '';
     };
 
     const findAccount = (accountHint?: string): string => {
-      if (!accountHint || !accountsList || accountsList.length === 0) return '';
+      const accs = accountsList ?? accountsRef.current;
+      if (!accountHint || !accs || accs.length === 0) return '';
       const hintLower = accountHint.toLowerCase();
-      const match = accountsList.find((acc: any) => acc.name.toLowerCase().includes(hintLower) || hintLower.includes(acc.name.toLowerCase()));
+      const match = accs.find((acc: any) => acc.name.toLowerCase().includes(hintLower) || hintLower.includes(acc.name.toLowerCase()));
       return match?.id || '';
     };
 
@@ -680,6 +684,10 @@ export default function RegistroContabilePage() {
       return data;
     }
   });
+
+  // Keep latest lookup data available for upload callbacks
+  costCentersRef.current = costCenters as any[];
+  accountsRef.current = accounts as any[];
 
   // Fetch scadenze per statistiche finanziarie accurate
   const { data: scadenzeStats } = useQuery({
