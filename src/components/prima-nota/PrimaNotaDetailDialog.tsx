@@ -336,7 +336,9 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   ) : (
                     <>
                       <Label className="text-xs text-muted-foreground uppercase tracking-wider">Soggetto Economico</Label>
-                      <p className="text-sm font-medium">{entry.economic_subject_id ? (entry.economic_subject_type || "cliente") : "—"}</p>
+                      <p className="text-sm font-medium">
+                        {linkedCustomer ? (linkedCustomer.company_name || linkedCustomer.name) : "—"}
+                      </p>
                     </>
                   )}
                 </div>
