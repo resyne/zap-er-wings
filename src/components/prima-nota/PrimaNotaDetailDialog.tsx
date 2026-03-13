@@ -54,7 +54,21 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     enabled: !!entryId && open,
   });
 
-  // Fetch audit logs for this entry
+  // Fetch linked customer name
+  const { data: linkedCustomer } = useQuery({
+    queryKey: ["customer-name", entry?.economic_subject_id],
+    queryFn: async () => {
+      if (!entry?.economic_subject_id) return null;
+      const { data } = await supabase
+        .from("customers")
+        .select("id, name, company_name")
+        .eq("id", entry.economic_subject_id)
+        .single();
+      return data;
+    },
+    enabled: !!entry?.economic_subject_id,
+  });
+
   const { data: auditLogs = [] } = useQuery({
     queryKey: ["audit-logs", entryId],
     queryFn: async () => {
