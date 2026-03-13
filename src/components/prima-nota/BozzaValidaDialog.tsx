@@ -19,6 +19,7 @@ import {
   ExternalLink, Eye, FileText, Trash2, Send
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CustomerSearchSelect } from "./CustomerSearchSelect";
 
 // =====================================================
 // TYPES
