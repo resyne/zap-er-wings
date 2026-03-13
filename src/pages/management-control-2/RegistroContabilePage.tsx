@@ -1849,79 +1849,8 @@ export default function RegistroContabilePage() {
       toast.error('Errore nella modifica: ' + error.message);
     }
   });
-      
-      // Se è in stato 'rettificato' o bloccato, blocca sempre
-      if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
-        throw new Error(
-          'Evento bloccato (periodo chiuso o rettificato). Nessuna modifica consentita.'
-        );
-      }
 
-      const ivaAmount = updates.imponibile * (updates.iva_rate / 100);
-      const totalAmount = updates.imponibile + ivaAmount;
 
-      // Prepara lo split per il salvataggio
-      const splitsToSave = accountSplits && accountSplits.length > 0
-        ? accountSplits.map(s => ({
-            account_id: s.account_id,
-            amount: s.amount,
-            percentage: s.percentage,
-            cost_center_id: s.cost_center_id || null,
-            profit_center_id: s.profit_center_id || null
-          }))
-        : null;
-      
-      // Se c'è split, NON usare i valori singoli di conto/centro (usare solo lo split)
-      const hasSplit = splitsToSave && splitsToSave.length > 0;
-
-      // ========================================================
-      // MODIFICA CONSENTITA: bozza oppure da_riclassificare
-      // ========================================================
-      // Aggiorna la fattura nel registro
-      const { error: invoiceError } = await supabase
-        .from('invoice_registry')
-        .update({
-          invoice_number: updates.invoice_number,
-          invoice_date: updates.invoice_date,
-          invoice_type: updates.invoice_type,
-          subject_type: updates.subject_type,
-          subject_id: updates.subject_id || null,
-          subject_name: updates.subject_name,
-          imponibile: updates.imponibile,
-          iva_rate: updates.iva_rate,
-          iva_amount: ivaAmount,
-          total_amount: totalAmount,
-          vat_regime: updates.vat_regime,
-          financial_status: updates.financial_status,
-          due_date: updates.due_date || null,
-          payment_date: updates.payment_date || null,
-          payment_method: updates.payment_method || null,
-          source_document_type: updates.source_document_type || null,
-          source_document_id: updates.source_document_id || null,
-          // Se c'è split, i campi singoli devono essere null (usa solo split)
-          cost_center_id: hasSplit ? null : (updates.cost_center_id || null),
-          profit_center_id: hasSplit ? null : (updates.profit_center_id || null),
-          cost_account_id: hasSplit ? null : (updates.cost_account_id || null),
-          revenue_account_id: hasSplit ? null : (updates.revenue_account_id || null),
-          notes: updates.notes || null,
-          account_splits: splitsToSave,
-          // Se era da_riclassificare dopo storno, invalidiamo i vecchi riferimenti
-          // (saranno ricreati con Rigenera Prima Nota)
-          contabilizzazione_valida: invoice.status === 'da_riclassificare' ? false : invoice.contabilizzazione_valida
-        })
-        .eq('id', invoice.id);
-
-      if (invoiceError) throw invoiceError;
-
-      // Per fatture da_riclassificare NON aggiorniamo la prima nota esistente
-      // (quella è stata stornata). L'utente deve cliccare "Rigenera Prima Nota"
-      // dopo aver corretto i dati.
-      
-      // ========================================================
-      // NOTA: Il blocco sotto per 'registrata' non verrà mai eseguito
-      // perché abbiamo bloccato sopra. Lo manteniamo per legacy/sicurezza.
-      // ========================================================
-      if (invoice.status === 'registrata' && !invoice.prima_nota_id) {
         // Caso raro: fattura registrata senza prima nota (anomalia)
         const isAcquisto = updates.invoice_type === 'acquisto';
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
