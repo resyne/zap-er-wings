@@ -2654,7 +2654,7 @@ export default function RegistroContabilePage() {
         </div>
       )}
 
-      {/* Toolbar: actions + dropzone inline */}
+      {/* Toolbar: dropzone + carica */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
         {/* Compact dropzone */}
         <div className="flex-1 border border-dashed border-muted-foreground/25 rounded-xl px-5 py-3.5 flex items-center gap-4 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer">
@@ -2685,75 +2685,6 @@ export default function RegistroContabilePage() {
               }}
             />
           </label>
-
-          {/* Fattura di Vendita */}
-          <Button
-            variant="outline"
-            className="h-10 gap-2"
-            onClick={() => {
-              setUploadedFile(null);
-              setSplitEnabled(false);
-              setSplitLines([]);
-              setFormData({
-                ...initialFormData,
-                event_type: 'fattura_vendita',
-                invoice_type: 'vendita',
-                subject_type: 'cliente',
-                financial_status: 'da_incassare',
-                iva_rate: 22,
-              });
-              setShowCreateDialog(true);
-            }}
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            Fattura Vendita
-          </Button>
-
-          {/* Fattura di Acquisto */}
-          <Button
-            variant="outline"
-            className="h-10 gap-2"
-            onClick={() => {
-              setUploadedFile(null);
-              setSplitEnabled(false);
-              setSplitLines([]);
-              setFormData({
-                ...initialFormData,
-                event_type: 'fattura_acquisto',
-                invoice_type: 'acquisto',
-                subject_type: 'fornitore',
-                financial_status: 'da_pagare',
-                iva_rate: 22,
-              });
-              setShowCreateDialog(true);
-            }}
-          >
-            <ArrowDownLeft className="w-4 h-4" />
-            Fattura Acquisto
-          </Button>
-
-          {/* Nota di Credito / Debito */}
-          <Button
-            variant="outline"
-            className="h-10 gap-2"
-            onClick={() => {
-              setUploadedFile(null);
-              setSplitEnabled(false);
-              setSplitLines([]);
-              setFormData({
-                ...initialFormData,
-                event_type: 'nota_credito',
-                invoice_type: 'nota_credito',
-                subject_type: 'fornitore',
-                financial_status: 'da_incassare',
-                iva_rate: 22,
-              });
-              setShowCreateDialog(true);
-            }}
-          >
-            <Receipt className="w-4 h-4" />
-            Nota di Credito
-          </Button>
         </div>
       </div>
 
