@@ -1584,27 +1584,271 @@ export default function RegistroContabilePage() {
   });
 
   // Mutation per modificare fatture
-  // REGOLA ERP: Una fattura già registrata con prima_nota NON può essere modificata direttamente
-  // - CASO 1 (bozza, da_riclassificare): Modifica libera
-  // - CASO 2 (registrata con prima_nota_id): Blocco! Deve passare da Storno in Prima Nota
+  // Modifica consentita per tutti gli stati tranne rettificato/periodo chiuso
+  // Per fatture registrate con prima_nota, aggiorna in cascata Prima Nota, accounting entry e scadenze
   const updateInvoiceMutation = useMutation({
     mutationFn: async (data: { invoice: InvoiceRegistry; updates: FormData; accountSplits?: AccountSplitLine[] }) => {
       const { invoice, updates, accountSplits } = data;
       
-      // ========================================================
-      // BLOCCO MODIFICA PER FATTURE GIÀ CONTABILIZZATE
-      // ========================================================
-      // Se la fattura ha status 'registrata' E ha una prima_nota_id,
-      // significa che ha già generato scritture contabili in Prima Nota.
-      // In questo caso NON è consentita la modifica diretta.
-      // L'utente deve prima STORNARE in Prima Nota, poi correggere e rigenerare.
-      if (invoice.status === 'registrata' && invoice.prima_nota_id) {
+      // Se è in stato 'rettificato' o bloccato, blocca sempre
+      if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
         throw new Error(
-          'BLOCCO ERP: Questa fattura ha già generato una Prima Nota. ' +
-          'Non è possibile modificarla direttamente. ' +
-          'Vai in Prima Nota → Storna la scrittura → Poi correggi e rigenera dal Registro Contabile.'
+          'Evento bloccato (periodo chiuso o rettificato). Nessuna modifica consentita.'
         );
       }
+
+      const ivaAmount = updates.imponibile * (updates.iva_rate / 100);
+      const totalAmount = updates.imponibile + ivaAmount;
+
+      // Prepara lo split per il salvataggio
+      const splitsToSave = accountSplits && accountSplits.length > 0
+        ? accountSplits.map(s => ({
+            account_id: s.account_id,
+            amount: s.amount,
+            percentage: s.percentage,
+            cost_center_id: s.cost_center_id || null,
+            profit_center_id: s.profit_center_id || null
+          }))
+        : null;
+      
+      const hasSplit = splitsToSave && splitsToSave.length > 0;
+
+      // Aggiorna la fattura nel registro
+      const { error: invoiceError } = await supabase
+        .from('invoice_registry')
+        .update({
+          invoice_number: updates.invoice_number,
+          invoice_date: updates.invoice_date,
+          invoice_type: updates.invoice_type,
+          subject_type: updates.subject_type,
+          subject_id: updates.subject_id || null,
+          subject_name: updates.subject_name,
+          imponibile: updates.imponibile,
+          iva_rate: updates.iva_rate,
+          iva_amount: ivaAmount,
+          total_amount: totalAmount,
+          vat_regime: updates.vat_regime,
+          financial_status: updates.financial_status,
+          due_date: updates.due_date || null,
+          payment_date: updates.payment_date || null,
+          payment_method: updates.payment_method || null,
+          source_document_type: updates.source_document_type || null,
+          source_document_id: updates.source_document_id || null,
+          cost_center_id: hasSplit ? null : (updates.cost_center_id || null),
+          profit_center_id: hasSplit ? null : (updates.profit_center_id || null),
+          cost_account_id: hasSplit ? null : (updates.cost_account_id || null),
+          revenue_account_id: hasSplit ? null : (updates.revenue_account_id || null),
+          notes: updates.notes || null,
+          account_splits: splitsToSave,
+          contabilizzazione_valida: invoice.status === 'da_riclassificare' ? false : invoice.contabilizzazione_valida
+        })
+        .eq('id', invoice.id);
+
+      if (invoiceError) throw invoiceError;
+
+      // ========================================================
+      // CASCATA: aggiorna documenti collegati per fatture registrate
+      // ========================================================
+      if (invoice.prima_nota_id || invoice.accounting_entry_id || invoice.scadenza_id) {
+        const isAcquisto = updates.invoice_type === 'acquisto';
+        const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
+        const paymentMethod = updates.payment_method || 'bonifico';
+        const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
+
+        // Aggiorna Prima Nota se esiste
+        if (invoice.prima_nota_id) {
+          const { error: primaNotaError } = await supabase
+            .from('prima_nota')
+            .update({
+              description: `Fattura ${updates.invoice_number} - ${updates.subject_name}`,
+              amount: primaNotaAmount,
+              imponibile: updates.imponibile,
+              iva_amount: ivaAmount,
+              iva_aliquota: updates.iva_rate,
+              competence_date: updates.invoice_date,
+              payment_method: isPaid ? paymentMethod : null
+            })
+            .eq('id', invoice.prima_nota_id);
+
+          if (primaNotaError) throw primaNotaError;
+
+          // Rigenera le linee di partita doppia
+          await supabase
+            .from('prima_nota_lines')
+            .delete()
+            .eq('prima_nota_id', invoice.prima_nota_id);
+
+          const primaNotaLines: any[] = [];
+          let lineOrder = 1;
+
+          if (isAcquisto) {
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'dynamic',
+              dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'DEBITI_FORNITORI',
+              chart_account_id: null,
+              dare: 0,
+              avere: totalAmount,
+              description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
+            });
+
+            if (hasSplit) {
+              for (const split of accountSplits!) {
+                const account = accounts.find(a => a.id === split.account_id);
+                primaNotaLines.push({
+                  prima_nota_id: invoice.prima_nota_id,
+                  line_order: lineOrder++,
+                  account_type: 'chart',
+                  chart_account_id: split.account_id,
+                  dynamic_account_key: 'CONTO_COSTI',
+                  dare: split.amount,
+                  avere: 0,
+                  description: account?.name || 'Costi',
+                });
+              }
+            } else {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'chart',
+                chart_account_id: updates.cost_account_id || null,
+                dynamic_account_key: 'CONTO_COSTI',
+                dare: updates.imponibile,
+                avere: 0,
+                description: 'Costi',
+              });
+            }
+
+            if (ivaAmount > 0) {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'dynamic',
+                dynamic_account_key: 'IVA_CREDITO',
+                chart_account_id: null,
+                dare: ivaAmount,
+                avere: 0,
+                description: `IVA a credito ${updates.iva_rate}%`,
+              });
+            }
+          } else {
+            primaNotaLines.push({
+              prima_nota_id: invoice.prima_nota_id,
+              line_order: lineOrder++,
+              account_type: 'dynamic',
+              dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'CREDITI_CLIENTI',
+              chart_account_id: null,
+              dare: totalAmount,
+              avere: 0,
+              description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
+            });
+
+            if (hasSplit) {
+              for (const split of accountSplits!) {
+                const account = accounts.find(a => a.id === split.account_id);
+                primaNotaLines.push({
+                  prima_nota_id: invoice.prima_nota_id,
+                  line_order: lineOrder++,
+                  account_type: 'chart',
+                  chart_account_id: split.account_id,
+                  dynamic_account_key: 'CONTO_RICAVI',
+                  dare: 0,
+                  avere: split.amount,
+                  description: account?.name || 'Ricavi',
+                });
+              }
+            } else {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'chart',
+                chart_account_id: updates.revenue_account_id || null,
+                dynamic_account_key: 'CONTO_RICAVI',
+                dare: 0,
+                avere: updates.imponibile,
+                description: 'Ricavi',
+              });
+            }
+
+            if (ivaAmount > 0) {
+              primaNotaLines.push({
+                prima_nota_id: invoice.prima_nota_id,
+                line_order: lineOrder++,
+                account_type: 'dynamic',
+                dynamic_account_key: 'IVA_DEBITO',
+                chart_account_id: null,
+                dare: 0,
+                avere: ivaAmount,
+                description: `IVA a debito ${updates.iva_rate}%`,
+              });
+            }
+          }
+
+          if (primaNotaLines.length > 0) {
+            const { error: linesError } = await supabase
+              .from('prima_nota_lines')
+              .insert(primaNotaLines);
+            if (linesError) throw linesError;
+          }
+        }
+
+        // Aggiorna accounting entry se esiste
+        if (invoice.accounting_entry_id) {
+          const { error: entryError } = await supabase
+            .from('accounting_entries')
+            .update({
+              amount: totalAmount,
+              imponibile: updates.imponibile,
+              iva_amount: ivaAmount,
+              iva_aliquota: updates.iva_rate,
+              document_date: updates.invoice_date,
+              direction: isAcquisto ? 'uscita' : 'entrata',
+              financial_status: updates.financial_status,
+              subject_type: updates.subject_type,
+              payment_method: isPaid ? paymentMethod : null,
+              payment_date: isPaid ? (updates.payment_date || updates.invoice_date) : null
+            })
+            .eq('id', invoice.accounting_entry_id);
+
+          if (entryError) throw entryError;
+        }
+
+        // Aggiorna scadenza se esiste
+        if (invoice.scadenza_id) {
+          const scadenzaStato = isPaid ? 'chiusa' : 'aperta';
+          const importoResiduo = isPaid ? 0 : totalAmount;
+
+          const { error: scadenzaError } = await supabase
+            .from('scadenze')
+            .update({
+              soggetto_nome: updates.subject_name,
+              soggetto_tipo: updates.subject_type,
+              importo_totale: totalAmount,
+              importo_residuo: importoResiduo,
+              data_documento: updates.invoice_date,
+              data_scadenza: updates.due_date || updates.invoice_date,
+              stato: scadenzaStato
+            })
+            .eq('id', invoice.scadenza_id);
+
+          if (scadenzaError) throw scadenzaError;
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success('Fattura modificata! Prima Nota e documenti collegati aggiornati.');
+      setShowEditDialog(false);
+      setSelectedInvoice(null);
+      setEditSplitEnabled(false);
+      setEditSplitLines([]);
+      queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+    },
+    onError: (error) => {
+      toast.error('Errore nella modifica: ' + error.message);
+    }
+  });
       
       // Se è in stato 'rettificato' o bloccato, blocca sempre
       if (invoice.status === 'rettificato' || invoice.periodo_chiuso || invoice.evento_lockato) {
