@@ -435,7 +435,8 @@ export default function PrimaNotaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
+                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
                 <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
                 <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
@@ -444,10 +445,10 @@ export default function PrimaNotaPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-16">
+                  <TableCell colSpan={6} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
@@ -459,6 +460,9 @@ export default function PrimaNotaPage() {
                 </TableRow>
               ) : filtered.map((m, idx) => (
                 <TableRow key={m.id} className="group hover:bg-muted/20 transition-colors">
+                  <TableCell>
+                    <code className="text-[11px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{m.code || '—'}</code>
+                  </TableCell>
                   <TableCell className="text-sm font-medium tabular-nums">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                   <TableCell>
                     <div className={cn(
