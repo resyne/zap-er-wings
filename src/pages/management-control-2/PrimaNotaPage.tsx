@@ -733,6 +733,83 @@ export default function PrimaNotaPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Validate segnalazione dialog */}
+      <Dialog open={!!validateDialogId} onOpenChange={(open) => { if (!open) setValidateDialogId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Valida Segnalazione
+            </DialogTitle>
+          </DialogHeader>
+          {validateDialogId && (() => {
+            const entry = movements.find(m => m.id === validateDialogId);
+            if (!entry) return null;
+            return (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Codice</span>
+                    <code className="text-xs font-mono text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">{entry.code}</code>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Data</span>
+                    <span className="text-sm font-medium">{format(new Date(entry.date), 'dd/MM/yyyy', { locale: it })}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Tipo</span>
+                    <Badge variant="outline" className={cn("text-xs", entry.type === 'entrata' ? "text-emerald-700 border-emerald-200" : "text-red-700 border-red-200")}>
+                      {entry.type === 'entrata' ? '↑ Incasso' : '↓ Spesa'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Importo</span>
+                    <span className={cn("text-lg font-bold", entry.type === 'entrata' ? "text-emerald-600" : "text-red-600")}>
+                      € {entry.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  {entry.description && (
+                    <div className="pt-2 border-t">
+                      <span className="text-xs text-muted-foreground">Descrizione</span>
+                      <p className="text-sm mt-0.5">{entry.description}</p>
+                    </div>
+                  )}
+                  {entry.attachment_url && entry.attachment_url !== '' && (
+                    <div className="pt-2 border-t">
+                      <a href={entry.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                        📎 Visualizza allegato
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Note CFO (opzionale)</Label>
+                  <Textarea
+                    value={validateNotes}
+                    onChange={(e) => setValidateNotes(e.target.value)}
+                    placeholder="Annotazioni sulla validazione..."
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setValidateDialogId(null)}>Annulla</Button>
+            <Button
+              onClick={() => validateDialogId && validateMutation.mutate({ id: validateDialogId, cfoNotes: validateNotes })}
+              disabled={validateMutation.isPending}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {validateMutation.isPending ? 'Validazione...' : 'Valida e Registra'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
