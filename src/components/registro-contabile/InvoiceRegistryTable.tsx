@@ -73,6 +73,7 @@ export function InvoiceRegistryTable({
   onRegister,
   onDelete,
   onRegenerate,
+  onPayment,
   isRegenerating,
   onGoScadenziario,
 }: Props) {
