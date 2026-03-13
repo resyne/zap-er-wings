@@ -507,10 +507,10 @@ export default function PrimaNotaPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-16">
+                  <TableCell colSpan={8} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
@@ -520,10 +520,15 @@ export default function PrimaNotaPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : filtered.map((m, idx) => (
-                <TableRow key={m.id} className="group hover:bg-muted/20 transition-colors">
+              ) : filtered.map((m) => (
+                <TableRow key={m.id} className={cn("group hover:bg-muted/20 transition-colors", m.status === 'segnalazione' && "bg-amber-50/50 dark:bg-amber-950/10")}>
                   <TableCell>
-                    <code className="text-[11px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">{m.code || '—'}</code>
+                    <code className={cn(
+                      "text-[11px] font-mono px-1.5 py-0.5 rounded",
+                      m.status === 'segnalazione' 
+                        ? "text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-950/50" 
+                        : "text-muted-foreground bg-muted/50"
+                    )}>{m.code || '—'}</code>
                   </TableCell>
                   <TableCell className="text-sm font-medium tabular-nums">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                   <TableCell>
@@ -536,17 +541,56 @@ export default function PrimaNotaPage() {
                       {m.type === 'entrata' ? 'Entrata' : 'Uscita'}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{m.description || '—'}</TableCell>
+                  <TableCell className="text-sm">
+                    {m.description || '—'}
+                    {m.attachment_url && m.attachment_url !== '' && (
+                      <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex items-center text-[10px] text-primary hover:underline">
+                        📎 allegato
+                      </a>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                       {FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '—'}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {m.status === 'segnalazione' ? (
+                      <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Segnalazione
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400 gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Validato
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className={cn(
                     "text-sm font-bold text-right tabular-nums",
                     m.type === 'entrata' ? "text-emerald-600" : "text-red-600"
                   )}>
                     {m.type === 'entrata' ? '+' : '−'} {formatEuro(m.amount, { absolute: true })}
+                  </TableCell>
+                  <TableCell>
+                    {m.status === 'segnalazione' && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                              onClick={() => { setValidateDialogId(m.id); setValidateNotes(''); }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Valida segnalazione</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
