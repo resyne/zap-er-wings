@@ -205,6 +205,24 @@ export default function PrimaNotaPage() {
     }
   });
 
+  // Delete movement
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('accounting_entries')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Movimento eliminato');
+      queryClient.invalidateQueries({ queryKey: ['prima-nota-movements'] });
+    },
+    onError: (error) => {
+      toast.error('Errore: ' + error.message);
+    }
+  });
+
   const openCreateDialog = (preset: Partial<MovementFormData>) => {
     setFormData({ ...initialFormData, ...preset });
     setShowCreateDialog(true);
