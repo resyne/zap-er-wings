@@ -1851,13 +1851,6 @@ export default function RegistroContabilePage() {
   });
 
 
-
-
-          // Genera le nuove linee
-          const primaNotaLines: any[] = [];
-          let lineOrder = 1;
-
-          if (isAcquisto) {
             // ACQUISTO (Costo)
             // AVERE: Contropartita (Debiti fornitori o metodo pagamento)
             primaNotaLines.push({
