@@ -521,7 +521,19 @@ export default function PrimaNotaPage() {
                   </TableCell>
                 </TableRow>
               ) : filtered.map((m) => (
-                <TableRow key={m.id} className={cn("group hover:bg-muted/20 transition-colors", m.status === 'segnalazione' && "bg-amber-50/50 dark:bg-amber-950/10")}>
+                <TableRow 
+                  key={m.id} 
+                  className={cn(
+                    "group hover:bg-muted/20 transition-colors cursor-pointer", 
+                    m.status === 'segnalazione' && "bg-amber-50/50 dark:bg-amber-950/10"
+                  )}
+                  onClick={() => {
+                    if (m.status === 'segnalazione') {
+                      setValidateDialogId(m.id);
+                      setValidateNotes('');
+                    }
+                  }}
+                >
                   <TableCell>
                     <code className={cn(
                       "text-[11px] font-mono px-1.5 py-0.5 rounded",
@@ -582,7 +594,7 @@ export default function PrimaNotaPage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-100"
-                              onClick={() => { setValidateDialogId(m.id); setValidateNotes(''); }}
+                              onClick={(e) => { e.stopPropagation(); setValidateDialogId(m.id); setValidateNotes(''); }}
                             >
                               <CheckCircle2 className="h-4 w-4" />
                             </Button>
