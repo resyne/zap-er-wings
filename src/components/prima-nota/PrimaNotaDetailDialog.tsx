@@ -16,6 +16,7 @@ import { it } from "date-fns/locale";
 import { Pencil, Save, X, Clock, User } from "lucide-react";
 import { formatEuro } from "@/lib/accounting-utils";
 import { cn } from "@/lib/utils";
+import { LinkedDocumentsSection } from "./LinkedDocumentsSection";
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
   banca: "🏦 Banca",
@@ -354,6 +355,10 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                     <p className="font-medium">{format(new Date(entry.created_at), "dd/MM/yyyy HH:mm", { locale: it })}</p>
                   </div>
                 </div>
+
+                {/* Linked Documents */}
+                <Separator />
+                <LinkedDocumentsSection entryId={entry.id} editing={editing} />
 
                 {/* Audit Log Section */}
                 <Separator />

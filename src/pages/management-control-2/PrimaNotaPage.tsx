@@ -121,6 +121,7 @@ export default function PrimaNotaPage() {
         .from('accounting_entries')
         .select('*')
         .in('status', ['classificato', 'registrato', 'segnalazione', 'da_classificare', 'in_classificazione', 'pronto_prima_nota'])
+        .not('document_type', 'in', '("fattura","nota_credito")')
         .order('document_date', { ascending: false })
         .limit(200);
       if (error) throw error;
