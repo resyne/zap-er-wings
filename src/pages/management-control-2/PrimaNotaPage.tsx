@@ -29,11 +29,12 @@ import { formatEuro } from "@/lib/accounting-utils";
 // =====================================================
 interface FinancialMovement {
   id: string;
+  code: string;
   date: string;
   type: 'entrata' | 'uscita' | 'movimento_interno';
   amount: number;
   description: string;
-  financial_account: string; // banca, cassa, carta, contanti
+  financial_account: string;
   notes: string | null;
   created_at: string;
 }
