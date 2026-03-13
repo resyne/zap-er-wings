@@ -314,6 +314,7 @@ function InvoiceRow({
 
 function typeBadge(type: InvoiceRegistry["invoice_type"]) {
   if (type === "nota_credito") return <Badge variant="secondary" className="text-xs">Nota credito</Badge>;
+  if (type === "nota_debito" as any) return <Badge variant="secondary" className="text-xs">Nota debito</Badge>;
   return <Badge variant="outline" className="text-xs">{type === "vendita" ? "Vendita" : "Acquisto"}</Badge>;
 }
 
