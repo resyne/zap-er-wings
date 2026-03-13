@@ -148,24 +148,15 @@ const REGISTRY_STATUSES = [
   { value: 'archiviato', label: 'Archiviato', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
 ];
 
-// Tipi di spesa per dipendenti
-const EXPENSE_TYPES = [
-  { value: 'carburante', label: 'Carburante' },
-  { value: 'pedaggi', label: 'Pedaggi' },
-  { value: 'parcheggio', label: 'Parcheggio' },
-  { value: 'materiale_consumo', label: 'Materiale di consumo' },
-  { value: 'pasti', label: 'Pasti / Ristorante' },
-  { value: 'trasporti', label: 'Trasporti' },
-  { value: 'altro', label: 'Altro' },
-];
-
 // Metodi di pagamento/incasso
 const PAYMENT_METHODS = [
-  { value: 'contanti', label: 'Contanti' },
-  { value: 'carta', label: 'Carta di Credito/Debito' },
   { value: 'bonifico', label: 'Bonifico Bancario' },
-  { value: 'pos', label: 'POS' },
-  { value: 'assegno', label: 'Assegno' },
+  { value: 'banca', label: 'Banca (altro)' },
+  { value: 'carta', label: 'Carta' },
+  { value: 'american_express', label: 'American Express' },
+  { value: 'carta_aziendale', label: 'Carta Aziendale' },
+  { value: 'contanti', label: 'Contanti' },
+  { value: 'cassa', label: 'Cassa' },
 ];
 
 interface FormData {
