@@ -146,6 +146,10 @@ export default function PrimaNotaPage() {
   const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
   const [bozzaDialogOpen, setBozzaDialogOpen] = useState(false);
 
+  // State for detail dialog
+  const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+
   const openValidateDialog = (movementId: string) => {
     const fullEntry = rawEntries.find(e => e.id === movementId);
     if (fullEntry) {
