@@ -168,13 +168,20 @@ export default function PrimaNotaPage() {
     setShowCreateDialog(true);
   };
 
-  // Stats
-  const totEntrate = movements.filter(m => m.type === 'entrata').reduce((s, m) => s + m.amount, 0);
-  const totUscite = movements.filter(m => m.type === 'uscita').reduce((s, m) => s + m.amount, 0);
+  // Filter by date range first
+  const dateRange = getDateRange();
+  const periodMovements = movements.filter(m => {
+    const d = new Date(m.date);
+    return isWithinInterval(d, { start: dateRange.start, end: dateRange.end });
+  });
+
+  // Stats (based on period)
+  const totEntrate = periodMovements.filter(m => m.type === 'entrata').reduce((s, m) => s + m.amount, 0);
+  const totUscite = periodMovements.filter(m => m.type === 'uscita').reduce((s, m) => s + m.amount, 0);
   const saldo = totEntrate - totUscite;
 
-  // Filtered
-  const filtered = movements.filter(m => {
+  // Filtered (search + type on top of period)
+  const filtered = periodMovements.filter(m => {
     if (filterType !== 'all' && m.type !== filterType) return false;
     if (searchTerm && !m.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
