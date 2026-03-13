@@ -253,6 +253,8 @@ export function BozzaValidaDialog({ open, onOpenChange, entry }: BozzaValidaDial
           classified_by: userId,
           classified_at: new Date().toISOString(),
           status: "registrato",
+          economic_subject_id: form.economic_subject_id || null,
+          economic_subject_type: form.economic_subject_type || null,
         })
         .eq("id", entry.id);
 
