@@ -1850,24 +1850,6 @@ export default function RegistroContabilePage() {
     }
   });
 
-
-        // Caso raro: fattura registrata senza prima nota (anomalia)
-        const isAcquisto = updates.invoice_type === 'acquisto';
-        const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
-        const paymentMethod = updates.payment_method || 'bonifico';
-        const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
-        
-        // Recupera lo split
-        const hasSplit = accountSplits && accountSplits.length > 0;
-
-        // Aggiorna prima nota se esiste
-        if (invoice.prima_nota_id) {
-          const { error: primaNotaError } = await supabase
-            .from('prima_nota')
-            .update({
-              description: `Fattura ${updates.invoice_number} - ${updates.subject_name}`,
-              amount: primaNotaAmount,
-              imponibile: updates.imponibile,
               iva_amount: ivaAmount,
               iva_aliquota: updates.iva_rate,
               competence_date: updates.invoice_date,
