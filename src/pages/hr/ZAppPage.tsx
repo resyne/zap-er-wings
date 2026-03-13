@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, DollarSign, Package2, Wrench, CalendarDays, MessageCircle,
   Smartphone, ShoppingCart, Settings, MessageSquare, Clock, LogIn, LogOut,
-  Coffee, Play, MapPin, AlertTriangle, CheckCircle2, History
+  Coffee, Play, MapPin, AlertTriangle, CheckCircle2, History,
+  Banknote, ArrowDownLeft, ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -283,6 +284,36 @@ export default function ZAppPage() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Quick Registration — Registra movimento */}
+      <div className="px-4 sm:px-6 pb-3">
+        <div className="bg-white rounded-2xl p-4 shadow-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <Banknote className="h-5 w-5 text-indigo-600" />
+            <h3 className="font-bold text-sm text-foreground">Registra movimento</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => navigate("/hr/z-app/registro")}
+              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 p-3 active:scale-95 transition-transform"
+            >
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                <ArrowDownLeft className="h-5 w-5 text-red-600" />
+              </div>
+              <span className="font-semibold text-xs text-red-700">Spesa</span>
+            </button>
+            <button
+              onClick={() => navigate("/hr/z-app/registro")}
+              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 active:scale-95 transition-transform"
+            >
+              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <ArrowUpRight className="h-5 w-5 text-emerald-600" />
+              </div>
+              <span className="font-semibold text-xs text-emerald-700">Incasso</span>
+            </button>
+          </div>
         </div>
       </div>
 
