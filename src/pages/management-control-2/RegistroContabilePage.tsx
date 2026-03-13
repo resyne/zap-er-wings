@@ -683,6 +683,10 @@ export default function RegistroContabilePage() {
     }
   });
 
+  // Keep latest lookup data available for upload callbacks
+  costCentersRef.current = costCenters as any[];
+  accountsRef.current = accounts as any[];
+
   // Fetch scadenze per statistiche finanziarie accurate
   const { data: scadenzeStats } = useQuery({
     queryKey: ['scadenze-stats'],
