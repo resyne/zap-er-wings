@@ -340,6 +340,65 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   )}
                 </div>
 
+                {/* Classification data */}
+                {(entry.cost_center_id || entry.profit_center_id || entry.chart_account_id || entry.event_type || entry.iva_mode || entry.affects_income_statement !== null) && (
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Classificazione Contabile</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {(entry as any).cost_centers && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Centro di Costo</Label>
+                          <p className="text-sm font-medium">{(entry as any).cost_centers.code} — {(entry as any).cost_centers.name}</p>
+                        </div>
+                      )}
+                      {(entry as any).profit_centers && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Centro di Ricavo</Label>
+                          <p className="text-sm font-medium">{(entry as any).profit_centers.code} — {(entry as any).profit_centers.name}</p>
+                        </div>
+                      )}
+                      {(entry as any).chart_of_accounts && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Piano dei Conti</Label>
+                          <p className="text-sm font-medium">{(entry as any).chart_of_accounts.code} — {(entry as any).chart_of_accounts.name}</p>
+                        </div>
+                      )}
+                      {entry.event_type && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Tipo Evento</Label>
+                          <p className="text-sm font-medium">{entry.event_type}</p>
+                        </div>
+                      )}
+                      {entry.iva_mode && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Regime IVA</Label>
+                          <p className="text-sm font-medium">{entry.iva_mode.replace(/_/g, ' ')}</p>
+                        </div>
+                      )}
+                      {entry.affects_income_statement !== null && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Incide su CE</Label>
+                          <Badge variant={entry.affects_income_statement ? "default" : "secondary"}>
+                            {entry.affects_income_statement ? "Sì" : "No"}
+                          </Badge>
+                        </div>
+                      )}
+                      {entry.temporal_competence && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">Competenza Temporale</Label>
+                          <p className="text-sm font-medium">{entry.temporal_competence}</p>
+                        </div>
+                      )}
+                      {entry.center_percentage && (
+                        <div className="space-y-0.5">
+                          <Label className="text-xs text-muted-foreground">% Centro</Label>
+                          <p className="text-sm font-medium">{entry.center_percentage}%</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Status + metadata */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
