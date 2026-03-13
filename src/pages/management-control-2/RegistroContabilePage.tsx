@@ -128,7 +128,7 @@ interface InvoiceRegistry {
 }
 
 // Tipi evento del registro contabile
-type EventType = 'spesa_dipendente' | 'incasso_dipendente' | 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
+type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
@@ -148,24 +148,15 @@ const REGISTRY_STATUSES = [
   { value: 'archiviato', label: 'Archiviato', color: 'bg-blue-500/20 text-blue-600 border-blue-500/30' },
 ];
 
-// Tipi di spesa per dipendenti
-const EXPENSE_TYPES = [
-  { value: 'carburante', label: 'Carburante' },
-  { value: 'pedaggi', label: 'Pedaggi' },
-  { value: 'parcheggio', label: 'Parcheggio' },
-  { value: 'materiale_consumo', label: 'Materiale di consumo' },
-  { value: 'pasti', label: 'Pasti / Ristorante' },
-  { value: 'trasporti', label: 'Trasporti' },
-  { value: 'altro', label: 'Altro' },
-];
-
 // Metodi di pagamento/incasso
 const PAYMENT_METHODS = [
-  { value: 'contanti', label: 'Contanti' },
-  { value: 'carta', label: 'Carta di Credito/Debito' },
   { value: 'bonifico', label: 'Bonifico Bancario' },
-  { value: 'pos', label: 'POS' },
-  { value: 'assegno', label: 'Assegno' },
+  { value: 'banca', label: 'Banca (altro)' },
+  { value: 'carta', label: 'Carta' },
+  { value: 'american_express', label: 'American Express' },
+  { value: 'carta_aziendale', label: 'Carta Aziendale' },
+  { value: 'contanti', label: 'Contanti' },
+  { value: 'cassa', label: 'Cassa' },
 ];
 
 interface FormData {
@@ -3073,9 +3064,7 @@ export default function RegistroContabilePage() {
           uploadedFile ? "max-w-5xl" : "max-w-2xl"
         )}>
           <DialogHeader>
-            <DialogTitle>
-              Nuova Nota
-            </DialogTitle>
+            <DialogTitle>Registrazione Documento Contabile</DialogTitle>
           </DialogHeader>
           
           <div className={cn(
@@ -3117,141 +3106,17 @@ export default function RegistroContabilePage() {
             {/* Form Panel */}
             <div className={cn("space-y-5", uploadedFile ? "w-1/2" : "w-full")}>
           
-          {/* ═══════════════════════════════════════════════ */}
-          {/* SEZIONE PRIMARIA — Dati finanziari essenziali  */}
-          {/* ═══════════════════════════════════════════════ */}
-          <div className="space-y-4 pb-4 border-b">
-            <Label className="text-base font-semibold">Movimento finanziario</Label>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Data */}
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 1. TIPO DOCUMENTO                              */}
+              {/* ═══════════════════════════════════════════════ */}
               <div className="space-y-2">
-                <Label>Data *</Label>
-                <Input
-                  type="date"
-                  value={formData.invoice_date}
-                  onChange={(e) => handleFormChange('invoice_date', e.target.value)}
-                />
-              </div>
-              
-              {/* Tipo: Entrata / Uscita */}
-              <div className="space-y-2">
-                <Label>Tipo *</Label>
-                <Select 
-                  value={formData.invoice_type === 'vendita' ? 'entrata' : 'uscita'} 
-                  onValueChange={(v) => {
-                    const isEntrata = v === 'entrata';
-                    setFormData(prev => ({
-                      ...prev,
-                      invoice_type: isEntrata ? 'vendita' : 'acquisto',
-                      subject_type: isEntrata ? 'cliente' : 'fornitore',
-                      financial_status: isEntrata ? 'incassata' : 'pagata',
-                      event_type: isEntrata ? 'incasso_dipendente' : 'spesa_dipendente',
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="entrata">
-                      <span className="flex items-center gap-2">
-                        <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                        Entrata
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="uscita">
-                      <span className="flex items-center gap-2">
-                        <ArrowDownLeft className="w-4 h-4 text-red-500" />
-                        Uscita
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Importo */}
-              <div className="space-y-2">
-                <Label>Importo (€) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.imponibile || ''}
-                  onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
-                  placeholder="0,00"
-                />
-              </div>
-              
-              {/* Conto finanziario */}
-              <div className="space-y-2">
-                <Label>Conto finanziario *</Label>
-                <Select 
-                  value={formData.payment_method || ''} 
-                  onValueChange={(v) => handleFormChange('payment_method', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Dove è transitato?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="banca">🏦 Banca (Bonifico)</SelectItem>
-                    <SelectItem value="cassa">💵 Cassa (Contanti)</SelectItem>
-                    <SelectItem value="carta">💳 Carta</SelectItem>
-                    <SelectItem value="american_express">💳 American Express</SelectItem>
-                    <SelectItem value="contanti">🪙 Contanti (piccola cassa)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Descrizione — full width */}
-              <div className="col-span-2 space-y-2">
-                <Label>Descrizione *</Label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => handleFormChange('notes', e.target.value)}
-                  placeholder="Es: Pagamento fattura fornitore XYZ, Incasso cliente ABC..."
-                  rows={2}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ═══════════════════════════════════════════════ */}
-          {/* SEZIONE CONTABILE — Opzionale, collassabile     */}
-          {/* ═══════════════════════════════════════════════ */}
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground px-0 h-auto py-2">
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <Receipt className="w-4 h-4" />
-                  Dettagli contabili (opzionale)
-                </span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-3">
-              
-              {/* Tipo Registrazione */}
-              <div className="space-y-2">
-                <Label>Tipo Registrazione</Label>
+                <Label className="text-sm font-semibold">Tipo Documento *</Label>
                 <Select 
                   value={formData.event_type} 
                   onValueChange={(v: EventType) => {
                     setFormData(prev => {
                       const updated = { ...prev, event_type: v };
-                      if (v === 'spesa_dipendente') {
-                        updated.invoice_type = 'acquisto';
-                        updated.subject_type = 'fornitore';
-                        updated.financial_status = 'pagata';
-                        updated.iva_rate = 0;
-                        updated.vat_regime = 'domestica_imponibile';
-                      } else if (v === 'incasso_dipendente') {
-                        updated.invoice_type = 'vendita';
-                        updated.subject_type = 'cliente';
-                        updated.financial_status = 'incassata';
-                        updated.iva_rate = 0;
-                        updated.vat_regime = 'domestica_imponibile';
-                      } else if (v === 'fattura_acquisto') {
+                      if (v === 'fattura_acquisto') {
                         updated.invoice_type = 'acquisto';
                         updated.subject_type = 'fornitore';
                         updated.financial_status = 'da_pagare';
@@ -3278,372 +3143,442 @@ export default function RegistroContabilePage() {
                   <SelectContent>
                     <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
-                    <SelectItem value="nota_credito">📋 Nota di Credito/Debito</SelectItem>
+                    <SelectItem value="nota_credito">📋 Nota di Credito / Debito</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Numero fattura — solo per documenti fiscali */}
-                {isFiscalDocument(formData.event_type) && (
-                  <div className="space-y-2">
-                    <Label>Numero Fattura</Label>
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 2. DATA REGISTRAZIONE + NUMERO E DATA DOCUMENTO */}
+              {/* ═══════════════════════════════════════════════ */}
+              <div className="space-y-3 pb-4 border-b">
+                <Label className="text-sm font-semibold text-muted-foreground">Dati documento</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Data Registrazione *</Label>
+                    <Input
+                      type="date"
+                      value={format(new Date(), 'yyyy-MM-dd')}
+                      disabled
+                      className="bg-muted/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Numero Documento *</Label>
                     <Input
                       value={formData.invoice_number}
                       onChange={(e) => handleFormChange('invoice_number', e.target.value)}
-                      placeholder="FT-2026/001"
+                      placeholder="Es: 45"
                     />
                   </div>
-                )}
-                
-                {/* Soggetto */}
-                <div className="space-y-2">
-                  <Label>{formData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'}</Label>
-                  <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={subjectSearchOpen}
-                        className="w-full justify-between font-normal"
-                      >
-                        {formData.subject_name || `Cerca ${formData.subject_type}...`}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0" align="start">
-                      <Command>
-                        <CommandInput 
-                          placeholder={`Cerca ${formData.subject_type}...`}
-                          value={subjectSearch}
-                          onValueChange={setSubjectSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="p-2 space-y-2">
-                              <p className="text-sm text-muted-foreground">Nessun risultato trovato</p>
-                              {subjectSearch.trim().length > 2 && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="w-full"
-                                  onClick={() => {
-                                    checkAndMatchSubject(subjectSearch.trim(), formData.subject_type);
-                                    setSubjectSearchOpen(false);
-                                  }}
-                                >
-                                  <UserPlus className="w-4 h-4 mr-2" />
-                                  Verifica/Crea "{subjectSearch.trim()}"
-                                </Button>
-                              )}
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup className="max-h-60 overflow-auto">
-                            {filteredSubjects.map((subject) => (
-                              <CommandItem
-                                key={subject.id}
-                                value={subject.id}
-                                onSelect={() => {
-                                  handleFormChange('subject_id', subject.id);
-                                  handleFormChange('subject_name', subject.name);
-                                  handleFormChange('subject_type', subject.type);
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Data Documento *</Label>
+                    <Input
+                      type="date"
+                      value={formData.invoice_date}
+                      onChange={(e) => handleFormChange('invoice_date', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 3. CLIENTE O FORNITORE                          */}
+              {/* ═══════════════════════════════════════════════ */}
+              <div className="space-y-1.5 pb-4 border-b">
+                <Label className="text-xs">{formData.subject_type === 'cliente' ? 'Cliente' : 'Fornitore'} *</Label>
+                <Popover open={subjectSearchOpen} onOpenChange={setSubjectSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={subjectSearchOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {formData.subject_name || `Cerca ${formData.subject_type}...`}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder={`Cerca ${formData.subject_type}...`}
+                        value={subjectSearch}
+                        onValueChange={setSubjectSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="p-2 space-y-2">
+                            <p className="text-sm text-muted-foreground">Nessun risultato trovato</p>
+                            {subjectSearch.trim().length > 2 && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="w-full"
+                                onClick={() => {
+                                  checkAndMatchSubject(subjectSearch.trim(), formData.subject_type);
                                   setSubjectSearchOpen(false);
                                 }}
                               >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.subject_id === subject.id ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{subject.name}</span>
-                                  {subject.secondary && (
-                                    <span className="text-xs text-muted-foreground">{subject.secondary}</span>
-                                  )}
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Verifica/Crea "{subjectSearch.trim()}"
+                              </Button>
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup className="max-h-60 overflow-auto">
+                          {filteredSubjects.map((subject) => (
+                            <CommandItem
+                              key={subject.id}
+                              value={subject.id}
+                              onSelect={() => {
+                                handleFormChange('subject_id', subject.id);
+                                handleFormChange('subject_name', subject.name);
+                                handleFormChange('subject_type', subject.type);
+                                setSubjectSearchOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.subject_id === subject.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{subject.name}</span>
+                                {subject.secondary && (
+                                  <span className="text-xs text-muted-foreground">{subject.secondary}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-                {/* IVA */}
-                {isFiscalDocument(formData.event_type) && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Aliquota IVA %</Label>
-                      <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="22">22%</SelectItem>
-                          <SelectItem value="10">10%</SelectItem>
-                          <SelectItem value="4">4%</SelectItem>
-                          <SelectItem value="0">0% (Esente)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Regime IVA</Label>
-                      <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
-                          <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
-                          <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
-                          <SelectItem value="extra_ue">Extra UE</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-                
-                {/* Stato finanziario */}
-                <div className="space-y-2">
-                  <Label>Stato Finanziario</Label>
-                  <Select value={formData.financial_status} onValueChange={(v) => handleFormChange('financial_status', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 4. CONTO DEL PIANO DEI CONTI                   */}
+              {/* ═══════════════════════════════════════════════ */}
+              <div className="space-y-1.5 pb-4 border-b">
+                <Label className="text-xs">
+                  {formData.invoice_type === 'acquisto' ? 'Conto di Costo' : 'Conto di Ricavo'} *
+                </Label>
+                {formData.invoice_type === 'acquisto' ? (
+                  <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona conto..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="da_incassare">Da Incassare</SelectItem>
-                      <SelectItem value="da_pagare">Da Pagare</SelectItem>
-                      <SelectItem value="incassata">Incassata</SelectItem>
-                      <SelectItem value="pagata">Pagata</SelectItem>
+                      <SelectItem value="__none__">— Nessuno —</SelectItem>
+                      {costAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>
+                ) : (
+                  <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Seleziona conto..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Nessuno —</SelectItem>
+                      {revenueAccounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 
-                {/* Date scadenza e pagamento */}
-                <div className="space-y-2">
-                  <Label>Data Scadenza</Label>
-                  <Input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => handleFormChange('due_date', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Data Pagamento</Label>
-                  <Input
-                    type="date"
-                    value={formData.payment_date}
-                    onChange={(e) => handleFormChange('payment_date', e.target.value)}
-                  />
-                </div>
+                {/* Account Split Manager (opzionale) */}
+                <AccountSplitManager
+                  enabled={splitEnabled}
+                  onEnabledChange={(enabled) => {
+                    setSplitEnabled(enabled);
+                    if (!enabled) setSplitLines([]);
+                  }}
+                  totalAmount={formData.imponibile}
+                  invoiceType={formData.invoice_type}
+                  accounts={accounts}
+                  costCenters={costCenters}
+                  profitCenters={profitCenters}
+                  lines={splitLines}
+                  onLinesChange={setSplitLines}
+                />
+              </div>
 
-                {/* Tipo spesa (solo per spese dipendente) */}
-                {formData.event_type === 'spesa_dipendente' && (
-                  <div className="space-y-2">
-                    <Label>Tipo Spesa</Label>
-                    <Select value={formData.expense_type} onValueChange={(v) => handleFormChange('expense_type', v)}>
-                      <SelectTrigger><SelectValue placeholder="Seleziona tipo spesa" /></SelectTrigger>
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 5-6-7. IMPONIBILE + IVA + TOTALE               */}
+              {/* ═══════════════════════════════════════════════ */}
+              <div className="space-y-3 pb-4 border-b">
+                <Label className="text-sm font-semibold text-muted-foreground">Importi</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Imponibile (€) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.imponibile || ''}
+                      onChange={(e) => handleFormChange('imponibile', parseFloat(e.target.value) || 0)}
+                      placeholder="100,00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Aliquota IVA</Label>
+                    <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {EXPENSE_TYPES.map(t => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
+                        <SelectItem value="22">22%</SelectItem>
+                        <SelectItem value="10">10%</SelectItem>
+                        <SelectItem value="4">4%</SelectItem>
+                        <SelectItem value="0">0% (Esente)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-
-                {/* Documento operativo collegato */}
-                <div className="space-y-2">
-                  <Label>Documento Operativo</Label>
-                  <Select value={formData.source_document_type} onValueChange={(v) => {
-                    const next = v === "__none__" ? "" : v;
-                    handleFormChange('source_document_type', next);
-                    handleFormChange('source_document_id', '');
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Collega (opzionale)" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Nessun collegamento</SelectItem>
-                      <SelectItem value="ddt">DDT</SelectItem>
-                      <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
-                      <SelectItem value="service_report">Rapporto Intervento</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {formData.source_document_type && (
-                  <div className="space-y-2">
-                    <Label>Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
-                    <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
-                      <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Regime IVA</Label>
+                    <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {formData.source_document_type === 'ddt' && ddts.map(d => (
-                          <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
-                        ))}
-                        {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
-                          <SelectItem key={o.id} value={o.id}>
-                            <div className="flex flex-col">
-                              <span>{o.number}</span>
-                              {o.customer && (
-                                <span className="text-xs text-muted-foreground">
-                                  {(o.customer as any).company_name || (o.customer as any).name}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                        {formData.source_document_type === 'service_report' && serviceReports.map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
-                        ))}
+                        <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                        <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                        <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                        <SelectItem value="extra_ue">Extra UE</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                </div>
 
-                {/* Centri costo/ricavo */}
-                {formData.invoice_type === 'acquisto' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Centro di Costo</Label>
+                {/* Riepilogo importi */}
+                <Card className="bg-muted/50">
+                  <CardContent className="p-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Imponibile: </span>
+                        <span className="font-medium">€{formData.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">IVA ({formData.iva_rate}%): </span>
+                        <span className="font-medium">€{ivaAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Totale: </span>
+                        <span className="text-lg font-bold text-primary">€{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* ═══════════════════════════════════════════════ */}
+              {/* 8-9. CENTRO DI COSTO / CENTRO DI RICAVO        */}
+              {/* ═══════════════════════════════════════════════ */}
+              <div className="space-y-3 pb-4 border-b">
+                <Label className="text-sm font-semibold text-muted-foreground">Controllo di gestione</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {formData.invoice_type === 'acquisto' ? (
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs">Centro di Costo</Label>
                       <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Seleziona centro di costo" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Es: Officina" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          <SelectItem value="__none__">— Nessuno —</SelectItem>
                           {costCenters.map(cc => (
                             <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Conto di Costo</Label>
-                      <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Nessuno</SelectItem>
-                          {costAccounts.map(a => (
-                            <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-                
-                {(formData.invoice_type === 'vendita' || formData.invoice_type === 'nota_credito') && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Centro di Ricavo</Label>
+                  ) : (
+                    <div className="space-y-1.5 col-span-2">
+                      <Label className="text-xs">Centro di Ricavo</Label>
                       <Select value={formData.profit_center_id} onValueChange={(v) => handleFormChange('profit_center_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Seleziona centro di ricavo" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Es: Forni" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Nessuno</SelectItem>
+                          <SelectItem value="__none__">— Nessuno —</SelectItem>
                           {profitCenters.map(pc => (
                             <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Conto di Ricavo</Label>
-                      <Select value={formData.revenue_account_id} onValueChange={(v) => handleFormChange('revenue_account_id', v === "__none__" ? "" : v)}>
-                        <SelectTrigger><SelectValue placeholder="Seleziona conto" /></SelectTrigger>
+                  )}
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════ */}
+              {/* DETTAGLI AGGIUNTIVI (collassabile)              */}
+              {/* ═══════════════════════════════════════════════ */}
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between text-muted-foreground hover:text-foreground px-0 h-auto py-2">
+                    <span className="flex items-center gap-2 text-xs font-semibold">
+                      <Receipt className="w-3.5 h-3.5" />
+                      Dettagli aggiuntivi
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-4 pt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Stato finanziario */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Stato Finanziario</Label>
+                      <Select value={formData.financial_status} onValueChange={(v) => handleFormChange('financial_status', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">Nessuno</SelectItem>
-                          {revenueAccounts.map(a => (
-                            <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>
-                          ))}
+                          <SelectItem value="da_incassare">Da Incassare</SelectItem>
+                          <SelectItem value="da_pagare">Da Pagare</SelectItem>
+                          <SelectItem value="incassata">Incassata</SelectItem>
+                          <SelectItem value="pagata">Pagata</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  </>
-                )}
 
-                {/* Account Split Manager */}
-                <div className="col-span-2">
-                  <AccountSplitManager
-                    enabled={splitEnabled}
-                    onEnabledChange={(enabled) => {
-                      setSplitEnabled(enabled);
-                      if (!enabled) setSplitLines([]);
-                    }}
-                    totalAmount={formData.imponibile}
-                    invoiceType={formData.invoice_type}
-                    accounts={accounts}
-                    costCenters={costCenters}
-                    profitCenters={profitCenters}
-                    lines={splitLines}
-                    onLinesChange={setSplitLines}
-                  />
-                </div>
-
-                {/* Scadenze multiple */}
-                {(formData.financial_status === 'da_incassare' || formData.financial_status === 'da_pagare') && (
-                  <div className="col-span-2 space-y-3 border rounded-lg p-4 bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-base font-semibold flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Scadenze di Pagamento
-                      </Label>
-                      <Button type="button" variant="outline" size="sm" onClick={addScadenzaLine}>
-                        <Plus className="w-4 h-4 mr-1" />Aggiungi Scadenza
-                      </Button>
+                    {/* Metodo di pagamento */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Metodo Pagamento</Label>
+                      <Select value={formData.payment_method || ''} onValueChange={(v) => handleFormChange('payment_method', v)}>
+                        <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
+                          <SelectItem value="banca">Banca (altro)</SelectItem>
+                          <SelectItem value="carta">Carta</SelectItem>
+                          <SelectItem value="american_express">American Express</SelectItem>
+                          <SelectItem value="carta_aziendale">Carta Aziendale</SelectItem>
+                          <SelectItem value="contanti">Contanti</SelectItem>
+                          <SelectItem value="cassa">Cassa</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {scadenzeLines.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Nessuna scadenza multipla. Verrà creata una singola scadenza con l'importo totale alla data di scadenza indicata.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {scadenzeLines.map((scad, idx) => (
-                          <div key={scad.id} className="flex items-center gap-3 p-2 bg-background rounded border">
-                            <span className="text-sm font-medium text-muted-foreground w-8">#{idx + 1}</span>
-                            <div className="flex-1 grid grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-xs">Data Scadenza</Label>
-                                <Input type="date" value={scad.due_date} onChange={(e) => updateScadenzaLine(scad.id, 'due_date', e.target.value)} />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Importo €</Label>
-                                <Input type="number" step="0.01" value={scad.amount} onChange={(e) => updateScadenzaLine(scad.id, 'amount', parseFloat(e.target.value) || 0)} />
-                              </div>
-                            </div>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeScadenzaLine(scad.id)} className="text-destructive hover:text-destructive">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <div className="flex justify-between items-center pt-2 border-t">
-                          <span className="text-sm text-muted-foreground">Totale scadenze:</span>
-                          <span className={`font-semibold ${Math.abs(getScadenzeTotal() - totalAmount) > 0.01 ? 'text-destructive' : 'text-green-600'}`}>
-                            €{getScadenzeTotal().toLocaleString('it-IT', { minimumFractionDigits: 2 })} / €{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                          </span>
+
+                    {/* Date scadenza e pagamento */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Data Scadenza</Label>
+                      <Input
+                        type="date"
+                        value={formData.due_date}
+                        onChange={(e) => handleFormChange('due_date', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Data Pagamento</Label>
+                      <Input
+                        type="date"
+                        value={formData.payment_date}
+                        onChange={(e) => handleFormChange('payment_date', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Documento operativo collegato */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Documento Operativo</Label>
+                      <Select value={formData.source_document_type} onValueChange={(v) => {
+                        const next = v === "__none__" ? "" : v;
+                        handleFormChange('source_document_type', next);
+                        handleFormChange('source_document_id', '');
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Collega (opzionale)" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nessun collegamento</SelectItem>
+                          <SelectItem value="ddt">DDT</SelectItem>
+                          <SelectItem value="sales_order">Ordine di Vendita</SelectItem>
+                          <SelectItem value="service_report">Rapporto Intervento</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {formData.source_document_type && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Seleziona {formData.source_document_type === 'ddt' ? 'DDT' : formData.source_document_type === 'sales_order' ? 'Ordine' : 'Rapporto'}</Label>
+                        <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
+                          <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
+                          <SelectContent>
+                            {formData.source_document_type === 'ddt' && ddts.map(d => (
+                              <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
+                            ))}
+                            {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
+                              <SelectItem key={o.id} value={o.id}>
+                                <div className="flex flex-col">
+                                  <span>{o.number}</span>
+                                  {o.customer && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {(o.customer as any).company_name || (o.customer as any).name}
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                            {formData.source_document_type === 'service_report' && serviceReports.map(r => (
+                              <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Note */}
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs">Note</Label>
+                      <Textarea
+                        value={formData.notes}
+                        onChange={(e) => handleFormChange('notes', e.target.value)}
+                        placeholder="Note aggiuntive..."
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Scadenze multiple */}
+                    {(formData.financial_status === 'da_incassare' || formData.financial_status === 'da_pagare') && (
+                      <div className="col-span-2 space-y-3 border rounded-lg p-4 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Scadenze di Pagamento
+                          </Label>
+                          <Button type="button" variant="outline" size="sm" onClick={addScadenzaLine}>
+                            <Plus className="w-4 h-4 mr-1" />Aggiungi Scadenza
+                          </Button>
                         </div>
-                        {Math.abs(getScadenzeTotal() - totalAmount) > 0.01 && (
-                          <p className="text-xs text-destructive">⚠️ Il totale delle scadenze non corrisponde all'importo della fattura</p>
+                        {scadenzeLines.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nessuna scadenza multipla. Verrà creata una singola scadenza con l'importo totale alla data di scadenza indicata.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {scadenzeLines.map((scad, idx) => (
+                              <div key={scad.id} className="flex items-center gap-3 p-2 bg-background rounded border">
+                                <span className="text-sm font-medium text-muted-foreground w-8">#{idx + 1}</span>
+                                <div className="flex-1 grid grid-cols-2 gap-3">
+                                  <div>
+                                    <Label className="text-xs">Data Scadenza</Label>
+                                    <Input type="date" value={scad.due_date} onChange={(e) => updateScadenzaLine(scad.id, 'due_date', e.target.value)} />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Importo €</Label>
+                                    <Input type="number" step="0.01" value={scad.amount} onChange={(e) => updateScadenzaLine(scad.id, 'amount', parseFloat(e.target.value) || 0)} />
+                                  </div>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeScadenzaLine(scad.id)} className="text-destructive hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex justify-between items-center pt-2 border-t">
+                              <span className="text-sm text-muted-foreground">Totale scadenze:</span>
+                              <span className={`font-semibold ${Math.abs(getScadenzeTotal() - totalAmount) > 0.01 ? 'text-destructive' : 'text-green-600'}`}>
+                                €{getScadenzeTotal().toLocaleString('it-IT', { minimumFractionDigits: 2 })} / €{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            {Math.abs(getScadenzeTotal() - totalAmount) > 0.01 && (
+                              <p className="text-xs text-destructive">⚠️ Il totale delle scadenze non corrisponde all'importo della fattura</p>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Riepilogo importo */}
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Imponibile</p>
-                  <p className="font-medium">€{formData.imponibile.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">IVA ({formData.iva_rate}%)</p>
-                  <p className="font-medium">€{ivaAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Totale</p>
-                  <p className="text-xl font-bold text-primary">€{totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
 
@@ -3653,15 +3588,15 @@ export default function RegistroContabilePage() {
             </Button>
             <Button 
               onClick={() => {
-                if (!formData.invoice_number && isFiscalDocument(formData.event_type)) {
+                if (formData.invoice_number) {
                   checkDuplicateAndSave();
                 } else {
                   createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined });
                 }
               }}
-              disabled={!formData.imponibile || !formData.payment_method || createMutation.isPending}
+              disabled={!formData.imponibile || !formData.invoice_number || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Salvataggio...' : 'Salva'}
+              {createMutation.isPending ? 'Salvataggio...' : 'Registra Documento'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4245,145 +4180,11 @@ export default function RegistroContabilePage() {
                 </div>
               )}
 
-              {/* Form per spese dipendenti - CAMPI OBBLIGATORI */}
-              {formData.event_type === 'spesa_dipendente' && (
-                <div className="space-y-4">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-medium mb-2">Campi obbligatori per spese dipendente:</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tipo Spesa *</Label>
-                      <Select value={formData.expense_type} onValueChange={(v) => setFormData(prev => ({ ...prev, expense_type: v }))}>
-                        <SelectTrigger className={!formData.expense_type ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona tipo spesa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {EXPENSE_TYPES.map(t => (
-                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Centro di Costo *</Label>
-                      <Select value={formData.cost_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, cost_center_id: v === "__none__" ? "" : v }))}>
-                        <SelectTrigger className={!formData.cost_center_id ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona centro" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {costCenters.map(cc => (
-                            <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Metodo di Pagamento *</Label>
-                      <Select value={formData.payment_method} onValueChange={(v) => setFormData(prev => ({ ...prev, payment_method: v }))}>
-                        <SelectTrigger className={!formData.payment_method ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona metodo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAYMENT_METHODS.map(pm => (
-                            <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Dipendente che ha sostenuto la spesa *</Label>
-                      <Select value={formData.employee_id} onValueChange={(v) => {
-                        const emp = employees.find(e => e.id === v);
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          employee_id: v === "__none__" ? "" : v,
-                          employee_name: emp ? emp.name : ""
-                        }));
-                      }}>
-                        <SelectTrigger className={!formData.employee_id ? 'border-destructive' : ''}>
-                          <SelectValue placeholder="Seleziona dipendente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map(e => (
-                            <SelectItem key={e.id} value={e.id}>{e.name} {e.role ? `(${e.role})` : ''}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Documento allegato (scontrino/ricevuta) *</Label>
-                    {selectedEvent?.attachment_url ? (
-                      <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">Documento presente</span>
-                        <a 
-                          href={selectedEvent.attachment_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline ml-auto"
-                        >
-                          Visualizza
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/30 rounded-lg">
-                        <AlertCircle className="w-4 h-4 text-destructive" />
-                        <span className="text-sm text-destructive">Nessun documento allegato</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {formData.event_type === 'incasso_dipendente' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cliente</Label>
-                    <Select value={formData.subject_id} onValueChange={(v) => {
-                      const cust = customers.find(c => c.id === v);
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        subject_id: v === "__none__" ? "" : v,
-                        subject_name: cust ? (cust.company_name || cust.name) : ""
-                      }));
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Non specificato</SelectItem>
-                        {customers.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.company_name || c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Centro di Ricavo</Label>
-                    <Select value={formData.profit_center_id} onValueChange={(v) => setFormData(prev => ({ ...prev, profit_center_id: v === "__none__" ? "" : v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Nessuno</SelectItem>
-                        {profitCenters.map(pc => (
-                          <SelectItem key={pc.id} value={pc.id}>{pc.code} - {pc.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
               {/* Stato finale della registrazione */}
               <div className="space-y-2 pt-4 border-t">
                 <Label>Stato Finale *</Label>
                 <Select 
-                  value={formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
-                    ? 'non_rilevante' 
-                    : 'contabilizzato'}
+                  value="contabilizzato"
                   disabled
                 >
                   <SelectTrigger>
@@ -4396,9 +4197,7 @@ export default function RegistroContabilePage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {formData.event_type === 'spesa_dipendente' || formData.event_type === 'incasso_dipendente' 
-                    ? 'Spese/incassi dipendenti non generano contabilità ufficiale'
-                    : 'Le fatture vengono contabilizzate automaticamente'}
+                  Le fatture vengono contabilizzate automaticamente
                 </p>
               </div>
             </div>
