@@ -131,6 +131,7 @@ export function InvoiceRegistryTable({
                   onRegister={onRegister}
                   onDelete={onDelete}
                   onRegenerate={onRegenerate}
+                  onPayment={onPayment}
                   isRegenerating={isRegenerating}
                   onGoScadenziario={onGoScadenziario}
                 />
