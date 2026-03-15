@@ -548,13 +548,14 @@ export default function PrimaNotaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
-                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
-                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
+                <TableHead className="w-[120px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
+                <TableHead className="w-[90px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                <TableHead className="w-[90px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
-                <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
-                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                <TableHead className="w-[140px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
+                <TableHead className="w-[180px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cliente / Fornitore</TableHead>
+                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
+                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                <TableHead className="w-[120px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
                 <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
