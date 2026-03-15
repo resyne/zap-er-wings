@@ -43,7 +43,8 @@ import {
   Shield,
   MessageCircle,
   MapPin,
-  AlertTriangle
+  AlertTriangle,
+  Bot
 } from "lucide-react";
 
 import {
