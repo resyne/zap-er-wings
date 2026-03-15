@@ -735,3 +735,89 @@ async function sendNotifications(
     console.error("Error sending notifications:", error);
   }
 }
+
+// Check if inbound message is from a Prima Nota authorized sender
+async function checkAndProcessPrimaNota(
+  supabase: any,
+  accountId: string,
+  senderPhone: string,
+  conversationId: string,
+  messageWamid: string,
+  messageType: string,
+  content: string | null,
+  mediaUrl: string | null,
+  mediaMimeType: string | null
+) {
+  try {
+    // Only process text, image, and audio messages
+    if (!["text", "image", "audio"].includes(messageType)) return;
+
+    // Normalize phone for matching
+    const phoneDigits = senderPhone.replace(/\D/g, '');
+    const lastDigits = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
+
+    // Check if sender is authorized for Prima Nota
+    const { data: configs } = await supabase
+      .from("whatsapp_prima_nota_config")
+      .select("*")
+      .eq("account_id", accountId)
+      .eq("is_active", true);
+
+    if (!configs || configs.length === 0) return;
+
+    const matchedConfig = configs.find((c: any) => {
+      const cDigits = (c.authorized_phone || '').replace(/\D/g, '');
+      const cLast = cDigits.length >= 9 ? cDigits.slice(-9) : cDigits;
+      return cLast === lastDigits || c.authorized_phone === senderPhone;
+    });
+
+    if (!matchedConfig) return;
+
+    console.log(`Prima Nota: Authorized sender detected (${senderPhone}), processing message...`);
+
+    // Get the message ID from DB
+    const { data: msgRecord } = await supabase
+      .from("whatsapp_messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("wamid", messageWamid)
+      .single();
+
+    if (!msgRecord) {
+      console.error("Prima Nota: Message not found in DB");
+      return;
+    }
+
+    // Resolve media URL for image/audio
+    let resolvedMediaUrl = mediaUrl;
+    if (mediaUrl && !mediaUrl.startsWith("http")) {
+      // It's a Meta media ID, need to resolve later in the processing function
+      resolvedMediaUrl = mediaUrl; // The processing function handles this
+    }
+
+    // Call the processing function asynchronously (fire and forget)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    fetch(`${supabaseUrl}/functions/v1/process-whatsapp-prima-nota`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseServiceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message_id: msgRecord.id,
+        conversation_id: conversationId,
+        account_id: accountId,
+        message_type: messageType,
+        content: content || "",
+        media_url: resolvedMediaUrl,
+        media_mime_type: mediaMimeType,
+        config_id: matchedConfig.id,
+      }),
+    }).catch(e => console.error("Prima Nota: Failed to trigger processing:", e));
+
+  } catch (error) {
+    console.error("Prima Nota check error:", error);
+  }
+}
