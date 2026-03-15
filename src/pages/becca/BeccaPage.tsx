@@ -292,7 +292,7 @@ export default function BeccaPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name} ({a.phone_number})</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.verified_name} ({a.display_phone_number})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
