@@ -898,6 +898,27 @@ export default function PrimaNotaPage() {
               />
             </div>
 
+            {/* IVA Section */}
+            <IvaSection
+              imponibile={formData.imponibile}
+              ivaAliquota={formData.iva_aliquota}
+              ivaAmount={formData.iva_amount}
+              totale={formData.totale}
+              ivaMode={formData.iva_mode}
+              editing={true}
+              compact
+              onUpdate={(updates) => {
+                setFormData(prev => ({
+                  ...prev,
+                  ...(updates.imponibile !== undefined && { imponibile: updates.imponibile }),
+                  ...(updates.iva_aliquota !== undefined && { iva_aliquota: updates.iva_aliquota }),
+                  ...(updates.iva_amount !== undefined && { iva_amount: updates.iva_amount }),
+                  ...(updates.totale !== undefined && { totale: updates.totale }),
+                  ...(updates.iva_mode !== undefined && { iva_mode: updates.iva_mode }),
+                }));
+              }}
+            />
+
             {/* Notes */}
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Note <span className="normal-case font-normal">(opzionale)</span></Label>
