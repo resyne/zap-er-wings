@@ -329,8 +329,8 @@ serve(async (req) => {
                   conversation.id
                 );
                 
-                // Check if this is a Prima Nota authorized sender
-                await checkAndProcessPrimaNota(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType);
+                // Check if this is a Becca authorized sender (replaces old Prima Nota check)
+                await checkAndProcessBecca(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType);
 
                 // Handle button reply triggers for automation
                 if (messageType === "button" || messageType === "interactive") {
@@ -736,8 +736,8 @@ async function sendNotifications(
   }
 }
 
-// Check if inbound message is from a Prima Nota authorized sender
-async function checkAndProcessPrimaNota(
+// Check if inbound message is from a Becca authorized sender
+async function checkAndProcessBecca(
   supabase: any,
   accountId: string,
   senderPhone: string,
@@ -756,7 +756,96 @@ async function checkAndProcessPrimaNota(
     const phoneDigits = senderPhone.replace(/\D/g, '');
     const lastDigits = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
 
-    // Check if sender is authorized for Prima Nota
+    // Check if sender is authorized for Becca
+    const { data: authorizedUsers } = await supabase
+      .from("becca_authorized_users")
+      .select("*")
+      .eq("account_id", accountId)
+      .eq("is_active", true);
+
+    if (!authorizedUsers || authorizedUsers.length === 0) {
+      // Fallback: check old Prima Nota config for backwards compatibility
+      await checkAndProcessPrimaNotaLegacy(supabase, accountId, senderPhone, conversationId, messageWamid, messageType, content, mediaUrl, mediaMimeType);
+      return;
+    }
+
+    const matchedUser = authorizedUsers.find((u: any) => {
+      const uDigits = (u.phone_number || '').replace(/\D/g, '');
+      const uLast = uDigits.length >= 9 ? uDigits.slice(-9) : uDigits;
+      return uLast === lastDigits || u.phone_number === senderPhone;
+    });
+
+    if (!matchedUser) return;
+
+    // Check if Becca is enabled for this account
+    const { data: settings } = await supabase
+      .from("becca_settings")
+      .select("is_enabled")
+      .eq("account_id", accountId)
+      .single();
+
+    if (settings && !settings.is_enabled) return;
+
+    console.log(`Becca: Authorized sender detected (${senderPhone} = ${matchedUser.display_name}), processing...`);
+
+    // Get the message ID from DB
+    const { data: msgRecord } = await supabase
+      .from("whatsapp_messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("wamid", messageWamid)
+      .single();
+
+    if (!msgRecord) {
+      console.error("Becca: Message not found in DB");
+      return;
+    }
+
+    // Call Becca AI function asynchronously
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    fetch(`${supabaseUrl}/functions/v1/becca-ai`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseServiceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message_id: msgRecord.id,
+        conversation_id: conversationId,
+        account_id: accountId,
+        message_type: messageType,
+        content: content || "",
+        media_url: mediaUrl,
+        media_mime_type: mediaMimeType,
+        sender_phone: senderPhone,
+        authorized_user_id: matchedUser.id,
+        allowed_actions: matchedUser.allowed_actions || ['prima_nota', 'task', 'sales_order', 'lead'],
+      }),
+    }).catch(e => console.error("Becca: Failed to trigger processing:", e));
+
+  } catch (error) {
+    console.error("Becca check error:", error);
+  }
+}
+
+// Legacy Prima Nota check for backwards compatibility
+async function checkAndProcessPrimaNotaLegacy(
+  supabase: any,
+  accountId: string,
+  senderPhone: string,
+  conversationId: string,
+  messageWamid: string,
+  messageType: string,
+  content: string | null,
+  mediaUrl: string | null,
+  mediaMimeType: string | null
+) {
+  try {
+    const phoneDigits = senderPhone.replace(/\D/g, '');
+    const lastDigits = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
+
     const { data: configs } = await supabase
       .from("whatsapp_prima_nota_config")
       .select("*")
@@ -773,9 +862,8 @@ async function checkAndProcessPrimaNota(
 
     if (!matchedConfig) return;
 
-    console.log(`Prima Nota: Authorized sender detected (${senderPhone}), processing message...`);
+    console.log(`Prima Nota (legacy): Authorized sender detected (${senderPhone}), processing...`);
 
-    // Get the message ID from DB
     const { data: msgRecord } = await supabase
       .from("whatsapp_messages")
       .select("id")
@@ -783,19 +871,8 @@ async function checkAndProcessPrimaNota(
       .eq("wamid", messageWamid)
       .single();
 
-    if (!msgRecord) {
-      console.error("Prima Nota: Message not found in DB");
-      return;
-    }
+    if (!msgRecord) return;
 
-    // Resolve media URL for image/audio
-    let resolvedMediaUrl = mediaUrl;
-    if (mediaUrl && !mediaUrl.startsWith("http")) {
-      // It's a Meta media ID, need to resolve later in the processing function
-      resolvedMediaUrl = mediaUrl; // The processing function handles this
-    }
-
-    // Call the processing function asynchronously (fire and forget)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -811,13 +888,12 @@ async function checkAndProcessPrimaNota(
         account_id: accountId,
         message_type: messageType,
         content: content || "",
-        media_url: resolvedMediaUrl,
+        media_url: mediaUrl,
         media_mime_type: mediaMimeType,
         config_id: matchedConfig.id,
       }),
     }).catch(e => console.error("Prima Nota: Failed to trigger processing:", e));
-
   } catch (error) {
-    console.error("Prima Nota check error:", error);
+    console.error("Prima Nota legacy check error:", error);
   }
 }

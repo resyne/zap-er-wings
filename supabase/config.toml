@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.analyze-accounting-document]
 verify_jwt = false
+
+[functions.becca-ai]
+verify_jwt = false

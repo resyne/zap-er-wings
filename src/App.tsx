@@ -112,6 +112,7 @@ const BrandkitPage = lazy(() => import("./pages/marketing/BrandkitPage"));
 const BrandAssetManager = lazy(() => import("./pages/marketing/BrandAssetManager"));
 const TicketRestaurantPage = lazy(() => import("./pages/hr/TicketRestaurantPage"));
 const IntegrationsPage = lazy(() => import("./pages/integrations/IntegrationsPage"));
+const BeccaPage = lazy(() => import("./pages/becca/BeccaPage"));
 const TasksPage = lazy(() => import("./pages/tasks/TasksPage").then(m => ({ default: m.TasksPage })));
 const ContentCreationPage = lazy(() => import("./pages/marketing/ContentCreationPage"));
 const CompetitorAnalysisPage = lazy(() => import("./pages/marketing/CompetitorAnalysisPage"));
@@ -304,6 +305,7 @@ const App = () => (
                 <Route path="marketing/competitor-analysis" element={<Suspense fallback={<PageLoader />}><CompetitorAnalysisPage /></Suspense>} />
                 <Route path="marketing/brandkit/:brandId" element={<Suspense fallback={<PageLoader />}><BrandAssetManager /></Suspense>} />
                 <Route path="integrations" element={<Suspense fallback={<PageLoader />}><IntegrationsPage /></Suspense>} />
+                <Route path="becca" element={<Suspense fallback={<PageLoader />}><BeccaPage /></Suspense>} />
                 <Route path="tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
                 <Route path="personal-area/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioPersonale /></Suspense>} />
