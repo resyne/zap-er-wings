@@ -908,14 +908,22 @@ export default function PrimaNotaPage() {
               editing={true}
               compact
               onUpdate={(updates) => {
-                setFormData(prev => ({
-                  ...prev,
-                  ...(updates.imponibile !== undefined && { imponibile: updates.imponibile }),
-                  ...(updates.iva_aliquota !== undefined && { iva_aliquota: updates.iva_aliquota }),
-                  ...(updates.iva_amount !== undefined && { iva_amount: updates.iva_amount }),
-                  ...(updates.totale !== undefined && { totale: updates.totale }),
-                  ...(updates.iva_mode !== undefined && { iva_mode: updates.iva_mode }),
-                }));
+                setFormData(prev => {
+                  const next = {
+                    ...prev,
+                    ...(updates.imponibile !== undefined && { imponibile: updates.imponibile }),
+                    ...(updates.iva_aliquota !== undefined && { iva_aliquota: updates.iva_aliquota }),
+                    ...(updates.iva_amount !== undefined && { iva_amount: updates.iva_amount }),
+                    ...(updates.totale !== undefined && { totale: updates.totale }),
+                    ...(updates.iva_mode !== undefined && { iva_mode: updates.iva_mode }),
+                  };
+                  // Sync amount with totale
+                  if (updates.totale !== undefined) {
+                    const tot = parseFloat(updates.totale);
+                    if (tot > 0) next.amount = tot;
+                  }
+                  return next;
+                });
               }}
             />
 
