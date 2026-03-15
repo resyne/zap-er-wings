@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Search, Plus, User, Building2, X, Loader2, Check, MapPin, Mail } from "lucide-react";
+import { Search, Plus, User, Building2, X, Loader2, Check, MapPin, Mail, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Customer {
@@ -20,6 +20,7 @@ interface Customer {
   tax_id: string | null;
   code: string;
   city: string | null;
+  incomplete_registry: boolean | null;
 }
 
 interface CustomerSearchSelectProps {
@@ -44,7 +45,7 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
     queryFn: async () => {
       const { data } = await supabase
         .from("customers")
-        .select("id, name, company_name, email, phone, tax_id, code, city")
+        .select("id, name, company_name, email, phone, tax_id, code, city, incomplete_registry")
         .eq("active", true)
         .order("name");
       return (data || []) as Customer[];
@@ -160,41 +161,77 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
       </div>
 
       {/* Selected customer card */}
-      {selectedCustomer && (
-        <div className="group flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 transition-all hover:border-primary/30">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <Building2 className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{selectedCustomer.company_name || selectedCustomer.name}</p>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {selectedCustomer.company_name && <span className="truncate">{selectedCustomer.name}</span>}
-              {selectedCustomer.tax_id && (
-                <>
-                  {selectedCustomer.company_name && <span>·</span>}
-                  <span className="font-mono">{selectedCustomer.tax_id}</span>
-                </>
-              )}
-              {selectedCustomer.city && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{selectedCustomer.city}</span>
-                </>
+      {selectedCustomer && (() => {
+        const isIncomplete = selectedCustomer.incomplete_registry || !selectedCustomer.tax_id || !selectedCustomer.email;
+        return (
+          <div className={cn(
+            "group flex items-center gap-3 p-3 rounded-lg border transition-all",
+            isIncomplete
+              ? "border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-950/20"
+              : "border-primary/20 bg-primary/5 hover:border-primary/30"
+          )}>
+            <div className={cn(
+              "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
+              isIncomplete ? "bg-amber-100 dark:bg-amber-900/30" : "bg-primary/10"
+            )}>
+              {isIncomplete
+                ? <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                : <Building2 className="h-4 w-4 text-primary" />
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{selectedCustomer.company_name || selectedCustomer.name}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {selectedCustomer.company_name && <span className="truncate">{selectedCustomer.name}</span>}
+                {selectedCustomer.tax_id && (
+                  <>
+                    {selectedCustomer.company_name && <span>·</span>}
+                    <span className="font-mono">{selectedCustomer.tax_id}</span>
+                  </>
+                )}
+                {selectedCustomer.city && (
+                  <>
+                    <span>·</span>
+                    <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{selectedCustomer.city}</span>
+                  </>
+                )}
+              </div>
+              {isIncomplete && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                    ⚠ Anagrafica incompleta
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">—</span>
+                  <a
+                    href="/clienti"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-medium text-primary hover:underline"
+                  >
+                    Completa in Clienti →
+                  </a>
+                </div>
               )}
             </div>
+            {isIncomplete ? (
+              <Badge variant="outline" className="text-[10px] shrink-0 border-amber-300 bg-amber-100/50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                Incompleto
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{selectedCustomer.code}</Badge>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onSelect("", "")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{selectedCustomer.code}</Badge>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => onSelect("", "")}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Search input */}
       <div className="relative">
@@ -309,7 +346,13 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
                             )}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{c.code}</Badge>
+                        {(c.incomplete_registry || !c.tax_id) ? (
+                          <Badge variant="outline" className="text-[9px] shrink-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />Incompleto
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{c.code}</Badge>
+                        )}
                       </div>
                     </button>
                   ))}
