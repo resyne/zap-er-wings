@@ -41,42 +41,54 @@ export function IvaSection({ imponibile, ivaAliquota, ivaAmount, totale, ivaMode
   const currentRegime = IVA_REGIMES.find(r => r.value === ivaMode) || IVA_REGIMES[0];
   const isZeroRate = currentRegime.rate === 0 && currentRegime.value !== 'ordinaria';
 
-  // Auto-calculate IVA and totale when imponibile or aliquota changes
-  const recalculate = useCallback((newImponibile: string, newAliquota: string) => {
-    const imp = parseFloat(newImponibile) || 0;
-    const aliq = parseFloat(newAliquota) || 0;
+  // Scorporo: from totale, back-calculate imponibile and IVA
+  const scorporoFromTotale = useCallback((tot: number, aliq: number) => {
+    if (aliq <= 0) return { imponibile: tot, iva: 0 };
+    const imp = Math.round((tot / (1 + aliq / 100)) * 100) / 100;
+    const iva = Math.round((tot - imp) * 100) / 100;
+    return { imponibile: imp, iva };
+  }, []);
+
+  // Forward: from imponibile, calculate IVA and totale
+  const calculateFromImponibile = useCallback((imp: number, aliq: number) => {
     const iva = Math.round((imp * aliq / 100) * 100) / 100;
     const tot = Math.round((imp + iva) * 100) / 100;
-    return { iva: iva.toString(), totale: tot.toString() };
+    return { iva, totale: tot };
   }, []);
 
   const handleRegimeChange = (regime: IvaRegime) => {
     const regimeData = IVA_REGIMES.find(r => r.value === regime)!;
-    const newAliquota = regimeData.rate.toString();
-    const result = recalculate(String(imponibile), newAliquota);
+    const newAliquota = regimeData.rate;
+    const tot = parseFloat(String(totale)) || 0;
+    const { imponibile: imp, iva } = scorporoFromTotale(tot, newAliquota);
     onUpdate({
       iva_mode: regime,
-      iva_aliquota: newAliquota,
-      iva_amount: result.iva,
-      totale: result.totale,
+      iva_aliquota: newAliquota.toString(),
+      imponibile: imp.toString(),
+      iva_amount: iva.toString(),
+      totale: tot.toString(),
     });
   };
 
   const handleImponibileChange = (value: string) => {
-    const result = recalculate(value, String(ivaAliquota));
+    const imp = parseFloat(value) || 0;
+    const aliq = parseFloat(String(ivaAliquota)) || 0;
+    const { iva, totale: tot } = calculateFromImponibile(imp, aliq);
     onUpdate({
       imponibile: value,
-      iva_amount: result.iva,
-      totale: result.totale,
+      iva_amount: iva.toString(),
+      totale: tot.toString(),
     });
   };
 
   const handleAliquotaChange = (value: string) => {
-    const result = recalculate(String(imponibile), value);
+    const aliq = parseFloat(value) || 0;
+    const tot = parseFloat(String(totale)) || 0;
+    const { imponibile: imp, iva } = scorporoFromTotale(tot, aliq);
     onUpdate({
       iva_aliquota: value,
-      iva_amount: result.iva,
-      totale: result.totale,
+      imponibile: imp.toString(),
+      iva_amount: iva.toString(),
     });
   };
 

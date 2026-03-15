@@ -773,9 +773,9 @@ export default function PrimaNotaPage() {
           </div>
 
           <div className="p-6 space-y-5">
-            {/* Amount — prominent */}
+             {/* Amount — prominent (= TOTALE) */}
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Importo</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Importo (Totale documento)</Label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground/50">€</span>
                 <Input
@@ -783,7 +783,19 @@ export default function PrimaNotaPage() {
                   step="0.01"
                   min="0"
                   value={formData.amount || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const tot = parseFloat(e.target.value) || 0;
+                    const aliq = parseFloat(formData.iva_aliquota) || 0;
+                    const imp = aliq > 0 ? Math.round((tot / (1 + aliq / 100)) * 100) / 100 : tot;
+                    const iva = Math.round((tot - imp) * 100) / 100;
+                    setFormData(prev => ({
+                      ...prev,
+                      amount: tot,
+                      totale: tot.toString(),
+                      imponibile: imp.toString(),
+                      iva_amount: iva.toString(),
+                    }));
+                  }}
                   placeholder="0,00"
                   className="pl-12 h-14 text-2xl font-bold tabular-nums border-2 focus:border-primary"
                 />
