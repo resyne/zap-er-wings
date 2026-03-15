@@ -249,7 +249,8 @@ export default function PrimaNotaPage() {
   });
 
   const openCreateDialog = (preset: Partial<MovementFormData>) => {
-    setFormData({ ...initialFormData, ...preset });
+    const subjectType = preset.type === 'entrata' ? 'cliente' : preset.type === 'uscita' ? 'fornitore' : '';
+    setFormData({ ...initialFormData, ...preset, economic_subject_type: subjectType });
     setShowCreateDialog(true);
   };
 
