@@ -233,7 +233,7 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); if (entry) setFormData({ document_date: entry.document_date, direction: entry.direction, amount: entry.amount, note: entry.note || "", payment_method: entry.payment_method || "", cfo_notes: entry.cfo_notes || "", imponibile: entry.imponibile || "", iva_aliquota: entry.iva_aliquota || "", iva_amount: entry.iva_amount || "", totale: entry.totale || "", economic_subject_id: entry.economic_subject_id || "", economic_subject_type: entry.economic_subject_type || "" }); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setEditing(false); if (entry) setFormData({ document_date: entry.document_date, direction: entry.direction, amount: entry.amount, note: entry.note || "", payment_method: entry.payment_method || "", cfo_notes: entry.cfo_notes || "", imponibile: entry.imponibile || "", iva_aliquota: entry.iva_aliquota || "22", iva_amount: entry.iva_amount || "", totale: entry.totale || "", iva_mode: entry.iva_mode || "ordinaria", economic_subject_id: entry.economic_subject_id || "", economic_subject_type: entry.economic_subject_type || "" }); }}>
                   <X className="h-3.5 w-3.5 mr-1" /> Annulla
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
