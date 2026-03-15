@@ -812,7 +812,50 @@ export default function PrimaNotaPage() {
               </div>
             </div>
 
-            {/* Description */}
+            {/* Cliente / Fornitore */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  {formData.type === 'entrata' ? 'Cliente' : 'Fornitore'}
+                </Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, economic_subject_type: 'cliente' }))}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                      formData.economic_subject_type === 'cliente'
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Cliente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, economic_subject_type: 'fornitore' }))}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                      formData.economic_subject_type === 'fornitore'
+                        ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Fornitore
+                  </button>
+                </div>
+              </div>
+              <CustomerSearchSelect
+                selectedCustomerId={formData.economic_subject_id}
+                onSelect={(id, name) => setFormData(prev => ({
+                  ...prev,
+                  economic_subject_id: id,
+                  economic_subject_type: id ? (prev.economic_subject_type || (prev.type === 'entrata' ? 'cliente' : 'fornitore')) : '',
+                }))}
+                label={formData.economic_subject_type === 'fornitore' ? 'Fornitore' : 'Cliente'}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Descrizione</Label>
               <Textarea
