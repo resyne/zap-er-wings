@@ -618,6 +618,22 @@ export default function PrimaNotaPage() {
                     )}
                   </TableCell>
                   <TableCell>
+                    {m.subject_name ? (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] px-1 py-0 shrink-0",
+                          m.economic_subject_type === 'fornitore' 
+                            ? "border-orange-200 text-orange-700 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400"
+                            : "border-blue-200 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                        )}>
+                          {m.economic_subject_type === 'fornitore' ? 'F' : 'C'}
+                        </Badge>
+                        <span className="text-xs font-medium truncate max-w-[140px]">{m.subject_name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">—</span>
+                    )}
+                  <TableCell>
                     <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                       {FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '—'}
                     </span>
