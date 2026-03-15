@@ -20,6 +20,7 @@ interface Customer {
   tax_id: string | null;
   code: string;
   city: string | null;
+  incomplete_registry: boolean | null;
 }
 
 interface CustomerSearchSelectProps {
