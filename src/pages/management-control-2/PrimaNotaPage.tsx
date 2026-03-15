@@ -57,6 +57,8 @@ interface MovementFormData {
   description: string;
   financial_account: string;
   notes: string;
+  economic_subject_id: string;
+  economic_subject_type: string;
 }
 
 const initialFormData: MovementFormData = {
@@ -66,6 +68,8 @@ const initialFormData: MovementFormData = {
   description: '',
   financial_account: '',
   notes: '',
+  economic_subject_id: '',
+  economic_subject_type: '',
 };
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
