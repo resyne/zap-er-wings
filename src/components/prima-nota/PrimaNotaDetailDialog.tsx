@@ -18,6 +18,7 @@ import { formatEuro } from "@/lib/accounting-utils";
 import { cn } from "@/lib/utils";
 import { LinkedDocumentsSection } from "./LinkedDocumentsSection";
 import { CustomerSearchSelect } from "./CustomerSearchSelect";
+import { IvaSection } from "./IvaSection";
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
   banca: "🏦 Banca",
