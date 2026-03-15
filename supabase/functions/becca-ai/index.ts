@@ -394,7 +394,7 @@ async function executeAction(
       return {
         entityId: entry.id,
         entityType: "accounting_entries",
-        message: `📋 Codice: *${code}*\n${data.tipo === 'entrata' ? '📥' : '📤'} Tipo: ${data.tipo === 'entrata' ? 'Entrata' : 'Uscita'}\n💰 Importo: €${(data.importo_totale || 0).toFixed(2)}\n${data.imponibile ? `📊 Imponibile: €${data.imponibile.toFixed(2)}\n` : ''}${data.iva_importo ? `🏷️ IVA: €${data.iva_importo.toFixed(2)} (${data.iva_aliquota}%)\n` : ''}📝 ${data.descrizione || 'N/D'}\n${data.fornitore_cliente_nome ? `👤 ${data.fornitore_cliente_nome}\n` : ''}\n⚠️ _Stato: BOZZA - da validare in Prima Nota_`
+        message: `📋 Codice: *${code}*\n${data.tipo === 'entrata' ? '📥' : '📤'} Tipo: ${data.tipo === 'entrata' ? 'Entrata' : 'Uscita'}\n💰 Importo: €${(data.importo_totale || 0).toFixed(2)}\n${data.imponibile ? `📊 Imponibile: €${data.imponibile.toFixed(2)}\n` : ''}${data.iva_importo ? `🏷️ IVA: €${data.iva_importo.toFixed(2)} (${data.iva_aliquota}%)\n` : ''}📝 ${data.descrizione || 'N/D'}\n${data.fornitore_cliente_nome ? `👤 ${data.fornitore_cliente_nome}\n` : ''}\n⚠️ _Stato: Da Classificare - da validare in Prima Nota_`
       };
     }
 
