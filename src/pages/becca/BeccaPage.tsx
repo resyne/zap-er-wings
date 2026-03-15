@@ -50,7 +50,7 @@ export default function BeccaPage() {
   const { data: accounts } = useQuery({
     queryKey: ["whatsapp-accounts"],
     queryFn: async () => {
-      const { data } = await supabase.from("whatsapp_accounts").select("id, name, phone_number").eq("is_active", true);
+      const { data } = await supabase.from("whatsapp_accounts").select("id, verified_name, display_phone_number").eq("is_active", true);
       return data || [];
     },
   });
