@@ -60,6 +60,11 @@ interface MovementFormData {
   notes: string;
   economic_subject_id: string;
   economic_subject_type: string;
+  imponibile: string;
+  iva_aliquota: string;
+  iva_amount: string;
+  totale: string;
+  iva_mode: string;
 }
 
 const initialFormData: MovementFormData = {
@@ -71,6 +76,11 @@ const initialFormData: MovementFormData = {
   notes: '',
   economic_subject_id: '',
   economic_subject_type: '',
+  imponibile: '',
+  iva_aliquota: '22',
+  iva_amount: '',
+  totale: '',
+  iva_mode: 'ordinaria',
 };
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
