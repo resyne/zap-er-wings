@@ -31,6 +31,7 @@ import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { PrimaNotaDetailDialog } from "@/components/prima-nota/PrimaNotaDetailDialog";
 import { CustomerSearchSelect } from "@/components/prima-nota/CustomerSearchSelect";
 import { IvaSection } from "@/components/prima-nota/IvaSection";
+import { WhatsAppPrimaNotaConfig } from "@/components/prima-nota/WhatsAppPrimaNotaConfig";
 
 // =====================================================
 // TYPES
