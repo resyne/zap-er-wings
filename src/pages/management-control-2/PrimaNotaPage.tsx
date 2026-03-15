@@ -241,6 +241,11 @@ export default function PrimaNotaPage() {
           account_code: code,
           economic_subject_id: data.economic_subject_id || null,
           economic_subject_type: data.economic_subject_type || null,
+          imponibile: data.imponibile ? Number(data.imponibile) : null,
+          iva_aliquota: data.iva_aliquota ? Number(data.iva_aliquota) : null,
+          iva_amount: data.iva_amount ? Number(data.iva_amount) : null,
+          totale: data.totale ? Number(data.totale) : null,
+          iva_mode: data.iva_mode || null,
         });
       if (error) throw error;
     },
