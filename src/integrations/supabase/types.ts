@@ -742,6 +742,173 @@ export type Database = {
         }
         Relationships: []
       }
+      becca_activity_log: {
+        Row: {
+          account_id: string
+          action_type: string
+          ai_interpretation: Json | null
+          authorized_user_id: string | null
+          confidence_score: number | null
+          confirmation_question: string | null
+          conversation_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          id: string
+          intent_detected: string | null
+          message_id: string | null
+          raw_message: string | null
+          status: string
+          user_confirmed: boolean | null
+        }
+        Insert: {
+          account_id: string
+          action_type: string
+          ai_interpretation?: Json | null
+          authorized_user_id?: string | null
+          confidence_score?: number | null
+          confirmation_question?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          intent_detected?: string | null
+          message_id?: string | null
+          raw_message?: string | null
+          status?: string
+          user_confirmed?: boolean | null
+        }
+        Update: {
+          account_id?: string
+          action_type?: string
+          ai_interpretation?: Json | null
+          authorized_user_id?: string | null
+          confidence_score?: number | null
+          confirmation_question?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          id?: string
+          intent_detected?: string | null
+          message_id?: string | null
+          raw_message?: string | null
+          status?: string
+          user_confirmed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "becca_activity_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "becca_activity_log_authorized_user_id_fkey"
+            columns: ["authorized_user_id"]
+            isOneToOne: false
+            referencedRelation: "becca_authorized_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "becca_activity_log_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      becca_authorized_users: {
+        Row: {
+          account_id: string
+          allowed_actions: string[]
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          phone_number: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          account_id: string
+          allowed_actions?: string[]
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          phone_number: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          allowed_actions?: string[]
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          phone_number?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "becca_authorized_users_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      becca_settings: {
+        Row: {
+          account_id: string
+          ai_persona: string | null
+          auto_confirm_threshold: number | null
+          created_at: string
+          default_task_assignee: string | null
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ai_persona?: string | null
+          auto_confirm_threshold?: number | null
+          created_at?: string
+          default_task_assignee?: string | null
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ai_persona?: string | null
+          auto_confirm_threshold?: number | null
+          created_at?: string
+          default_task_assignee?: string | null
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "becca_settings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bom_inclusions: {
         Row: {
           created_at: string
