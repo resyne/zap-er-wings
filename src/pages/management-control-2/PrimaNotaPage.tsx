@@ -30,6 +30,7 @@ import { formatEuro } from "@/lib/accounting-utils";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { PrimaNotaDetailDialog } from "@/components/prima-nota/PrimaNotaDetailDialog";
 import { CustomerSearchSelect } from "@/components/prima-nota/CustomerSearchSelect";
+import { IvaSection } from "@/components/prima-nota/IvaSection";
 
 // =====================================================
 // TYPES
@@ -60,6 +61,11 @@ interface MovementFormData {
   notes: string;
   economic_subject_id: string;
   economic_subject_type: string;
+  imponibile: string;
+  iva_aliquota: string;
+  iva_amount: string;
+  totale: string;
+  iva_mode: string;
 }
 
 const initialFormData: MovementFormData = {
@@ -71,6 +77,11 @@ const initialFormData: MovementFormData = {
   notes: '',
   economic_subject_id: '',
   economic_subject_type: '',
+  imponibile: '',
+  iva_aliquota: '22',
+  iva_amount: '',
+  totale: '',
+  iva_mode: 'ordinaria',
 };
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
@@ -230,6 +241,11 @@ export default function PrimaNotaPage() {
           account_code: code,
           economic_subject_id: data.economic_subject_id || null,
           economic_subject_type: data.economic_subject_type || null,
+          imponibile: data.imponibile ? Number(data.imponibile) : null,
+          iva_aliquota: data.iva_aliquota ? Number(data.iva_aliquota) : null,
+          iva_amount: data.iva_amount ? Number(data.iva_amount) : null,
+          totale: data.totale ? Number(data.totale) : null,
+          iva_mode: data.iva_mode || null,
         });
       if (error) throw error;
     },
@@ -881,6 +897,35 @@ export default function PrimaNotaPage() {
                 className="resize-none"
               />
             </div>
+
+            {/* IVA Section */}
+            <IvaSection
+              imponibile={formData.imponibile}
+              ivaAliquota={formData.iva_aliquota}
+              ivaAmount={formData.iva_amount}
+              totale={formData.totale}
+              ivaMode={formData.iva_mode}
+              editing={true}
+              compact
+              onUpdate={(updates) => {
+                setFormData(prev => {
+                  const next = {
+                    ...prev,
+                    ...(updates.imponibile !== undefined && { imponibile: updates.imponibile }),
+                    ...(updates.iva_aliquota !== undefined && { iva_aliquota: updates.iva_aliquota }),
+                    ...(updates.iva_amount !== undefined && { iva_amount: updates.iva_amount }),
+                    ...(updates.totale !== undefined && { totale: updates.totale }),
+                    ...(updates.iva_mode !== undefined && { iva_mode: updates.iva_mode }),
+                  };
+                  // Sync amount with totale
+                  if (updates.totale !== undefined) {
+                    const tot = parseFloat(updates.totale);
+                    if (tot > 0) next.amount = tot;
+                  }
+                  return next;
+                });
+              }}
+            />
 
             {/* Notes */}
             <div className="space-y-2">
