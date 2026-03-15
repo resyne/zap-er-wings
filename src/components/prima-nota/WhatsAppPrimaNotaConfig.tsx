@@ -29,8 +29,9 @@ export function WhatsAppPrimaNotaConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, name, phone_number")
-        .order("name");
+        .select("id, verified_name, display_phone_number")
+        .eq("is_active", true)
+        .order("verified_name");
       if (error) throw error;
       return data || [];
     },
@@ -42,7 +43,7 @@ export function WhatsAppPrimaNotaConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_prima_nota_config")
-        .select("*, whatsapp_accounts(name, phone_number)")
+        .select("*, whatsapp_accounts(verified_name, display_phone_number)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -173,7 +174,7 @@ export function WhatsAppPrimaNotaConfig() {
                     <TableCell>{config.user_label}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {config.whatsapp_accounts?.name || "N/D"}
+                        {config.whatsapp_accounts?.verified_name || "N/D"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -266,7 +267,7 @@ export function WhatsAppPrimaNotaConfig() {
                 <SelectContent>
                   {accounts.map((acc: any) => (
                     <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.phone_number})
+                      {acc.verified_name} ({acc.display_phone_number})
                     </SelectItem>
                   ))}
                 </SelectContent>
