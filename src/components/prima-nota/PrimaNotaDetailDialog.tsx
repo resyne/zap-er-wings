@@ -198,6 +198,9 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     totale: "Totale",
     status: "Stato",
     account_code: "Codice",
+    iva_mode: "Regime IVA",
+    economic_subject_id: "Soggetto",
+    economic_subject_type: "Tipo Soggetto",
   };
 
   const formatFieldValue = (key: string, value: any): string => {
