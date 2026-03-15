@@ -243,6 +243,7 @@ const navigationGroups: NavGroup[] = [
   {
     title: "Sistema",
     items: [
+      { title: "Becca AI", url: "/becca", icon: Bot },
       { title: "WhatsAppAPI", url: "/crm/whatsapp", icon: MessageCircle },
       { title: "Integrazioni", url: "/integrations", icon: Zap },
       { title: "Impostazioni", url: "/settings", icon: Settings },
