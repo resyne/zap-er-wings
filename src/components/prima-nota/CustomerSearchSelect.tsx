@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Search, Plus, User, Building2, X, Loader2, Check, MapPin, Mail } from "lucide-react";
+import { Search, Plus, User, Building2, X, Loader2, Check, MapPin, Mail, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Customer {
