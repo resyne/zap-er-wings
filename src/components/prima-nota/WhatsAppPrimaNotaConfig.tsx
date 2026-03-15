@@ -29,8 +29,9 @@ export function WhatsAppPrimaNotaConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_accounts")
-        .select("id, name, phone_number")
-        .order("name");
+        .select("id, verified_name, display_phone_number")
+        .eq("is_active", true)
+        .order("verified_name");
       if (error) throw error;
       return data || [];
     },
