@@ -322,30 +322,74 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                   </div>
                 </div>
 
-                {/* Soggetto Economico */}
+                {/* Cliente / Fornitore */}
                 <div className="space-y-1.5">
                   {editing ? (
-                    <CustomerSearchSelect
-                      selectedCustomerId={formData.economic_subject_id || ""}
-                      onSelect={(id, name) => setFormData(p => ({
-                        ...p,
-                        economic_subject_id: id,
-                        economic_subject_type: id ? "cliente" : "",
-                      }))}
-                    />
+                    <>
+                      <div className="flex items-center gap-2 mb-1">
+                        <button
+                          type="button"
+                          onClick={() => setFormData(p => ({ ...p, economic_subject_type: 'cliente' }))}
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                            formData.economic_subject_type === 'cliente'
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                              : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          Cliente
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(p => ({ ...p, economic_subject_type: 'fornitore' }))}
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                            formData.economic_subject_type === 'fornitore'
+                              ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400"
+                              : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          Fornitore
+                        </button>
+                      </div>
+                      <CustomerSearchSelect
+                        selectedCustomerId={formData.economic_subject_id || ""}
+                        onSelect={(id, name) => setFormData(p => ({
+                          ...p,
+                          economic_subject_id: id,
+                          economic_subject_type: id ? (p.economic_subject_type || "cliente") : "",
+                        }))}
+                        label={formData.economic_subject_type === 'fornitore' ? 'Fornitore' : 'Cliente'}
+                      />
+                    </>
                   ) : (
                     <>
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Soggetto Economico</Label>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        {entry?.economic_subject_type === 'fornitore' ? 'Fornitore' : entry?.economic_subject_type === 'cliente' ? 'Cliente' : 'Soggetto Economico'}
+                      </Label>
                       {linkedCustomer ? (
                         <div className="flex items-center gap-2.5 p-2.5 rounded-lg border bg-muted/20">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <Building2 className="h-4 w-4 text-primary" />
+                          <div className={cn(
+                            "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                            entry?.economic_subject_type === 'fornitore' ? "bg-orange-100 dark:bg-orange-950/30" : "bg-primary/10"
+                          )}>
+                            <Building2 className={cn("h-4 w-4", entry?.economic_subject_type === 'fornitore' ? "text-orange-600" : "text-primary")} />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold truncate">{linkedCustomer.company_name || linkedCustomer.name}</p>
-                            {linkedCustomer.company_name && (
-                              <p className="text-xs text-muted-foreground truncate">{linkedCustomer.name}</p>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {linkedCustomer.company_name && (
+                                <p className="text-xs text-muted-foreground truncate">{linkedCustomer.name}</p>
+                              )}
+                              <Badge variant="outline" className={cn(
+                                "text-[9px] px-1 py-0",
+                                entry?.economic_subject_type === 'fornitore'
+                                  ? "border-orange-200 text-orange-700"
+                                  : "border-blue-200 text-blue-700"
+                              )}>
+                                {entry?.economic_subject_type === 'fornitore' ? 'Fornitore' : 'Cliente'}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       ) : (
