@@ -561,10 +561,10 @@ export default function PrimaNotaPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
+                  <TableCell colSpan={9} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
