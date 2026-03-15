@@ -290,7 +290,7 @@ serve(async (req) => {
                 }
 
                 // Save the message
-                const { error: msgError } = await supabase
+                const { data: savedMsg, error: msgError } = await supabase
                   .from("whatsapp_messages")
                   .insert({
                     conversation_id: conversation.id,
@@ -301,7 +301,9 @@ serve(async (req) => {
                     media_url: mediaUrl,
                     media_mime_type: mediaMimeType,
                     status: "received"
-                  });
+                  })
+                  .select("id")
+                  .single();
 
                 if (msgError) {
                   console.error("Error saving message:", msgError);
@@ -329,8 +331,9 @@ serve(async (req) => {
                   conversation.id
                 );
                 
-                // Check if this is a Becca authorized sender (replaces old Prima Nota check)
-                await checkAndProcessBecca(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType);
+                // Check if this is a Becca authorized sender
+                const savedMsgId = savedMsg?.id || null;
+                await checkAndProcessBecca(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType, savedMsgId);
 
                 // Handle button reply triggers for automation
                 if (messageType === "button" || messageType === "interactive") {
