@@ -305,6 +305,7 @@ const App = () => (
                 <Route path="marketing/competitor-analysis" element={<Suspense fallback={<PageLoader />}><CompetitorAnalysisPage /></Suspense>} />
                 <Route path="marketing/brandkit/:brandId" element={<Suspense fallback={<PageLoader />}><BrandAssetManager /></Suspense>} />
                 <Route path="integrations" element={<Suspense fallback={<PageLoader />}><IntegrationsPage /></Suspense>} />
+                <Route path="becca" element={<Suspense fallback={<PageLoader />}><BeccaPage /></Suspense>} />
                 <Route path="tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
                 <Route path="personal-area/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioPersonale /></Suspense>} />
