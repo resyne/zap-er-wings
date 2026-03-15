@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
   ChevronDown, ChevronLeft, ChevronRight, Receipt, Wallet, Info, Plus, Search, Trash2,
-  Calendar, AlertCircle, CheckCircle2, Eye
+  Calendar, AlertCircle, CheckCircle2, Eye, MessageSquare
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -31,6 +31,7 @@ import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { PrimaNotaDetailDialog } from "@/components/prima-nota/PrimaNotaDetailDialog";
 import { CustomerSearchSelect } from "@/components/prima-nota/CustomerSearchSelect";
 import { IvaSection } from "@/components/prima-nota/IvaSection";
+import { WhatsAppPrimaNotaConfig } from "@/components/prima-nota/WhatsAppPrimaNotaConfig";
 
 // =====================================================
 // TYPES
@@ -747,6 +748,20 @@ export default function PrimaNotaPage() {
         open={detailDialogOpen}
         onOpenChange={setDetailDialogOpen}
       />
+
+      {/* WhatsApp Prima Nota Config */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm">WhatsApp → Prima Nota (Configurazione)</span>
+            <ChevronDown className="h-4 w-4 ml-auto" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-2">
+          <WhatsAppPrimaNotaConfig />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Guida collassabile — at the bottom */}
       <GuideSection />

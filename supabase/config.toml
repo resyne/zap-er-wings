@@ -168,5 +168,8 @@ verify_jwt = false
 [functions.notify-commessa-urgent]
 verify_jwt = false
 
+[functions.process-whatsapp-prima-nota]
+verify_jwt = false
+
 [functions.analyze-accounting-document]
 verify_jwt = false
