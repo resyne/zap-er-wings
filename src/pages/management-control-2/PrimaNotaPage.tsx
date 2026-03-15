@@ -633,6 +633,7 @@ export default function PrimaNotaPage() {
                     ) : (
                       <span className="text-xs text-muted-foreground/40">—</span>
                     )}
+                  </TableCell>
                   <TableCell>
                     <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                       {FINANCIAL_ACCOUNTS[m.financial_account] || m.financial_account || '—'}
