@@ -346,7 +346,13 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
                             )}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{c.code}</Badge>
+                        {(c.incomplete_registry || !c.tax_id) ? (
+                          <Badge variant="outline" className="text-[9px] shrink-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />Incompleto
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] shrink-0 font-mono">{c.code}</Badge>
+                        )}
                       </div>
                     </button>
                   ))}
