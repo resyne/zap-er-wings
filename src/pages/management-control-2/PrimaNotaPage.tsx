@@ -149,7 +149,9 @@ export default function PrimaNotaPage() {
         .limit(200);
       if (error) throw error;
       return data || [];
-    }
+    },
+    refetchInterval: 10000,
+    refetchOnMount: true,
   });
 
   // Fetch customer names for entries that have economic_subject_id
