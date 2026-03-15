@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowUp, ArrowDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight,
   ChevronDown, ChevronLeft, ChevronRight, Receipt, Wallet, Info, Plus, Search, Trash2,
-  Calendar, AlertCircle, CheckCircle2, Eye
+  Calendar, AlertCircle, CheckCircle2, Eye, MessageSquare
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
