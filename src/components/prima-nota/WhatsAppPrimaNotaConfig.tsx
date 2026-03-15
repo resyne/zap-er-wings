@@ -43,7 +43,7 @@ export function WhatsAppPrimaNotaConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_prima_nota_config")
-        .select("*, whatsapp_accounts(name, phone_number)")
+        .select("*, whatsapp_accounts(verified_name, display_phone_number)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
