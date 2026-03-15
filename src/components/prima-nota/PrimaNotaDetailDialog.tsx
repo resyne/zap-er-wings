@@ -294,36 +294,24 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
                 </div>
 
                 {/* IVA breakdown */}
-                <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Imponibile</Label>
-                    {editing ? (
-                      <Input type="number" step="0.01" value={formData.imponibile} onChange={(e) => setFormData(p => ({ ...p, imponibile: e.target.value }))} />
-                    ) : (
-                      <p className="font-semibold">{entry.imponibile ? formatEuro(Number(entry.imponibile)) : "—"}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">IVA ({editing ? (
-                      <Input type="number" step="0.01" value={formData.iva_aliquota} onChange={(e) => setFormData(p => ({ ...p, iva_aliquota: e.target.value }))} className="inline w-16 h-6 text-xs" />
-                    ) : (
-                      <span>{entry.iva_aliquota || 0}%</span>
-                    )})</Label>
-                    {editing ? (
-                      <Input type="number" step="0.01" value={formData.iva_amount} onChange={(e) => setFormData(p => ({ ...p, iva_amount: e.target.value }))} />
-                    ) : (
-                      <p className="font-semibold">{entry.iva_amount ? formatEuro(Number(entry.iva_amount)) : "—"}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Totale</Label>
-                    {editing ? (
-                      <Input type="number" step="0.01" value={formData.totale} onChange={(e) => setFormData(p => ({ ...p, totale: e.target.value }))} />
-                    ) : (
-                      <p className="font-bold text-lg">{entry.totale ? formatEuro(Number(entry.totale)) : "—"}</p>
-                    )}
-                  </div>
-                </div>
+                <IvaSection
+                  imponibile={editing ? formData.imponibile : (entry.imponibile || "")}
+                  ivaAliquota={editing ? formData.iva_aliquota : (entry.iva_aliquota || "22")}
+                  ivaAmount={editing ? formData.iva_amount : (entry.iva_amount || "")}
+                  totale={editing ? formData.totale : (entry.totale || "")}
+                  ivaMode={editing ? (formData.iva_mode || "ordinaria") : (entry.iva_mode || "ordinaria")}
+                  editing={editing}
+                  onUpdate={(updates) => {
+                    setFormData(p => ({
+                      ...p,
+                      ...(updates.imponibile !== undefined && { imponibile: updates.imponibile }),
+                      ...(updates.iva_aliquota !== undefined && { iva_aliquota: updates.iva_aliquota }),
+                      ...(updates.iva_amount !== undefined && { iva_amount: updates.iva_amount }),
+                      ...(updates.totale !== undefined && { totale: updates.totale }),
+                      ...(updates.iva_mode !== undefined && { iva_mode: updates.iva_mode }),
+                    }));
+                  }}
+                />
 
                 {/* Cliente / Fornitore */}
                 <div className="space-y-1.5">
