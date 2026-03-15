@@ -267,7 +267,7 @@ export function WhatsAppPrimaNotaConfig() {
                 <SelectContent>
                   {accounts.map((acc: any) => (
                     <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.phone_number})
+                      {acc.verified_name} ({acc.display_phone_number})
                     </SelectItem>
                   ))}
                 </SelectContent>
