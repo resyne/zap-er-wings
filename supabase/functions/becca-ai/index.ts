@@ -372,7 +372,7 @@ async function executeAction(
         direction: data.tipo === 'entrata' ? 'entrata' : 'uscita',
         document_type: 'movimento',
         document_date: data.data_documento || new Date().toISOString().split('T')[0],
-        status: 'bozza',
+        status: 'da_classificare',
         event_type: 'movimento_finanziario',
         financial_status: data.tipo === 'entrata' ? 'incassata' : 'pagata',
         payment_method: data.metodo_pagamento || null,
