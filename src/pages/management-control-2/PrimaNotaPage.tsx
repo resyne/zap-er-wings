@@ -130,7 +130,7 @@ export default function PrimaNotaPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_entries')
-        .select('*, customers:economic_subject_id(id, name, company_name)')
+        .select('*')
         .in('status', ['classificato', 'registrato', 'segnalazione', 'da_classificare', 'in_classificazione', 'pronto_prima_nota'])
         .not('document_type', 'in', '("fattura","nota_credito")')
         .order('document_date', { ascending: false })
@@ -140,25 +140,39 @@ export default function PrimaNotaPage() {
     }
   });
 
-  const movements: FinancialMovement[] = rawEntries.map(e => {
-    const customer = e.customers as any;
-    return {
-      id: e.id,
-      code: e.account_code || '',
-      date: e.document_date,
-      type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
-      amount: e.amount,
-      description: e.note || '',
-      financial_account: e.payment_method || '',
-      notes: e.cfo_notes,
-      created_at: e.created_at,
-      status: e.status || 'classificato',
-      attachment_url: e.attachment_url || null,
-      economic_subject_id: e.economic_subject_id || null,
-      economic_subject_type: e.economic_subject_type || null,
-      subject_name: customer ? (customer.company_name || customer.name) : null,
-    };
+  // Fetch customer names for entries that have economic_subject_id
+  const subjectIds = [...new Set(rawEntries.filter(e => e.economic_subject_id).map(e => e.economic_subject_id!))];
+  const { data: subjectMap = {} } = useQuery({
+    queryKey: ['prima-nota-subjects', subjectIds.join(',')],
+    queryFn: async () => {
+      if (subjectIds.length === 0) return {};
+      const { data } = await supabase
+        .from('customers')
+        .select('id, name, company_name')
+        .in('id', subjectIds);
+      const map: Record<string, string> = {};
+      (data || []).forEach(c => { map[c.id] = c.company_name || c.name; });
+      return map;
+    },
+    enabled: subjectIds.length > 0,
   });
+
+  const movements: FinancialMovement[] = rawEntries.map(e => ({
+    id: e.id,
+    code: e.account_code || '',
+    date: e.document_date,
+    type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
+    amount: e.amount,
+    description: e.note || '',
+    financial_account: e.payment_method || '',
+    notes: e.cfo_notes,
+    created_at: e.created_at,
+    status: e.status || 'classificato',
+    attachment_url: e.attachment_url || null,
+    economic_subject_id: e.economic_subject_id || null,
+    economic_subject_type: e.economic_subject_type || null,
+    subject_name: e.economic_subject_id ? (subjectMap[e.economic_subject_id] || null) : null,
+  }));
 
   // State for BozzaValidaDialog
   const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
