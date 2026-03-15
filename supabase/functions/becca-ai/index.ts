@@ -153,7 +153,10 @@ Rispondi in testo libero, in italiano.`
     // Step 4: Classify intent and extract data with AI
     const allowedActionsStr = body.allowed_actions.join(", ");
 
+    const today = new Date().toISOString().split('T')[0];
     const aiPrompt = `${persona}
+
+DATA DI OGGI: ${today}
 
 Sei un'assistente AI che riceve messaggi WhatsApp dal team aziendale e deve classificare l'intento ed estrarre i dati per eseguire azioni nell'ERP.
 
