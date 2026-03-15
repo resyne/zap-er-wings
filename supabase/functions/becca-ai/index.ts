@@ -153,7 +153,10 @@ Rispondi in testo libero, in italiano.`
     // Step 4: Classify intent and extract data with AI
     const allowedActionsStr = body.allowed_actions.join(", ");
 
+    const today = new Date().toISOString().split('T')[0];
     const aiPrompt = `${persona}
+
+DATA DI OGGI: ${today}
 
 Sei un'assistente AI che riceve messaggi WhatsApp dal team aziendale e deve classificare l'intento ed estrarre i dati per eseguire azioni nell'ERP.
 
@@ -372,7 +375,7 @@ async function executeAction(
         direction: data.tipo === 'entrata' ? 'entrata' : 'uscita',
         document_type: 'movimento',
         document_date: data.data_documento || new Date().toISOString().split('T')[0],
-        status: 'bozza',
+        status: 'da_classificare',
         event_type: 'movimento_finanziario',
         financial_status: data.tipo === 'entrata' ? 'incassata' : 'pagata',
         payment_method: data.metodo_pagamento || null,
@@ -394,7 +397,7 @@ async function executeAction(
       return {
         entityId: entry.id,
         entityType: "accounting_entries",
-        message: `📋 Codice: *${code}*\n${data.tipo === 'entrata' ? '📥' : '📤'} Tipo: ${data.tipo === 'entrata' ? 'Entrata' : 'Uscita'}\n💰 Importo: €${(data.importo_totale || 0).toFixed(2)}\n${data.imponibile ? `📊 Imponibile: €${data.imponibile.toFixed(2)}\n` : ''}${data.iva_importo ? `🏷️ IVA: €${data.iva_importo.toFixed(2)} (${data.iva_aliquota}%)\n` : ''}📝 ${data.descrizione || 'N/D'}\n${data.fornitore_cliente_nome ? `👤 ${data.fornitore_cliente_nome}\n` : ''}\n⚠️ _Stato: BOZZA - da validare in Prima Nota_`
+        message: `📋 Codice: *${code}*\n${data.tipo === 'entrata' ? '📥' : '📤'} Tipo: ${data.tipo === 'entrata' ? 'Entrata' : 'Uscita'}\n💰 Importo: €${(data.importo_totale || 0).toFixed(2)}\n${data.imponibile ? `📊 Imponibile: €${data.imponibile.toFixed(2)}\n` : ''}${data.iva_importo ? `🏷️ IVA: €${data.iva_importo.toFixed(2)} (${data.iva_aliquota}%)\n` : ''}📝 ${data.descrizione || 'N/D'}\n${data.fornitore_cliente_nome ? `👤 ${data.fornitore_cliente_nome}\n` : ''}\n⚠️ _Stato: Da Classificare - da validare in Prima Nota_`
       };
     }
 
