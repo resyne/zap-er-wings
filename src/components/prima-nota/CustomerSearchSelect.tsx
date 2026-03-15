@@ -45,7 +45,7 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
     queryFn: async () => {
       const { data } = await supabase
         .from("customers")
-        .select("id, name, company_name, email, phone, tax_id, code, city")
+        .select("id, name, company_name, email, phone, tax_id, code, city, incomplete_registry")
         .eq("active", true)
         .order("name");
       return (data || []) as Customer[];
