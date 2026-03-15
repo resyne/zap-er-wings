@@ -96,9 +96,10 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
         payment_method: entry.payment_method || "",
         cfo_notes: entry.cfo_notes || "",
         imponibile: entry.imponibile || "",
-        iva_aliquota: entry.iva_aliquota || "",
+        iva_aliquota: entry.iva_aliquota || "22",
         iva_amount: entry.iva_amount || "",
         totale: entry.totale || "",
+        iva_mode: entry.iva_mode || "ordinaria",
         economic_subject_id: entry.economic_subject_id || "",
         economic_subject_type: entry.economic_subject_type || "",
       });
