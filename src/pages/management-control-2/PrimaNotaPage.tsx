@@ -29,6 +29,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatEuro } from "@/lib/accounting-utils";
 import { BozzaValidaDialog } from "@/components/prima-nota/BozzaValidaDialog";
 import { PrimaNotaDetailDialog } from "@/components/prima-nota/PrimaNotaDetailDialog";
+import { CustomerSearchSelect } from "@/components/prima-nota/CustomerSearchSelect";
 
 // =====================================================
 // TYPES
@@ -45,6 +46,9 @@ interface FinancialMovement {
   created_at: string;
   status: string;
   attachment_url: string | null;
+  economic_subject_id: string | null;
+  economic_subject_type: string | null;
+  subject_name: string | null;
 }
 
 interface MovementFormData {
@@ -54,6 +58,8 @@ interface MovementFormData {
   description: string;
   financial_account: string;
   notes: string;
+  economic_subject_id: string;
+  economic_subject_type: string;
 }
 
 const initialFormData: MovementFormData = {
@@ -63,6 +69,8 @@ const initialFormData: MovementFormData = {
   description: '',
   financial_account: '',
   notes: '',
+  economic_subject_id: '',
+  economic_subject_type: '',
 };
 
 const FINANCIAL_ACCOUNTS: Record<string, string> = {
@@ -122,7 +130,7 @@ export default function PrimaNotaPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_entries')
-        .select('*')
+        .select('*, customers:economic_subject_id(id, name, company_name)')
         .in('status', ['classificato', 'registrato', 'segnalazione', 'da_classificare', 'in_classificazione', 'pronto_prima_nota'])
         .not('document_type', 'in', '("fattura","nota_credito")')
         .order('document_date', { ascending: false })
@@ -132,19 +140,25 @@ export default function PrimaNotaPage() {
     }
   });
 
-  const movements: FinancialMovement[] = rawEntries.map(e => ({
-    id: e.id,
-    code: e.account_code || '',
-    date: e.document_date,
-    type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
-    amount: e.amount,
-    description: e.note || '',
-    financial_account: e.payment_method || '',
-    notes: e.cfo_notes,
-    created_at: e.created_at,
-    status: e.status || 'classificato',
-    attachment_url: e.attachment_url || null,
-  }));
+  const movements: FinancialMovement[] = rawEntries.map(e => {
+    const customer = e.customers as any;
+    return {
+      id: e.id,
+      code: e.account_code || '',
+      date: e.document_date,
+      type: e.direction === 'entrata' ? 'entrata' as const : 'uscita' as const,
+      amount: e.amount,
+      description: e.note || '',
+      financial_account: e.payment_method || '',
+      notes: e.cfo_notes,
+      created_at: e.created_at,
+      status: e.status || 'classificato',
+      attachment_url: e.attachment_url || null,
+      economic_subject_id: e.economic_subject_id || null,
+      economic_subject_type: e.economic_subject_type || null,
+      subject_name: customer ? (customer.company_name || customer.name) : null,
+    };
+  });
 
   // State for BozzaValidaDialog
   const [selectedEntryForValidation, setSelectedEntryForValidation] = useState<any>(null);
@@ -200,6 +214,8 @@ export default function PrimaNotaPage() {
           attachment_url: '',
           user_id: user?.user?.id,
           account_code: code,
+          economic_subject_id: data.economic_subject_id || null,
+          economic_subject_type: data.economic_subject_type || null,
         });
       if (error) throw error;
     },
@@ -233,7 +249,8 @@ export default function PrimaNotaPage() {
   });
 
   const openCreateDialog = (preset: Partial<MovementFormData>) => {
-    setFormData({ ...initialFormData, ...preset });
+    const subjectType = preset.type === 'entrata' ? 'cliente' : preset.type === 'uscita' ? 'fornitore' : '';
+    setFormData({ ...initialFormData, ...preset, economic_subject_type: subjectType });
     setShowCreateDialog(true);
   };
 
@@ -532,22 +549,23 @@ export default function PrimaNotaPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
-                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
-                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
+                <TableHead className="w-[120px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Codice</TableHead>
+                <TableHead className="w-[90px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data</TableHead>
+                <TableHead className="w-[90px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                 <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrizione</TableHead>
-                <TableHead className="w-[150px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
-                <TableHead className="w-[110px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                <TableHead className="w-[140px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
+                <TableHead className="w-[180px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cliente / Fornitore</TableHead>
+                <TableHead className="w-[130px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conto</TableHead>
+                <TableHead className="w-[100px] text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                <TableHead className="w-[120px] text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Importo</TableHead>
                 <TableHead className="w-[60px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Caricamento...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
+                  <TableCell colSpan={9} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center">
                         <Receipt className="h-6 w-6 text-muted-foreground/40" />
@@ -598,6 +616,23 @@ export default function PrimaNotaPage() {
                       <a href={m.attachment_url} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex items-center text-[10px] text-primary hover:underline">
                         📎 allegato
                       </a>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {m.subject_name ? (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className={cn(
+                          "text-[9px] px-1 py-0 shrink-0",
+                          m.economic_subject_type === 'fornitore' 
+                            ? "border-orange-200 text-orange-700 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400"
+                            : "border-blue-200 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                        )}>
+                          {m.economic_subject_type === 'fornitore' ? 'F' : 'C'}
+                        </Badge>
+                        <span className="text-xs font-medium truncate max-w-[140px]">{m.subject_name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/40">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -778,7 +813,50 @@ export default function PrimaNotaPage() {
               </div>
             </div>
 
-            {/* Description */}
+            {/* Cliente / Fornitore */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  {formData.type === 'entrata' ? 'Cliente' : 'Fornitore'}
+                </Label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, economic_subject_type: 'cliente' }))}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                      formData.economic_subject_type === 'cliente'
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Cliente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, economic_subject_type: 'fornitore' }))}
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium transition-all",
+                      formData.economic_subject_type === 'fornitore'
+                        ? "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Fornitore
+                  </button>
+                </div>
+              </div>
+              <CustomerSearchSelect
+                selectedCustomerId={formData.economic_subject_id}
+                onSelect={(id, name) => setFormData(prev => ({
+                  ...prev,
+                  economic_subject_id: id,
+                  economic_subject_type: id ? (prev.economic_subject_type || (prev.type === 'entrata' ? 'cliente' : 'fornitore')) : '',
+                }))}
+                label={formData.economic_subject_type === 'fornitore' ? 'Fornitore' : 'Cliente'}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Descrizione</Label>
               <Textarea
