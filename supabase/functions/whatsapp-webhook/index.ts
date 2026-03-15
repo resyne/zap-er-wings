@@ -749,25 +749,33 @@ async function checkAndProcessBecca(
   messageType: string,
   content: string | null,
   mediaUrl: string | null,
-  mediaMimeType: string | null
+  mediaMimeType: string | null,
+  messageDbId: string | null
 ) {
   try {
+    console.log(`Becca: checking sender ${senderPhone}, type=${messageType}, msgId=${messageDbId}`);
+    
     // Only process text, image, and audio messages
-    if (!["text", "image", "audio"].includes(messageType)) return;
+    if (!["text", "image", "audio"].includes(messageType)) {
+      console.log(`Becca: skipping message type ${messageType}`);
+      return;
+    }
 
     // Normalize phone for matching
     const phoneDigits = senderPhone.replace(/\D/g, '');
     const lastDigits = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : phoneDigits;
 
     // Check if sender is authorized for Becca
-    const { data: authorizedUsers } = await supabase
+    const { data: authorizedUsers, error: authError } = await supabase
       .from("becca_authorized_users")
       .select("*")
       .eq("account_id", accountId)
       .eq("is_active", true);
 
+    console.log(`Becca: found ${authorizedUsers?.length || 0} authorized users, error: ${authError?.message || 'none'}`);
+
     if (!authorizedUsers || authorizedUsers.length === 0) {
-      // Fallback: check old Prima Nota config for backwards compatibility
+      console.log("Becca: no authorized users, falling back to legacy prima nota");
       await checkAndProcessPrimaNotaLegacy(supabase, accountId, senderPhone, conversationId, messageWamid, messageType, content, mediaUrl, mediaMimeType);
       return;
     }
@@ -778,7 +786,10 @@ async function checkAndProcessBecca(
       return uLast === lastDigits || u.phone_number === senderPhone;
     });
 
-    if (!matchedUser) return;
+    if (!matchedUser) {
+      console.log(`Becca: sender ${senderPhone} (last9: ${lastDigits}) not matched to any authorized user`);
+      return;
+    }
 
     // Check if Becca is enabled for this account
     const { data: settings } = await supabase
@@ -787,35 +798,44 @@ async function checkAndProcessBecca(
       .eq("account_id", accountId)
       .single();
 
-    if (settings && !settings.is_enabled) return;
+    if (settings && !settings.is_enabled) {
+      console.log("Becca: disabled for this account");
+      return;
+    }
 
     console.log(`Becca: Authorized sender detected (${senderPhone} = ${matchedUser.display_name}), processing...`);
 
-    // Get the message ID from DB
-    const { data: msgRecord } = await supabase
-      .from("whatsapp_messages")
-      .select("id")
-      .eq("conversation_id", conversationId)
-      .eq("wamid", messageWamid)
-      .single();
+    // Use the message ID passed directly, or look it up as fallback
+    let msgId = messageDbId;
+    if (!msgId) {
+      const { data: msgRecord } = await supabase
+        .from("whatsapp_messages")
+        .select("id")
+        .eq("conversation_id", conversationId)
+        .eq("wamid", messageWamid)
+        .single();
+      msgId = msgRecord?.id;
+    }
 
-    if (!msgRecord) {
+    if (!msgId) {
       console.error("Becca: Message not found in DB");
       return;
     }
 
-    // Call Becca AI function asynchronously
+    // Call Becca AI function
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    fetch(`${supabaseUrl}/functions/v1/becca-ai`, {
+    console.log(`Becca: Calling becca-ai function with message_id=${msgId}`);
+
+    const beccaRes = await fetch(`${supabaseUrl}/functions/v1/becca-ai`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${supabaseServiceKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message_id: msgRecord.id,
+        message_id: msgId,
         conversation_id: conversationId,
         account_id: accountId,
         message_type: messageType,
@@ -826,7 +846,10 @@ async function checkAndProcessBecca(
         authorized_user_id: matchedUser.id,
         allowed_actions: matchedUser.allowed_actions || ['prima_nota', 'task', 'sales_order', 'lead'],
       }),
-    }).catch(e => console.error("Becca: Failed to trigger processing:", e));
+    });
+
+    const beccaResult = await beccaRes.text();
+    console.log(`Becca: AI function response ${beccaRes.status}: ${beccaResult.substring(0, 200)}`);
 
   } catch (error) {
     console.error("Becca check error:", error);
