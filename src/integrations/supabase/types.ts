@@ -13036,6 +13036,112 @@ export type Database = {
           },
         ]
       }
+      whatsapp_prima_nota_config: {
+        Row: {
+          account_id: string
+          authorized_phone: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          user_label: string
+        }
+        Insert: {
+          account_id: string
+          authorized_phone: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          user_label?: string
+        }
+        Update: {
+          account_id?: string
+          authorized_phone?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          user_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_prima_nota_config_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_prima_nota_log: {
+        Row: {
+          accounting_entry_id: string | null
+          ai_interpretation: Json | null
+          config_id: string | null
+          conversation_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          raw_message: string | null
+          status: string
+        }
+        Insert: {
+          accounting_entry_id?: string | null
+          ai_interpretation?: Json | null
+          config_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          raw_message?: string | null
+          status?: string
+        }
+        Update: {
+          accounting_entry_id?: string | null
+          ai_interpretation?: Json | null
+          config_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          raw_message?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_prima_nota_log_accounting_entry_id_fkey"
+            columns: ["accounting_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_prima_nota_log_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_prima_nota_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_prima_nota_log_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_prima_nota_log_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_standard_messages: {
         Row: {
           account_id: string
