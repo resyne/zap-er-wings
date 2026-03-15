@@ -329,8 +329,8 @@ serve(async (req) => {
                   conversation.id
                 );
                 
-                // Check if this is a Prima Nota authorized sender
-                await checkAndProcessPrimaNota(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType);
+                // Check if this is a Becca authorized sender (replaces old Prima Nota check)
+                await checkAndProcessBecca(supabase, account.id, from, conversation.id, wamid, messageType, content, mediaUrl, mediaMimeType);
 
                 // Handle button reply triggers for automation
                 if (messageType === "button" || messageType === "interactive") {
