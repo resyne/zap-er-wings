@@ -749,6 +749,20 @@ export default function PrimaNotaPage() {
         onOpenChange={setDetailDialogOpen}
       />
 
+      {/* WhatsApp Prima Nota Config */}
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm">WhatsApp → Prima Nota (Configurazione)</span>
+            <ChevronDown className="h-4 w-4 ml-auto" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-2">
+          <WhatsAppPrimaNotaConfig />
+        </CollapsibleContent>
+      </Collapsible>
+
       {/* Guida collassabile — at the bottom */}
       <GuideSection />
 
