@@ -174,7 +174,7 @@ export function WhatsAppPrimaNotaConfig() {
                     <TableCell>{config.user_label}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {config.whatsapp_accounts?.name || "N/D"}
+                        {config.whatsapp_accounts?.verified_name || "N/D"}
                       </Badge>
                     </TableCell>
                     <TableCell>
