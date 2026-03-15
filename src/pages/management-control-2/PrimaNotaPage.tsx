@@ -45,6 +45,9 @@ interface FinancialMovement {
   created_at: string;
   status: string;
   attachment_url: string | null;
+  economic_subject_id: string | null;
+  economic_subject_type: string | null;
+  subject_name: string | null;
 }
 
 interface MovementFormData {
