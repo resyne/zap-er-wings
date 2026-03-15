@@ -214,6 +214,8 @@ export default function PrimaNotaPage() {
           attachment_url: '',
           user_id: user?.user?.id,
           account_code: code,
+          economic_subject_id: data.economic_subject_id || null,
+          economic_subject_type: data.economic_subject_type || null,
         });
       if (error) throw error;
     },
