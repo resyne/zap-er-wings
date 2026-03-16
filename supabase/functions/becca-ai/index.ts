@@ -250,6 +250,7 @@ CAMPI DATA PER AZIONE:
 - lead: { "nome_contatto": "...", "azienda": "...", "telefono": "...", "email": "...", "interesse": "...", "paese": "..." }
 - update_lead: { "lead_id": "UUID", "new_status": "new|contacted|qualified|proposal|negotiation|won|lost", "note": "..." }
 - update_task: { "task_id": "UUID", "new_status": "todo|in_progress|done", "note": "..." }
+- schedule_commessa: { "commessa_id": "UUID della commessa", "phase_id": "UUID della fase (se noto)", "phase_type": "produzione|installazione|manutenzione|spedizione", "scheduled_date": "YYYY-MM-DD", "note": "..." }. Se l'utente indica solo il numero commessa (es COM-2026-0010), cerca l'ID corrispondente dai dati ERP. Se non specifica la fase, usa la prima fase pendente della commessa.
 - conversation: {} (solo reply_message)
 
 REGOLE IMPORTANTI:
