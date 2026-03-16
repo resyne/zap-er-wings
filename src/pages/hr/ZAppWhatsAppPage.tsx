@@ -16,6 +16,7 @@ import WhatsAppAudioPlayer from "@/components/crm/WhatsAppAudioPlayer";
 import SaveToLeadButton from "@/components/whatsapp/SaveToLeadButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeadDataForPhone } from "@/hooks/useLeadDataForPhone";
+import { useBeccaPhoneNumbers, isBeccaPhone } from "@/hooks/useBeccaPhoneNumbers";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";

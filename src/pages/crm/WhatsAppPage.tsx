@@ -48,6 +48,7 @@ import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLan
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLeadDataForPhone, LeadData } from "@/hooks/useLeadDataForPhone";
+import { useBeccaPhoneNumbers, isBeccaPhone } from "@/hooks/useBeccaPhoneNumbers";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
