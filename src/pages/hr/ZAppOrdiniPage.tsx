@@ -119,6 +119,7 @@ const DELIVERY_MODES_RICAMBI = [
 const INTERVENTION_TYPES = [
   { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
   { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
+  { value: "altro", label: "Altro", icon: Settings, desc: "Altro tipo di intervento" },
 ];
 
 const statusColors: Record<string, string> = {
@@ -440,7 +441,7 @@ export default function ZAppOrdiniPage() {
       if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
       if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
-      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Intervento";
+      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : interventionType === "altro" ? "Altro" : "Intervento";
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
@@ -528,7 +529,7 @@ export default function ZAppOrdiniPage() {
       const commessaTitle = orderTypeCategory === "fornitura"
         ? `Fornitura ${subject || productName} per ${customerName}`.trim()
         : orderTypeCategory === "intervento"
-        ? `${interventionType === "manutenzione" ? "Manutenzione" : "Riparazione"} per ${customerName}`.trim()
+        ? `${interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Altro intervento"} per ${customerName}`.trim()
         : `Ricambi per ${customerName}`.trim();
 
       const { data: commessa, error: commError } = await supabase
