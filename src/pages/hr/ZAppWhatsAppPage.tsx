@@ -394,6 +394,10 @@ export default function ZAppWhatsAppPage() {
   };
 
   const filteredConversations = conversations?.filter(conv => {
+    // Escludi conversazioni Becca (numeri interni autorizzati)
+    if (beccaPhones.length > 0 && isBeccaPhone(conv.customer_phone, beccaPhones)) {
+      return false;
+    }
     if (!searchQuery) return true;
     const s = searchQuery.toLowerCase();
     return (

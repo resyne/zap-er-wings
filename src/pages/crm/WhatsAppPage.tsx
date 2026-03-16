@@ -1350,6 +1350,10 @@ const syncTemplatesMutation = useMutation({
   // Filtra conversazioni in base alla ricerca, stato archiviazione, lingua e PIPELINE
   // STRICT ISOLATION: Zapper vede solo chat Zapper, Vesuviano vede solo chat Vesuviano
   const filteredConversations = conversations?.filter(conv => {
+    // 0) Escludi conversazioni Becca (numeri interni autorizzati)
+    if (beccaPhones.length > 0 && isBeccaPhone(conv.customer_phone, beccaPhones)) {
+      return false;
+    }
     // 1) FILTRO PIPELINE RIGIDO su lead collegato
     if (selectedAccount?.pipeline && conv.leads?.pipeline && conv.leads.pipeline !== selectedAccount.pipeline) {
       return false;
