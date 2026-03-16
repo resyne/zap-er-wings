@@ -128,6 +128,7 @@ export function SettingsPage() {
 
         <TabsContent value="password" className="space-y-4">
           <PasswordChange />
+          {isAdmin && <AdminPasswordReset />}
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">
