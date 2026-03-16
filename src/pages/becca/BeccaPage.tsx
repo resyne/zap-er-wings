@@ -47,6 +47,7 @@ export default function BeccaPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newName, setNewName] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<string>("");
+  const [selectedLog, setSelectedLog] = useState<any>(null);
 
   // Fetch WhatsApp accounts
   const { data: accounts } = useQuery({
