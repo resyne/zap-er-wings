@@ -110,7 +110,7 @@ serve(async (req) => {
       supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(50),
       supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(30),
       supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(30),
-      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, created_at").order("created_at", { ascending: false }).limit(30),
+      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(30),
       // Get conversation history for context
       supabase.from("whatsapp_messages").select("direction, content, message_type, created_at").eq("conversation_id", body.conversation_id).order("created_at", { ascending: false }).limit(20),
       supabase.from("becca_settings").select("*").eq("account_id", body.account_id).single(),
@@ -121,6 +121,7 @@ serve(async (req) => {
     const tasks = tasksRes.data || [];
     const orders = ordersRes.data || [];
     const commesse = commesseRes.data || [];
+    const commessaPhases = commessaPhasesRes.data || [];
     const history = (conversationHistory.data || []).reverse();
     const settings = settingsRes.data;
 
@@ -136,7 +137,9 @@ serve(async (req) => {
 
     const orderList = orders.slice(0, 15).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
 
-    const commessaList = commesse.slice(0, 15).map(c => `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} (ID: ${c.id})`).join("\n");
+    const commessaList = commesse.slice(0, 15).map((c: any) => `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${c.customers?.name || c.customers?.company_name || 'N/D'} (ID: ${c.id})`).join("\n");
+
+    const phaseList = commessaPhases.slice(0, 20).map((p: any) => `- Fase: ${p.phase_type} | Commessa: ${p.commesse?.number || 'N/D'} (${p.commesse?.title || ''}) | Stato: ${p.status}${p.scheduled_date ? ` | Calendarizzata: ${p.scheduled_date}` : ' | NON calendarizzata'} (Phase ID: ${p.id}, Commessa ID: ${p.commessa_id})`).join("\n");
 
     // Build conversation history for context
     const historyStr = history.map(m => {
@@ -204,6 +207,9 @@ ${orderList || "Nessun ordine"}
 🏗️ COMMESSE RECENTI:
 ${commessaList || "Nessuna commessa"}
 
+📅 FASI COMMESSE DA CALENDARIZZARE:
+${phaseList || "Nessuna fase pendente"}
+
 ═══ STORICO CONVERSAZIONE ═══
 ${historyStr || "(Primo messaggio)"}
 
@@ -219,6 +225,7 @@ TIPI DI AZIONE:
 - "lead": Creare un nuovo lead CRM
 - "update_lead": Aggiornare lo stato di un lead esistente
 - "update_task": Aggiornare lo stato di un task esistente
+- "schedule_commessa": Calendarizzare (impostare una data) per una fase di una commessa. L'utente potrebbe dire "calendarizza la commessa COM-2026-0010 per il 20 marzo" o "programma la produzione della commessa X per lunedì"
 - "conversation": Messaggio conversazionale generico (saluti, ringraziamenti, domande generiche su Becca)
 - "unknown": Non classificabile
 
@@ -226,7 +233,7 @@ METODI DI PAGAMENTO VALIDI: contanti, carta, bonifico, anticipo_personale, carta
 
 Rispondi ESCLUSIVAMENTE in formato JSON valido:
 {
-  "action": "query" | "prima_nota" | "task" | "sales_order" | "lead" | "update_lead" | "update_task" | "conversation" | "unknown",
+  "action": "query" | "prima_nota" | "task" | "sales_order" | "lead" | "update_lead" | "update_task" | "schedule_commessa" | "conversation" | "unknown",
   "confidence": numero da 0 a 100,
   "data": {
     // Compilare i campi rilevanti per l'azione (vedi sotto)
@@ -243,6 +250,7 @@ CAMPI DATA PER AZIONE:
 - lead: { "nome_contatto": "...", "azienda": "...", "telefono": "...", "email": "...", "interesse": "...", "paese": "..." }
 - update_lead: { "lead_id": "UUID", "new_status": "new|contacted|qualified|proposal|negotiation|won|lost", "note": "..." }
 - update_task: { "task_id": "UUID", "new_status": "todo|in_progress|done", "note": "..." }
+- schedule_commessa: { "commessa_id": "UUID della commessa", "phase_id": "UUID della fase (se noto)", "phase_type": "produzione|installazione|manutenzione|spedizione", "scheduled_date": "YYYY-MM-DD", "note": "..." }. Se l'utente indica solo il numero commessa (es COM-2026-0010), cerca l'ID corrispondente dai dati ERP. Se non specifica la fase, usa la prima fase pendente della commessa.
 - conversation: {} (solo reply_message)
 
 REGOLE IMPORTANTI:
@@ -499,6 +507,41 @@ async function executeAction(
       return {
         entityId: data.task_id, entityType: "tasks",
         message: `✏️ Task aggiornato\n📌 Nuovo stato: *${data.new_status || 'aggiornato'}*`
+      };
+    }
+
+    case "schedule_commessa": {
+      let phaseId = data.phase_id;
+      const scheduledDate = data.scheduled_date;
+      if (!scheduledDate) throw new Error("Data di calendarizzazione mancante");
+
+      // If no phase_id, find the first pending phase for the commessa
+      if (!phaseId && data.commessa_id) {
+        const { data: phases } = await supabase.from("commessa_phases")
+          .select("id, phase_type, phase_order")
+          .eq("commessa_id", data.commessa_id)
+          .eq("status", "pending")
+          .order("phase_order", { ascending: true })
+          .limit(1);
+        if (phases && phases.length > 0) {
+          phaseId = phases[0].id;
+        }
+      }
+
+      if (!phaseId) throw new Error("Nessuna fase pendente trovata per questa commessa");
+
+      const { error } = await supabase.from("commessa_phases").update({
+        scheduled_date: new Date(scheduledDate).toISOString(),
+      }).eq("id", phaseId);
+      if (error) throw new Error(`Failed to schedule commessa phase: ${error.message}`);
+
+      // Get commessa info for reply
+      const { data: commessa } = await supabase.from("commesse")
+        .select("number, title").eq("id", data.commessa_id).single();
+
+      return {
+        entityId: phaseId, entityType: "commessa_phases",
+        message: `📅 Commessa calendarizzata!\n\n🏗️ Commessa: *${commessa?.number || 'N/D'}* - ${commessa?.title || ''}\n📌 Fase: ${data.phase_type || 'N/D'}\n📆 Data: *${scheduledDate}*${data.note ? `\n📝 ${data.note}` : ''}`
       };
     }
 
