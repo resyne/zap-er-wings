@@ -119,6 +119,7 @@ const DELIVERY_MODES_RICAMBI = [
 const INTERVENTION_TYPES = [
   { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
   { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
+  { value: "altro", label: "Altro", icon: Settings, desc: "Altro tipo di intervento" },
 ];
 
 const statusColors: Record<string, string> = {
