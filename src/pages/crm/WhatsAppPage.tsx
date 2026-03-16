@@ -153,6 +153,7 @@ export default function WhatsAppPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const { data: beccaPhones = [] } = useBeccaPhoneNumbers();
   const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
