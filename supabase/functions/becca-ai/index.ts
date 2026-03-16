@@ -110,7 +110,7 @@ serve(async (req) => {
       supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(50),
       supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(30),
       supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(30),
-      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(30),
+      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, shipping_city, shipping_province, shipping_address, article, description, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(30),
       // Get conversation history for context
       supabase.from("whatsapp_messages").select("direction, content, message_type, created_at").eq("conversation_id", body.conversation_id).order("created_at", { ascending: false }).limit(20),
       supabase.from("becca_settings").select("*").eq("account_id", body.account_id).single(),
@@ -137,7 +137,11 @@ serve(async (req) => {
 
     const orderList = orders.slice(0, 15).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
 
-    const commessaList = commesse.slice(0, 15).map((c: any) => `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${c.customers?.name || c.customers?.company_name || 'N/D'} (ID: ${c.id})`).join("\n");
+    const commessaList = commesse.slice(0, 15).map((c: any) => {
+      const cliente = c.customers?.name || c.customers?.company_name || 'N/D';
+      const loc = [c.shipping_city, c.shipping_province].filter(Boolean).join(', ');
+      return `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${cliente}${loc ? ` | Località: ${loc}` : ''}${c.article ? ` | Articolo: ${c.article}` : ''} (ID: ${c.id})`;
+    }).join("\n");
 
     const phaseList = commessaPhases.slice(0, 20).map((p: any) => `- Fase: ${p.phase_type} | Commessa: ${p.commesse?.number || 'N/D'} (${p.commesse?.title || ''}) | Stato: ${p.status}${p.scheduled_date ? ` | Calendarizzata: ${p.scheduled_date}` : ' | NON calendarizzata'} (Phase ID: ${p.id}, Commessa ID: ${p.commessa_id})`).join("\n");
 
@@ -250,7 +254,7 @@ CAMPI DATA PER AZIONE:
 - lead: { "nome_contatto": "...", "azienda": "...", "telefono": "...", "email": "...", "interesse": "...", "paese": "..." }
 - update_lead: { "lead_id": "UUID", "new_status": "new|contacted|qualified|proposal|negotiation|won|lost", "note": "..." }
 - update_task: { "task_id": "UUID", "new_status": "todo|in_progress|done", "note": "..." }
-- schedule_commessa: { "commessa_id": "UUID della commessa", "phase_id": "UUID della fase (se noto)", "phase_type": "produzione|installazione|manutenzione|spedizione", "scheduled_date": "YYYY-MM-DD", "note": "..." }. Se l'utente indica solo il numero commessa (es COM-2026-0010), cerca l'ID corrispondente dai dati ERP. Se non specifica la fase, usa la prima fase pendente della commessa.
+- schedule_commessa: { "commessa_id": "UUID della commessa", "phase_id": "UUID della fase (se noto)", "phase_type": "produzione|installazione|manutenzione|spedizione", "scheduled_date": "YYYY-MM-DD", "note": "..." }. IMPORTANTE: l'utente potrebbe NON indicare il numero commessa ma riferirsi al cliente (es. "calendarizza quella di Rossi") o alla località (es. "programma la commessa di Milano"). Devi dedurre la commessa corretta incrociando i dati ERP: nome cliente, città, provincia, titolo, articolo. Se ci sono più match possibili, chiedi chiarimento. Se non specifica la fase, usa la prima fase pendente.
 - conversation: {} (solo reply_message)
 
 REGOLE IMPORTANTI:
