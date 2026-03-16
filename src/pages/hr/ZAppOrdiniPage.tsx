@@ -441,7 +441,7 @@ export default function ZAppOrdiniPage() {
       if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
       if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
-      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Intervento";
+      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : interventionType === "altro" ? "Altro" : "Intervento";
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
