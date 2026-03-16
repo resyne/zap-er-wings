@@ -104,14 +104,14 @@ serve(async (req) => {
 
     // Step 3: Fetch comprehensive ERP context data in parallel
     const [
-      customersRes, leadsRes, tasksRes, ordersRes, commesseRes, conversationHistory, settingsRes
+      customersRes, leadsRes, tasksRes, ordersRes, commesseRes, commessaPhasesRes, conversationHistory, settingsRes
     ] = await Promise.all([
       supabase.from("customers").select("id, name, company_name, tax_id, email, phone").limit(100),
       supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(50),
       supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(30),
       supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(30),
       supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, shipping_city, shipping_province, shipping_address, article, description, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(30),
-      // Get conversation history for context
+      supabase.from("commessa_phases").select("id, commessa_id, phase_type, phase_order, status, scheduled_date, started_date, completed_date, assigned_to, notes").order("phase_order", { ascending: true }).limit(100),
       supabase.from("whatsapp_messages").select("direction, content, message_type, created_at").eq("conversation_id", body.conversation_id).order("created_at", { ascending: false }).limit(20),
       supabase.from("becca_settings").select("*").eq("account_id", body.account_id).single(),
     ]);
