@@ -207,6 +207,9 @@ ${orderList || "Nessun ordine"}
 🏗️ COMMESSE RECENTI:
 ${commessaList || "Nessuna commessa"}
 
+📅 FASI COMMESSE DA CALENDARIZZARE:
+${phaseList || "Nessuna fase pendente"}
+
 ═══ STORICO CONVERSAZIONE ═══
 ${historyStr || "(Primo messaggio)"}
 
