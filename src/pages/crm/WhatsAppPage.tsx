@@ -48,6 +48,7 @@ import { useChatTranslation, getLanguageFromCountry, SUPPORTED_LANGUAGES, getLan
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLeadDataForPhone, LeadData } from "@/hooks/useLeadDataForPhone";
+import { useBeccaPhoneNumbers, isBeccaPhone } from "@/hooks/useBeccaPhoneNumbers";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -152,6 +153,7 @@ export default function WhatsAppPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const { data: beccaPhones = [] } = useBeccaPhoneNumbers();
   const [selectedBU, setSelectedBU] = useState<BusinessUnit | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<WhatsAppAccount | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
@@ -1348,6 +1350,10 @@ const syncTemplatesMutation = useMutation({
   // Filtra conversazioni in base alla ricerca, stato archiviazione, lingua e PIPELINE
   // STRICT ISOLATION: Zapper vede solo chat Zapper, Vesuviano vede solo chat Vesuviano
   const filteredConversations = conversations?.filter(conv => {
+    // 0) Escludi conversazioni Becca (numeri interni autorizzati)
+    if (beccaPhones.length > 0 && isBeccaPhone(conv.customer_phone, beccaPhones)) {
+      return false;
+    }
     // 1) FILTRO PIPELINE RIGIDO su lead collegato
     if (selectedAccount?.pipeline && conv.leads?.pipeline && conv.leads.pipeline !== selectedAccount.pipeline) {
       return false;

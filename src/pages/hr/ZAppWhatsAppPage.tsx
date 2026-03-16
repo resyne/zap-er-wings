@@ -16,6 +16,7 @@ import WhatsAppAudioPlayer from "@/components/crm/WhatsAppAudioPlayer";
 import SaveToLeadButton from "@/components/whatsapp/SaveToLeadButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeadDataForPhone } from "@/hooks/useLeadDataForPhone";
+import { useBeccaPhoneNumbers, isBeccaPhone } from "@/hooks/useBeccaPhoneNumbers";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
@@ -99,6 +100,7 @@ export default function ZAppWhatsAppPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: beccaPhones = [] } = useBeccaPhoneNumbers();
 
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
@@ -392,6 +394,10 @@ export default function ZAppWhatsAppPage() {
   };
 
   const filteredConversations = conversations?.filter(conv => {
+    // Escludi conversazioni Becca (numeri interni autorizzati)
+    if (beccaPhones.length > 0 && isBeccaPhone(conv.customer_phone, beccaPhones)) {
+      return false;
+    }
     if (!searchQuery) return true;
     const s = searchQuery.toLowerCase();
     return (
