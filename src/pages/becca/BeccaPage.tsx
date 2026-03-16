@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Bot, Plus, Trash2, Activity, Settings, Users, Clock, CheckCircle2, XCircle, AlertCircle, FileText, ListTodo, ShoppingCart, UserPlus } from "lucide-react";
+import { Bot, Plus, Trash2, Activity, Settings, Users, Clock, CheckCircle2, XCircle, AlertCircle, FileText, ListTodo, ShoppingCart, UserPlus, MessageCircle } from "lucide-react";
+import { BeccaConversationsTab } from "@/components/becca/BeccaConversationsTab";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
