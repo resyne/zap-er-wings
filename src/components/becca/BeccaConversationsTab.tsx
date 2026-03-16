@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBeccaPhoneNumbers, isBeccaPhone } from "@/hooks/useBeccaPhoneNumbers";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageCircle, ArrowLeft, Check, CheckCheck, Clock, AlertCircle, Bot } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MessageCircle, ArrowLeft, Check, CheckCheck, Clock, AlertCircle, Bot, Send } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface BeccaConversation {
   id: string;
@@ -36,19 +38,17 @@ export function BeccaConversationsTab() {
   const queryClient = useQueryClient();
   const { data: beccaPhones = [] } = useBeccaPhoneNumbers();
   const [selectedConv, setSelectedConv] = useState<BeccaConversation | null>(null);
+  const [messageText, setMessageText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all conversations across all accounts
   const { data: allConversations = [] } = useQuery({
     queryKey: ["becca-conversations", beccaPhones],
     queryFn: async () => {
       if (!beccaPhones.length) return [];
       const { data, error } = await supabase
-        .from("whatsapp_conversations")
-        .select("*")
+        .from("whatsapp_conversations").select("*")
         .order("last_message_at", { ascending: false });
       if (error) throw error;
-      // Filter to only Becca authorized phones
       return (data || []).filter((c: any) =>
         isBeccaPhone(c.customer_phone, beccaPhones)
       ) as BeccaConversation[];
@@ -57,14 +57,12 @@ export function BeccaConversationsTab() {
     refetchInterval: 5000,
   });
 
-  // Fetch messages for selected conversation
   const { data: messages = [] } = useQuery({
     queryKey: ["becca-conv-messages", selectedConv?.id],
     queryFn: async () => {
       if (!selectedConv) return [];
       const { data, error } = await supabase
-        .from("whatsapp_messages")
-        .select("*")
+        .from("whatsapp_messages").select("*")
         .eq("conversation_id", selectedConv.id)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -74,12 +72,10 @@ export function BeccaConversationsTab() {
     refetchInterval: 3000,
   });
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch authorized users for display name mapping
   const { data: authorizedUsers = [] } = useQuery({
     queryKey: ["becca-authorized-users"],
     queryFn: async () => {
@@ -90,6 +86,34 @@ export function BeccaConversationsTab() {
       return (data || []) as any[];
     },
   });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (text: string) => {
+      if (!selectedConv) throw new Error("No conversation selected");
+      const { error } = await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          account_id: selectedConv.account_id,
+          conversation_id: selectedConv.id,
+          to: null,
+          message: text,
+          type: "text",
+        },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setMessageText("");
+      queryClient.invalidateQueries({ queryKey: ["becca-conv-messages", selectedConv?.id] });
+      queryClient.invalidateQueries({ queryKey: ["becca-conversations"] });
+    },
+    onError: (e: any) => toast.error(`Errore invio: ${e.message}`),
+  });
+
+  const handleSend = () => {
+    const text = messageText.trim();
+    if (!text) return;
+    sendMessageMutation.mutate(text);
+  };
 
   const getDisplayName = (phone: string) => {
     const normalized = phone.replace(/\D/g, "").slice(-9);
@@ -113,7 +137,6 @@ export function BeccaConversationsTab() {
     const displayName = getDisplayName(selectedConv.customer_phone);
     return (
       <Card className="h-[600px] flex flex-col">
-        {/* Chat header */}
         <div className="flex items-center gap-3 p-4 border-b">
           <Button variant="ghost" size="icon" onClick={() => setSelectedConv(null)}>
             <ArrowLeft className="h-4 w-4" />
@@ -129,20 +152,15 @@ export function BeccaConversationsTab() {
           </div>
         </div>
 
-        {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-3">
             {messages.map((msg) => {
               const isOutbound = msg.direction === "outbound";
               return (
                 <div key={msg.id} className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                      isOutbound
-                        ? "bg-violet-600 text-white rounded-br-md"
-                        : "bg-muted rounded-bl-md"
-                    }`}
-                  >
+                  <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                    isOutbound ? "bg-violet-600 text-white rounded-br-md" : "bg-muted rounded-bl-md"
+                  }`}>
                     <p className="text-sm whitespace-pre-wrap">{msg.content || `[${msg.message_type}]`}</p>
                     <div className={`flex items-center gap-1 mt-1 ${isOutbound ? "justify-end" : ""}`}>
                       <span className={`text-[10px] ${isOutbound ? "text-violet-200" : "text-muted-foreground"}`}>
@@ -157,11 +175,29 @@ export function BeccaConversationsTab() {
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
+
+        {/* Send message input */}
+        <div className="p-3 border-t flex gap-2">
+          <Input
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Scrivi un messaggio..."
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            disabled={sendMessageMutation.isPending}
+          />
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={!messageText.trim() || sendMessageMutation.isPending}
+            className="bg-violet-600 hover:bg-violet-700"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </Card>
     );
   }
 
-  // Conversation list
   return (
     <Card>
       <CardContent className="p-0">

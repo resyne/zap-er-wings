@@ -47,16 +47,11 @@ serve(async (req) => {
           "Authorization": `Bearer ${supabaseServiceKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          audio_url: body.media_url,
-          message_id: body.message_id,
-        }),
+        body: JSON.stringify({ audio_url: body.media_url, message_id: body.message_id }),
       });
-
       if (transcribeRes.ok) {
         const transcribeData = await transcribeRes.json();
         textToAnalyze = transcribeData.transcription || transcribeData.translated_text || "";
-        console.log("Transcription:", textToAnalyze);
       } else {
         throw new Error("Failed to transcribe audio");
       }
@@ -66,14 +61,9 @@ serve(async (req) => {
     if (body.message_type === "image" && body.media_url) {
       console.log("Analyzing image...");
       let imageUrl = body.media_url;
-
       if (!body.media_url.startsWith("http")) {
         const { data: account } = await supabase
-          .from("whatsapp_accounts")
-          .select("access_token")
-          .eq("id", body.account_id)
-          .single();
-
+          .from("whatsapp_accounts").select("access_token").eq("id", body.account_id).single();
         if (account?.access_token) {
           const mediaRes = await fetch(`https://graph.facebook.com/v21.0/${body.media_url}`, {
             headers: { "Authorization": `Bearer ${account.access_token}` },
@@ -91,151 +81,192 @@ serve(async (req) => {
           }
         }
       }
-
       const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Authorization": `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [{
             role: "user",
             content: [
-              {
-                type: "text",
-                text: `Analizza questa immagine e descrivi il contenuto in modo dettagliato.
-Se è un documento contabile (fattura, scontrino, ricevuta), estrai tutti i dati fiscali.
-Se è altro, descrivi cosa vedi.
-Rispondi in testo libero, in italiano.`
-              },
-              {
-                type: "image_url",
-                image_url: { url: imageUrl }
-              }
+              { type: "text", text: "Analizza questa immagine e descrivi il contenuto in modo dettagliato. Se è un documento contabile (fattura, scontrino, ricevuta), estrai tutti i dati fiscali. Rispondi in italiano." },
+              { type: "image_url", image_url: { url: imageUrl } }
             ]
           }],
-          temperature: 0.2,
-          max_tokens: 1000,
+          temperature: 0.2, max_tokens: 1000,
         }),
       });
-
       if (visionRes.ok) {
         const visionData = await visionRes.json();
         textToAnalyze = visionData.choices?.[0]?.message?.content || "";
-        console.log("Vision analysis:", textToAnalyze);
-      } else {
-        throw new Error("Failed to analyze image");
-      }
+      } else { throw new Error("Failed to analyze image"); }
     }
 
-    // Step 3: Get context data for AI
-    const { data: customers } = await supabase
-      .from("customers")
-      .select("id, name, company_name, tax_id")
-      .limit(50);
+    // Step 3: Fetch comprehensive ERP context data in parallel
+    const [
+      customersRes, leadsRes, tasksRes, ordersRes, commesseRes, conversationHistory, settingsRes
+    ] = await Promise.all([
+      supabase.from("customers").select("id, name, company_name, tax_id, email, phone").limit(100),
+      supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(30),
+      supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(30),
+      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, created_at").order("created_at", { ascending: false }).limit(30),
+      // Get conversation history for context
+      supabase.from("whatsapp_messages").select("direction, content, message_type, created_at").eq("conversation_id", body.conversation_id).order("created_at", { ascending: false }).limit(20),
+      supabase.from("becca_settings").select("*").eq("account_id", body.account_id).single(),
+    ]);
 
-    const customerList = (customers || [])
-      .map(c => `${c.name || c.company_name} (ID: ${c.id})`)
-      .join("\n");
-
-    // Get Becca settings
-    const { data: settings } = await supabase
-      .from("becca_settings")
-      .select("*")
-      .eq("account_id", body.account_id)
-      .single();
+    const customers = customersRes.data || [];
+    const leads = leadsRes.data || [];
+    const tasks = tasksRes.data || [];
+    const orders = ordersRes.data || [];
+    const commesse = commesseRes.data || [];
+    const history = (conversationHistory.data || []).reverse();
+    const settings = settingsRes.data;
 
     const persona = settings?.ai_persona || "Sei Becca, l'assistente AI aziendale di Zapper. Sei efficiente, precisa e professionale.";
     const autoThreshold = settings?.auto_confirm_threshold || 90;
 
-    // Step 4: Classify intent and extract data with AI
-    const allowedActionsStr = body.allowed_actions.join(", ");
+    // Build ERP context strings
+    const customerList = customers.map(c => `- ${c.name || c.company_name} (ID: ${c.id}${c.email ? `, email: ${c.email}` : ''}${c.phone ? `, tel: ${c.phone}` : ''})`).join("\n");
+
+    const leadList = leads.slice(0, 20).map(l => `- ${l.contact_name || 'N/D'}${l.company_name ? ` @ ${l.company_name}` : ''} | Status: ${l.status} | Pipeline: ${l.pipeline} | Valore: €${l.value || 0}${l.phone ? ` | Tel: ${l.phone}` : ''} (ID: ${l.id})`).join("\n");
+
+    const taskList = tasks.slice(0, 15).map(t => `- [${t.status}] ${t.title}${t.priority ? ` (priorità: ${t.priority})` : ''}${t.due_date ? ` scadenza: ${t.due_date}` : ''} (ID: ${t.id})`).join("\n");
+
+    const orderList = orders.slice(0, 15).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
+
+    const commessaList = commesse.slice(0, 15).map(c => `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} (ID: ${c.id})`).join("\n");
+
+    // Build conversation history for context
+    const historyStr = history.map(m => {
+      const role = m.direction === "inbound" ? "Utente" : "Becca";
+      return `${role}: ${m.content || `[${m.message_type}]`}`;
+    }).join("\n");
+
+    // Lead stats
+    const leadStats = {
+      total: leads.length,
+      new: leads.filter(l => l.status === 'new').length,
+      contacted: leads.filter(l => l.status === 'contacted').length,
+      qualified: leads.filter(l => l.status === 'qualified').length,
+    };
+
+    const taskStats = {
+      total: tasks.length,
+      todo: tasks.filter(t => t.status === 'todo').length,
+      inProgress: tasks.filter(t => t.status === 'in_progress').length,
+      done: tasks.filter(t => t.status === 'done').length,
+    };
+
+    const orderStats = {
+      total: orders.length,
+      draft: orders.filter(o => o.status === 'draft').length,
+      inProgress: orders.filter(o => o.status === 'in_progress').length,
+      completed: orders.filter(o => o.status === 'completed').length,
+    };
 
     const today = new Date().toISOString().split('T')[0];
-    const aiPrompt = `${persona}
+    const allowedActionsStr = body.allowed_actions.join(", ");
+
+    const systemPrompt = `${persona}
 
 DATA DI OGGI: ${today}
 
-Sei un'assistente AI che riceve messaggi WhatsApp dal team aziendale e deve classificare l'intento ed estrarre i dati per eseguire azioni nell'ERP.
+Sei Becca, l'assistente AI aziendale di Zapper collegata all'ERP. Puoi:
+1. CONSULTARE dati ERP e rispondere a domande (lead, ordini, task, commesse, clienti)
+2. CREARE nuove entità (prima nota, task, ordini, lead)
+3. AGGIORNARE entità esistenti (lead status, task status)
+4. CONVERSARE in modo naturale e professionale
 
-AZIONI DISPONIBILI: ${allowedActionsStr}
+AZIONI DISPONIBILI PER QUESTO UTENTE: ${allowedActionsStr}
 
-DESCRIZIONE AZIONI:
-- prima_nota: Registrare un movimento contabile (entrata/uscita, importo, fornitore/cliente, IVA, metodo pagamento)
-- task: Creare un task/promemoria (titolo, descrizione, scadenza, priorità, assegnazione)
-- sales_order: Creare un ordine di vendita (cliente, prodotti, importo, note)
-- lead: Creare un nuovo lead CRM (nome, azienda, telefono, email, interesse, paese)
+═══ DATI ERP IN TEMPO REALE ═══
 
-CLIENTI/FORNITORI ESISTENTI:
+📊 STATISTICHE:
+- Lead: ${leadStats.total} totali (${leadStats.new} nuovi, ${leadStats.contacted} contattati, ${leadStats.qualified} qualificati)
+- Task: ${taskStats.total} totali (${taskStats.todo} da fare, ${taskStats.inProgress} in corso, ${taskStats.done} completati)
+- Ordini: ${orderStats.total} totali (${orderStats.draft} bozze, ${orderStats.inProgress} in corso, ${orderStats.completed} completati)
+- Commesse: ${commesse.length} totali
+
+👥 CLIENTI/FORNITORI:
 ${customerList || "Nessuno in database"}
+
+🎯 LEAD RECENTI:
+${leadList || "Nessun lead"}
+
+📋 TASK RECENTI:
+${taskList || "Nessun task"}
+
+🛒 ORDINI RECENTI:
+${orderList || "Nessun ordine"}
+
+🏗️ COMMESSE RECENTI:
+${commessaList || "Nessuna commessa"}
+
+═══ STORICO CONVERSAZIONE ═══
+${historyStr || "(Primo messaggio)"}
+
+═══ ISTRUZIONI DI RISPOSTA ═══
+
+Per ogni messaggio dell'utente devi classificare cosa vuole fare e rispondere in JSON.
+
+TIPI DI AZIONE:
+- "query": L'utente chiede informazioni sull'ERP (lead, ordini, task, statistiche). Rispondi direttamente con i dati. NON servono conferme.
+- "prima_nota": Registrare un movimento contabile
+- "task": Creare un task
+- "sales_order": Creare un ordine di vendita
+- "lead": Creare un nuovo lead CRM
+- "update_lead": Aggiornare lo stato di un lead esistente
+- "update_task": Aggiornare lo stato di un task esistente
+- "conversation": Messaggio conversazionale generico (saluti, ringraziamenti, domande generiche su Becca)
+- "unknown": Non classificabile
 
 METODI DI PAGAMENTO VALIDI: contanti, carta, bonifico, anticipo_personale, carta_aziendale, anticipo_dipendente, carta_q8, american_express, banca, banca_intesa, cassa
 
-TESTO DEL MESSAGGIO:
-"${textToAnalyze}"
-
-ISTRUZIONI:
-1. Classifica l'intento del messaggio tra le azioni disponibili
-2. Estrai tutti i dati rilevanti
-3. Se non riesci a classificare o mancano dati essenziali, usa "unknown"
-4. Genera una domanda di conferma da inviare all'utente
-
 Rispondi ESCLUSIVAMENTE in formato JSON valido:
 {
-  "action": "prima_nota" | "task" | "sales_order" | "lead" | "unknown",
+  "action": "query" | "prima_nota" | "task" | "sales_order" | "lead" | "update_lead" | "update_task" | "conversation" | "unknown",
   "confidence": numero da 0 a 100,
   "data": {
-    // Per prima_nota:
-    "tipo": "entrata" | "uscita",
-    "importo_totale": numero,
-    "imponibile": numero | null,
-    "iva_aliquota": numero | null,
-    "iva_importo": numero | null,
-    "regime_iva": "ordinaria_22" | "reverse_charge" | "intracomunitaria" | "extra_ue" | "esente" | "non_soggetta",
-    "descrizione": "...",
-    "fornitore_cliente_id": "UUID" | null,
-    "fornitore_cliente_nome": "...",
-    "data_documento": "YYYY-MM-DD",
-    "metodo_pagamento": "..." | null,
-
-    // Per task:
-    "titolo": "...",
-    "descrizione": "...",
-    "scadenza": "YYYY-MM-DD" | null,
-    "priorita": "low" | "medium" | "high" | "urgent",
-
-    // Per sales_order:
-    "cliente_id": "UUID" | null,
-    "cliente_nome": "...",
-    "prodotti": "...",
-    "importo": numero | null,
-    "note": "...",
-
-    // Per lead:
-    "nome_contatto": "...",
-    "azienda": "..." | null,
-    "telefono": "..." | null,
-    "email": "..." | null,
-    "interesse": "...",
-    "paese": "..." | null
+    // Compilare i campi rilevanti per l'azione (vedi sotto)
   },
-  "confirmation_message": "Messaggio di conferma da inviare via WhatsApp, con emoji e formattazione WhatsApp (*grassetto*, _corsivo_). Riepiloga cosa hai capito e chiedi conferma. Esempio: '📋 Ho capito che vuoi registrare una *uscita* di €500...\n\nConfermi? Rispondi *Sì* o *No*'",
-  "note_ai": "eventuali dubbi o note"
-}`;
+  "reply_message": "Messaggio da inviare all'utente via WhatsApp con emoji e formattazione WhatsApp (*grassetto*, _corsivo_). Per 'query' includi i dati richiesti in modo leggibile. Per azioni di creazione, riepiloga e chiedi conferma.",
+  "note_ai": "eventuali dubbi o note interne"
+}
+
+CAMPI DATA PER AZIONE:
+- query: { "query_type": "leads|tasks|orders|commesse|stats|general", "response_data": "testo con i risultati" }
+- prima_nota: { "tipo": "entrata|uscita", "importo_totale": N, "imponibile": N, "iva_aliquota": N, "iva_importo": N, "regime_iva": "...", "descrizione": "...", "fornitore_cliente_id": "UUID"|null, "fornitore_cliente_nome": "...", "data_documento": "YYYY-MM-DD", "metodo_pagamento": "..." }
+- task: { "titolo": "...", "descrizione": "...", "scadenza": "YYYY-MM-DD"|null, "priorita": "low|medium|high|urgent" }
+- sales_order: { "cliente_id": "UUID"|null, "cliente_nome": "...", "prodotti": "...", "importo": N, "note": "..." }
+- lead: { "nome_contatto": "...", "azienda": "...", "telefono": "...", "email": "...", "interesse": "...", "paese": "..." }
+- update_lead: { "lead_id": "UUID", "new_status": "new|contacted|qualified|proposal|negotiation|won|lost", "note": "..." }
+- update_task: { "task_id": "UUID", "new_status": "todo|in_progress|done", "note": "..." }
+- conversation: {} (solo reply_message)
+
+REGOLE IMPORTANTI:
+1. Per "query", rispondi con confidence 100 e includi i dati in reply_message
+2. Per "conversation", rispondi con confidence 100
+3. Per azioni di creazione (prima_nota, task, sales_order, lead), usa confidence alta se i dati sono chiari
+4. Quando l'utente dice "sì" o "confermo" a un messaggio precedente di conferma, usa confidence 100
+5. Rispondi SEMPRE in italiano
+6. Usa formattazione WhatsApp nel reply_message: *grassetto*, _corsivo_, ~barrato~`;
+
+    // Build messages array with conversation context
+    const aiMessages: any[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: textToAnalyze },
+    ];
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Authorization": `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [{ role: "user", content: aiPrompt }],
-        temperature: 0.2,
-        max_tokens: 1500,
+        messages: aiMessages,
+        temperature: 0.3,
+        max_tokens: 2000,
       }),
     });
 
@@ -251,11 +282,8 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     let parsed;
     try {
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in AI response");
-      }
+      if (jsonMatch) { parsed = JSON.parse(jsonMatch[0]); }
+      else { throw new Error("No JSON found in AI response"); }
     } catch (e) {
       throw new Error(`Failed to parse AI response: ${e.message}`);
     }
@@ -263,7 +291,7 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     const action = parsed.action || "unknown";
     const confidence = parsed.confidence || 0;
     const data = parsed.data || {};
-    const confirmationMessage = parsed.confirmation_message || "";
+    const replyMessage = parsed.reply_message || parsed.confirmation_message || "";
 
     // Log the activity
     const { data: logEntry } = await supabase.from("becca_activity_log").insert({
@@ -276,39 +304,38 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
       raw_message: textToAnalyze,
       ai_interpretation: parsed,
       confidence_score: confidence,
-      confirmation_question: confirmationMessage,
-      status: confidence >= autoThreshold ? "completed" : "awaiting_confirmation",
+      confirmation_question: replyMessage,
+      status: (action === "query" || action === "conversation") ? "completed" :
+              confidence >= autoThreshold ? "completed" : "awaiting_confirmation",
     }).select().single();
 
     let entityId: string | null = null;
     let entityType: string | null = null;
     let resultMessage = "";
 
-    // If confidence is high enough, auto-execute
-    if (confidence >= autoThreshold && action !== "unknown") {
+    // Handle different action types
+    if (action === "query" || action === "conversation") {
+      // Direct reply - no action needed
+      await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id, replyMessage);
+    } else if (confidence >= autoThreshold && action !== "unknown") {
+      // Auto-execute
       const result = await executeAction(supabase, action, data, settings);
       entityId = result.entityId;
       entityType = result.entityType;
       resultMessage = result.message;
 
-      // Update log with entity
       if (logEntry) {
         await supabase.from("becca_activity_log").update({
-          entity_id: entityId,
-          entity_type: entityType,
-          status: "completed",
+          entity_id: entityId, entity_type: entityType, status: "completed",
         }).eq("id", logEntry.id);
       }
 
-      // Send confirmation with details
       const finalMessage = `✅ *Becca - Azione completata*\n\n${resultMessage}\n\n_Vuoi modificare qualcosa? Rispondi con le correzioni._`;
       await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id, finalMessage);
     } else if (action !== "unknown") {
-      // Ask for confirmation
-      await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id, confirmationMessage);
+      await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id, replyMessage);
     } else {
-      // Unknown intent
-      const unknownMsg = `🤔 *Becca*\n\nNon ho capito bene cosa vuoi fare. Puoi riformulare?\n\n💡 _Esempi:_\n• "Uscita 500€ fornitore Rossi, fattura"\n• "Ricordami di chiamare Bianchi domani"\n• "Nuovo ordine forno per Mario Verdi 15000€"\n• "Nuovo contatto: Giovanni Neri, tel 333..."`;
+      const unknownMsg = replyMessage || `🤔 *Becca*\n\nNon ho capito bene cosa vuoi fare. Puoi riformulare?\n\n💡 _Esempi:_\n• "Uscita 500€ fornitore Rossi, fattura"\n• "Ricordami di chiamare Bianchi domani"\n• "Quanti lead nuovi abbiamo?"\n• "Che ordini sono aperti?"\n• "Nuovo contatto: Giovanni Neri, tel 333..."`;
       await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id, unknownMsg);
     }
 
@@ -321,26 +348,23 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
     console.error("Becca AI error:", error);
 
     try {
-      const body: BeccaRequest = await req.clone().json().catch(() => ({} as any));
+      const body2: BeccaRequest = await req.clone().json().catch(() => ({} as any));
       await supabase.from("becca_activity_log").insert({
-        account_id: body.account_id || null,
-        authorized_user_id: body.authorized_user_id || null,
-        conversation_id: body.conversation_id || null,
-        message_id: body.message_id || null,
+        account_id: body2.account_id || null,
+        authorized_user_id: body2.authorized_user_id || null,
+        conversation_id: body2.conversation_id || null,
+        message_id: body2.message_id || null,
         action_type: "error",
-        raw_message: body.content || null,
+        raw_message: body2.content || null,
         status: "failed",
         error_message: error.message,
       });
-    } catch (e) {
-      console.error("Failed to log error:", e);
-    }
+    } catch (e) { console.error("Failed to log error:", e); }
 
-    // Send error message to user
     try {
-      const body: BeccaRequest = await req.clone().json().catch(() => ({} as any));
-      if (body.conversation_id && body.account_id) {
-        await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body.account_id, body.conversation_id,
+      const body2: BeccaRequest = await req.clone().json().catch(() => ({} as any));
+      if (body2.conversation_id && body2.account_id) {
+        await sendWhatsAppReply(supabaseUrl, supabaseServiceKey, body2.account_id, body2.conversation_id,
           `⚠️ *Becca*\n\nMi dispiace, ho avuto un problema nell'elaborare il tuo messaggio. Riprova tra qualche istante.`);
       }
     } catch (e) { /* ignore */ }
@@ -353,21 +377,15 @@ Rispondi ESCLUSIVAMENTE in formato JSON valido:
 });
 
 async function executeAction(
-  supabase: any,
-  action: string,
-  data: any,
-  settings: any
+  supabase: any, action: string, data: any, settings: any
 ): Promise<{ entityId: string | null; entityType: string | null; message: string }> {
-  
+
   switch (action) {
     case "prima_nota": {
       const dateFormatted = (data.data_documento || new Date().toISOString().split('T')[0]).replace(/-/g, '');
       const prefix = `SGN-${dateFormatted}`;
-      const { count } = await supabase
-        .from('accounting_entries')
-        .select('*', { count: 'exact', head: true })
-        .like('account_code', `${prefix}-%`);
-
+      const { count } = await supabase.from('accounting_entries')
+        .select('*', { count: 'exact', head: true }).like('account_code', `${prefix}-%`);
       const code = `${prefix}-${String((count || 0) + 1).padStart(2, '0')}`;
 
       const { data: entry, error } = await supabase.from('accounting_entries').insert({
@@ -391,12 +409,10 @@ async function executeAction(
         totale: data.importo_totale || null,
         iva_mode: data.regime_iva || null,
       }).select().single();
-
       if (error) throw new Error(`Failed to create entry: ${error.message}`);
 
       return {
-        entityId: entry.id,
-        entityType: "accounting_entries",
+        entityId: entry.id, entityType: "accounting_entries",
         message: `📋 Codice: *${code}*\n${data.tipo === 'entrata' ? '📥' : '📤'} Tipo: ${data.tipo === 'entrata' ? 'Entrata' : 'Uscita'}\n💰 Importo: €${(data.importo_totale || 0).toFixed(2)}\n${data.imponibile ? `📊 Imponibile: €${data.imponibile.toFixed(2)}\n` : ''}${data.iva_importo ? `🏷️ IVA: €${data.iva_importo.toFixed(2)} (${data.iva_aliquota}%)\n` : ''}📝 ${data.descrizione || 'N/D'}\n${data.fornitore_cliente_nome ? `👤 ${data.fornitore_cliente_nome}\n` : ''}\n⚠️ _Segnalazione da validare in Prima Nota_`
       };
     }
@@ -411,12 +427,10 @@ async function executeAction(
         assigned_to: settings?.default_task_assignee || null,
         created_by: settings?.default_task_assignee || null,
       }).select().single();
-
       if (error) throw new Error(`Failed to create task: ${error.message}`);
 
       return {
-        entityId: task.id,
-        entityType: "tasks",
+        entityId: task.id, entityType: "tasks",
         message: `📋 Task creato: *${data.titolo}*\n${data.descrizione ? `📝 ${data.descrizione}\n` : ''}${data.scadenza ? `📅 Scadenza: ${data.scadenza}\n` : ''}🔴 Priorità: ${data.priorita || 'media'}\n📌 Stato: Da fare`
       };
     }
@@ -430,12 +444,10 @@ async function executeAction(
         status: 'draft',
         order_type: 'odp',
       }).select().single();
-
       if (error) throw new Error(`Failed to create order: ${error.message}`);
 
       return {
-        entityId: order.id,
-        entityType: "sales_orders",
+        entityId: order.id, entityType: "sales_orders",
         message: `🛒 Ordine creato: *${order.number || 'N/D'}*\n👤 Cliente: ${data.cliente_nome || 'Da definire'}\n💰 Importo: €${(data.importo || 0).toFixed(2)}\n📝 ${data.prodotti || 'Prodotti da definire'}\n📌 Stato: Bozza`
       };
     }
@@ -452,13 +464,41 @@ async function executeAction(
         pipeline: 'ZAPPER',
         source: 'whatsapp_becca',
       }).select().single();
-
       if (error) throw new Error(`Failed to create lead: ${error.message}`);
 
       return {
-        entityId: lead.id,
-        entityType: "leads",
+        entityId: lead.id, entityType: "leads",
         message: `👤 Lead creato: *${data.nome_contatto}*\n${data.azienda ? `🏢 ${data.azienda}\n` : ''}${data.telefono ? `📱 ${data.telefono}\n` : ''}${data.email ? `✉️ ${data.email}\n` : ''}${data.interesse ? `💡 Interesse: ${data.interesse}\n` : ''}${data.paese ? `🌍 ${data.paese}\n` : ''}📌 Pipeline: ZAPPER`
+      };
+    }
+
+    case "update_lead": {
+      if (!data.lead_id) throw new Error("lead_id mancante per update");
+      const updatePayload: any = {};
+      if (data.new_status) updatePayload.status = data.new_status;
+      if (data.note) {
+        const { data: existing } = await supabase.from('leads').select('notes').eq('id', data.lead_id).single();
+        updatePayload.notes = `${existing?.notes || ''}\n[Becca] ${data.note}`;
+      }
+      const { error } = await supabase.from('leads').update(updatePayload).eq('id', data.lead_id);
+      if (error) throw new Error(`Failed to update lead: ${error.message}`);
+
+      return {
+        entityId: data.lead_id, entityType: "leads",
+        message: `✏️ Lead aggiornato\n${data.new_status ? `📌 Nuovo stato: *${data.new_status}*\n` : ''}${data.note ? `📝 Nota: ${data.note}` : ''}`
+      };
+    }
+
+    case "update_task": {
+      if (!data.task_id) throw new Error("task_id mancante per update");
+      const updatePayload: any = {};
+      if (data.new_status) updatePayload.status = data.new_status;
+      const { error } = await supabase.from('tasks').update(updatePayload).eq('id', data.task_id);
+      if (error) throw new Error(`Failed to update task: ${error.message}`);
+
+      return {
+        entityId: data.task_id, entityType: "tasks",
+        message: `✏️ Task aggiornato\n📌 Nuovo stato: *${data.new_status || 'aggiornato'}*`
       };
     }
 
@@ -468,11 +508,8 @@ async function executeAction(
 }
 
 async function sendWhatsAppReply(
-  supabaseUrl: string,
-  supabaseServiceKey: string,
-  accountId: string,
-  conversationId: string,
-  message: string
+  supabaseUrl: string, supabaseServiceKey: string,
+  accountId: string, conversationId: string, message: string
 ) {
   try {
     await fetch(`${supabaseUrl}/functions/v1/whatsapp-send`, {
@@ -482,14 +519,10 @@ async function sendWhatsAppReply(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        account_id: accountId,
-        to: null,
+        account_id: accountId, to: null,
         conversation_id: conversationId,
-        message: message,
-        type: "text",
+        message: message, type: "text",
       }),
     });
-  } catch (e) {
-    console.error("Failed to send Becca reply:", e);
-  }
+  } catch (e) { console.error("Failed to send Becca reply:", e); }
 }
