@@ -272,10 +272,7 @@ export function AppSidebar() {
   );
 
 
-  // Debug: sempre mostra il testo su mobile, logica normale su desktop
   const showText = isMobile ? true : !collapsed;
-  
-  console.log('Sidebar debug:', { isMobile, open, collapsed, showText, state, openGroups });
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return currentPath === "/" || currentPath === "/dashboard";
