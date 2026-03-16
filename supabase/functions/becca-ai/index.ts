@@ -121,6 +121,7 @@ serve(async (req) => {
     const tasks = tasksRes.data || [];
     const orders = ordersRes.data || [];
     const commesse = commesseRes.data || [];
+    const commessaPhases = commessaPhasesRes.data || [];
     const history = (conversationHistory.data || []).reverse();
     const settings = settingsRes.data;
 
