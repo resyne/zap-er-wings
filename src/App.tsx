@@ -1,6 +1,7 @@
 
 // Route configuration and imports
 import { Suspense, lazy } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -152,6 +153,15 @@ const PageLoader = () => (
   </div>
 );
 
+// Wrapper that combines ErrorBoundary + Suspense for lazy routes
+const LazyPage = ({ children }: { children: React.ReactNode }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>
+      {children}
+    </Suspense>
+  </ErrorBoundary>
+);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -187,128 +197,128 @@ const App = () => (
                 </ProtectedRoute>
               }>
               <Route index element={<Index />} />
-                <Route path="direzione/dashboard" element={<Suspense fallback={<PageLoader />}><DirectionalDashboardPage /></Suspense>} />
-                <Route path="direzione/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioAziendale /></Suspense>} />
-                <Route path="direzione/task-kpi" element={<Suspense fallback={<PageLoader />}><TaskKpiPage /></Suspense>} />
-                <Route path="direzione/strategy" element={<Suspense fallback={<PageLoader />}><StrategyPage /></Suspense>} />
-                <Route path="direzione/riepilogo-operativo" element={<Suspense fallback={<PageLoader />}><RiepilogoOperativoPage /></Suspense>} />
-                <Route path="direzione/orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
-                <Route path="direzione/commesse" element={<Suspense fallback={<PageLoader />}><CommesseUnificatePage /></Suspense>} />
+                <Route path="direzione/dashboard" element={<LazyPage><DirectionalDashboardPage /></LazyPage>} />
+                <Route path="direzione/calendario" element={<LazyPage><CalendarioAziendale /></LazyPage>} />
+                <Route path="direzione/task-kpi" element={<LazyPage><TaskKpiPage /></LazyPage>} />
+                <Route path="direzione/strategy" element={<LazyPage><StrategyPage /></LazyPage>} />
+                <Route path="direzione/riepilogo-operativo" element={<LazyPage><RiepilogoOperativoPage /></LazyPage>} />
+                <Route path="direzione/orders" element={<LazyPage><OrdersPage /></LazyPage>} />
+                <Route path="direzione/commesse" element={<LazyPage><CommesseUnificatePage /></LazyPage>} />
                 
-                <Route path="personal-area" element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
-                <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
+                <Route path="personal-area" element={<LazyPage><DashboardPage /></LazyPage>} />
+                <Route path="dashboard" element={<LazyPage><DashboardPage /></LazyPage>} />
                 
-                <Route path="hr/people" element={<Suspense fallback={<PageLoader />}><PeoplePage /></Suspense>} />
-                <Route path="hr/safety" element={<Suspense fallback={<PageLoader />}><SafetyPage /></Suspense>} />
-                <Route path="hr/technicians" element={<Suspense fallback={<PageLoader />}><TechniciansPage /></Suspense>} />
-                <Route path="hr/technicians-debug" element={<Suspense fallback={<PageLoader />}><TechniciansPageDebug /></Suspense>} />
-                <Route path="mfg/bom" element={<Suspense fallback={<PageLoader />}><BomPage /></Suspense>} />
-                <Route path="mfg/work-orders" element={<Suspense fallback={<PageLoader />}><ProductionOrdersPage /></Suspense>} />
-                <Route path="mfg/executions" element={<Suspense fallback={<PageLoader />}><ExecutionsPage /></Suspense>} />
-                <Route path="mfg/certifications" element={<Suspense fallback={<PageLoader />}><CertificationsPage /></Suspense>} />
-                <Route path="mfg/serials" element={<Suspense fallback={<PageLoader />}><SerialsPage /></Suspense>} />
-                <Route path="mfg/rma" element={<Suspense fallback={<PageLoader />}><RmaPage /></Suspense>} />
-                <Route path="mfg/projects" element={<Suspense fallback={<PageLoader />}><ProductionProjectsPage /></Suspense>} />
-                <Route path="crm/leads" element={<Suspense fallback={<PageLoader />}><LeadsPage /></Suspense>} />
-                <Route path="crm/leads/kpi" element={<Suspense fallback={<PageLoader />}><LeadKpiPage /></Suspense>} />
-                <Route path="marketing/email-marketing" element={<Suspense fallback={<PageLoader />}><EmailMarketingPage /></Suspense>} />
-                <Route path="marketing/campaigns" element={<Suspense fallback={<PageLoader />}><CampaignsPage /></Suspense>} />
-                <Route path="marketing/automation" element={<Suspense fallback={<PageLoader />}><MarketingAutomationPage /></Suspense>} />
-                <Route path="crm/customers" element={<Suspense fallback={<PageLoader />}><CustomersPage /></Suspense>} />
-                <Route path="crm/offers" element={<Suspense fallback={<PageLoader />}><OffersPage /></Suspense>} />
-                <Route path="crm/call-records" element={<Suspense fallback={<PageLoader />}><CallRecordsPage /></Suspense>} />
-                <Route path="crm/phone-extensions" element={<Suspense fallback={<PageLoader />}><PhoneExtensionsPage /></Suspense>} />
-                <Route path="crm/whatsapp" element={<Suspense fallback={<PageLoader />}><WhatsAppPage /></Suspense>} />
-                <Route path="crm/wasender" element={<Suspense fallback={<PageLoader />}><WaSenderPage /></Suspense>} />
-                <Route path="crm/product-configurator" element={<Suspense fallback={<PageLoader />}><ProductConfiguratorPage /></Suspense>} />
-                <Route path="mfg/products" element={<Suspense fallback={<PageLoader />}><ProductCatalogPage /></Suspense>} />
-                <Route path="warehouse/materials" element={<Suspense fallback={<PageLoader />}><MaterialsPage /></Suspense>} />
-                <Route path="warehouse/shipping-orders" element={<Suspense fallback={<PageLoader />}><ShippingCommissionsPage /></Suspense>} />
-                <Route path="wms/stock" element={<Suspense fallback={<PageLoader />}><StockPage /></Suspense>} />
-                <Route path="wms/movements" element={<Suspense fallback={<PageLoader />}><MovementsPage /></Suspense>} />
-                <Route path="wms/inventory" element={<Suspense fallback={<PageLoader />}><InventoryPage /></Suspense>} />
-                <Route path="wms/ddt" element={<Suspense fallback={<PageLoader />}><DdtPage /></Suspense>} />
-                <Route path="procurement/suppliers" element={<Suspense fallback={<PageLoader />}><SuppliersPage /></Suspense>} />
-                <Route path="procurement/rfq" element={<Suspense fallback={<PageLoader />}><RfqPage /></Suspense>} />
-                <Route path="procurement/po" element={<Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense>} />
-                <Route path="procurement/purchase-orders" element={<Suspense fallback={<PageLoader />}><PurchaseOrdersPage /></Suspense>} />
-                <Route path="procurement/receipts" element={<Suspense fallback={<PageLoader />}><ReceiptsPage /></Suspense>} />
-                <Route path="procurement/quality-control" element={<Suspense fallback={<PageLoader />}><QualityControlPage /></Suspense>} />
-                <Route path="procurement/replenishment" element={<Suspense fallback={<PageLoader />}><ReplenishmentPage /></Suspense>} />
-                <Route path="partnerships/importers" element={<Suspense fallback={<PageLoader />}><ImportersPage /></Suspense>} />
-                <Route path="partnerships/installers" element={<Suspense fallback={<PageLoader />}><InstallersPage /></Suspense>} />
-                <Route path="partnerships/resellers" element={<Suspense fallback={<PageLoader />}><ResellersPage /></Suspense>} />
-                <Route path="finance/prima-nota" element={<Suspense fallback={<PageLoader />}><PrimaNotaPage /></Suspense>} />
-                <Route path="finance/invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
-                <Route path="management-control" element={<Suspense fallback={<PageLoader />}><ManagementControlPage /></Suspense>} />
-                <Route path="management-control/setup" element={<Suspense fallback={<PageLoader />}><SetupPage /></Suspense>} />
-                <Route path="management-control/movements" element={<Suspense fallback={<PageLoader />}><MovementsPageMC /></Suspense>} />
-                <Route path="management-control/projects" element={<Suspense fallback={<PageLoader />}><ProjectsPage /></Suspense>} />
-                <Route path="management-control/budget" element={<Suspense fallback={<PageLoader />}><BudgetPage /></Suspense>} />
-                <Route path="management-control/credits-debts" element={<Suspense fallback={<PageLoader />}><CreditsDebtsPage /></Suspense>} />
-                <Route path="management-control-2/registro" element={<Suspense fallback={<PageLoader />}><RegistroPage /></Suspense>} />
-                <Route path="management-control-2/movimenti-finanziari" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
-                <Route path="management-control-2/setup-contabile" element={<Suspense fallback={<PageLoader />}><SetupContabilePage /></Suspense>} />
-                <Route path="management-control-2/chart-of-accounts" element={<Suspense fallback={<PageLoader />}><ChartOfAccountsPage /></Suspense>} />
-                <Route path="management-control-2/cost-centers" element={<Suspense fallback={<PageLoader />}><CostCentersPage /></Suspense>} />
-                <Route path="management-control-2/prima-nota" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
-                <Route path="management-control-2/accounting-engine" element={<Suspense fallback={<PageLoader />}><AccountingEnginePage /></Suspense>} />
-                <Route path="management-control-2/scadenziario" element={<Suspense fallback={<PageLoader />}><ScadenziarioPage /></Suspense>} />
-                <Route path="contabilita/documenti" element={<Suspense fallback={<PageLoader />}><DocumentiPage /></Suspense>} />
-                <Route path="contabilita/registro-contabile" element={<Suspense fallback={<PageLoader />}><RegistroContabilePageContabilita /></Suspense>} />
-                <Route path="management-control-2/mastrino" element={<Suspense fallback={<PageLoader />}><MastrinoPage /></Suspense>} />
-                <Route path="management-control-2/classificazione-eventi" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
-                <Route path="management-control-2/registro-fatture" element={<Suspense fallback={<PageLoader />}><PrimaNotaPageMC2 /></Suspense>} />
-                <Route path="hr/fluida" element={<Suspense fallback={<PageLoader />}><FluidaPage /></Suspense>} />
-                <Route path="hr/ticket-restaurant" element={<Suspense fallback={<PageLoader />}><TicketRestaurantPage /></Suspense>} />
-                <Route path="hr/z-app" element={<Suspense fallback={<PageLoader />}><ZAppPage /></Suspense>} />
-                <Route path="hr/z-app/rapporti" element={<Suspense fallback={<PageLoader />}><ZAppServiceReportsPage /></Suspense>} />
-                <Route path="hr/z-app/rapporti/nuovo" element={<Suspense fallback={<PageLoader />}><ZAppNewServiceReportPage /></Suspense>} />
-                <Route path="hr/z-app/registro" element={<Suspense fallback={<PageLoader />}><ZAppRegistroPage /></Suspense>} />
-                <Route path="hr/z-app/magazzino" element={<Suspense fallback={<PageLoader />}><ZAppMagazzino /></Suspense>} />
-                <Route path="hr/z-app/commesse" element={<Suspense fallback={<PageLoader />}><ZAppCommesse /></Suspense>} />
-                <Route path="hr/z-app/calendario" element={<Suspense fallback={<PageLoader />}><ZAppCalendarioPage /></Suspense>} />
-                <Route path="hr/z-app/comunicazioni" element={<Suspense fallback={<PageLoader />}><ZAppComunicazioniPage /></Suspense>} />
-                <Route path="hr/z-app/ordini" element={<Suspense fallback={<PageLoader />}><ZAppOrdiniPage /></Suspense>} />
-                <Route path="hr/z-app/ordini-fornitori" element={<Suspense fallback={<PageLoader />}><ZAppOrdiniFornitoriPage /></Suspense>} />
-                <Route path="hr/z-app/impostazioni" element={<Suspense fallback={<PageLoader />}><ZAppImpostazioniPage /></Suspense>} />
-                <Route path="hr/z-app/whatsapp" element={<Suspense fallback={<PageLoader />}><ZAppWhatsAppPage /></Suspense>} />
-                <Route path="hr/z-app/timbratura" element={<Suspense fallback={<PageLoader />}><ZAppTimbraturaPage /></Suspense>} />
-                <Route path="hr/z-app/riepilogo-timbrature" element={<Suspense fallback={<PageLoader />}><ZAppRiepilogoTimbraturePage /></Suspense>} />
-                <Route path="hr/time-attendance" element={<Suspense fallback={<PageLoader />}><AttendanceDashboardPage /></Suspense>} />
-                <Route path="hr/time-attendance/shifts" element={<Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>} />
-                <Route path="hr/time-attendance/presenze" element={<Suspense fallback={<PageLoader />}><AttendancePresenzePage /></Suspense>} />
-                <Route path="hr/time-attendance/overtime" element={<Suspense fallback={<PageLoader />}><OvertimePage /></Suspense>} />
-                <Route path="hr/time-attendance/travel" element={<Suspense fallback={<PageLoader />}><TravelPage /></Suspense>} />
-                <Route path="hr/time-attendance/anomalies" element={<Suspense fallback={<PageLoader />}><AnomaliesPage /></Suspense>} />
-                <Route path="hr/time-attendance/reports" element={<Suspense fallback={<PageLoader />}><AttendanceReportsPage /></Suspense>} />
-                <Route path="hr/time-attendance/geofences" element={<Suspense fallback={<PageLoader />}><GeofencesPage /></Suspense>} />
-                <Route path="hr/time-attendance/settings" element={<Suspense fallback={<PageLoader />}><AttendanceSettingsPage /></Suspense>} />
-                <Route path="hr/time-attendance/leaves" element={<Suspense fallback={<PageLoader />}><LeavesPage /></Suspense>} />
-                <Route path="hr/time-attendance/corrections" element={<Suspense fallback={<PageLoader />}><CorrectionsPage /></Suspense>} />
-                <Route path="docs" element={<Suspense fallback={<PageLoader />}><DocumentationPage /></Suspense>} />
-                <Route path="docs/technical-sheets" element={<Suspense fallback={<PageLoader />}><TechnicalSheetsPage /></Suspense>} />
-                <Route path="docs/technical-sheets/blast-chillers" element={<Suspense fallback={<PageLoader />}><BlastChillersPage /></Suspense>} />
-                <Route path="docs/technical-sheets/ovens" element={<Suspense fallback={<PageLoader />}><OvensPage /></Suspense>} />
-                <Route path="docs/compliance" element={<Suspense fallback={<PageLoader />}><CompliancePage /></Suspense>} />
-                <Route path="docs/manuals" element={<Suspense fallback={<PageLoader />}><ManualsPage /></Suspense>} />
-                <Route path="docs/price-lists" element={<Suspense fallback={<PageLoader />}><PriceListsPage /></Suspense>} />
-                <Route path="support" element={<Suspense fallback={<PageLoader />}><SupportPage /></Suspense>} />
-                <Route path="support/service-reports" element={<Suspense fallback={<PageLoader />}><ServiceReportsPage /></Suspense>} />
-                <Route path="support/work-orders" element={<Suspense fallback={<PageLoader />}><ServiceOrdersPage /></Suspense>} />
-                <Route path="support/tickets" element={<Suspense fallback={<PageLoader />}><TicketsPage /></Suspense>} />
-                <Route path="support/service-report-settings" element={<Suspense fallback={<PageLoader />}><ServiceReportSettingsPage /></Suspense>} />
-                <Route path="crm/cost-estimator" element={<Suspense fallback={<PageLoader />}><CostEstimatorPage /></Suspense>} />
-                <Route path="marketing/archive" element={<Suspense fallback={<PageLoader />}><ArchivePage /></Suspense>} />
-                <Route path="marketing/content-creation" element={<Suspense fallback={<PageLoader />}><ContentCreationPage /></Suspense>} />
-                <Route path="marketing/brandkit" element={<Suspense fallback={<PageLoader />}><BrandkitPage /></Suspense>} />
-                <Route path="marketing/competitor-analysis" element={<Suspense fallback={<PageLoader />}><CompetitorAnalysisPage /></Suspense>} />
-                <Route path="marketing/brandkit/:brandId" element={<Suspense fallback={<PageLoader />}><BrandAssetManager /></Suspense>} />
-                <Route path="integrations" element={<Suspense fallback={<PageLoader />}><IntegrationsPage /></Suspense>} />
-                <Route path="becca" element={<Suspense fallback={<PageLoader />}><BeccaPage /></Suspense>} />
-                <Route path="tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
-                <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
-                <Route path="personal-area/calendario" element={<Suspense fallback={<PageLoader />}><CalendarioPersonale /></Suspense>} />
+                <Route path="hr/people" element={<LazyPage><PeoplePage /></LazyPage>} />
+                <Route path="hr/safety" element={<LazyPage><SafetyPage /></LazyPage>} />
+                <Route path="hr/technicians" element={<LazyPage><TechniciansPage /></LazyPage>} />
+                <Route path="hr/technicians-debug" element={<LazyPage><TechniciansPageDebug /></LazyPage>} />
+                <Route path="mfg/bom" element={<LazyPage><BomPage /></LazyPage>} />
+                <Route path="mfg/work-orders" element={<LazyPage><ProductionOrdersPage /></LazyPage>} />
+                <Route path="mfg/executions" element={<LazyPage><ExecutionsPage /></LazyPage>} />
+                <Route path="mfg/certifications" element={<LazyPage><CertificationsPage /></LazyPage>} />
+                <Route path="mfg/serials" element={<LazyPage><SerialsPage /></LazyPage>} />
+                <Route path="mfg/rma" element={<LazyPage><RmaPage /></LazyPage>} />
+                <Route path="mfg/projects" element={<LazyPage><ProductionProjectsPage /></LazyPage>} />
+                <Route path="crm/leads" element={<LazyPage><LeadsPage /></LazyPage>} />
+                <Route path="crm/leads/kpi" element={<LazyPage><LeadKpiPage /></LazyPage>} />
+                <Route path="marketing/email-marketing" element={<LazyPage><EmailMarketingPage /></LazyPage>} />
+                <Route path="marketing/campaigns" element={<LazyPage><CampaignsPage /></LazyPage>} />
+                <Route path="marketing/automation" element={<LazyPage><MarketingAutomationPage /></LazyPage>} />
+                <Route path="crm/customers" element={<LazyPage><CustomersPage /></LazyPage>} />
+                <Route path="crm/offers" element={<LazyPage><OffersPage /></LazyPage>} />
+                <Route path="crm/call-records" element={<LazyPage><CallRecordsPage /></LazyPage>} />
+                <Route path="crm/phone-extensions" element={<LazyPage><PhoneExtensionsPage /></LazyPage>} />
+                <Route path="crm/whatsapp" element={<LazyPage><WhatsAppPage /></LazyPage>} />
+                <Route path="crm/wasender" element={<LazyPage><WaSenderPage /></LazyPage>} />
+                <Route path="crm/product-configurator" element={<LazyPage><ProductConfiguratorPage /></LazyPage>} />
+                <Route path="mfg/products" element={<LazyPage><ProductCatalogPage /></LazyPage>} />
+                <Route path="warehouse/materials" element={<LazyPage><MaterialsPage /></LazyPage>} />
+                <Route path="warehouse/shipping-orders" element={<LazyPage><ShippingCommissionsPage /></LazyPage>} />
+                <Route path="wms/stock" element={<LazyPage><StockPage /></LazyPage>} />
+                <Route path="wms/movements" element={<LazyPage><MovementsPage /></LazyPage>} />
+                <Route path="wms/inventory" element={<LazyPage><InventoryPage /></LazyPage>} />
+                <Route path="wms/ddt" element={<LazyPage><DdtPage /></LazyPage>} />
+                <Route path="procurement/suppliers" element={<LazyPage><SuppliersPage /></LazyPage>} />
+                <Route path="procurement/rfq" element={<LazyPage><RfqPage /></LazyPage>} />
+                <Route path="procurement/po" element={<LazyPage><PurchaseOrdersPage /></LazyPage>} />
+                <Route path="procurement/purchase-orders" element={<LazyPage><PurchaseOrdersPage /></LazyPage>} />
+                <Route path="procurement/receipts" element={<LazyPage><ReceiptsPage /></LazyPage>} />
+                <Route path="procurement/quality-control" element={<LazyPage><QualityControlPage /></LazyPage>} />
+                <Route path="procurement/replenishment" element={<LazyPage><ReplenishmentPage /></LazyPage>} />
+                <Route path="partnerships/importers" element={<LazyPage><ImportersPage /></LazyPage>} />
+                <Route path="partnerships/installers" element={<LazyPage><InstallersPage /></LazyPage>} />
+                <Route path="partnerships/resellers" element={<LazyPage><ResellersPage /></LazyPage>} />
+                <Route path="finance/prima-nota" element={<LazyPage><PrimaNotaPage /></LazyPage>} />
+                <Route path="finance/invoices" element={<LazyPage><InvoicesPage /></LazyPage>} />
+                <Route path="management-control" element={<LazyPage><ManagementControlPage /></LazyPage>} />
+                <Route path="management-control/setup" element={<LazyPage><SetupPage /></LazyPage>} />
+                <Route path="management-control/movements" element={<LazyPage><MovementsPageMC /></LazyPage>} />
+                <Route path="management-control/projects" element={<LazyPage><ProjectsPage /></LazyPage>} />
+                <Route path="management-control/budget" element={<LazyPage><BudgetPage /></LazyPage>} />
+                <Route path="management-control/credits-debts" element={<LazyPage><CreditsDebtsPage /></LazyPage>} />
+                <Route path="management-control-2/registro" element={<LazyPage><RegistroPage /></LazyPage>} />
+                <Route path="management-control-2/movimenti-finanziari" element={<LazyPage><PrimaNotaPageMC2 /></LazyPage>} />
+                <Route path="management-control-2/setup-contabile" element={<LazyPage><SetupContabilePage /></LazyPage>} />
+                <Route path="management-control-2/chart-of-accounts" element={<LazyPage><ChartOfAccountsPage /></LazyPage>} />
+                <Route path="management-control-2/cost-centers" element={<LazyPage><CostCentersPage /></LazyPage>} />
+                <Route path="management-control-2/prima-nota" element={<LazyPage><PrimaNotaPageMC2 /></LazyPage>} />
+                <Route path="management-control-2/accounting-engine" element={<LazyPage><AccountingEnginePage /></LazyPage>} />
+                <Route path="management-control-2/scadenziario" element={<LazyPage><ScadenziarioPage /></LazyPage>} />
+                <Route path="contabilita/documenti" element={<LazyPage><DocumentiPage /></LazyPage>} />
+                <Route path="contabilita/registro-contabile" element={<LazyPage><RegistroContabilePageContabilita /></LazyPage>} />
+                <Route path="management-control-2/mastrino" element={<LazyPage><MastrinoPage /></LazyPage>} />
+                <Route path="management-control-2/classificazione-eventi" element={<LazyPage><PrimaNotaPageMC2 /></LazyPage>} />
+                <Route path="management-control-2/registro-fatture" element={<LazyPage><PrimaNotaPageMC2 /></LazyPage>} />
+                <Route path="hr/fluida" element={<LazyPage><FluidaPage /></LazyPage>} />
+                <Route path="hr/ticket-restaurant" element={<LazyPage><TicketRestaurantPage /></LazyPage>} />
+                <Route path="hr/z-app" element={<LazyPage><ZAppPage /></LazyPage>} />
+                <Route path="hr/z-app/rapporti" element={<LazyPage><ZAppServiceReportsPage /></LazyPage>} />
+                <Route path="hr/z-app/rapporti/nuovo" element={<LazyPage><ZAppNewServiceReportPage /></LazyPage>} />
+                <Route path="hr/z-app/registro" element={<LazyPage><ZAppRegistroPage /></LazyPage>} />
+                <Route path="hr/z-app/magazzino" element={<LazyPage><ZAppMagazzino /></LazyPage>} />
+                <Route path="hr/z-app/commesse" element={<LazyPage><ZAppCommesse /></LazyPage>} />
+                <Route path="hr/z-app/calendario" element={<LazyPage><ZAppCalendarioPage /></LazyPage>} />
+                <Route path="hr/z-app/comunicazioni" element={<LazyPage><ZAppComunicazioniPage /></LazyPage>} />
+                <Route path="hr/z-app/ordini" element={<LazyPage><ZAppOrdiniPage /></LazyPage>} />
+                <Route path="hr/z-app/ordini-fornitori" element={<LazyPage><ZAppOrdiniFornitoriPage /></LazyPage>} />
+                <Route path="hr/z-app/impostazioni" element={<LazyPage><ZAppImpostazioniPage /></LazyPage>} />
+                <Route path="hr/z-app/whatsapp" element={<LazyPage><ZAppWhatsAppPage /></LazyPage>} />
+                <Route path="hr/z-app/timbratura" element={<LazyPage><ZAppTimbraturaPage /></LazyPage>} />
+                <Route path="hr/z-app/riepilogo-timbrature" element={<LazyPage><ZAppRiepilogoTimbraturePage /></LazyPage>} />
+                <Route path="hr/time-attendance" element={<LazyPage><AttendanceDashboardPage /></LazyPage>} />
+                <Route path="hr/time-attendance/shifts" element={<LazyPage><ShiftsPage /></LazyPage>} />
+                <Route path="hr/time-attendance/presenze" element={<LazyPage><AttendancePresenzePage /></LazyPage>} />
+                <Route path="hr/time-attendance/overtime" element={<LazyPage><OvertimePage /></LazyPage>} />
+                <Route path="hr/time-attendance/travel" element={<LazyPage><TravelPage /></LazyPage>} />
+                <Route path="hr/time-attendance/anomalies" element={<LazyPage><AnomaliesPage /></LazyPage>} />
+                <Route path="hr/time-attendance/reports" element={<LazyPage><AttendanceReportsPage /></LazyPage>} />
+                <Route path="hr/time-attendance/geofences" element={<LazyPage><GeofencesPage /></LazyPage>} />
+                <Route path="hr/time-attendance/settings" element={<LazyPage><AttendanceSettingsPage /></LazyPage>} />
+                <Route path="hr/time-attendance/leaves" element={<LazyPage><LeavesPage /></LazyPage>} />
+                <Route path="hr/time-attendance/corrections" element={<LazyPage><CorrectionsPage /></LazyPage>} />
+                <Route path="docs" element={<LazyPage><DocumentationPage /></LazyPage>} />
+                <Route path="docs/technical-sheets" element={<LazyPage><TechnicalSheetsPage /></LazyPage>} />
+                <Route path="docs/technical-sheets/blast-chillers" element={<LazyPage><BlastChillersPage /></LazyPage>} />
+                <Route path="docs/technical-sheets/ovens" element={<LazyPage><OvensPage /></LazyPage>} />
+                <Route path="docs/compliance" element={<LazyPage><CompliancePage /></LazyPage>} />
+                <Route path="docs/manuals" element={<LazyPage><ManualsPage /></LazyPage>} />
+                <Route path="docs/price-lists" element={<LazyPage><PriceListsPage /></LazyPage>} />
+                <Route path="support" element={<LazyPage><SupportPage /></LazyPage>} />
+                <Route path="support/service-reports" element={<LazyPage><ServiceReportsPage /></LazyPage>} />
+                <Route path="support/work-orders" element={<LazyPage><ServiceOrdersPage /></LazyPage>} />
+                <Route path="support/tickets" element={<LazyPage><TicketsPage /></LazyPage>} />
+                <Route path="support/service-report-settings" element={<LazyPage><ServiceReportSettingsPage /></LazyPage>} />
+                <Route path="crm/cost-estimator" element={<LazyPage><CostEstimatorPage /></LazyPage>} />
+                <Route path="marketing/archive" element={<LazyPage><ArchivePage /></LazyPage>} />
+                <Route path="marketing/content-creation" element={<LazyPage><ContentCreationPage /></LazyPage>} />
+                <Route path="marketing/brandkit" element={<LazyPage><BrandkitPage /></LazyPage>} />
+                <Route path="marketing/competitor-analysis" element={<LazyPage><CompetitorAnalysisPage /></LazyPage>} />
+                <Route path="marketing/brandkit/:brandId" element={<LazyPage><BrandAssetManager /></LazyPage>} />
+                <Route path="integrations" element={<LazyPage><IntegrationsPage /></LazyPage>} />
+                <Route path="becca" element={<LazyPage><BeccaPage /></LazyPage>} />
+                <Route path="tasks" element={<LazyPage><TasksPage /></LazyPage>} />
+                <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
+                <Route path="personal-area/calendario" element={<LazyPage><CalendarioPersonale /></LazyPage>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />
