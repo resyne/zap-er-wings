@@ -529,7 +529,7 @@ export default function ZAppOrdiniPage() {
       const commessaTitle = orderTypeCategory === "fornitura"
         ? `Fornitura ${subject || productName} per ${customerName}`.trim()
         : orderTypeCategory === "intervento"
-        ? `${interventionType === "manutenzione" ? "Manutenzione" : "Riparazione"} per ${customerName}`.trim()
+        ? `${interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Altro intervento"} per ${customerName}`.trim()
         : `Ricambi per ${customerName}`.trim();
 
       const { data: commessa, error: commError } = await supabase
