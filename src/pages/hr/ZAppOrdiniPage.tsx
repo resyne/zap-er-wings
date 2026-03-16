@@ -1167,7 +1167,7 @@ export default function ZAppOrdiniPage() {
             )}
 
             {/* 4b. Tipo di intervento (only for intervento) */}
-            {needsInterventionType && selectedCustomer && hasValidItems && (
+            {needsInterventionType && selectedCustomer && (
               <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Tipo di intervento *</Label>
                 <div className="space-y-2">
