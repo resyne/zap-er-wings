@@ -236,7 +236,7 @@ export default function BeccaPage() {
           <Card>
             <CardHeader>
               <CardTitle>Log attività Becca</CardTitle>
-              <CardDescription>Ultime azioni eseguite dall'AI</CardDescription>
+              <CardDescription>Clicca su un'attività per vedere richiesta, interpretazione AI e risposta</CardDescription>
             </CardHeader>
             <CardContent>
               {!activityLog?.length ? (
@@ -246,7 +246,11 @@ export default function BeccaPage() {
                   {activityLog.map((log: any) => {
                     const Icon = actionIcons[log.action_type] || AlertCircle;
                     return (
-                      <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                      <button
+                        key={log.id}
+                        onClick={() => setSelectedLog(log)}
+                        className="w-full flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left"
+                      >
                         <div className={`p-2 rounded-lg ${log.action_type === 'error' ? 'bg-red-100' : 'bg-violet-100'}`}>
                           <Icon className={`h-4 w-4 ${log.action_type === 'error' ? 'text-red-600' : 'text-violet-600'}`} />
                         </div>
@@ -268,19 +272,24 @@ export default function BeccaPage() {
                             {log.raw_message || "N/D"}
                           </p>
                           {log.error_message && (
-                            <p className="text-xs text-red-600 mt-1">{log.error_message}</p>
+                            <p className="text-xs text-red-600 mt-1 truncate">{log.error_message}</p>
                           )}
                           <p className="text-xs text-muted-foreground mt-1">
                             {format(new Date(log.created_at), "dd MMM yyyy HH:mm", { locale: it })}
                           </p>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               )}
             </CardContent>
           </Card>
+          <BeccaActivityDetailDialog
+            log={selectedLog}
+            open={!!selectedLog}
+            onOpenChange={(open) => !open && setSelectedLog(null)}
+          />
         </TabsContent>
 
         {/* Authorized Users */}
