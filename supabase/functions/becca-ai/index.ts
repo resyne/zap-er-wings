@@ -137,7 +137,11 @@ serve(async (req) => {
 
     const orderList = orders.slice(0, 15).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
 
-    const commessaList = commesse.slice(0, 15).map((c: any) => `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${c.customers?.name || c.customers?.company_name || 'N/D'} (ID: ${c.id})`).join("\n");
+    const commessaList = commesse.slice(0, 15).map((c: any) => {
+      const cliente = c.customers?.name || c.customers?.company_name || 'N/D';
+      const loc = [c.shipping_city, c.shipping_province].filter(Boolean).join(', ');
+      return `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${cliente}${loc ? ` | Località: ${loc}` : ''}${c.article ? ` | Articolo: ${c.article}` : ''} (ID: ${c.id})`;
+    }).join("\n");
 
     const phaseList = commessaPhases.slice(0, 20).map((p: any) => `- Fase: ${p.phase_type} | Commessa: ${p.commesse?.number || 'N/D'} (${p.commesse?.title || ''}) | Stato: ${p.status}${p.scheduled_date ? ` | Calendarizzata: ${p.scheduled_date}` : ' | NON calendarizzata'} (Phase ID: ${p.id}, Commessa ID: ${p.commessa_id})`).join("\n");
 
