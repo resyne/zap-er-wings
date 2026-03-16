@@ -510,6 +510,41 @@ async function executeAction(
       };
     }
 
+    case "schedule_commessa": {
+      let phaseId = data.phase_id;
+      const scheduledDate = data.scheduled_date;
+      if (!scheduledDate) throw new Error("Data di calendarizzazione mancante");
+
+      // If no phase_id, find the first pending phase for the commessa
+      if (!phaseId && data.commessa_id) {
+        const { data: phases } = await supabase.from("commessa_phases")
+          .select("id, phase_type, phase_order")
+          .eq("commessa_id", data.commessa_id)
+          .eq("status", "pending")
+          .order("phase_order", { ascending: true })
+          .limit(1);
+        if (phases && phases.length > 0) {
+          phaseId = phases[0].id;
+        }
+      }
+
+      if (!phaseId) throw new Error("Nessuna fase pendente trovata per questa commessa");
+
+      const { error } = await supabase.from("commessa_phases").update({
+        scheduled_date: new Date(scheduledDate).toISOString(),
+      }).eq("id", phaseId);
+      if (error) throw new Error(`Failed to schedule commessa phase: ${error.message}`);
+
+      // Get commessa info for reply
+      const { data: commessa } = await supabase.from("commesse")
+        .select("number, title").eq("id", data.commessa_id).single();
+
+      return {
+        entityId: phaseId, entityType: "commessa_phases",
+        message: `📅 Commessa calendarizzata!\n\n🏗️ Commessa: *${commessa?.number || 'N/D'}* - ${commessa?.title || ''}\n📌 Fase: ${data.phase_type || 'N/D'}\n📆 Data: *${scheduledDate}*${data.note ? `\n📝 ${data.note}` : ''}`
+      };
+    }
+
     default:
       return { entityId: null, entityType: null, message: "Azione non riconosciuta" };
   }
