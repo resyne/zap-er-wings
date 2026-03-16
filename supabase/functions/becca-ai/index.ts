@@ -233,7 +233,7 @@ METODI DI PAGAMENTO VALIDI: contanti, carta, bonifico, anticipo_personale, carta
 
 Rispondi ESCLUSIVAMENTE in formato JSON valido:
 {
-  "action": "query" | "prima_nota" | "task" | "sales_order" | "lead" | "update_lead" | "update_task" | "conversation" | "unknown",
+  "action": "query" | "prima_nota" | "task" | "sales_order" | "lead" | "update_lead" | "update_task" | "schedule_commessa" | "conversation" | "unknown",
   "confidence": numero da 0 a 100,
   "data": {
     // Compilare i campi rilevanti per l'azione (vedi sotto)
