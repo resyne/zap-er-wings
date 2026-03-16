@@ -7,6 +7,7 @@ import { RolePermissions } from "@/components/settings/RolePermissions";
 import { SystemSettings } from "@/components/settings/SystemSettings";
 import { IntegrationsSettings } from "@/components/settings/IntegrationsSettings";
 import { PasswordChange } from "@/components/settings/PasswordChange";
+import { AdminPasswordReset } from "@/components/settings/AdminPasswordReset";
 import { ProfileEdit } from "@/components/settings/ProfileEdit";
 import { ERPDocumentationMap } from "@/components/settings/ERPDocumentationMap";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
@@ -127,6 +128,7 @@ export function SettingsPage() {
 
         <TabsContent value="password" className="space-y-4">
           <PasswordChange />
+          {isAdmin && <AdminPasswordReset />}
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">
