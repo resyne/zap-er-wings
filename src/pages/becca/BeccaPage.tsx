@@ -217,12 +217,18 @@ export default function BeccaPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="activity" className="space-y-4">
+      <Tabs defaultValue="conversations" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="conversations"><MessageCircle className="h-4 w-4 mr-2" />Conversazioni</TabsTrigger>
           <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Attività</TabsTrigger>
           <TabsTrigger value="users"><Users className="h-4 w-4 mr-2" />Utenti autorizzati</TabsTrigger>
           <TabsTrigger value="settings"><Settings className="h-4 w-4 mr-2" />Impostazioni</TabsTrigger>
         </TabsList>
+
+        {/* Conversations */}
+        <TabsContent value="conversations">
+          <BeccaConversationsTab />
+        </TabsContent>
 
         {/* Activity Log */}
         <TabsContent value="activity">
