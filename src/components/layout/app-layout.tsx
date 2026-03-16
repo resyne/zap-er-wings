@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { Header } from "./header";
@@ -12,42 +11,12 @@ import { useUserRole } from "@/hooks/useUserRole";
 import FloatingAIChat from "@/components/ai/FloatingAIChat";
 
 export function AppLayout() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, session, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { userRole, isZAppOnly } = useUserRole();
   const location = useLocation();
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (event === 'SIGNED_OUT') {
-          navigate('/auth');
-        }
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      // Redirect to auth if no session
-      if (!session) {
-        navigate('/auth');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
 
   useEffect(() => {
     if (isZAppOnly && location.pathname !== '/hr/z-app' && !location.pathname.startsWith('/hr/z-app/') && location.pathname !== '/auth') {
@@ -57,9 +26,7 @@ export function AppLayout() {
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
+      await signOut();
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of ZAPPER ERP",
@@ -73,19 +40,8 @@ export function AppLayout() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 rounded bg-gradient-to-br from-primary to-primary-glow animate-pulse" />
-          <p className="text-muted-foreground">Loading ZAPPER ERP...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!user || !session) {
-    return null; // Will redirect to auth
+    return null;
   }
 
   return (
