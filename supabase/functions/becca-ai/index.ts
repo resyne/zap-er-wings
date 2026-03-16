@@ -225,6 +225,7 @@ TIPI DI AZIONE:
 - "lead": Creare un nuovo lead CRM
 - "update_lead": Aggiornare lo stato di un lead esistente
 - "update_task": Aggiornare lo stato di un task esistente
+- "schedule_commessa": Calendarizzare (impostare una data) per una fase di una commessa. L'utente potrebbe dire "calendarizza la commessa COM-2026-0010 per il 20 marzo" o "programma la produzione della commessa X per lunedì"
 - "conversation": Messaggio conversazionale generico (saluti, ringraziamenti, domande generiche su Becca)
 - "unknown": Non classificabile
 
