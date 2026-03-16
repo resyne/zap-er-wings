@@ -100,6 +100,7 @@ export default function ZAppWhatsAppPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: beccaPhones = [] } = useBeccaPhoneNumbers();
 
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<WhatsAppConversation | null>(null);
