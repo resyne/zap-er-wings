@@ -153,6 +153,15 @@ const PageLoader = () => (
   </div>
 );
 
+// Wrapper that combines ErrorBoundary + Suspense for lazy routes
+const LazyPage = ({ children }: { children: React.ReactNode }) => (
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>
+      {children}
+    </Suspense>
+  </ErrorBoundary>
+);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
