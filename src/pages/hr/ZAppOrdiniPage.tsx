@@ -333,17 +333,31 @@ export default function ZAppOrdiniPage() {
     if (data) setMaterials(data as Material[]);
   };
 
-  const filteredOrders = orders.filter(o => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      o.number?.toLowerCase().includes(term) ||
-      o.customers?.name?.toLowerCase().includes(term) ||
-      o.customers?.code?.toLowerCase().includes(term) ||
-      o.notes?.toLowerCase().includes(term) ||
-      o.order_subject?.toLowerCase().includes(term)
-    );
-  });
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      // Status tab filter
+      const status = o.status || "";
+      if (statusTab === "attivi" && (status === "completato" || status === "completed")) return false;
+      if (statusTab === "completati" && status !== "completato" && status !== "completed") return false;
+
+      // Search filter
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        o.number?.toLowerCase().includes(term) ||
+        o.customers?.name?.toLowerCase().includes(term) ||
+        o.customers?.code?.toLowerCase().includes(term) ||
+        o.notes?.toLowerCase().includes(term) ||
+        o.order_subject?.toLowerCase().includes(term)
+      );
+    });
+  }, [orders, statusTab, searchTerm]);
+
+  const statusCounts = useMemo(() => {
+    const attivi = orders.filter(o => o.status !== "completato" && o.status !== "completed").length;
+    const completati = orders.filter(o => o.status === "completato" || o.status === "completed").length;
+    return { attivi, completati, tutti: orders.length };
+  }, [orders]);
 
   const getSubOrders = (order: Order) => {
     return (order.commesse || []).map(c => ({
