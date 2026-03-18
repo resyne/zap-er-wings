@@ -184,9 +184,18 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
         const cols = Object.keys(json[0]);
         setRowCount(json.length);
 
+        // Build column→field map once
+        const columnFieldMap = new Map<string, keyof MappedCustomer>();
+        for (const col of cols) {
+          const field = detectColumnField(col);
+          if (field) columnFieldMap.set(col, field);
+        }
+
+        console.log("Column mapping detected:", Object.fromEntries(columnFieldMap));
+
         // Auto-map + match in one go
         const results: MatchResult[] = json.map((row, idx) => {
-          const mapped = mapRow(row, cols);
+          const mapped = mapRow(row, columnFieldMap);
 
           let bestMatch: any = null;
           let bestScore = 0;
