@@ -355,7 +355,7 @@ function extractAttachments(response: string): Attachment[] {
     // Extract filename
     const filenameMatch = part.match(/filename="?([^"\r\n;]+)"?/i) || part.match(/name="?([^"\r\n;]+)"?/i);
     if (!filenameMatch) continue;
-    const filename = filenameMatch[1].trim();
+    const filename = decodeHeader(filenameMatch[1].trim()).replace(/[^a-zA-Z0-9._\-àèéìòùÀÈÉÌÒÙ]/g, '_');
 
     // Only process files that look like invoices
     const lowerFilename = filename.toLowerCase();
