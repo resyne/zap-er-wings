@@ -19,7 +19,6 @@ import {
   MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck
 } from "lucide-react";
 import { OrderDetailSections } from "@/components/hr/zapp/OrderDetailSections";
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUserRole } from "@/hooks/useUserRole";
