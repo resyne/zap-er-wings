@@ -297,9 +297,9 @@ interface ParsedEmail {
 
 function parseEmail(response: string): ParsedEmail {
   const messageIdMatch = response.match(/Message-ID:\s*<([^>]+)>/i) || response.match(/Message-Id:\s*<([^>]+)>/i);
-  const subjectMatch = response.match(/Subject:\s*([^\r\n]+)/i);
-  const fromMatch = response.match(/From:\s*([^\r\n]+)/i);
-  const dateMatch = response.match(/Date:\s*([^\r\n]+)/i);
+  const subjectMatch = response.match(/^Subject:\s*(.+?)$/im);
+  const fromMatch = response.match(/^From:\s*(.+?)$/im);
+  const dateMatch = response.match(/^Date:\s*(.+?)$/im);
 
   return {
     messageId: messageIdMatch?.[1] || '',
