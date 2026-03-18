@@ -38,10 +38,13 @@ Deno.serve(async (req) => {
       await sendCommand(conn, `LOGIN "${IMAP_USER}" "${IMAP_PASSWORD}"`);
       await sendCommand(conn, `SELECT "${IMAP_FOLDER}"`);
 
-      // Search for unseen emails
-      const searchResponse = await sendCommand(conn, 'SEARCH UNSEEN');
+      // Search for today's emails (catches both read and unread)
+      const today = new Date();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const imapDate = `${today.getDate()}-${months[today.getMonth()]}-${today.getFullYear()}`;
+      const searchResponse = await sendCommand(conn, `SEARCH SINCE ${imapDate}`);
       const messageIds = extractMessageIds(searchResponse);
-      console.log(`Found ${messageIds.length} unseen emails`);
+      console.log(`Found ${messageIds.length} emails since ${imapDate}`);
 
       const messagesToProcess = messageIds.slice(-MAX_EMAILS_PER_SYNC);
 
@@ -102,10 +105,15 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const { data: urlData } = supabase.storage
+            // Use signed URL so AI can access the file
+            const { data: urlData, error: signedUrlError } = await supabase.storage
               .from('accounting-documents')
-              .getPublicUrl(storagePath);
-            const fileUrl = urlData?.publicUrl;
+              .createSignedUrl(storagePath, 3600); // 1 hour expiry
+            const fileUrl = urlData?.signedUrl;
+            if (signedUrlError || !fileUrl) {
+              console.error('Signed URL error:', signedUrlError);
+              continue;
+            }
 
             // Log as pending
             const { data: logEntry } = await supabase.from('invoice_email_log').insert({
