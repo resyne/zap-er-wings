@@ -812,20 +812,8 @@ export default function ZAppOrdiniPage() {
             ) : null}
           </div>
 
-          {subs.length > 0 && (
-            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-              <h3 className="font-semibold text-sm">Commesse Collegate</h3>
-              {subs.map((sub, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{sub.number}</p>
-                    <p className="text-xs text-muted-foreground">{sub.type}</p>
-                  </div>
-                  <Badge variant="outline" className="text-xs">{sub.status}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
+          <OrderDetailSections orderId={selectedOrder.id} customerId={selectedOrder.customers ? undefined : undefined} />
+
         </div>
 
         {/* Delete Confirmation */}
