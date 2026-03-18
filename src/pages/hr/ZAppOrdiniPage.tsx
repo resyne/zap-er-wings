@@ -453,9 +453,7 @@ export default function ZAppOrdiniPage() {
   const canSubmit = () => {
     if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
-    if (needsInterventionType && !interventionType) return false;
-    // Per interventi, le voci sono opzionali (il tipo intervento è già descrittivo)
-    if (!needsInterventionType && !hasValidItems) return false;
+    if (!hasValidItems) return false;
     return true;
   };
 
