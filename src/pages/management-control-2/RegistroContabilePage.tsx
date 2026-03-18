@@ -2792,7 +2792,7 @@ export default function RegistroContabilePage() {
             </Button>
           )}
           {/* Pulsante Registra Pagamento per fatture con scadenza aperta */}
-          {invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
+          {invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
             <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => {
               setSelectedInvoice(invoice);
               setPaymentData({
