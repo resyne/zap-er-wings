@@ -311,7 +311,7 @@ export default function ZAppNewServiceReportPage() {
         type: wo.type === 'service' ? 'service' as const : 'production' as const,
       }));
 
-      setWorkOrders([...serviceOrders, ...productionOrders]);
+      setWorkOrders(allCommesse);
       if (settingsRes.data) {
         const newSettings: Record<string, number> = {};
         settingsRes.data.forEach((s: { setting_key: string; setting_value: number }) => {
