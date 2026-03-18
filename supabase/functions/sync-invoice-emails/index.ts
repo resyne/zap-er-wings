@@ -152,10 +152,10 @@ Deno.serve(async (req) => {
 
               if (extracted) {
                 // Determine invoice type and subject type from AI classification
-                let invoiceType = 'fattura_acquisto';
+                let invoiceType = 'acquisto';
                 let subjectType = 'fornitore';
                 if (extracted.document_type === 'fattura_vendita') {
-                  invoiceType = 'fattura_vendita';
+                  invoiceType = 'vendita';
                   subjectType = 'cliente';
                 } else if (extracted.document_type === 'nota_credito') {
                   invoiceType = 'nota_credito';
