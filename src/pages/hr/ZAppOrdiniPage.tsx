@@ -116,11 +116,6 @@ const DELIVERY_MODES_RICAMBI = [
   { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro ricambi in sede" },
 ];
 
-const INTERVENTION_TYPES = [
-  { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
-  { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
-  { value: "altro", label: "Altro", icon: Settings, desc: "Altro tipo di intervento" },
-];
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
@@ -433,6 +428,15 @@ export default function ZAppOrdiniPage() {
   };
 
   // Compute what commesse will be auto-created
+  // Derive intervention type from order items' service types
+  const derivedInterventionType = useMemo(() => {
+    if (orderTypeCategory !== "intervento") return "";
+    const serviceItem = orderItems.find(i => i.mode === "service" && i.serviceType);
+    if (!serviceItem) return "altro";
+    if (serviceItem.serviceType.includes("manutenzione")) return "manutenzione";
+    return "altro";
+  }, [orderTypeCategory, orderItems]);
+
   const computeCommesse = () => {
     const commesse: string[] = [];
 
@@ -441,7 +445,7 @@ export default function ZAppOrdiniPage() {
       if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
       if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
-      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : interventionType === "altro" ? "Altro" : "Intervento";
+      const typeLabel = derivedInterventionType === "manutenzione" ? "Manutenzione" : "Intervento";
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
@@ -453,9 +457,7 @@ export default function ZAppOrdiniPage() {
   const canSubmit = () => {
     if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
-    if (needsInterventionType && !interventionType) return false;
-    // Per interventi, le voci sono opzionali (il tipo intervento è già descrittivo)
-    if (!needsInterventionType && !hasValidItems) return false;
+    if (!hasValidItems) return false;
     return true;
   };
 
@@ -501,7 +503,7 @@ export default function ZAppOrdiniPage() {
           order_type: orderType,
           order_type_category: orderTypeCategory,
           delivery_mode: needsDeliveryMode ? deliveryMode : null,
-          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
+          intervention_type: orderTypeCategory === "intervento" ? derivedInterventionType : null,
           is_warranty: isWarranty,
           order_subject: subject,
           notes: formData.notes || null,
@@ -530,7 +532,7 @@ export default function ZAppOrdiniPage() {
       const commessaTitle = orderTypeCategory === "fornitura"
         ? `Fornitura ${subject || productName} per ${customerName}`.trim()
         : orderTypeCategory === "intervento"
-        ? `${interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : "Altro intervento"} per ${customerName}`.trim()
+        ? `${derivedInterventionType === "manutenzione" ? "Manutenzione" : "Intervento"} per ${customerName} - ${subject}`.trim()
         : `Ricambi per ${customerName}`.trim();
 
       const { data: commessa, error: commError } = await supabase
@@ -543,7 +545,7 @@ export default function ZAppOrdiniPage() {
           description: subject || "",
           type: orderTypeCategory,
           delivery_mode: needsDeliveryMode ? deliveryMode : null,
-          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
+          intervention_type: orderTypeCategory === "intervento" ? derivedInterventionType : null,
           priority: selectedPriority === "molto_urgente" ? "urgent" : selectedPriority === "urgente" ? "high" : selectedPriority === "normale" ? "low" : "medium",
           status: "da_fare",
           article: subject || null,
@@ -1168,36 +1170,6 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
-            {/* 4b. Tipo di intervento (only for intervento) */}
-            {needsInterventionType && selectedCustomer && (
-              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
-                <Label className="font-semibold text-sm">Tipo di intervento *</Label>
-                <div className="space-y-2">
-                  {INTERVENTION_TYPES.map(it => {
-                    const Icon = it.icon;
-                    const isSelected = interventionType === it.value;
-                    return (
-                      <button
-                        key={it.value}
-                        type="button"
-                        onClick={() => setInterventionType(it.value)}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all",
-                          isSelected ? "border-teal-500 bg-teal-50 shadow-sm" : "border-border hover:bg-muted/50"
-                        )}
-                      >
-                        <Icon className={cn("h-5 w-5 shrink-0", isSelected ? "text-teal-600" : "text-muted-foreground")} />
-                        <div className="flex-1">
-                          <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{it.label}</p>
-                          <p className="text-xs text-muted-foreground">{it.desc}</p>
-                        </div>
-                        {isSelected && <Check className="h-5 w-5 text-teal-600" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 5. Date */}
             {orderTypeCategory && selectedCustomer && (
