@@ -433,6 +433,15 @@ export default function ZAppOrdiniPage() {
   };
 
   // Compute what commesse will be auto-created
+  // Derive intervention type from order items' service types
+  const derivedInterventionType = useMemo(() => {
+    if (orderTypeCategory !== "intervento") return "";
+    const serviceItem = orderItems.find(i => i.mode === "service" && i.serviceType);
+    if (!serviceItem) return "altro";
+    if (serviceItem.serviceType.includes("manutenzione")) return "manutenzione";
+    return "altro";
+  }, [orderTypeCategory, orderItems]);
+
   const computeCommesse = () => {
     const commesse: string[] = [];
 
@@ -441,7 +450,7 @@ export default function ZAppOrdiniPage() {
       if (deliveryMode === "produzione_installazione") commesse.push("Installazione");
       if (deliveryMode === "produzione_spedizione") commesse.push("Spedizione");
     } else if (orderTypeCategory === "intervento") {
-      const typeLabel = interventionType === "manutenzione" ? "Manutenzione" : interventionType === "riparazione" ? "Riparazione" : interventionType === "altro" ? "Altro" : "Intervento";
+      const typeLabel = derivedInterventionType === "manutenzione" ? "Manutenzione" : "Intervento";
       commesse.push(`${typeLabel} (Lavoro)`);
     } else if (orderTypeCategory === "ricambi") {
       if (deliveryMode === "spedizione") commesse.push("Spedizione");
