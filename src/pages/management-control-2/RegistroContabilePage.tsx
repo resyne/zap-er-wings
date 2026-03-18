@@ -3305,8 +3305,8 @@ export default function RegistroContabilePage() {
         <InvoiceRegistryTable
           invoices={filteredInvoices as any}
           isLoading={isLoading}
-          groupBy={groupBy}
-          grouped={(groupBy !== 'none' && groupedInvoices) ? (groupedInvoices as any) : null}
+          groupBy="none"
+          grouped={null}
           onOpenDetails={(invoice) => {
             setDetailsInvoice(invoice as any);
             setShowDetailsDialog(true);
