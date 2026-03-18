@@ -200,6 +200,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
           if (field) columnFieldMap.set(col, field);
         }
 
+        console.log("Raw Excel columns:", cols.map(c => `"${c}" → sanitized: "${sanitizeColName(c)}"`));
         console.log("Column mapping detected:", Object.fromEntries(columnFieldMap));
 
         // Auto-map + match in one go
