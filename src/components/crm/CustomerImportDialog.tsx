@@ -92,7 +92,7 @@ function detectColumnField(colName: string): keyof MappedCustomer | null {
   return null;
 }
 
-function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
+function mapRow(row: ParsedRow, columnFieldMap: Map<string, keyof MappedCustomer>): MappedCustomer {
   const result: any = {
     name: "",
     company_name: null,
@@ -108,14 +108,10 @@ function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
     sdi_code: null,
   };
 
-  for (const col of columns) {
-    const colLower = col.toLowerCase().trim();
-    const field = COLUMN_MAP[colLower];
-    if (field) {
-      const val = String(row[col] || "").trim();
-      if (val) {
-        result[field] = val;
-      }
+  for (const [col, field] of columnFieldMap.entries()) {
+    const val = String(row[col] || "").trim();
+    if (val) {
+      result[field] = val;
     }
   }
 
@@ -127,6 +123,17 @@ function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
   // If no phone but we have cellulare, use that
   if (!result.phone && result._cellulare) {
     result.phone = result._cellulare;
+  }
+
+  // If still no name, try to use any non-empty first column as fallback
+  if (!result.name) {
+    for (const [col] of columnFieldMap.entries()) {
+      const val = String(row[col] || "").trim();
+      if (val && val.length > 1) {
+        result.name = val;
+        break;
+      }
+    }
   }
 
   return result;
