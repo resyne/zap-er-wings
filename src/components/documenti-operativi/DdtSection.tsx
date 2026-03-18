@@ -487,6 +487,16 @@ export default function DdtSection() {
           )}
         </DialogContent>
       </Dialog>
+
+      <LinkAccountingDocDialog
+        open={linkDialog.open}
+        onOpenChange={open => setLinkDialog(prev => ({ ...prev, open }))}
+        docType="ddt"
+        docId={linkDialog.ddtId}
+        docLabel={linkDialog.ddtLabel}
+        currentLinkedId={linkDialog.currentLinkedId}
+        onLinked={() => queryClient.invalidateQueries({ queryKey: ["ddts-operativi"] })}
+      />
     </div>
   );
 }
