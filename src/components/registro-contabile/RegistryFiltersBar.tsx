@@ -2,7 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Search, X } from "lucide-react";
+import { format, addMonths, subMonths, addDays, subDays } from "date-fns";
+import { it } from "date-fns/locale";
+
+type ViewMode = "month" | "day";
 
 type Props = {
   searchTerm: string;
@@ -11,8 +15,10 @@ type Props = {
   onFilterTypeChange: (value: string) => void;
   filterStatus: string;
   onFilterStatusChange: (value: string) => void;
-  groupBy: string;
-  onGroupByChange: (value: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (value: ViewMode) => void;
+  selectedPeriod: Date;
+  onSelectedPeriodChange: (value: Date) => void;
   onClearFilters: () => void;
 };
 
@@ -23,22 +29,69 @@ export function RegistryFiltersBar({
   onFilterTypeChange,
   filterStatus,
   onFilterStatusChange,
-  groupBy,
-  onGroupByChange,
+  viewMode,
+  onViewModeChange,
+  selectedPeriod,
+  onSelectedPeriodChange,
   onClearFilters,
 }: Props) {
   const hasActiveFilters =
-    !!searchTerm || filterType !== "all" || filterStatus !== "all" || groupBy !== "month";
+    !!searchTerm || filterType !== "all" || filterStatus !== "all";
+
+  const periodLabel = viewMode === "month"
+    ? format(selectedPeriod, "MMMM yyyy", { locale: it })
+    : format(selectedPeriod, "EEEE d MMMM yyyy", { locale: it });
+
+  const goBack = () => {
+    onSelectedPeriodChange(
+      viewMode === "month" ? subMonths(selectedPeriod, 1) : subDays(selectedPeriod, 1)
+    );
+  };
+
+  const goForward = () => {
+    onSelectedPeriodChange(
+      viewMode === "month" ? addMonths(selectedPeriod, 1) : addDays(selectedPeriod, 1)
+    );
+  };
+
+  const goToday = () => {
+    onSelectedPeriodChange(new Date());
+  };
 
   return (
     <div className="sticky top-3 z-10 space-y-3 rounded-xl border bg-card/95 backdrop-blur-sm p-4 shadow-sm">
-      {/* Quick type filters */}
-      <div className="flex flex-wrap gap-1.5">
-        <QuickFilterButton active={filterType === "all"} onClick={() => onFilterTypeChange("all")}>Tutti</QuickFilterButton>
-        <QuickFilterButton active={filterType === "acquisto"} onClick={() => onFilterTypeChange("acquisto")}>Fatture Acquisto</QuickFilterButton>
-        <QuickFilterButton active={filterType === "vendita"} onClick={() => onFilterTypeChange("vendita")}>Fatture Vendita</QuickFilterButton>
-        <QuickFilterButton active={filterType === "nota_credito"} onClick={() => onFilterTypeChange("nota_credito")}>Note di Credito</QuickFilterButton>
-        <QuickFilterButton active={filterType === "nota_debito"} onClick={() => onFilterTypeChange("nota_debito")}>Note di Debito</QuickFilterButton>
+      {/* Period navigator */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <QuickFilterButton active={filterType === "all"} onClick={() => onFilterTypeChange("all")}>Tutti</QuickFilterButton>
+          <QuickFilterButton active={filterType === "acquisto"} onClick={() => onFilterTypeChange("acquisto")}>Fatture Acquisto</QuickFilterButton>
+          <QuickFilterButton active={filterType === "vendita"} onClick={() => onFilterTypeChange("vendita")}>Fatture Vendita</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_credito"} onClick={() => onFilterTypeChange("nota_credito")}>Note di Credito</QuickFilterButton>
+          <QuickFilterButton active={filterType === "nota_debito"} onClick={() => onFilterTypeChange("nota_debito")}>Note di Debito</QuickFilterButton>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border rounded-lg bg-background overflow-hidden">
+            <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "month" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("month")}>
+              Mese
+            </Button>
+            <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "day" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("day")}>
+              Giorno
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-1 border rounded-lg bg-background px-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goBack}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button onClick={goToday} className="px-3 h-8 text-sm font-medium capitalize hover:bg-muted rounded transition-colors min-w-[160px] text-center">
+              {periodLabel}
+            </button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goForward}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Search + filters row */}
@@ -83,20 +136,6 @@ export function RegistryFiltersBar({
             </SelectContent>
           </Select>
 
-          <Select value={groupBy} onValueChange={onGroupByChange}>
-            <SelectTrigger className="h-9 w-full lg:w-[160px] bg-background">
-              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-              <SelectValue placeholder="Raggruppa" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Nessun raggruppamento</SelectItem>
-              <SelectItem value="day">Per giorno</SelectItem>
-              <SelectItem value="week">Per settimana</SelectItem>
-              <SelectItem value="month">Per mese</SelectItem>
-              <SelectItem value="quarter">Per trimestre</SelectItem>
-            </SelectContent>
-          </Select>
-
           {hasActiveFilters && (
             <Button
               variant="ghost"
@@ -122,9 +161,6 @@ export function RegistryFiltersBar({
           )}
           {filterStatus !== "all" && (
             <FilterChip label={`Stato: ${labelStatus(filterStatus)}`} onClear={() => onFilterStatusChange("all")} />
-          )}
-          {groupBy !== "month" && (
-            <FilterChip label={`Raggruppa: ${labelGroupBy(groupBy)}`} onClear={() => onGroupByChange("month")} />
           )}
         </div>
       )}
@@ -177,17 +213,6 @@ function labelStatus(v: string) {
     rettificato: "Rettificato",
     archiviato: "Archiviato",
     all: "Tutti",
-  };
-  return map[v] || v;
-}
-
-function labelGroupBy(v: string) {
-  const map: Record<string, string> = {
-    none: "Nessuno",
-    day: "Giorno",
-    week: "Settimana",
-    month: "Mese",
-    quarter: "Trimestre",
   };
   return map[v] || v;
 }
