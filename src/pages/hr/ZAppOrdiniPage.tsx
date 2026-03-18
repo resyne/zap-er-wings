@@ -45,6 +45,7 @@ interface Order {
   delivery_mode: string | null;
   notes: string | null;
   order_subject: string | null;
+  customer_id: string | null;
   customers?: { name: string; code: string } | null;
   commesse?: Array<{ id: string; number: string; status: string; type: string }>;
 }
