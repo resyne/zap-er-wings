@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, ShoppingCart, Archive, MoreHorizontal, LinkIcon, AlertTriangle, FileCheck, Unlink } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, ShoppingCart, Archive, MoreHorizontal, LinkIcon, AlertTriangle, FileCheck, Unlink, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
+import { OrderDetailSheet } from "./OrderDetailSheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -40,6 +41,7 @@ export default function OrdiniSection() {
   const [linkDialog, setLinkDialog] = useState<{ open: boolean; orderId: string; orderNumber: string; currentLinkedId: string | null }>({
     open: false, orderId: "", orderNumber: "", currentLinkedId: null
   });
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["sales-orders-operativi", showArchived],
@@ -81,7 +83,6 @@ export default function OrdiniSection() {
 
   return (
     <div className="space-y-4">
-      {/* Alert for unlinked docs */}
       {pendingCount > 0 && (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
           <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
@@ -91,24 +92,17 @@ export default function OrdiniSection() {
         </div>
       )}
 
-      {/* Search + Filter bar */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Cerca ordini per numero o cliente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
-        <Button
-          variant={showArchived ? "default" : "ghost"}
-          size="sm"
-          className="h-9 text-xs"
-          onClick={() => setShowArchived(!showArchived)}
-        >
+        <Button variant={showArchived ? "default" : "ghost"} size="sm" className="h-9 text-xs" onClick={() => setShowArchived(!showArchived)}>
           <Archive className="h-3.5 w-3.5 mr-1.5" />
           {showArchived ? "Nascondi archiviati" : "Mostra archiviati"}
         </Button>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <Card className="border shadow-sm">
           <CardContent className="py-16 text-center">
@@ -135,7 +129,7 @@ export default function OrdiniSection() {
       ) : (
         <Card className="border shadow-sm overflow-hidden">
           <CardContent className="p-0">
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[520px]">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -155,8 +149,12 @@ export default function OrdiniSection() {
                     const hasAccounting = !!order.accounting_document_id || !!order.invoiced;
                     const isExcluded = order.non_contabilizzato;
                     return (
-                      <TableRow key={order.id} className={cn("hover:bg-muted/50 group", order.archived && "opacity-50")}>
-                        <TableCell className="font-mono font-medium">{order.number}</TableCell>
+                      <TableRow
+                        key={order.id}
+                        className={cn("hover:bg-muted/50 group cursor-pointer", order.archived && "opacity-50")}
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        <TableCell className="font-mono font-medium text-primary">{order.number}</TableCell>
                         <TableCell className="max-w-[180px] truncate">{custMap.get(order.customer_id || "") || "—"}</TableCell>
                         <TableCell className="text-sm">{order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy", { locale: it }) : "—"}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{typeMap[order.order_type || ""] || order.order_type || "—"}</Badge></TableCell>
@@ -165,20 +163,22 @@ export default function OrdiniSection() {
                         <TableCell>
                           <TooltipProvider>
                             <Tooltip>
-                              <TooltipTrigger>
-                                {hasAccounting ? (
-                                  <Badge variant="default" className="text-xs gap-1">
-                                    <FileCheck className="h-3 w-3" />
-                                    {order.invoice_number || "Collegato"}
-                                  </Badge>
-                                ) : isExcluded ? (
-                                  <Badge variant="outline" className="text-xs text-muted-foreground">N/A</Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Mancante
-                                  </Badge>
-                                )}
+                              <TooltipTrigger asChild>
+                                <span>
+                                  {hasAccounting ? (
+                                    <Badge variant="default" className="text-xs gap-1">
+                                      <FileCheck className="h-3 w-3" />
+                                      {order.invoice_number || "Collegato"}
+                                    </Badge>
+                                  ) : isExcluded ? (
+                                    <Badge variant="outline" className="text-xs text-muted-foreground">N/A</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Mancante
+                                    </Badge>
+                                  )}
+                                </span>
                               </TooltipTrigger>
                               <TooltipContent>
                                 {hasAccounting ? "Documento contabile collegato" : isExcluded ? "Escluso dalla contabilità" : "Nessun documento contabile collegato"}
@@ -186,7 +186,7 @@ export default function OrdiniSection() {
                             </Tooltip>
                           </TooltipProvider>
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -194,6 +194,10 @@ export default function OrdiniSection() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setSelectedOrder(order)}>
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Dettagli
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setLinkDialog({
                                 open: true,
                                 orderId: order.id,
@@ -235,6 +239,13 @@ export default function OrdiniSection() {
         docLabel={linkDialog.orderNumber}
         currentLinkedId={linkDialog.currentLinkedId}
         onLinked={() => queryClient.invalidateQueries({ queryKey: ["sales-orders-operativi"] })}
+      />
+
+      <OrderDetailSheet
+        open={!!selectedOrder}
+        onOpenChange={open => { if (!open) setSelectedOrder(null); }}
+        order={selectedOrder}
+        customerName={selectedOrder ? custMap.get(selectedOrder.customer_id || "") || "—" : "—"}
       />
     </div>
   );
