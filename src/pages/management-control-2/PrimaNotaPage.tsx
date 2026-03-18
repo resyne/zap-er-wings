@@ -196,6 +196,9 @@ export default function PrimaNotaPage() {
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
+  // State for delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; description: string; amount: number } | null>(null);
+
   const openValidateDialog = (movementId: string) => {
     const fullEntry = rawEntries.find(e => e.id === movementId);
     if (fullEntry) {
