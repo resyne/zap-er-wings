@@ -238,15 +238,32 @@ export default function ScadenziarioPage() {
       }
     });
 
-    return Array.from(grouped.values()).sort((a, b) => {
-      // Prima per scadenze scadute
+    const allGroups = Array.from(grouped.values()).sort((a, b) => {
       if (a.scadenzeScadute !== b.scadenzeScadute) {
         return b.scadenzeScadute - a.scadenzeScadute;
       }
-      // Poi per residuo
       return b.totaleResiduo - a.totaleResiduo;
     });
-  }, [scadenze, searchQuery]);
+
+    // Filter out fully closed groups unless showClosed is true
+    if (!showClosed) {
+      return allGroups.filter(g => g.totaleResiduo > 0 || g.scadenzeAperte > 0);
+    }
+    return allGroups;
+  }, [scadenze, searchQuery, showClosed]);
+
+  const closedGroupsCount = useMemo(() => {
+    if (!scadenze) return 0;
+    const grouped = new Map<string, { residuo: number; aperte: number }>();
+    scadenze.forEach(s => {
+      const key = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
+      if (!grouped.has(key)) grouped.set(key, { residuo: 0, aperte: 0 });
+      const g = grouped.get(key)!;
+      g.residuo += Number(s.importo_residuo);
+      if (s.stato === "aperta" || s.stato === "parziale") g.aperte++;
+    });
+    return Array.from(grouped.values()).filter(g => g.residuo <= 0 && g.aperte === 0).length;
+  }, [scadenze]);
 
   const registraMutation = useMutation({
     mutationFn: async ({
