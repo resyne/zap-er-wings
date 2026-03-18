@@ -1,90 +1,92 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Card } from "@/components/ui/card";
 import {
   Search, Loader2, Wrench, Truck, Settings, MapPin, Package, Clock,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Building2,
-  CreditCard, Calendar, FileText, User
+  CreditCard, Calendar, FileText, User, Factory
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────
-interface UnifiedOrder {
+interface CommessaPhase {
+  id: string;
+  phase_type: string;
+  phase_order: number;
+  status: string;
+  assigned_to?: string;
+  scheduled_date?: string;
+  started_date?: string;
+  completed_date?: string;
+  notes?: string;
+}
+
+interface Commessa {
   id: string;
   number: string;
   title: string;
-  status: string;
-  type: "produzione" | "servizio" | "spedizione";
-  priority?: string;
-  scheduled_date?: string;
-  planned_start_date?: string;
-  planned_end_date?: string;
-  actual_start_date?: string;
-  actual_end_date?: string;
-  location?: string;
-  article?: string;
-  customer_name?: string;
-  customer_code?: string;
-  created_at: string;
   description?: string;
-  assigned_to_name?: string;
+  type: string;
+  delivery_mode?: string;
+  intervention_type?: string;
+  priority?: string;
+  status: string;
+  current_phase: number;
+  article?: string;
   notes?: string;
+  diameter?: string;
+  smoke_inlet?: string;
+  payment_on_delivery?: boolean;
+  payment_amount?: number;
+  is_warranty?: boolean;
   shipping_address?: string;
   shipping_city?: string;
   shipping_country?: string;
   shipping_province?: string;
   shipping_postal_code?: string;
-  equipment_needed?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
-  diameter?: string;
-  smoke_inlet?: string;
-  includes_installation?: boolean;
-  payment_on_delivery?: boolean;
-  payment_amount?: number;
-  preparation_date?: string;
-  shipped_date?: string;
-  delivered_date?: string;
-  lead_id?: string;
+  archived: boolean;
+  deadline?: string;
+  created_at: string;
+  sales_order_id?: string;
+  customer_name?: string;
+  customer_code?: string;
   bom_name?: string;
   bom_version?: string;
   sales_order_number?: string;
-  sales_order_id?: string;
-  offer_number?: string;
+  phases: CommessaPhase[];
 }
 
 interface CustomerGroup {
   key: string;
   customerName: string;
   customerCode?: string;
-  production: UnifiedOrder[];
-  shipping: UnifiedOrder[];
-  service: UnifiedOrder[];
-  phases: { produzione: string; spedizione: string; servizio: string };
+  commesse: Commessa[];
   orderNumbers: string[];
   earliestDate?: string;
   latestDate?: string;
   articlesSummary: string[];
-  totalAmount?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────
 const statusLabels: Record<string, { label: string; color: string }> = {
   da_fare: { label: "Da fare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  da_preparare: { label: "Da preparare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  da_programmare: { label: "Da programmare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  programmata: { label: "Programmata", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  da_completare: { label: "Da completare", color: "bg-orange-100 text-orange-700 border-orange-200" },
   planned: { label: "Pianificato", color: "bg-blue-100 text-blue-700 border-blue-200" },
   in_lavorazione: { label: "In lavorazione", color: "bg-indigo-100 text-indigo-700 border-indigo-200" },
   in_test: { label: "In test", color: "bg-purple-100 text-purple-700 border-purple-200" },
   pronto: { label: "Pronto", color: "bg-cyan-100 text-cyan-700 border-cyan-200" },
   completato: { label: "Completato", color: "bg-green-100 text-green-700 border-green-200" },
-  da_preparare: { label: "Da preparare", color: "bg-amber-100 text-amber-700 border-amber-200" },
+  completata: { label: "Completata", color: "bg-green-100 text-green-700 border-green-200" },
   spedito: { label: "Spedito", color: "bg-green-100 text-green-700 border-green-200" },
   standby: { label: "Standby", color: "bg-gray-100 text-gray-600 border-gray-200" },
   bloccato: { label: "Bloccato", color: "bg-red-100 text-red-700 border-red-200" },
@@ -92,40 +94,49 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   completed: { label: "Completato", color: "bg-green-100 text-green-700 border-green-200" },
 };
 
-const phaseConfig = {
-  produzione: { label: "Produzione", icon: Settings, color: "bg-purple-500", lightBg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+const phaseConfig: Record<string, { label: string; icon: any; color: string; lightBg: string; text: string; border: string }> = {
+  produzione: { label: "Produzione", icon: Factory, color: "bg-purple-500", lightBg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
   spedizione: { label: "Spedizione", icon: Truck, color: "bg-amber-500", lightBg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  servizio: { label: "Installazione", icon: Wrench, color: "bg-blue-500", lightBg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  installazione: { label: "Installazione", icon: MapPin, color: "bg-blue-500", lightBg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  manutenzione: { label: "Manutenzione", icon: Wrench, color: "bg-teal-500", lightBg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
+  riparazione: { label: "Riparazione", icon: Settings, color: "bg-red-500", lightBg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
 };
 
-const statusFlowProduzione = [
-  { value: "da_fare", label: "Da fare" },
-  { value: "in_lavorazione", label: "In lavorazione" },
-  { value: "in_test", label: "In test" },
-  { value: "pronto", label: "Pronto" },
-  { value: "standby", label: "Standby" },
-  { value: "bloccato", label: "Bloccato" },
-  { value: "completato", label: "Completato" },
-];
+const statusFlowByPhaseType: Record<string, { value: string; label: string }[]> = {
+  produzione: [
+    { value: "da_fare", label: "Da fare" },
+    { value: "in_lavorazione", label: "In lavorazione" },
+    { value: "in_test", label: "In test" },
+    { value: "pronto", label: "Pronto" },
+    { value: "standby", label: "Standby" },
+    { value: "bloccato", label: "Bloccato" },
+    { value: "completato", label: "Completato" },
+  ],
+  spedizione: [
+    { value: "da_preparare", label: "Da preparare" },
+    { value: "in_lavorazione", label: "In preparazione" },
+    { value: "pronto", label: "Pronto" },
+    { value: "spedito", label: "Spedito" },
+  ],
+  installazione: [
+    { value: "da_programmare", label: "Da programmare" },
+    { value: "programmata", label: "Programmata" },
+    { value: "in_lavorazione", label: "In corso" },
+    { value: "completato", label: "Completato" },
+  ],
+  manutenzione: [
+    { value: "da_fare", label: "Da fare" },
+    { value: "in_lavorazione", label: "In lavorazione" },
+    { value: "completato", label: "Completato" },
+  ],
+  riparazione: [
+    { value: "da_fare", label: "Da fare" },
+    { value: "in_lavorazione", label: "In lavorazione" },
+    { value: "completato", label: "Completato" },
+  ],
+};
 
-const statusFlowServizio = [
-  { value: "da_fare", label: "Da fare" },
-  { value: "in_lavorazione", label: "In lavorazione" },
-  { value: "in_test", label: "In test" },
-  { value: "pronto", label: "Pronto" },
-  { value: "standby", label: "Standby" },
-  { value: "bloccato", label: "Bloccato" },
-  { value: "completato", label: "Completato" },
-];
-
-const statusFlowSpedizione = [
-  { value: "da_preparare", label: "Da preparare" },
-  { value: "in_lavorazione", label: "In preparazione" },
-  { value: "pronto", label: "Pronto" },
-  { value: "spedito", label: "Spedito" },
-];
-
-const completedStatuses = ["completato", "spedito", "completed", "closed"];
+const completedStatuses = ["completato", "completata", "spedito", "completed", "closed"];
 
 const priorityLabels: Record<string, { label: string; color: string; icon?: boolean }> = {
   low: { label: "Bassa", color: "text-muted-foreground" },
@@ -139,105 +150,18 @@ const fmtDate = (d?: string | null) => {
   try { return format(new Date(d), "dd MMM yyyy", { locale: it }); } catch { return d; }
 };
 
-// ─── Articles Checklist ──────────────────────────────────────
-function ArticlesChecklist({ workOrderId }: { workOrderId: string }) {
-  const [articles, setArticles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.from("work_order_article_items").select("*").eq("work_order_id", workOrderId)
-      .order("position", { ascending: true }).then(({ data }) => {
-        setArticles(data || []);
-        setLoading(false);
-      });
-  }, [workOrderId]);
-
-  const toggleComplete = async (article: any) => {
-    const newCompleted = !article.is_completed;
-    const { error } = await supabase.from("work_order_article_items")
-      .update({ is_completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null })
-      .eq("id", article.id);
-    if (error) { toast.error("Errore"); return; }
-    setArticles(prev => prev.map(a => a.id === article.id ? { ...a, is_completed: newCompleted } : a));
-  };
-
-  if (loading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (articles.length === 0) return null;
-
-  const completed = articles.filter(a => a.is_completed).length;
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Da assemblare</p>
-        <Badge variant="outline" className="text-[10px]">{completed}/{articles.length}</Badge>
-      </div>
-      {articles.map(article => (
-        <button
-          key={article.id}
-          onClick={() => toggleComplete(article)}
-          className="flex items-start gap-2 w-full text-left p-1.5 rounded-lg hover:bg-muted/50 transition-colors"
-        >
-          <Checkbox checked={article.is_completed} className="mt-0.5 pointer-events-none" />
-          <span className={`text-xs flex-1 ${article.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {article.description}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ─── Phase Progress Indicator ─────────────────────────────────
-function PhasePipeline({ group }: { group: CustomerGroup }) {
-  const phases = [
-    { key: "produzione" as const, orders: group.production },
-    { key: "spedizione" as const, orders: group.shipping },
-    { key: "servizio" as const, orders: group.service },
-  ];
-
-  return (
-    <div className="flex items-center gap-1">
-      {phases.map((phase, idx) => {
-        const config = phaseConfig[phase.key];
-        const Icon = config.icon;
-        const hasOrders = phase.orders.length > 0;
-        const allDone = hasOrders && phase.orders.every(o => completedStatuses.includes(o.status));
-        const someInProgress = hasOrders && phase.orders.some(o => !completedStatuses.includes(o.status) && o.status !== "da_fare" && o.status !== "da_preparare");
-
-        return (
-          <div key={phase.key} className="flex items-center">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-              allDone ? "bg-green-100 text-green-700" :
-              someInProgress ? `${config.lightBg} ${config.text}` :
-              hasOrders ? "bg-muted text-muted-foreground" :
-              "bg-muted/50 text-muted-foreground/40"
-            }`}>
-              {allDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
-              <span>{config.label}</span>
-              {hasOrders && <span>({phase.orders.length})</span>}
-            </div>
-            {idx < 2 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 mx-1 flex-shrink-0" />}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Phase Order Card ────────────────────────────────────────
-function PhaseOrderCard({ order, onStatusChange, isPending }: {
-  order: UnifiedOrder;
-  onStatusChange: (id: string, type: string, newStatus: string) => void;
+// ─── Phase Card ──────────────────────────────────────────────
+function PhaseCard({ phase, commessa, onStatusChange, isPending }: {
+  phase: CommessaPhase;
+  commessa: Commessa;
+  onStatusChange: (phaseId: string, newStatus: string, commessa: Commessa) => void;
   isPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const config = phaseConfig[order.type];
+  const config = phaseConfig[phase.phase_type] || phaseConfig.produzione;
   const Icon = config.icon;
-  const statusInfo = statusLabels[order.status] || { label: order.status, color: "bg-muted text-muted-foreground" };
-  const priorityInfo = order.priority ? priorityLabels[order.priority] : null;
-  const statusFlow = order.type === "produzione" ? statusFlowProduzione : order.type === "servizio" ? statusFlowServizio : statusFlowSpedizione;
-
+  const statusInfo = statusLabels[phase.status] || { label: phase.status, color: "bg-muted text-muted-foreground" };
+  const statusFlow = statusFlowByPhaseType[phase.phase_type] || statusFlowByPhaseType.produzione;
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -250,24 +174,19 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs font-semibold text-primary">
-                    {order.sales_order_number || order.number}
-                  </span>
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono">
-                    {order.type === "produzione" ? "PROD" : order.type === "spedizione" ? "SPED" : "INST"}
+                  <span className="font-mono text-xs font-semibold text-primary">{commessa.number}</span>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-mono uppercase">
+                    {config.label}
                   </Badge>
-                  {order.offer_number && (
-                    <Badge variant="outline" className="text-[9px] px-1 py-0">Off. {order.offer_number}</Badge>
-                  )}
-                  {priorityInfo?.icon && <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
                 </div>
-                <p className="text-sm font-medium truncate mt-0.5">{order.title}</p>
+                <p className="text-sm font-medium truncate mt-0.5">{commessa.title}</p>
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(order.created_at)}</span>
-                  {order.scheduled_date && <span>• Previsto: {fmtDate(order.scheduled_date)}</span>}
-                  {order.assigned_to_name && <span>• <User className="h-3 w-3 inline -mt-0.5" /> {order.assigned_to_name}</span>}
-                  {order.article && <span className="truncate max-w-[200px]">• {order.article.split('\n')[0]}</span>}
-                  {priorityInfo && <span className={priorityInfo.color}>• {priorityInfo.label}</span>}
+                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{fmtDate(commessa.created_at)}</span>
+                  {phase.scheduled_date && <span>• Previsto: {fmtDate(phase.scheduled_date)}</span>}
+                  {commessa.article && <span className="truncate max-w-[200px]">• {commessa.article.split('\n')[0]}</span>}
+                  {commessa.priority && priorityLabels[commessa.priority] && (
+                    <span className={priorityLabels[commessa.priority].color}>• {priorityLabels[commessa.priority].label}</span>
+                  )}
                 </div>
               </div>
               <Badge className={`${statusInfo.color} text-[10px] px-2 border flex-shrink-0`}>{statusInfo.label}</Badge>
@@ -283,13 +202,13 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
               <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">Cambia stato</p>
               <div className="flex flex-wrap gap-1.5">
                 {statusFlow.map(s => {
-                  const isActive = order.status === s.value;
+                  const isActive = phase.status === s.value;
                   const si = statusLabels[s.value];
                   return (
                     <button
                       key={s.value}
                       disabled={isActive || isPending}
-                      onClick={(e) => { e.stopPropagation(); onStatusChange(order.id, order.type, s.value); }}
+                      onClick={(e) => { e.stopPropagation(); onStatusChange(phase.id, s.value, commessa); }}
                       className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-all ${
                         isActive
                           ? `${si?.color || "bg-muted"} border-current ring-1 ring-offset-1 ring-current/20`
@@ -304,60 +223,38 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
               </div>
             </div>
 
-            {/* Type-specific details */}
-            {order.type === "produzione" && (
-              <>
-                {(order.diameter || order.smoke_inlet || order.includes_installation) && (
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {order.diameter && <p><span className="text-muted-foreground">Diametro:</span> {order.diameter}</p>}
-                    {order.smoke_inlet && <p><span className="text-muted-foreground">Fumi:</span> {order.smoke_inlet}</p>}
-                    {order.includes_installation && (
-                      <p className="text-blue-600 font-medium flex items-center gap-1 col-span-2"><Wrench className="h-3 w-3" /> Include installazione</p>
-                    )}
-                  </div>
-                )}
-                {order.bom_name && <p className="text-xs"><span className="text-muted-foreground">BOM:</span> {order.bom_name} (v{order.bom_version})</p>}
-                <ArticlesChecklist workOrderId={order.id} />
-              </>
-            )}
-
-            {order.type === "spedizione" && (
+            {/* Details */}
+            {(commessa.diameter || commessa.smoke_inlet) && (
               <div className="grid grid-cols-2 gap-2 text-xs">
-                {order.shipping_address && (
-                  <p className="flex items-start gap-1.5 col-span-2">
-                    <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <span>{[order.shipping_address, order.shipping_city, order.shipping_province, order.shipping_postal_code, order.shipping_country].filter(Boolean).join(", ")}</span>
-                  </p>
-                )}
-                {order.preparation_date && <p><span className="text-muted-foreground">Preparazione:</span> {fmtDate(order.preparation_date)}</p>}
-                {order.shipped_date && <p><span className="text-muted-foreground">Spedito:</span> {fmtDate(order.shipped_date)}</p>}
-                {order.delivered_date && <p><span className="text-muted-foreground">Consegnato:</span> {fmtDate(order.delivered_date)}</p>}
+                {commessa.diameter && <p><span className="text-muted-foreground">Diametro:</span> {commessa.diameter}</p>}
+                {commessa.smoke_inlet && <p><span className="text-muted-foreground">Fumi:</span> {commessa.smoke_inlet}</p>}
               </div>
             )}
 
-            {order.type === "servizio" && (
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {order.equipment_needed && <p><span className="text-muted-foreground">Attrezzatura:</span> {order.equipment_needed}</p>}
-                {order.estimated_hours != null && <p><span className="text-muted-foreground">Ore stimate:</span> {order.estimated_hours}h</p>}
-                {order.actual_hours != null && <p><span className="text-muted-foreground">Ore effettive:</span> {order.actual_hours}h</p>}
-              </div>
+            {phase.phase_type === "spedizione" && commessa.shipping_address && (
+              <p className="flex items-start gap-1.5 text-xs">
+                <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <span>{[commessa.shipping_address, commessa.shipping_city, commessa.shipping_province, commessa.shipping_postal_code, commessa.shipping_country].filter(Boolean).join(", ")}</span>
+              </p>
             )}
 
-            {order.payment_on_delivery && (
+            {commessa.payment_on_delivery && (
               <div className="flex items-center gap-1.5 text-xs text-amber-700 font-medium">
                 <CreditCard className="h-3.5 w-3.5" />
-                Pagamento alla consegna{order.payment_amount ? `: €${order.payment_amount.toLocaleString("it-IT")}` : ""}
+                Pagamento alla consegna{commessa.payment_amount ? `: €${commessa.payment_amount.toLocaleString("it-IT")}` : ""}
               </div>
             )}
 
-            {order.sales_order_number && (
-              <p className="text-xs"><span className="text-muted-foreground">Ordine:</span> {order.sales_order_number}</p>
+            {commessa.sales_order_number && (
+              <p className="text-xs"><span className="text-muted-foreground">Ordine:</span> {commessa.sales_order_number}</p>
             )}
 
-            {order.notes && (
+            {(commessa.notes || phase.notes) && (
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Note</p>
-                <p className="text-xs text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">{order.notes}</p>
+                <p className="text-xs text-foreground whitespace-pre-wrap bg-muted/50 p-2 rounded-md">
+                  {phase.notes || commessa.notes}
+                </p>
               </div>
             )}
           </div>
@@ -367,14 +264,64 @@ function PhaseOrderCard({ order, onStatusChange, isPending }: {
   );
 }
 
+// ─── Phase Pipeline ──────────────────────────────────────────
+function PhasePipeline({ commesse }: { commesse: Commessa[] }) {
+  // Collect all phases from all commesse in this group
+  const allPhases = commesse.flatMap(c => c.phases);
+  const phaseTypes = [...new Set(allPhases.map(p => p.phase_type))];
+  // Ensure consistent order
+  const orderedTypes = ["produzione", "spedizione", "installazione", "manutenzione", "riparazione"].filter(t => phaseTypes.includes(t));
+
+  return (
+    <div className="flex items-center gap-1">
+      {orderedTypes.map((pt, idx) => {
+        const config = phaseConfig[pt] || phaseConfig.produzione;
+        const Icon = config.icon;
+        const phasesOfType = allPhases.filter(p => p.phase_type === pt);
+        const allDone = phasesOfType.every(p => completedStatuses.includes(p.status));
+        const someInProgress = phasesOfType.some(p => !completedStatuses.includes(p.status) && p.status !== "da_fare" && p.status !== "da_preparare" && p.status !== "da_programmare");
+
+        return (
+          <div key={pt} className="flex items-center">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              allDone ? "bg-green-100 text-green-700" :
+              someInProgress ? `${config.lightBg} ${config.text}` :
+              "bg-muted text-muted-foreground"
+            }`}>
+              {allDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+              <span>{config.label}</span>
+              <span>({phasesOfType.length})</span>
+            </div>
+            {idx < orderedTypes.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 mx-1 flex-shrink-0" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Customer Group Card ─────────────────────────────────────
 function CustomerGroupCard({ group, onStatusChange, isPending }: {
   group: CustomerGroup;
-  onStatusChange: (id: string, type: string, newStatus: string) => void;
+  onStatusChange: (phaseId: string, newStatus: string, commessa: Commessa) => void;
   isPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const totalOrders = group.production.length + group.shipping.length + group.service.length;
+  const totalPhases = group.commesse.reduce((sum, c) => sum + c.phases.length, 0);
+
+  // Group phases by type across all commesse
+  const phasesByType = useMemo(() => {
+    const map: Record<string, { phase: CommessaPhase; commessa: Commessa }[]> = {};
+    group.commesse.forEach(c => {
+      c.phases.forEach(p => {
+        if (!map[p.phase_type]) map[p.phase_type] = [];
+        map[p.phase_type].push({ phase: p, commessa: c });
+      });
+    });
+    return map;
+  }, [group.commesse]);
+
+  const orderedPhaseTypes = ["produzione", "spedizione", "installazione", "manutenzione", "riparazione"].filter(t => phasesByType[t]);
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -385,34 +332,33 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
               <div className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
                 <Building2 className="h-5 w-5 text-foreground" />
               </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <p className="font-semibold text-base truncate">{group.customerName}</p>
-                    <Badge variant="secondary" className="text-[10px]">{totalOrders} commesse</Badge>
-                    {group.orderNumbers.length > 0 && (
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        {group.orderNumbers.join(" · ")}
-                      </span>
-                    )}
-                  </div>
-                  {/* Order summary line */}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5 flex-wrap">
-                    {group.earliestDate && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {fmtDate(group.earliestDate)}
-                        {group.latestDate && group.latestDate !== group.earliestDate && ` → ${fmtDate(group.latestDate)}`}
-                      </span>
-                    )}
-                    {group.articlesSummary.length > 0 && (
-                      <span className="flex items-center gap-1 truncate max-w-[400px]">
-                        <Package className="h-3 w-3 flex-shrink-0" />
-                        {group.articlesSummary.join(" | ")}
-                      </span>
-                    )}
-                  </div>
-                  <PhasePipeline group={group} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <p className="font-semibold text-base truncate">{group.customerName}</p>
+                  <Badge variant="secondary" className="text-[10px]">{group.commesse.length} commesse · {totalPhases} fasi</Badge>
+                  {group.orderNumbers.length > 0 && (
+                    <span className="text-[11px] text-muted-foreground font-mono">
+                      {group.orderNumbers.join(" · ")}
+                    </span>
+                  )}
                 </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5 flex-wrap">
+                  {group.earliestDate && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {fmtDate(group.earliestDate)}
+                      {group.latestDate && group.latestDate !== group.earliestDate && ` → ${fmtDate(group.latestDate)}`}
+                    </span>
+                  )}
+                  {group.articlesSummary.length > 0 && (
+                    <span className="flex items-center gap-1 truncate max-w-[400px]">
+                      <Package className="h-3 w-3 flex-shrink-0" />
+                      {group.articlesSummary.join(" | ")}
+                    </span>
+                  )}
+                </div>
+                <PhasePipeline commesse={group.commesse} />
+              </div>
               <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`} />
             </div>
           </button>
@@ -420,51 +366,30 @@ function CustomerGroupCard({ group, onStatusChange, isPending }: {
 
         <CollapsibleContent>
           <div className="border-t border-border/50 p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Production */}
-              {group.production.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2 w-2 rounded-full ${phaseConfig.produzione.color}`} />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Produzione ({group.production.length})
-                    </p>
+            <div className={`grid grid-cols-1 ${orderedPhaseTypes.length >= 3 ? 'lg:grid-cols-3' : orderedPhaseTypes.length === 2 ? 'lg:grid-cols-2' : ''} gap-4`}>
+              {orderedPhaseTypes.map(pt => {
+                const config = phaseConfig[pt] || phaseConfig.produzione;
+                const items = phasesByType[pt];
+                return (
+                  <div key={pt} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${config.color}`} />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {config.label} ({items.length})
+                      </p>
+                    </div>
+                    {items.map(({ phase, commessa }) => (
+                      <PhaseCard
+                        key={phase.id}
+                        phase={phase}
+                        commessa={commessa}
+                        onStatusChange={onStatusChange}
+                        isPending={isPending}
+                      />
+                    ))}
                   </div>
-                  {group.production.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
-                  ))}
-                </div>
-              )}
-
-              {/* Shipping */}
-              {group.shipping.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2 w-2 rounded-full ${phaseConfig.spedizione.color}`} />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Spedizione ({group.shipping.length})
-                    </p>
-                  </div>
-                  {group.shipping.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
-                  ))}
-                </div>
-              )}
-
-              {/* Service/Installation */}
-              {group.service.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2 w-2 rounded-full ${phaseConfig.servizio.color}`} />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Installazione ({group.service.length})
-                    </p>
-                  </div>
-                  {group.service.map(o => (
-                    <PhaseOrderCard key={o.id} order={o} onStatusChange={onStatusChange} isPending={isPending} />
-                  ))}
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
         </CollapsibleContent>
@@ -480,221 +405,188 @@ export default function CommesseUnificatePage() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, type, newStatus }: { id: string; type: string; newStatus: string }) => {
-      const table = type === "produzione" ? "work_orders" : type === "servizio" ? "service_work_orders" : "shipping_orders";
-      const { error } = await supabase.from(table).update({ status: newStatus }).eq("id", id);
+  // ─── Data Fetching (unified commesse table) ────────────
+  const { data: commesse = [], isLoading } = useQuery({
+    queryKey: ["erp-commesse", statusFilter],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("commesse")
+        .select(`
+          id, number, title, description, type, delivery_mode, intervention_type,
+          priority, status, current_phase, article, notes, bom_id, lead_id,
+          diameter, smoke_inlet, payment_on_delivery, payment_amount, is_warranty,
+          shipping_address, shipping_city, shipping_country, shipping_province, shipping_postal_code,
+          archived, deadline, created_at, sales_order_id,
+          customers(name, code),
+          boms(name, version),
+          sales_orders(number),
+          commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
+        `)
+        .eq("archived", statusFilter === "archived" ? true : false)
+        .order("created_at", { ascending: false });
       if (error) throw error;
+
+      return (data || []).map((c: any): Commessa => ({
+        id: c.id,
+        number: c.number,
+        title: c.title,
+        description: c.description,
+        type: c.type,
+        delivery_mode: c.delivery_mode,
+        intervention_type: c.intervention_type,
+        priority: c.priority,
+        status: c.status,
+        current_phase: c.current_phase ?? 0,
+        article: c.article,
+        notes: c.notes,
+        diameter: c.diameter,
+        smoke_inlet: c.smoke_inlet,
+        payment_on_delivery: c.payment_on_delivery,
+        payment_amount: c.payment_amount,
+        is_warranty: c.is_warranty,
+        shipping_address: c.shipping_address,
+        shipping_city: c.shipping_city,
+        shipping_country: c.shipping_country,
+        shipping_province: c.shipping_province,
+        shipping_postal_code: c.shipping_postal_code,
+        archived: c.archived ?? false,
+        deadline: c.deadline,
+        created_at: c.created_at,
+        sales_order_id: c.sales_order_id,
+        customer_name: c.customers?.name,
+        customer_code: c.customers?.code,
+        bom_name: c.boms?.name,
+        bom_version: c.boms?.version,
+        sales_order_number: c.sales_orders?.number,
+        phases: (c.commessa_phases || []).sort((a: any, b: any) => a.phase_order - b.phase_order),
+      }));
     },
-    onSuccess: () => {
-      toast.success("Stato aggiornato");
-      queryClient.invalidateQueries({ queryKey: ["commesse-work-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["commesse-service-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["commesse-shipping-orders"] });
+  });
+
+  // ─── Status mutation (updates commessa_phases) ──────────
+  const updateStatus = useMutation({
+    mutationFn: async ({ phaseId, newStatus, commessa }: { phaseId: string; newStatus: string; commessa: Commessa }) => {
+      const updates: any = { status: newStatus };
+      if (newStatus === "in_lavorazione" || newStatus === "in_corso") {
+        updates.started_date = new Date().toISOString();
+      }
+      if (completedStatuses.includes(newStatus)) {
+        updates.completed_date = new Date().toISOString();
+      }
+      const { error } = await supabase.from("commessa_phases").update(updates).eq("id", phaseId);
+      if (error) throw error;
+      return { phaseId, newStatus, commessa };
+    },
+    onSuccess: async (_data) => {
+      toast.success("Stato fase aggiornato");
+      queryClient.invalidateQueries({ queryKey: ["erp-commesse"] });
+
+      // Auto-archive if all phases completed
+      if (_data.commessa && completedStatuses.includes(_data.newStatus)) {
+        const updatedPhases = _data.commessa.phases.map(p =>
+          p.id === _data.phaseId ? { ...p, status: _data.newStatus } : p
+        );
+        if (updatedPhases.every(p => completedStatuses.includes(p.status))) {
+          await supabase.from("commesse").update({ archived: true, status: "completata" }).eq("id", _data.commessa.id);
+          queryClient.invalidateQueries({ queryKey: ["erp-commesse"] });
+          toast.success("Commessa completata e archiviata");
+        }
+      }
     },
     onError: (err: any) => toast.error("Errore: " + err.message),
   });
 
-  const handleStatusChange = (id: string, type: string, newStatus: string) => {
-    updateStatus.mutate({ id, type, newStatus });
+  const handleStatusChange = (phaseId: string, newStatus: string, commessa: Commessa) => {
+    updateStatus.mutate({ phaseId, newStatus, commessa });
   };
 
-  // ─── Data Fetching ──────────────────────────────────────
-  const { data: workOrders = [], isLoading: loadingWO } = useQuery({
-    queryKey: ["commesse-work-orders", statusFilter],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("work_orders")
-        .select(`
-          id, number, title, status, priority, scheduled_date, planned_start_date, planned_end_date,
-          actual_start_date, actual_end_date, location, article, created_at, description, notes,
-          diameter, smoke_inlet, includes_installation, payment_on_delivery, payment_amount, lead_id,
-          sales_order_id,
-          customers(name, code),
-          profiles!work_orders_assigned_to_fkey(first_name, last_name),
-          boms(name, version),
-          sales_orders(number),
-          offers(number)
-        `)
-        .eq("archived", statusFilter === "archived" ? true : false)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((wo: any): UnifiedOrder => ({
-        id: wo.id, number: wo.number, title: wo.title || wo.article || wo.number,
-        status: wo.status || "da_fare", type: "produzione", priority: wo.priority,
-        scheduled_date: wo.scheduled_date, planned_start_date: wo.planned_start_date,
-        planned_end_date: wo.planned_end_date, actual_start_date: wo.actual_start_date,
-        actual_end_date: wo.actual_end_date, location: wo.location, article: wo.article,
-        customer_name: wo.customers?.name, customer_code: wo.customers?.code,
-        created_at: wo.created_at, description: wo.description,
-        assigned_to_name: wo.profiles ? `${wo.profiles.first_name || ""} ${wo.profiles.last_name || ""}`.trim() : undefined,
-        notes: wo.notes, diameter: wo.diameter, smoke_inlet: wo.smoke_inlet,
-        includes_installation: wo.includes_installation,
-        payment_on_delivery: wo.payment_on_delivery, payment_amount: wo.payment_amount,
-        lead_id: wo.lead_id, sales_order_id: wo.sales_order_id,
-        bom_name: wo.boms?.name, bom_version: wo.boms?.version,
-        sales_order_number: wo.sales_orders?.number, offer_number: wo.offers?.number,
-      }));
-    },
-  });
-
-  const { data: serviceOrders = [], isLoading: loadingSWO } = useQuery({
-    queryKey: ["commesse-service-orders", statusFilter],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("service_work_orders")
-        .select(`
-          id, number, title, status, priority, scheduled_date, actual_start_date, actual_end_date,
-          estimated_hours, actual_hours, location, article, created_at, description, notes,
-          equipment_needed, lead_id, sales_order_id,
-          customers(name, code),
-          profiles!service_work_orders_assigned_to_fkey(first_name, last_name),
-          sales_orders(number)
-        `)
-        .eq("archived", statusFilter === "archived" ? true : false)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((so: any): UnifiedOrder => ({
-        id: so.id, number: so.number, title: so.title || so.article || so.number,
-        status: so.status || "da_fare", type: "servizio", priority: so.priority,
-        scheduled_date: so.scheduled_date, actual_start_date: so.actual_start_date,
-        actual_end_date: so.actual_end_date, estimated_hours: so.estimated_hours,
-        actual_hours: so.actual_hours, location: so.location, article: so.article,
-        customer_name: so.customers?.name, customer_code: so.customers?.code,
-        created_at: so.created_at, description: so.description,
-        assigned_to_name: so.profiles ? `${so.profiles.first_name || ""} ${so.profiles.last_name || ""}`.trim() : undefined,
-        notes: so.notes, equipment_needed: so.equipment_needed, lead_id: so.lead_id,
-        sales_order_id: so.sales_order_id,
-        sales_order_number: so.sales_orders?.number,
-      }));
-    },
-  });
-
-  const { data: shippingOrders = [], isLoading: loadingSO } = useQuery({
-    queryKey: ["commesse-shipping-orders", statusFilter],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shipping_orders")
-        .select(`
-          id, number, status, shipping_address, shipping_city, shipping_country,
-          shipping_province, shipping_postal_code, article, created_at, notes,
-          preparation_date, shipped_date, delivered_date, payment_on_delivery, payment_amount,
-          assigned_to, sales_order_id,
-          customers(name, code),
-          profiles!shipping_orders_assigned_to_fkey(first_name, last_name),
-          sales_orders(number)
-        `)
-        .eq("archived", statusFilter === "archived" ? true : false)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((so: any): UnifiedOrder => ({
-        id: so.id, number: so.number, title: so.article || so.number,
-        status: so.status || "da_preparare", type: "spedizione",
-        location: [so.shipping_city, so.shipping_address].filter(Boolean).join(" - "),
-        article: so.article, customer_name: so.customers?.name, customer_code: so.customers?.code,
-        created_at: so.created_at, shipping_address: so.shipping_address,
-        shipping_city: so.shipping_city, shipping_country: so.shipping_country,
-        shipping_province: so.shipping_province, shipping_postal_code: so.shipping_postal_code,
-        notes: so.notes, preparation_date: so.preparation_date,
-        shipped_date: so.shipped_date, delivered_date: so.delivered_date,
-        payment_on_delivery: so.payment_on_delivery, payment_amount: so.payment_amount,
-        assigned_to_name: so.profiles ? `${so.profiles.first_name || ""} ${so.profiles.last_name || ""}`.trim() : undefined,
-        sales_order_number: so.sales_orders?.number,
-        sales_order_id: so.sales_order_id,
-      }));
-    },
-  });
-
-  const isLoading = loadingWO && loadingSWO && loadingSO;
-  const allOrders = useMemo(() => [...workOrders, ...serviceOrders, ...shippingOrders], [workOrders, serviceOrders, shippingOrders]);
-
-  const filteredOrders = useMemo(() => {
-    return allOrders.filter((o) => {
+  // ─── Filtering ─────────────────────────────────────────
+  const filteredCommesse = useMemo(() => {
+    return commesse.filter((c) => {
       const q = searchTerm.toLowerCase();
-      const matchesSearch = !q || o.title.toLowerCase().includes(q) || o.number.toLowerCase().includes(q) ||
-        (o.customer_name || "").toLowerCase().includes(q) || (o.article || "").toLowerCase().includes(q);
-      const matchesStatus = statusFilter === "archived" || statusFilter === "all" ||
-        (statusFilter === "active" && !completedStatuses.includes(o.status)) ||
-        (statusFilter === "completed" && completedStatuses.includes(o.status));
-      const matchesType = typeFilter === "all" || o.type === typeFilter;
+      const matchesSearch = !q || c.title.toLowerCase().includes(q) || c.number.toLowerCase().includes(q) ||
+        (c.customer_name || "").toLowerCase().includes(q) || (c.article || "").toLowerCase().includes(q);
+      if (statusFilter === "archived") return matchesSearch;
+      const matchesStatus = statusFilter === "all" ||
+        (statusFilter === "active" && c.status !== "completata") ||
+        (statusFilter === "completed" && c.status === "completata");
+      const matchesType = typeFilter === "all" || c.phases.some(p => p.phase_type === typeFilter);
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [allOrders, searchTerm, statusFilter, typeFilter]);
+  }, [commesse, searchTerm, statusFilter, typeFilter]);
 
+  // ─── Group by customer ─────────────────────────────────
   const customerGroups = useMemo((): CustomerGroup[] => {
     const groupMap = new Map<string, CustomerGroup>();
-    filteredOrders.forEach(order => {
-      const key = order.customer_name || order.sales_order_id || order.id;
+    filteredCommesse.forEach(c => {
+      const key = c.customer_name || c.sales_order_id || c.id;
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           key,
-          customerName: order.customer_name || order.title,
-          customerCode: order.customer_code,
-          production: [], shipping: [], service: [],
-          phases: { produzione: "", spedizione: "", servizio: "" },
+          customerName: c.customer_name || c.title,
+          customerCode: c.customer_code,
+          commesse: [],
           orderNumbers: [],
           articlesSummary: [],
         });
       }
       const group = groupMap.get(key)!;
-      if (!group.customerCode && order.customer_code) group.customerCode = order.customer_code;
-      // Collect unique order numbers
-      const ref = order.sales_order_number || order.number;
+      group.commesse.push(c);
+      if (!group.customerCode && c.customer_code) group.customerCode = c.customer_code;
+      const ref = c.sales_order_number || c.number;
       if (ref && !group.orderNumbers.includes(ref)) group.orderNumbers.push(ref);
-      // Collect unique first-line articles
-      if (order.article) {
-        const firstLine = order.article.split('\n')[0].trim();
+      if (c.article) {
+        const firstLine = c.article.split('\n')[0].trim();
         if (firstLine && !group.articlesSummary.includes(firstLine) && group.articlesSummary.length < 3) {
           group.articlesSummary.push(firstLine);
         }
       }
-      // Track dates
-      const d = order.created_at;
+      const d = c.created_at;
       if (d && (!group.earliestDate || d < group.earliestDate)) group.earliestDate = d;
       if (d && (!group.latestDate || d > group.latestDate)) group.latestDate = d;
-      if (order.type === "produzione") group.production.push(order);
-      else if (order.type === "spedizione") group.shipping.push(order);
-      else if (order.type === "servizio") group.service.push(order);
     });
     return Array.from(groupMap.values()).sort((a, b) => {
-      const aActive = [...a.production, ...a.shipping, ...a.service].some(o => !completedStatuses.includes(o.status));
-      const bActive = [...b.production, ...b.shipping, ...b.service].some(o => !completedStatuses.includes(o.status));
+      const aActive = a.commesse.some(c => c.status !== "completata");
+      const bActive = b.commesse.some(c => c.status !== "completata");
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
       return a.customerName.localeCompare(b.customerName);
     });
-  }, [filteredOrders]);
+  }, [filteredCommesse]);
 
   const totalCustomers = customerGroups.length;
-  const totalOrders = filteredOrders.length;
+  const totalCommesse = filteredCommesse.length;
 
-  // Stats
-  const stats = useMemo(() => ({
-    production: workOrders.filter(o => !completedStatuses.includes(o.status)).length,
-    shipping: shippingOrders.filter(o => !completedStatuses.includes(o.status)).length,
-    service: serviceOrders.filter(o => !completedStatuses.includes(o.status)).length,
-  }), [workOrders, shippingOrders, serviceOrders]);
+  // Stats by phase type
+  const stats = useMemo(() => {
+    const allPhases = commesse.flatMap(c => c.phases);
+    return {
+      produzione: allPhases.filter(p => p.phase_type === "produzione" && !completedStatuses.includes(p.status)).length,
+      spedizione: allPhases.filter(p => p.phase_type === "spedizione" && !completedStatuses.includes(p.status)).length,
+      installazione: allPhases.filter(p => (p.phase_type === "installazione" || p.phase_type === "manutenzione") && !completedStatuses.includes(p.status)).length,
+    };
+  }, [commesse]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Commesse</h1>
         <p className="text-muted-foreground">
-          Pipeline unificata per cliente · {totalCustomers} clienti · {totalOrders} commesse
+          Pipeline unificata per cliente · {totalCustomers} clienti · {totalCommesse} commesse
         </p>
       </div>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {(["produzione", "spedizione", "servizio"] as const).map(phase => {
-          const config = phaseConfig[phase];
+        {([
+          { key: "produzione", config: phaseConfig.produzione, count: stats.produzione },
+          { key: "spedizione", config: phaseConfig.spedizione, count: stats.spedizione },
+          { key: "installazione", config: phaseConfig.installazione, count: stats.installazione },
+        ]).map(({ key, config, count }) => {
           const Icon = config.icon;
-          const count = stats[phase === "servizio" ? "service" : phase === "spedizione" ? "shipping" : "production"];
           return (
-            <Card key={phase} className="p-4">
+            <Card key={key} className="p-4">
               <div className="flex items-center gap-3">
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${config.lightBg}`}>
                   <Icon className={`h-5 w-5 ${config.text}`} />
@@ -730,13 +622,14 @@ export default function CommesseUnificatePage() {
             <SelectItem value="all">Tutti i tipi</SelectItem>
             <SelectItem value="produzione">Produzione</SelectItem>
             <SelectItem value="spedizione">Spedizione</SelectItem>
-            <SelectItem value="servizio">Installazione</SelectItem>
+            <SelectItem value="installazione">Installazione</SelectItem>
+            <SelectItem value="manutenzione">Manutenzione</SelectItem>
           </SelectContent>
         </Select>
 
         {/* Phase legend */}
         <div className="flex items-center gap-4 ml-auto">
-          {(["produzione", "spedizione", "servizio"] as const).map(phase => {
+          {(["produzione", "spedizione", "installazione"] as const).map(phase => {
             const c = phaseConfig[phase];
             return (
               <div key={phase} className={`flex items-center gap-1.5 text-xs ${c.text} font-medium`}>
