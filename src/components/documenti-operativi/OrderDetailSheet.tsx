@@ -347,17 +347,16 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-mono font-medium">{mov.numero_registrazione}</p>
-                            <p className="text-xs text-muted-foreground truncate">{mov.descrizione}</p>
+                            <p className="text-sm font-mono font-medium">{mov.movement_type}</p>
+                            <p className="text-xs text-muted-foreground truncate">{mov.description}</p>
                           </div>
-                          <Badge variant={mov.stato === "validato" ? "default" : "secondary"} className="text-xs flex-shrink-0">
-                            {mov.stato}
+                          <Badge variant={mov.status === "validato" ? "default" : "secondary"} className="text-xs flex-shrink-0">
+                            {mov.status}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <span>{format(new Date(mov.data_registrazione), "dd/MM/yyyy", { locale: it })}</span>
-                          {mov.totale_dare && <span>Dare: € {mov.totale_dare.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>}
-                          {mov.totale_avere && <span>Avere: € {mov.totale_avere.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>}
+                          <span>{format(new Date(mov.competence_date), "dd/MM/yyyy", { locale: it })}</span>
+                          <span>€ {mov.amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
                         </div>
                       </CardContent>
                     </Card>
