@@ -32,6 +32,9 @@ export default function DdtSection() {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; ddtId: string; ddtLabel: string; currentLinkedId: string | null }>({
+    open: false, ddtId: "", ddtLabel: "", currentLinkedId: null
+  });
   const [showUploadProgress, setShowUploadProgress] = useState(false);
 
   const { data: ddts = [], isLoading } = useQuery({
