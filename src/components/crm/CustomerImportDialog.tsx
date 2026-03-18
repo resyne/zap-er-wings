@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, FileSpreadsheet, ArrowRight, Check, AlertTriangle, RefreshCw, UserPlus, UserCheck } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowRight, Check, RefreshCw, UserPlus, UserCheck, Brain } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
 
@@ -23,8 +23,8 @@ interface ParsedRow {
   [key: string]: string;
 }
 
-interface ColumnMapping {
-  name: string | null;
+interface MappedCustomer {
+  name: string;
   company_name: string | null;
   email: string | null;
   phone: string | null;
@@ -36,14 +36,21 @@ interface ColumnMapping {
   tax_id: string | null;
   pec: string | null;
   sdi_code: string | null;
-  payment_terms: string | null;
-  credit_limit: string | null;
-  shipping_address: string | null;
+  // Extra fields not in DB but useful to show
+  _riferimento?: string;
+  _cod_fiscale?: string;
+  _cellulare?: string;
+  _fax?: string;
+  _web?: string;
+  _nota?: string;
+  _tipo?: string;
+  _banca?: string;
+  _iban?: string;
 }
 
 interface MatchResult {
   rowIndex: number;
-  parsedData: Record<string, string>;
+  mapped: MappedCustomer;
   action: "insert" | "update" | "skip";
   matchedCustomer?: any;
   matchScore: number;
@@ -51,61 +58,156 @@ interface MatchResult {
   selected: boolean;
 }
 
-const FIELD_LABELS: Record<keyof ColumnMapping, string> = {
-  name: "Nome / Ragione Sociale",
-  company_name: "Nome Azienda",
-  email: "Email",
-  phone: "Telefono",
-  address: "Indirizzo",
-  city: "Città",
-  province: "Provincia",
-  postal_code: "CAP",
-  country: "Paese",
-  tax_id: "P.IVA / CF",
-  pec: "PEC",
-  sdi_code: "Codice SDI",
-  payment_terms: "Termini Pagamento (gg)",
-  credit_limit: "Limite Credito",
-  shipping_address: "Indirizzo Spedizione",
+// Maps known Italian Excel column headers to our customer fields
+const COLUMN_MAP: Record<string, keyof MappedCustomer> = {
+  // Ragione Sociale variations
+  "rag. sociale": "name",
+  "rag sociale": "name",
+  "ragione sociale": "name",
+  "denominazione": "name",
+  "nome": "name",
+  "cliente": "name",
+  "intestazione": "name",
+  // Riferimento
+  "riferimento": "company_name",
+  "contatto": "company_name",
+  "referente": "company_name",
+  // P.IVA
+  "p.iva": "tax_id",
+  "p. iva": "tax_id",
+  "piva": "tax_id",
+  "partita iva": "tax_id",
+  "p.i.": "tax_id",
+  // Cod. fiscale → stored separately, merged if no P.IVA
+  "cod. fiscale": "_cod_fiscale",
+  "cod.fiscale": "_cod_fiscale",
+  "codice fiscale": "_cod_fiscale",
+  "cf": "_cod_fiscale",
+  // Address
+  "indirizzo": "address",
+  "via": "address",
+  "sede": "address",
+  "in-dirizzo": "address",
+  // City
+  "città": "city",
+  "citta": "city",
+  "comune": "city",
+  // Province
+  "provincia": "province",
+  "prov": "province",
+  // CAP
+  "cap": "postal_code",
+  "codice postale": "postal_code",
+  // Country
+  "paese": "country",
+  "nazione": "country",
+  "stato": "country",
+  // SDI
+  "cod. destinatario": "sdi_code",
+  "cod.destinatario": "sdi_code",
+  "codice destinatario": "sdi_code",
+  "codice sdi": "sdi_code",
+  "sdi": "sdi_code",
+  // Phone
+  "telefono": "phone",
+  "tel": "phone",
+  "tel.": "phone",
+  // Mobile
+  "cellulare": "_cellulare",
+  "cell": "_cellulare",
+  "mobile": "_cellulare",
+  // Fax
+  "fax": "_fax",
+  // Email
+  "email": "email",
+  "e-mail": "email",
+  "mail": "email",
+  // PEC
+  "pec": "pec",
+  // Web
+  "web": "_web",
+  "sito": "_web",
+  "website": "_web",
+  "sito web": "_web",
+  // Nota
+  "nota": "_nota",
+  "note": "_nota",
+  // Tipo
+  "tipo": "_tipo",
+  // Bank
+  "nome banca": "_banca",
+  "banca": "_banca",
+  // IBAN
+  "iban": "_iban",
 };
 
-const FIELD_KEYWORDS: Record<keyof ColumnMapping, string[]> = {
-  name: ["nome", "ragione", "sociale", "denominazione", "intestazione", "name", "cliente", "customer"],
-  company_name: ["azienda", "company", "società", "ditta", "impresa"],
-  email: ["email", "mail", "e-mail", "posta"],
-  phone: ["telefono", "tel", "phone", "cellulare", "mobile"],
-  address: ["indirizzo", "via", "address", "sede"],
-  city: ["città", "city", "comune", "localita"],
-  province: ["provincia", "prov", "province"],
-  postal_code: ["cap", "zip", "postal", "codice postale"],
-  country: ["paese", "country", "nazione", "stato"],
-  tax_id: ["piva", "p.iva", "partita iva", "codice fiscale", "cf", "tax", "vat"],
-  pec: ["pec"],
-  sdi_code: ["sdi", "codice destinatario", "codice univoco"],
-  payment_terms: ["pagamento", "payment", "termini", "scadenza"],
-  credit_limit: ["credito", "credit", "limite", "fido"],
-  shipping_address: ["spedizione", "shipping", "consegna", "delivery"],
-};
+function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
+  const result: any = {
+    name: "",
+    company_name: null,
+    email: null,
+    phone: null,
+    address: null,
+    city: null,
+    province: null,
+    postal_code: null,
+    country: null,
+    tax_id: null,
+    pec: null,
+    sdi_code: null,
+  };
+
+  for (const col of columns) {
+    const colLower = col.toLowerCase().trim();
+    const field = COLUMN_MAP[colLower];
+    if (field) {
+      const val = String(row[col] || "").trim();
+      if (val) {
+        result[field] = val;
+      }
+    }
+  }
+
+  // If no tax_id but we have cod_fiscale, use that
+  if (!result.tax_id && result._cod_fiscale) {
+    result.tax_id = result._cod_fiscale;
+  }
+
+  // If no phone but we have cellulare, use that
+  if (!result.phone && result._cellulare) {
+    result.phone = result._cellulare;
+  }
+
+  return result;
+}
+
+function fuzzyMatch(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const al = a.toLowerCase().trim().replace(/\s+(s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?n\.?c\.?|ltd\.?|llc\.?|inc\.?)\.?$/i, "").trim();
+  const bl = b.toLowerCase().trim().replace(/\s+(s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?n\.?c\.?|ltd\.?|llc\.?|inc\.?)\.?$/i, "").trim();
+  if (al === bl) return 100;
+  if (al.includes(bl) || bl.includes(al)) return 85;
+  const words1 = al.split(/\s+/);
+  const words2 = bl.split(/\s+/);
+  const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2))).length;
+  const maxWords = Math.max(words1.length, words2.length);
+  return maxWords > 0 ? Math.round((common / maxWords) * 75) : 0;
+}
 
 export function CustomerImportDialog({ open, onOpenChange, existingCustomers, onImportComplete }: CustomerImportDialogProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
-  const [mapping, setMapping] = useState<ColumnMapping>({
-    name: null, company_name: null, email: null, phone: null,
-    address: null, city: null, province: null, postal_code: null,
-    country: null, tax_id: null, pec: null, sdi_code: null,
-    payment_terms: null, credit_limit: null, shipping_address: null,
-  });
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [rowCount, setRowCount] = useState(0);
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file) return;
     setFileName(file.name);
+    setAnalyzing(true);
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -117,20 +219,82 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
 
         if (json.length === 0) {
           toast({ title: "File vuoto", description: "Il file non contiene dati", variant: "destructive" });
+          setAnalyzing(false);
           return;
         }
 
         const cols = Object.keys(json[0]);
-        setColumns(cols);
-        setParsedRows(json);
-        autoMapColumns(cols);
+        setRowCount(json.length);
+
+        // Auto-map + match in one go
+        const results: MatchResult[] = json.map((row, idx) => {
+          const mapped = mapRow(row, cols);
+
+          let bestMatch: any = null;
+          let bestScore = 0;
+          let bestReason = "";
+
+          for (const cust of existingCustomers) {
+            let score = 0;
+            let reason = "";
+
+            // Exact tax_id match
+            if (mapped.tax_id && cust.tax_id) {
+              const a = mapped.tax_id.replace(/\s/g, "").toUpperCase();
+              const b = cust.tax_id.replace(/\s/g, "").toUpperCase();
+              if (a === b) {
+                score = 95;
+                reason = "P.IVA corrispondente";
+              }
+            }
+
+            // Exact email match
+            if (score < 90 && mapped.email && cust.email) {
+              if (mapped.email.toLowerCase() === cust.email.toLowerCase()) {
+                score = Math.max(score, 90);
+                reason = reason || "Email corrispondente";
+              }
+            }
+
+            // Name fuzzy
+            if (mapped.name) {
+              const nameScore = fuzzyMatch(mapped.name, cust.name || "");
+              if (nameScore > score) {
+                score = nameScore;
+                reason = `Nome simile (${nameScore}%)`;
+              }
+            }
+
+            if (score > bestScore) {
+              bestScore = score;
+              bestMatch = cust;
+              bestReason = reason;
+            }
+          }
+
+          const action: "insert" | "update" | "skip" = bestScore >= 70 ? "update" : "insert";
+
+          return {
+            rowIndex: idx,
+            mapped,
+            action,
+            matchedCustomer: bestScore >= 70 ? bestMatch : undefined,
+            matchScore: bestScore,
+            matchReason: bestReason,
+            selected: !!mapped.name, // skip rows without a name
+          };
+        });
+
+        setMatchResults(results);
+        setAnalyzing(false);
         setStep(2);
       } catch {
         toast({ title: "Errore", description: "Impossibile leggere il file", variant: "destructive" });
+        setAnalyzing(false);
       }
     };
     reader.readAsArrayBuffer(file);
-  }, []);
+  }, [existingCustomers]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -142,104 +306,6 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
     maxFiles: 1,
   });
 
-  const autoMapColumns = (cols: string[]) => {
-    const newMapping: any = { ...mapping };
-    for (const [field, keywords] of Object.entries(FIELD_KEYWORDS)) {
-      for (const col of cols) {
-        const colLower = col.toLowerCase().trim();
-        if (keywords.some(kw => colLower.includes(kw))) {
-          if (!Object.values(newMapping).includes(col)) {
-            newMapping[field] = col;
-            break;
-          }
-        }
-      }
-    }
-    setMapping(newMapping);
-  };
-
-  const fuzzyMatch = (a: string, b: string): number => {
-    if (!a || !b) return 0;
-    const al = a.toLowerCase().trim();
-    const bl = b.toLowerCase().trim();
-    if (al === bl) return 100;
-    if (al.includes(bl) || bl.includes(al)) return 80;
-    const words1 = al.split(/\s+/);
-    const words2 = bl.split(/\s+/);
-    const common = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2))).length;
-    const maxWords = Math.max(words1.length, words2.length);
-    return maxWords > 0 ? Math.round((common / maxWords) * 70) : 0;
-  };
-
-  const runMatching = () => {
-    const results: MatchResult[] = parsedRows.map((row, idx) => {
-      const rowName = mapping.name ? String(row[mapping.name] || "").trim() : "";
-      const rowEmail = mapping.email ? String(row[mapping.email] || "").trim().toLowerCase() : "";
-      const rowTaxId = mapping.tax_id ? String(row[mapping.tax_id] || "").trim().toUpperCase() : "";
-      const rowCompany = mapping.company_name ? String(row[mapping.company_name] || "").trim() : "";
-
-      let bestMatch: any = null;
-      let bestScore = 0;
-      let bestReason = "";
-
-      for (const cust of existingCustomers) {
-        let score = 0;
-        let reason = "";
-
-        // Exact tax_id match = strong
-        if (rowTaxId && cust.tax_id && rowTaxId === cust.tax_id.trim().toUpperCase()) {
-          score = Math.max(score, 95);
-          reason = "P.IVA corrispondente";
-        }
-
-        // Exact email match
-        if (rowEmail && cust.email && rowEmail === cust.email.trim().toLowerCase()) {
-          score = Math.max(score, 90);
-          reason = reason || "Email corrispondente";
-        }
-
-        // Name fuzzy
-        if (rowName) {
-          const nameScore = fuzzyMatch(rowName, cust.name || "");
-          if (nameScore > score) {
-            score = nameScore;
-            reason = `Nome simile (${nameScore}%)`;
-          }
-        }
-
-        // Company name fuzzy
-        if (rowCompany && cust.company_name) {
-          const compScore = fuzzyMatch(rowCompany, cust.company_name);
-          if (compScore > score) {
-            score = compScore;
-            reason = `Azienda simile (${compScore}%)`;
-          }
-        }
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = cust;
-          bestReason = reason;
-        }
-      }
-
-      const action: "insert" | "update" | "skip" = bestScore >= 70 ? "update" : "insert";
-
-      return {
-        rowIndex: idx,
-        parsedData: row,
-        action,
-        matchedCustomer: bestScore >= 70 ? bestMatch : undefined,
-        matchScore: bestScore,
-        matchReason: bestReason,
-        selected: true,
-      };
-    });
-
-    setMatchResults(results);
-    setStep(3);
-  };
-
   const toggleResult = (idx: number) => {
     setMatchResults(prev => prev.map((r, i) => i === idx ? { ...r, selected: !r.selected } : r));
   };
@@ -248,63 +314,30 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
     setMatchResults(prev => prev.map((r, i) => i === idx ? { ...r, action } : r));
   };
 
-  const getMappedValue = (row: ParsedRow, field: keyof ColumnMapping): string | null => {
-    const col = mapping[field];
-    if (!col) return null;
-    const val = String(row[col] || "").trim();
-    return val || null;
-  };
-
   const executeImport = async () => {
     setProcessing(true);
     const selected = matchResults.filter(r => r.selected && r.action !== "skip");
     let inserted = 0, updated = 0, errors = 0;
 
     for (const result of selected) {
-      const row = result.parsedData;
+      const m = result.mapped;
       const customerData: any = {};
 
-      // Map all fields
-      const name = getMappedValue(row, "name");
-      if (name) customerData.name = name;
-      const company_name = getMappedValue(row, "company_name");
-      if (company_name) customerData.company_name = company_name;
-      const email = getMappedValue(row, "email");
-      if (email) customerData.email = email;
-      const phone = getMappedValue(row, "phone");
-      if (phone) customerData.phone = phone;
-      const address = getMappedValue(row, "address");
-      if (address) customerData.address = address;
-      const city = getMappedValue(row, "city");
-      if (city) customerData.city = city;
-      const province = getMappedValue(row, "province");
-      if (province) customerData.province = province;
-      const postal_code = getMappedValue(row, "postal_code");
-      if (postal_code) customerData.postal_code = postal_code;
-      const country = getMappedValue(row, "country");
-      if (country) customerData.country = country;
-      const tax_id = getMappedValue(row, "tax_id");
-      if (tax_id) customerData.tax_id = tax_id;
-      const pec = getMappedValue(row, "pec");
-      if (pec) customerData.pec = pec;
-      const sdi_code = getMappedValue(row, "sdi_code");
-      if (sdi_code) customerData.sdi_code = sdi_code;
-      const shipping_address = getMappedValue(row, "shipping_address");
-      if (shipping_address) customerData.shipping_address = shipping_address;
-      const payment_terms = getMappedValue(row, "payment_terms");
-      if (payment_terms) {
-        const pt = parseInt(payment_terms);
-        if (!isNaN(pt)) customerData.payment_terms = pt;
-      }
-      const credit_limit = getMappedValue(row, "credit_limit");
-      if (credit_limit) {
-        const cl = parseFloat(credit_limit.replace(/[^\d.,]/g, "").replace(",", "."));
-        if (!isNaN(cl)) customerData.credit_limit = cl;
-      }
+      if (m.name) customerData.name = m.name;
+      if (m.company_name) customerData.company_name = m.company_name;
+      if (m.email) customerData.email = m.email;
+      if (m.phone) customerData.phone = m.phone;
+      if (m.address) customerData.address = m.address;
+      if (m.city) customerData.city = m.city;
+      if (m.province) customerData.province = m.province;
+      if (m.postal_code) customerData.postal_code = m.postal_code;
+      if (m.country) customerData.country = m.country;
+      if (m.tax_id) customerData.tax_id = m.tax_id;
+      if (m.pec) customerData.pec = m.pec;
+      if (m.sdi_code) customerData.sdi_code = m.sdi_code;
 
       try {
         if (result.action === "update" && result.matchedCustomer) {
-          // Only update non-empty fields
           const updateData: any = {};
           for (const [key, val] of Object.entries(customerData)) {
             if (val !== null && val !== undefined && val !== "") {
@@ -320,10 +353,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
             updated++;
           }
         } else if (result.action === "insert") {
-          if (!customerData.name) {
-            errors++;
-            continue;
-          }
+          if (!customerData.name) { errors++; continue; }
           customerData.active = true;
           const { error } = await supabase.from("customers").insert(customerData);
           if (error) throw error;
@@ -336,7 +366,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
     }
 
     setProcessing(false);
-    setStep(4);
+    setStep(3);
     toast({
       title: "Import completato",
       description: `${inserted} inseriti, ${updated} aggiornati${errors > 0 ? `, ${errors} errori` : ""}`,
@@ -345,21 +375,15 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
 
   const resetDialog = () => {
     setStep(1);
-    setParsedRows([]);
-    setColumns([]);
     setMatchResults([]);
     setFileName("");
-    setMapping({
-      name: null, company_name: null, email: null, phone: null,
-      address: null, city: null, province: null, postal_code: null,
-      country: null, tax_id: null, pec: null, sdi_code: null,
-      payment_terms: null, credit_limit: null, shipping_address: null,
-    });
+    setRowCount(0);
+    setAnalyzing(false);
   };
 
   const handleClose = (isOpen: boolean) => {
     if (!isOpen) {
-      if (step === 4) onImportComplete();
+      if (step === 3) onImportComplete();
       resetDialog();
     }
     onOpenChange(isOpen);
@@ -382,7 +406,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5" />
-            Import Clienti da Excel — Step {step}/4
+            Import Clienti da Excel — Step {step}/3
           </DialogTitle>
         </DialogHeader>
 
@@ -390,9 +414,8 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
           {[
             { n: 1, label: "Carica File" },
-            { n: 2, label: "Mappa Colonne" },
-            { n: 3, label: "Verifica Match" },
-            { n: 4, label: "Completato" },
+            { n: 2, label: "Verifica AI" },
+            { n: 3, label: "Completato" },
           ].map((s, i) => (
             <div key={s.n} className="flex items-center gap-1">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
@@ -401,14 +424,14 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
                 {step > s.n ? <Check className="w-3 h-3" /> : s.n}
               </div>
               <span className={step === s.n ? "font-medium text-foreground" : ""}>{s.label}</span>
-              {i < 3 && <ArrowRight className="w-3 h-3 mx-1" />}
+              {i < 2 && <ArrowRight className="w-3 h-3 mx-1" />}
             </div>
           ))}
         </div>
 
         <div className="flex-1 overflow-auto">
           {/* STEP 1: Upload */}
-          {step === 1 && (
+          {step === 1 && !analyzing && (
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-lg p-16 text-center cursor-pointer transition-colors ${
@@ -419,77 +442,35 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
               <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-lg font-medium">Trascina qui il file Excel o CSV</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Supportati: .xlsx, .xls, .csv
+                Supportati: .xlsx, .xls, .csv — Le colonne vengono riconosciute automaticamente
               </p>
             </div>
           )}
 
-          {/* STEP 2: Column mapping */}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                <span className="font-medium">{fileName}</span> — {parsedRows.length} righe, {columns.length} colonne.
-                Associa le colonne del file ai campi del cliente.
+          {/* Analyzing spinner */}
+          {step === 1 && analyzing && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="relative">
+                <Brain className="w-12 h-12 text-primary animate-pulse" />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {(Object.keys(FIELD_LABELS) as Array<keyof ColumnMapping>).map(field => (
-                  <div key={field} className="flex items-center gap-2">
-                    <label className="text-sm font-medium w-44 shrink-0">{FIELD_LABELS[field]}</label>
-                    <Select
-                      value={mapping[field] || "__none__"}
-                      onValueChange={(val) => setMapping(prev => ({ ...prev, [field]: val === "__none__" ? null : val }))}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="— Non mappato —" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Non mappato —</SelectItem>
-                        {columns.map(col => (
-                          <SelectItem key={col} value={col}>{col}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
-
-              {/* Preview */}
-              <div className="text-sm font-medium mt-4">Anteprima prime 3 righe:</div>
-              <ScrollArea className="h-40 border rounded">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {columns.slice(0, 8).map(col => (
-                        <TableHead key={col} className="text-xs whitespace-nowrap">{col}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parsedRows.slice(0, 3).map((row, i) => (
-                      <TableRow key={i}>
-                        {columns.slice(0, 8).map(col => (
-                          <TableCell key={col} className="text-xs">{String(row[col] || "")}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>Indietro</Button>
-                <Button onClick={runMatching} disabled={!mapping.name}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Analizza e Abbina ({parsedRows.length} righe)
-                </Button>
-              </div>
+              <p className="text-lg font-medium">Analisi AI in corso...</p>
+              <p className="text-sm text-muted-foreground">
+                Riconoscimento colonne e matching con {existingCustomers.length} clienti esistenti
+              </p>
             </div>
           )}
 
-          {/* STEP 3: Match review */}
-          {step === 3 && (
+          {/* STEP 2: Match review */}
+          {step === 2 && (
             <div className="space-y-3">
+              <div className="bg-muted/50 rounded-lg p-3 text-sm flex items-center gap-2">
+                <Brain className="w-4 h-4 text-primary shrink-0" />
+                <span>
+                  <strong>{fileName}</strong> — {rowCount} righe analizzate automaticamente.
+                  Verifica le azioni proposte e conferma l'import.
+                </span>
+              </div>
+
               <div className="flex gap-3">
                 <Badge variant="outline" className="px-3 py-1">
                   <UserPlus className="w-3 h-3 mr-1" />
@@ -509,69 +490,71 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10"></TableHead>
-                      <TableHead>Nome dal file</TableHead>
-                      <TableHead>P.IVA</TableHead>
-                      <TableHead>Azione</TableHead>
-                      <TableHead>Match</TableHead>
-                      <TableHead>Score</TableHead>
+                      <TableHead className="min-w-[200px]">Rag. Sociale</TableHead>
+                      <TableHead className="min-w-[130px]">P.IVA / CF</TableHead>
+                      <TableHead className="min-w-[150px]">Email</TableHead>
+                      <TableHead className="min-w-[120px]">Telefono</TableHead>
+                      <TableHead className="min-w-[120px]">Città</TableHead>
+                      <TableHead className="min-w-[130px]">Azione</TableHead>
+                      <TableHead className="min-w-[160px]">Match con</TableHead>
+                      <TableHead className="w-16">Score</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {matchResults.map((result, idx) => {
-                      const rowName = mapping.name ? String(result.parsedData[mapping.name] || "") : "";
-                      const rowTaxId = mapping.tax_id ? String(result.parsedData[mapping.tax_id] || "") : "";
-                      return (
-                        <TableRow key={idx} className={!result.selected ? "opacity-40" : ""}>
-                          <TableCell>
-                            <Checkbox
-                              checked={result.selected}
-                              onCheckedChange={() => toggleResult(idx)}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">{rowName}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{rowTaxId}</TableCell>
-                          <TableCell>
-                            <Select
-                              value={result.action}
-                              onValueChange={(val) => changeAction(idx, val as any)}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="insert">
-                                  <span className="flex items-center gap-1"><UserPlus className="w-3 h-3" /> Inserisci</span>
-                                </SelectItem>
-                                <SelectItem value="update">
-                                  <span className="flex items-center gap-1"><UserCheck className="w-3 h-3" /> Aggiorna</span>
-                                </SelectItem>
-                                <SelectItem value="skip">Salta</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {result.matchedCustomer ? (
-                              <span className="text-muted-foreground">{result.matchedCustomer.name}</span>
-                            ) : (
-                              <span className="text-muted-foreground italic">Nessuno</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {result.matchScore > 0 && (
-                              <Badge variant={result.matchScore >= 90 ? "default" : result.matchScore >= 70 ? "secondary" : "outline"} className="text-xs">
-                                {result.matchScore}%
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {matchResults.map((result, idx) => (
+                      <TableRow key={idx} className={!result.selected ? "opacity-40" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={result.selected}
+                            onCheckedChange={() => toggleResult(idx)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{result.mapped.name || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground font-mono">{result.mapped.tax_id || result.mapped._cod_fiscale || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{result.mapped.email || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{result.mapped.phone || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{result.mapped.city || "—"}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={result.action}
+                            onValueChange={(val) => changeAction(idx, val as any)}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="insert">
+                                <span className="flex items-center gap-1"><UserPlus className="w-3 h-3" /> Inserisci</span>
+                              </SelectItem>
+                              <SelectItem value="update">
+                                <span className="flex items-center gap-1"><UserCheck className="w-3 h-3" /> Aggiorna</span>
+                              </SelectItem>
+                              <SelectItem value="skip">Salta</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {result.matchedCustomer ? (
+                            <span className="text-muted-foreground">{result.matchedCustomer.name}</span>
+                          ) : (
+                            <span className="text-muted-foreground italic">Nessuno</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {result.matchScore > 0 && (
+                            <Badge variant={result.matchScore >= 90 ? "default" : result.matchScore >= 70 ? "secondary" : "outline"} className="text-xs">
+                              {result.matchScore}%
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </ScrollArea>
 
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>Indietro</Button>
+                <Button variant="outline" onClick={() => { resetDialog(); }}>Ricomincia</Button>
                 <Button onClick={executeImport} disabled={processing || summaryStats.selected === 0}>
                   {processing ? (
                     <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Importazione...</>
@@ -583,10 +566,10 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
             </div>
           )}
 
-          {/* STEP 4: Done */}
-          {step === 4 && (
+          {/* STEP 3: Done */}
+          {step === 3 && (
             <div className="text-center py-16 space-y-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
                 <Check className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-xl font-semibold">Import Completato</h3>
