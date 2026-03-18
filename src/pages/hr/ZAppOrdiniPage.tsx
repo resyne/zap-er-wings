@@ -550,7 +550,7 @@ export default function ZAppOrdiniPage() {
           description: subject || "",
           type: orderTypeCategory,
           delivery_mode: needsDeliveryMode ? deliveryMode : null,
-          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
+          intervention_type: orderTypeCategory === "intervento" ? derivedInterventionType : null,
           priority: selectedPriority === "molto_urgente" ? "urgent" : selectedPriority === "urgente" ? "high" : selectedPriority === "normale" ? "low" : "medium",
           status: "da_fare",
           article: subject || null,
