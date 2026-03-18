@@ -508,7 +508,7 @@ export default function ZAppOrdiniPage() {
           order_type: orderType,
           order_type_category: orderTypeCategory,
           delivery_mode: needsDeliveryMode ? deliveryMode : null,
-          intervention_type: orderTypeCategory === "intervento" ? interventionType : null,
+          intervention_type: orderTypeCategory === "intervento" ? derivedInterventionType : null,
           is_warranty: isWarranty,
           order_subject: subject,
           notes: formData.notes || null,
