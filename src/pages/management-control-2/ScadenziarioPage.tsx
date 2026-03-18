@@ -1065,7 +1065,36 @@ export default function ScadenziarioPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      {/* Bank Reconciliation Dialog */}
+      <BankReconciliationDialog
+        open={reconciliationOpen}
+        onOpenChange={setReconciliationOpen}
+        scadenze={(scadenze || []).map(s => ({
+          id: s.id,
+          tipo: s.tipo,
+          soggetto_nome: s.soggetto_nome,
+          data_scadenza: s.data_scadenza,
+          importo_totale: s.importo_totale,
+          importo_residuo: s.importo_residuo,
+          stato: s.stato,
+          invoice_number: s.invoice_number,
+        }))}
+        onConfirmMatches={async (matches) => {
+          for (const match of matches) {
+            const scadenza = scadenze?.find(s => s.id === match.scadenzaId);
+            if (!scadenza) continue;
+            
+            await registraMutation.mutateAsync({
+              scadenza,
+              importo: match.importo,
+              data: match.data,
+              metodo: "bonifico",
+              note: "Riconciliazione bancaria automatica",
+              files: [],
+            });
+          }
+        }}
+      />
     </div>
   );
 }
