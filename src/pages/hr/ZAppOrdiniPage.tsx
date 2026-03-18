@@ -454,7 +454,8 @@ export default function ZAppOrdiniPage() {
     if (!selectedCustomer?.id || !orderTypeCategory) return false;
     if (needsDeliveryMode && !deliveryMode) return false;
     if (needsInterventionType && !interventionType) return false;
-    if (!hasValidItems) return false;
+    // Per interventi, le voci sono opzionali (il tipo intervento è già descrittivo)
+    if (!needsInterventionType && !hasValidItems) return false;
     return true;
   };
 
