@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
                     iva_amount: extracted.vat_amount || 0,
                     total_amount: extracted.total_amount || 0,
                     due_date: extracted.due_date || null,
-                    vat_regime: 'ordinario',
+                    vat_regime: 'domestica_imponibile',
                     financial_status: 'da_pagare',
                     status: 'bozza',
                     attachment_url: fileUrl,
