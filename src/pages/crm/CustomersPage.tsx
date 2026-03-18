@@ -152,22 +152,6 @@ export default function CustomersPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{customer.name}</span>
-                          {isProfileIncomplete(customer) && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-md text-amber-700">
-                              <AlertTriangle className="w-3 h-3" />
-                              <span className="text-xs font-medium">Anagrafica da completare</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  dismissAlert(customer.id);
-                                }}
-                                className="ml-1 hover:bg-amber-100 rounded-sm p-0.5"
-                                title="Nascondi avviso"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Codice: {customer.code}
