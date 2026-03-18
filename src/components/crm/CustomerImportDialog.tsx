@@ -83,8 +83,17 @@ const FIELD_DETECTION: Array<{ field: keyof MappedCustomer; keywords: string[]; 
   { field: "_iban", keywords: ["iban"] },
 ];
 
+function sanitizeColName(colName: string): string {
+  return colName
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2000-\u200A]/g, " ") // non-breaking/zero-width spaces
+    .replace(/[^\w\s.àèéìòùáéíóúüïöâêîôûçñ]/gi, " ") // keep letters, digits, dots
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+}
+
 function detectColumnField(colName: string): keyof MappedCustomer | null {
-  const lower = colName.toLowerCase().trim().replace(/\s+/g, " ");
+  const lower = sanitizeColName(colName);
   for (const { field, keywords, excludeKeywords } of FIELD_DETECTION) {
     if (excludeKeywords?.some(ek => lower.includes(ek))) continue;
     if (keywords.some(kw => lower.includes(kw))) return field;
@@ -191,6 +200,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
           if (field) columnFieldMap.set(col, field);
         }
 
+        console.log("Raw Excel columns:", cols.map(c => `"${c}" → sanitized: "${sanitizeColName(c)}"`));
         console.log("Column mapping detected:", Object.fromEntries(columnFieldMap));
 
         // Auto-map + match in one go
