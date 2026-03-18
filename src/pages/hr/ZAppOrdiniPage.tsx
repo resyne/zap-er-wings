@@ -1314,10 +1314,32 @@ export default function ZAppOrdiniPage() {
           </div>
         )}
 
+        {/* Status Tabs */}
+        <div className="flex rounded-xl bg-muted p-1 gap-1">
+          {([
+            { key: "attivi" as StatusTab, label: "Attivi", count: statusCounts.attivi },
+            { key: "completati" as StatusTab, label: "Completati", count: statusCounts.completati },
+            { key: "tutti" as StatusTab, label: "Tutti", count: statusCounts.tutti },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusTab(tab.key)}
+              className={cn(
+                "flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all",
+                statusTab === tab.key
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cerca per numero, cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 bg-white" />
+          <Input placeholder="Cerca per numero, cliente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 bg-background" />
         </div>
 
         {loading ? (
@@ -1326,9 +1348,11 @@ export default function ZAppOrdiniPage() {
           <div className="text-center py-12 text-muted-foreground">
             <ShoppingCart className="h-10 w-10 mx-auto mb-3 opacity-30" />
             <p>Nessun ordine trovato</p>
-            <Button variant="outline" className="mt-3" onClick={openCreateForm}>
-              <Plus className="h-4 w-4 mr-2" /> Crea il primo ordine
-            </Button>
+            {statusTab === "attivi" && (
+              <Button variant="outline" className="mt-3" onClick={openCreateForm}>
+                <Plus className="h-4 w-4 mr-2" /> Crea il primo ordine
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -1336,14 +1360,40 @@ export default function ZAppOrdiniPage() {
               const catIcon = ORDER_TYPE_CATEGORIES.find(c => c.value === order.order_type_category)?.icon || ShoppingCart;
               const CatIcon = catIcon;
               const subsCount = order.commesse?.length || 0;
+              const isCompleted = order.status === "completato" || order.status === "completed";
+              const isInProgress = order.status === "in_lavorazione" || order.status === "in_progress";
+
+              // Determine left border color based on status
+              const borderLeftColor = isCompleted
+                ? "border-l-green-500"
+                : isInProgress
+                ? "border-l-amber-500"
+                : "border-l-blue-500";
+
+              // Icon background color based on status
+              const iconBg = isCompleted
+                ? "bg-green-100"
+                : isInProgress
+                ? "bg-amber-100"
+                : "bg-blue-100";
+              const iconColor = isCompleted
+                ? "text-green-700"
+                : isInProgress
+                ? "text-amber-700"
+                : "text-blue-700";
+
               return (
                 <button
                   key={order.id}
                   onClick={() => { setSelectedOrder(order); setViewMode("detail"); }}
-                  className="w-full flex items-center gap-3 p-4 bg-white rounded-xl border border-border hover:shadow-md active:scale-[0.98] transition-all text-left"
+                  className={cn(
+                    "w-full flex items-center gap-3 p-4 bg-background rounded-xl border border-border border-l-4 hover:shadow-md active:scale-[0.98] transition-all text-left",
+                    borderLeftColor,
+                    isCompleted && "opacity-75"
+                  )}
                 >
-                  <div className="h-10 w-10 rounded-xl bg-teal-100 flex items-center justify-center shrink-0">
-                    <CatIcon className="h-5 w-5 text-teal-700" />
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
+                    <CatIcon className={cn("h-5 w-5", iconColor)} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
