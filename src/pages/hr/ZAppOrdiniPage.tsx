@@ -1175,36 +1175,6 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
-            {/* 4b. Tipo di intervento (only for intervento) */}
-            {needsInterventionType && selectedCustomer && (
-              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
-                <Label className="font-semibold text-sm">Tipo di intervento *</Label>
-                <div className="space-y-2">
-                  {INTERVENTION_TYPES.map(it => {
-                    const Icon = it.icon;
-                    const isSelected = interventionType === it.value;
-                    return (
-                      <button
-                        key={it.value}
-                        type="button"
-                        onClick={() => setInterventionType(it.value)}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all",
-                          isSelected ? "border-teal-500 bg-teal-50 shadow-sm" : "border-border hover:bg-muted/50"
-                        )}
-                      >
-                        <Icon className={cn("h-5 w-5 shrink-0", isSelected ? "text-teal-600" : "text-muted-foreground")} />
-                        <div className="flex-1">
-                          <p className={cn("text-sm font-medium", isSelected && "text-teal-700")}>{it.label}</p>
-                          <p className="text-xs text-muted-foreground">{it.desc}</p>
-                        </div>
-                        {isSelected && <Check className="h-5 w-5 text-teal-600" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 5. Date */}
             {orderTypeCategory && selectedCustomer && (
