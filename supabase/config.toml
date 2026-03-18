@@ -176,3 +176,11 @@ verify_jwt = false
 
 [functions.becca-ai]
 verify_jwt = false
+
+[functions.sync-invoice-emails]
+verify_jwt = false
+
+[[edge_runtime.scheduled_functions]]
+  name = "sync-invoice-emails"
+  cron = "*/5 * * * *"
+  region = "eu-west-1"
