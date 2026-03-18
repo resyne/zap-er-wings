@@ -1065,6 +1065,8 @@ export default function ScadenziarioPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
       {/* Bank Reconciliation Dialog */}
       <BankReconciliationDialog
         open={reconciliationOpen}
