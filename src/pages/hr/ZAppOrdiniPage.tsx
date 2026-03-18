@@ -813,7 +813,7 @@ export default function ZAppOrdiniPage() {
             ) : null}
           </div>
 
-          <OrderDetailSections orderId={selectedOrder.id} customerId={selectedOrder.customers ? undefined : undefined} />
+          <OrderDetailSections orderId={selectedOrder.id} customerId={selectedOrder.customer_id || undefined} />
 
         </div>
 
