@@ -2961,17 +2961,14 @@ export default function RegistroContabilePage() {
         onFilterTypeChange={setFilterType}
         filterStatus={filterStatus}
         onFilterStatusChange={setFilterStatus}
-        groupBy={groupBy}
-        onGroupByChange={(v) => {
-          setGroupBy(v as any);
-          setExpandedRegistryPeriods(new Set());
-        }}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        selectedPeriod={selectedPeriod}
+        onSelectedPeriodChange={setSelectedPeriod}
         onClearFilters={() => {
           setSearchTerm("");
           setFilterType("all");
           setFilterStatus("all");
-          setGroupBy("month");
-          setExpandedRegistryPeriods(new Set());
         }}
       />
 
