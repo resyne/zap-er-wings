@@ -342,8 +342,9 @@ export default function DdtSection() {
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Controparte</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Articoli</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                    <TableHead className="text-right w-20"></TableHead>
+                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Contabilità</TableHead>
+                     <TableHead className="text-right w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
