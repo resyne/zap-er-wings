@@ -4680,6 +4680,16 @@ export default function RegistroContabilePage() {
                     <span className="text-muted-foreground">Totale fattura:</span>
                     <span className="font-bold">€{selectedInvoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
                   </div>
+                  {scadenzaResiduo !== null && scadenzaResiduo < selectedInvoice.total_amount && (
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-muted-foreground">Già versato:</span>
+                      <span className="text-green-600 font-medium">€{(selectedInvoice.total_amount - scadenzaResiduo).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-muted-foreground font-semibold">Residuo da {selectedInvoice.invoice_type === 'vendita' ? 'incassare' : 'pagare'}:</span>
+                    <span className="font-bold text-primary">€{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -4689,11 +4699,14 @@ export default function RegistroContabilePage() {
                     type="checkbox"
                     id="partial-payment"
                     checked={paymentData.is_partial}
-                    onChange={(e) => setPaymentData(prev => ({
-                      ...prev,
-                      is_partial: e.target.checked,
-                      amount: e.target.checked ? prev.amount : selectedInvoice.total_amount
-                    }))}
+                    onChange={(e) => {
+                      const residuo = scadenzaResiduo ?? selectedInvoice.total_amount;
+                      setPaymentData(prev => ({
+                        ...prev,
+                        is_partial: e.target.checked,
+                        amount: e.target.checked ? prev.amount : residuo
+                      }));
+                    }}
                     className="rounded border-muted-foreground/30"
                   />
                   <Label htmlFor="partial-payment" className="text-sm cursor-pointer">Pagamento parziale (acconto)</Label>
@@ -4705,11 +4718,16 @@ export default function RegistroContabilePage() {
                     type="number"
                     step="0.01"
                     min="0.01"
-                    max={selectedInvoice.total_amount}
+                    max={scadenzaResiduo ?? selectedInvoice.total_amount}
                     value={paymentData.amount || ''}
                     onChange={(e) => setPaymentData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                     disabled={!paymentData.is_partial}
                   />
+                  {paymentData.is_partial && (
+                    <p className="text-xs text-muted-foreground">
+                      Max: €{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
