@@ -92,6 +92,11 @@ function sanitizeColName(colName: string): string {
     .trim();
 }
 
+function normalizeCellValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
 function detectColumnField(colName: string): keyof MappedCustomer | null {
   const lower = sanitizeColName(colName);
   for (const { field, keywords, excludeKeywords } of FIELD_DETECTION) {
@@ -99,6 +104,85 @@ function detectColumnField(colName: string): keyof MappedCustomer | null {
     if (keywords.some(kw => lower.includes(kw))) return field;
   }
   return null;
+}
+
+function findBestHeaderRow(rows: unknown[][]): { headerRowIndex: number; headers: string[] } {
+  let bestIndex = -1;
+  let bestScore = -1;
+  let bestHeaders: string[] = [];
+
+  const scanLimit = Math.min(rows.length, 40);
+
+  for (let i = 0; i < scanLimit; i++) {
+    const row = rows[i] ?? [];
+    const values = row.map(normalizeCellValue);
+    const nonEmpty = values.filter(v => v.length > 0);
+    if (nonEmpty.length === 0) continue;
+
+    const detectedFields = nonEmpty.filter(v => detectColumnField(v)).length;
+    const likelyHeaderWords = nonEmpty.filter(v => {
+      const s = sanitizeColName(v);
+      return /(rag|sociale|p\.?\s*iva|cod|fiscale|indirizzo|citt|prov|cap|paese|destinatario|telefono|cell|email|pec|iban|banca)/i.test(s);
+    }).length;
+
+    const score = detectedFields * 3 + likelyHeaderWords;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+      bestHeaders = values;
+    }
+  }
+
+  if (bestIndex >= 0 && bestScore > 0) {
+    return { headerRowIndex: bestIndex, headers: bestHeaders };
+  }
+
+  const firstNonEmptyIndex = rows.findIndex(r => (r ?? []).some(cell => normalizeCellValue(cell).length > 0));
+  const fallbackIndex = firstNonEmptyIndex >= 0 ? firstNonEmptyIndex : 0;
+  const fallbackHeaders = (rows[fallbackIndex] ?? []).map(normalizeCellValue);
+
+  return { headerRowIndex: fallbackIndex, headers: fallbackHeaders };
+}
+
+function parseWorksheet(sheet: XLSX.WorkSheet): { rows: ParsedRow[]; headers: string[]; headerRowIndex: number } {
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: "",
+    raw: false,
+  });
+
+  if (matrix.length === 0) {
+    return { rows: [], headers: [], headerRowIndex: 0 };
+  }
+
+  const { headerRowIndex, headers } = findBestHeaderRow(matrix);
+
+  const normalizedHeaders = headers.map((header, index) => {
+    const value = normalizeCellValue(header);
+    return value || `__col_${index + 1}`;
+  });
+
+  const uniqueHeaders = normalizedHeaders.map((header, index, list) =>
+    list.indexOf(header) === index ? header : `${header}__${index + 1}`
+  );
+
+  const parsedRows: ParsedRow[] = matrix
+    .slice(headerRowIndex + 1)
+    .filter(row => (row ?? []).some(cell => normalizeCellValue(cell).length > 0))
+    .map(row => {
+      const parsed: ParsedRow = {};
+      uniqueHeaders.forEach((header, index) => {
+        parsed[header] = normalizeCellValue((row ?? [])[index]);
+      });
+      return parsed;
+    });
+
+  return {
+    rows: parsedRows,
+    headers: uniqueHeaders,
+    headerRowIndex,
+  };
 }
 
 function mapRow(row: ParsedRow, columnFieldMap: Map<string, keyof MappedCustomer>): MappedCustomer {
@@ -134,10 +218,21 @@ function mapRow(row: ParsedRow, columnFieldMap: Map<string, keyof MappedCustomer
     result.phone = result._cellulare;
   }
 
-  // If still no name, try to use any non-empty first column as fallback
+  // If still no name, try mapped columns first
   if (!result.name) {
     for (const [col] of columnFieldMap.entries()) {
       const val = String(row[col] || "").trim();
+      if (val && val.length > 1) {
+        result.name = val;
+        break;
+      }
+    }
+  }
+
+  // Ultimate fallback: first non-empty value in row
+  if (!result.name) {
+    for (const rawVal of Object.values(row)) {
+      const val = String(rawVal || "").trim();
       if (val && val.length > 1) {
         result.name = val;
         break;
@@ -182,29 +277,30 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<ParsedRow>(sheet, { defval: "" });
 
-        if (json.length === 0) {
+        const { rows, headers, headerRowIndex } = parseWorksheet(sheet);
+
+        if (rows.length === 0) {
           toast({ title: "File vuoto", description: "Il file non contiene dati", variant: "destructive" });
           setAnalyzing(false);
           return;
         }
 
-        const cols = Object.keys(json[0]);
-        setRowCount(json.length);
+        setRowCount(rows.length);
 
         // Build column→field map once
         const columnFieldMap = new Map<string, keyof MappedCustomer>();
-        for (const col of cols) {
+        for (const col of headers) {
           const field = detectColumnField(col);
           if (field) columnFieldMap.set(col, field);
         }
 
-        console.log("Raw Excel columns:", cols.map(c => `"${c}" → sanitized: "${sanitizeColName(c)}"`));
+        console.log("Detected header row:", headerRowIndex + 1);
+        console.log("Raw Excel columns:", headers.map(c => `"${c}" → sanitized: "${sanitizeColName(c)}"`));
         console.log("Column mapping detected:", Object.fromEntries(columnFieldMap));
 
         // Auto-map + match in one go
-        const results: MatchResult[] = json.map((row, idx) => {
+        const results: MatchResult[] = rows.map((row, idx) => {
           const mapped = mapRow(row, columnFieldMap);
 
           let bestMatch: any = null;
@@ -271,7 +367,7 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
       }
     };
     reader.readAsArrayBuffer(file);
-  }, [existingCustomers]);
+  }, [existingCustomers, toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
