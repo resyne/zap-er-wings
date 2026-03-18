@@ -741,6 +741,29 @@ export default function PrimaNotaPage() {
         onOpenChange={setDetailDialogOpen}
       />
 
+      {/* Shared delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina movimento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare "{deleteTarget?.description}" di {formatEuro(deleteTarget?.amount || 0)}? Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* WhatsApp Prima Nota Config */}
       <Collapsible>
         <CollapsibleTrigger asChild>
