@@ -283,21 +283,16 @@ export default function ZAppNewServiceReportPage() {
 
   const loadInitialData = async () => {
     try {
-      const [customersRes, techniciansRes, serviceOrdersRes, productionOrdersRes, settingsRes] = await Promise.all([
+      const [customersRes, techniciansRes, commesseRes, settingsRes] = await Promise.all([
         supabase.from('customers')
           .select('id, name, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address')
           .order('company_name', { ascending: true, nullsFirst: false }).order('name'),
         supabase.from('technicians')
           .select('id, first_name, last_name, employee_code')
           .eq('active', true).order('first_name'),
-        supabase.from('service_work_orders')
-          .select('id, number, title, description, customer_id, customers(name, company_name)')
-          .eq('archived', false)
-          .not('status', 'in', '("completata","archiviata","annullata")')
-          .order('number', { ascending: false }),
-        supabase.from('work_orders')
-          .select('id, number, title, description, customer_id, customers(name, company_name)')
-          .eq('archived', false)
+        supabase.from('commesse')
+          .select('id, number, title, description, customer_id, type, customers(name, company_name)')
+          .or('archived.is.null,archived.eq.false')
           .not('status', 'in', '("completata","archiviata","annullata")')
           .order('number', { ascending: false }),
         supabase.from('service_report_settings')
@@ -306,27 +301,17 @@ export default function ZAppNewServiceReportPage() {
       setCustomers(customersRes.data || []);
       setTechnicians(techniciansRes.data || []);
 
-      const serviceOrders: WorkOrder[] = (serviceOrdersRes.data || []).map((wo: any) => ({
+      const allCommesse: WorkOrder[] = (commesseRes.data || []).map((wo: any) => ({
         id: wo.id,
         number: wo.number,
         title: wo.title,
         description: wo.description,
         customer_id: wo.customer_id,
-        customer_name: wo.customers?.company_name || wo.customers?.name || '',
-        type: 'service' as const,
+        customer_name: (wo.customers as any)?.company_name || (wo.customers as any)?.name || '',
+        type: wo.type === 'service' ? 'service' as const : 'production' as const,
       }));
 
-      const productionOrders: WorkOrder[] = (productionOrdersRes.data || []).map((wo: any) => ({
-        id: wo.id,
-        number: wo.number,
-        title: wo.title,
-        description: wo.description,
-        customer_id: wo.customer_id,
-        customer_name: wo.customers?.company_name || wo.customers?.name || '',
-        type: 'production' as const,
-      }));
-
-      setWorkOrders([...serviceOrders, ...productionOrders]);
+      setWorkOrders(allCommesse);
       if (settingsRes.data) {
         const newSettings: Record<string, number> = {};
         settingsRes.data.forEach((s: { setting_key: string; setting_value: number }) => {
