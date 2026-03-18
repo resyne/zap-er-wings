@@ -1917,6 +1917,42 @@ export default function RegistroContabilePage() {
   });
 
   // =====================================================
+  // APRI DIALOG PAGAMENTO con fetch residuo
+  // =====================================================
+  const openPaymentDialog = useCallback(async (inv: InvoiceRegistry) => {
+    setSelectedInvoice(inv);
+    setScadenzaResiduo(null);
+    
+    // Fetch residuo dalla scadenza
+    if (inv.scadenza_id) {
+      const { data: scadenza } = await supabase
+        .from('scadenze')
+        .select('importo_residuo')
+        .eq('id', inv.scadenza_id)
+        .single();
+      if (scadenza) {
+        setScadenzaResiduo(scadenza.importo_residuo);
+        setPaymentData({
+          amount: scadenza.importo_residuo,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          payment_method: inv.payment_method || 'bonifico',
+          notes: '',
+          is_partial: false
+        });
+      } else {
+        setPaymentData({
+          amount: inv.total_amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          payment_method: inv.payment_method || 'bonifico',
+          notes: '',
+          is_partial: false
+        });
+      }
+    }
+    setShowPaymentDialog(true);
+  }, []);
+
+  // =====================================================
   // REGISTRA PAGAMENTO - Totale o parziale con Prima Nota
   // =====================================================
   const paymentMutation = useMutation({
