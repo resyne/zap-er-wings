@@ -132,7 +132,7 @@ type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
-type FinancialStatus = 'da_incassare' | 'da_pagare' | 'incassata' | 'pagata';
+type FinancialStatus = 'da_incassare' | 'da_pagare' | 'parzialmente_incassata' | 'parzialmente_pagata' | 'incassata' | 'pagata';
 
 // Stati obbligatori del registro contabile
 type RegistryStatus = 'bozza' | 'registrata' | 'da_classificare' | 'da_riclassificare' | 'non_rilevante' | 'contabilizzato' | 'rettificato' | 'archiviato';
@@ -237,6 +237,7 @@ export default function RegistroContabilePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [scadenzaResiduo, setScadenzaResiduo] = useState<number | null>(null);
   const [paymentData, setPaymentData] = useState({
     amount: 0,
     payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -1916,6 +1917,42 @@ export default function RegistroContabilePage() {
   });
 
   // =====================================================
+  // APRI DIALOG PAGAMENTO con fetch residuo
+  // =====================================================
+  const openPaymentDialog = useCallback(async (inv: InvoiceRegistry) => {
+    setSelectedInvoice(inv);
+    setScadenzaResiduo(null);
+    
+    // Fetch residuo dalla scadenza
+    if (inv.scadenza_id) {
+      const { data: scadenza } = await supabase
+        .from('scadenze')
+        .select('importo_residuo')
+        .eq('id', inv.scadenza_id)
+        .single();
+      if (scadenza) {
+        setScadenzaResiduo(scadenza.importo_residuo);
+        setPaymentData({
+          amount: scadenza.importo_residuo,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          payment_method: inv.payment_method || 'bonifico',
+          notes: '',
+          is_partial: false
+        });
+      } else {
+        setPaymentData({
+          amount: inv.total_amount,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          payment_method: inv.payment_method || 'bonifico',
+          notes: '',
+          is_partial: false
+        });
+      }
+    }
+    setShowPaymentDialog(true);
+  }, []);
+
+  // =====================================================
   // REGISTRA PAGAMENTO - Totale o parziale con Prima Nota
   // =====================================================
   const paymentMutation = useMutation({
@@ -2043,7 +2080,7 @@ export default function RegistroContabilePage() {
       // 5. Aggiorna lo stato finanziario della fattura
       const newFinancialStatus = isFullyPaid 
         ? (isAcquisto ? 'pagata' : 'incassata')
-        : invoice.financial_status; // Resta da_pagare/da_incassare se parziale
+        : (isAcquisto ? 'parzialmente_pagata' : 'parzialmente_incassata');
       
       const { error: invError } = await supabase
         .from('invoice_registry')
@@ -2076,6 +2113,7 @@ export default function RegistroContabilePage() {
       toast.success(msg);
       setShowPaymentDialog(false);
       setSelectedInvoice(null);
+      setScadenzaResiduo(null);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
       queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
       queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
@@ -2792,18 +2830,8 @@ export default function RegistroContabilePage() {
             </Button>
           )}
           {/* Pulsante Registra Pagamento per fatture con scadenza aperta */}
-          {invoice.scadenza_id && ['da_incassare', 'da_pagare'].includes(invoice.financial_status) && (
-            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => {
-              setSelectedInvoice(invoice);
-              setPaymentData({
-                amount: invoice.total_amount,
-                payment_date: format(new Date(), 'yyyy-MM-dd'),
-                payment_method: invoice.payment_method || 'bonifico',
-                notes: '',
-                is_partial: false
-              });
-              setShowPaymentDialog(true);
-            }}>
+          {invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
+            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => openPaymentDialog(invoice)}>
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
               {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
             </Button>
@@ -3350,16 +3378,7 @@ export default function RegistroContabilePage() {
           }}
           isRegenerating={regeneratePrimaNotaMutation.isPending}
           onPayment={(invoice) => {
-            const inv = invoice as any as InvoiceRegistry;
-            setSelectedInvoice(inv);
-            setPaymentData({
-              amount: inv.total_amount,
-              payment_date: format(new Date(), 'yyyy-MM-dd'),
-              payment_method: inv.payment_method || 'bonifico',
-              notes: '',
-              is_partial: false
-            });
-            setShowPaymentDialog(true);
+            openPaymentDialog(invoice as any as InvoiceRegistry);
           }}
           onGoScadenziario={() => (window.location.href = '/management-control-2/scadenziario')}
         />
@@ -4662,6 +4681,16 @@ export default function RegistroContabilePage() {
                     <span className="text-muted-foreground">Totale fattura:</span>
                     <span className="font-bold">€{selectedInvoice.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
                   </div>
+                  {scadenzaResiduo !== null && scadenzaResiduo < selectedInvoice.total_amount && (
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-muted-foreground">Già versato:</span>
+                      <span className="text-green-600 font-medium">€{(selectedInvoice.total_amount - scadenzaResiduo).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-muted-foreground font-semibold">Residuo da {selectedInvoice.invoice_type === 'vendita' ? 'incassare' : 'pagare'}:</span>
+                    <span className="font-bold text-primary">€{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -4671,11 +4700,14 @@ export default function RegistroContabilePage() {
                     type="checkbox"
                     id="partial-payment"
                     checked={paymentData.is_partial}
-                    onChange={(e) => setPaymentData(prev => ({
-                      ...prev,
-                      is_partial: e.target.checked,
-                      amount: e.target.checked ? prev.amount : selectedInvoice.total_amount
-                    }))}
+                    onChange={(e) => {
+                      const residuo = scadenzaResiduo ?? selectedInvoice.total_amount;
+                      setPaymentData(prev => ({
+                        ...prev,
+                        is_partial: e.target.checked,
+                        amount: e.target.checked ? prev.amount : residuo
+                      }));
+                    }}
                     className="rounded border-muted-foreground/30"
                   />
                   <Label htmlFor="partial-payment" className="text-sm cursor-pointer">Pagamento parziale (acconto)</Label>
@@ -4687,11 +4719,16 @@ export default function RegistroContabilePage() {
                     type="number"
                     step="0.01"
                     min="0.01"
-                    max={selectedInvoice.total_amount}
+                    max={scadenzaResiduo ?? selectedInvoice.total_amount}
                     value={paymentData.amount || ''}
                     onChange={(e) => setPaymentData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                     disabled={!paymentData.is_partial}
                   />
+                  {paymentData.is_partial && (
+                    <p className="text-xs text-muted-foreground">
+                      Max: €{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
