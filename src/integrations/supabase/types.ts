@@ -4663,6 +4663,59 @@ export type Database = {
           },
         ]
       }
+      invoice_email_log: {
+        Row: {
+          ai_raw_data: Json | null
+          attachment_filename: string | null
+          attachment_url: string | null
+          created_at: string
+          email_date: string | null
+          email_from: string | null
+          email_message_id: string
+          email_subject: string | null
+          error_message: string | null
+          id: string
+          invoice_registry_id: string | null
+          status: string
+        }
+        Insert: {
+          ai_raw_data?: Json | null
+          attachment_filename?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          email_date?: string | null
+          email_from?: string | null
+          email_message_id: string
+          email_subject?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_registry_id?: string | null
+          status?: string
+        }
+        Update: {
+          ai_raw_data?: Json | null
+          attachment_filename?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          email_date?: string | null
+          email_from?: string | null
+          email_message_id?: string
+          email_subject?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_registry_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_email_log_invoice_registry_id_fkey"
+            columns: ["invoice_registry_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_registry: {
         Row: {
           account_splits: Json | null
