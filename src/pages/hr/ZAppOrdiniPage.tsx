@@ -116,11 +116,6 @@ const DELIVERY_MODES_RICAMBI = [
   { value: "ritiro", label: "Ritiro in sede", icon: Building2, desc: "Ritiro ricambi in sede" },
 ];
 
-const INTERVENTION_TYPES = [
-  { value: "manutenzione", label: "Manutenzione", icon: Wrench, desc: "Manutenzione programmata o preventiva" },
-  { value: "riparazione", label: "Riparazione", icon: Settings, desc: "Riparazione guasto o malfunzionamento" },
-  { value: "altro", label: "Altro", icon: Settings, desc: "Altro tipo di intervento" },
-];
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-800",
