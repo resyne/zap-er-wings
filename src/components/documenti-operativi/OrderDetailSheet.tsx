@@ -133,7 +133,7 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
       if (!accountingDoc?.prima_nota_id) return [];
       const { data } = await supabase
         .from("prima_nota")
-        .select("id, numero_registrazione, data_registrazione, descrizione, totale_dare, totale_avere, stato")
+        .select("id, competence_date, description, amount, movement_type, status")
         .eq("id", accountingDoc.prima_nota_id);
       return data || [];
     },
