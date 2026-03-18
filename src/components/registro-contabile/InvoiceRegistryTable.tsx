@@ -365,15 +365,17 @@ function registryStatusBadge(status: string) {
 }
 
 function financialStatusBadge(status: string) {
-  const map: Record<string, { variant: "default" | "secondary" | "outline"; label: string }> = {
+  const map: Record<string, { variant: "default" | "secondary" | "outline"; label: string; className?: string }> = {
     da_incassare: { variant: "secondary", label: "Da incassare" },
     da_pagare: { variant: "secondary", label: "Da pagare" },
+    parzialmente_incassata: { variant: "outline", label: "Parz. incassata", className: "border-amber-500/50 text-amber-600 bg-amber-500/10" },
+    parzialmente_pagata: { variant: "outline", label: "Parz. pagata", className: "border-amber-500/50 text-amber-600 bg-amber-500/10" },
     incassata: { variant: "default", label: "Incassata" },
     pagata: { variant: "default", label: "Pagata" },
   };
   const cfg = map[status];
   if (!cfg) return <Badge variant="outline" className="text-xs">{status}</Badge>;
-  return <Badge variant={cfg.variant} className="text-xs">{cfg.label}</Badge>;
+  return <Badge variant={cfg.variant} className={cn("text-xs", cfg.className)}>{cfg.label}</Badge>;
 }
 
 function vatRegimeLabel(regime: string) {
