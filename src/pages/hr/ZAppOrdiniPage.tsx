@@ -154,6 +154,7 @@ export default function ZAppOrdiniPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [statusTab, setStatusTab] = useState<StatusTab>("attivi");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ notes: "", order_subject: "", status: "" });
