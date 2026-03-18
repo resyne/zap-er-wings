@@ -298,6 +298,7 @@ export default function ZAppNewServiceReportPage() {
         supabase.from('work_orders')
           .select('id, number, title, description, customer_id, customers(name, company_name)')
           .eq('archived', false)
+          .not('status', 'in', '("completata","archiviata","annullata")')
           .order('number', { ascending: false }),
         supabase.from('service_report_settings')
           .select('setting_key, setting_value')
