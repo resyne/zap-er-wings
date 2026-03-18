@@ -143,6 +143,7 @@ const categoryLabels: Record<string, string> = {
   installazione: "Installazione", // backward compat for old orders
 };
 
+type StatusTab = "attivi" | "completati" | "tutti";
 type ViewMode = "list" | "detail";
 
 export default function ZAppOrdiniPage() {
