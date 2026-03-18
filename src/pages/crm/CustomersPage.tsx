@@ -57,16 +57,6 @@ export default function CustomersPage() {
   const totalCustomers = filteredCustomers.length;
   const activeCustomers = filteredCustomers.filter(customer => customer.active);
 
-  // Function to check if customer profile is incomplete (excluding shipping_address)
-  const isProfileIncomplete = (customer: any) => {
-    const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'country', 'tax_id'];
-    const missingFields = requiredFields.filter(field => !customer[field] || customer[field].trim() === '');
-    return missingFields.length > 0 && !dismissedAlerts.has(customer.id);
-  };
-
-  const dismissAlert = (customerId: string) => {
-    setDismissedAlerts(prev => new Set([...prev, customerId]));
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
