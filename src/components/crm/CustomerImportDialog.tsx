@@ -58,90 +58,41 @@ interface MatchResult {
   selected: boolean;
 }
 
-// Maps known Italian Excel column headers to our customer fields
-const COLUMN_MAP: Record<string, keyof MappedCustomer> = {
-  // Ragione Sociale variations
-  "rag. sociale": "name",
-  "rag sociale": "name",
-  "ragione sociale": "name",
-  "denominazione": "name",
-  "nome": "name",
-  "cliente": "name",
-  "intestazione": "name",
-  // Riferimento
-  "riferimento": "company_name",
-  "contatto": "company_name",
-  "referente": "company_name",
-  // P.IVA
-  "p.iva": "tax_id",
-  "p. iva": "tax_id",
-  "piva": "tax_id",
-  "partita iva": "tax_id",
-  "p.i.": "tax_id",
-  // Cod. fiscale → stored separately, merged if no P.IVA
-  "cod. fiscale": "_cod_fiscale",
-  "cod.fiscale": "_cod_fiscale",
-  "codice fiscale": "_cod_fiscale",
-  "cf": "_cod_fiscale",
-  // Address
-  "indirizzo": "address",
-  "via": "address",
-  "sede": "address",
-  "in-dirizzo": "address",
-  // City
-  "città": "city",
-  "citta": "city",
-  "comune": "city",
-  // Province
-  "provincia": "province",
-  "prov": "province",
-  // CAP
-  "cap": "postal_code",
-  "codice postale": "postal_code",
-  // Country
-  "paese": "country",
-  "nazione": "country",
-  "stato": "country",
-  // SDI
-  "cod. destinatario": "sdi_code",
-  "cod.destinatario": "sdi_code",
-  "codice destinatario": "sdi_code",
-  "codice sdi": "sdi_code",
-  "sdi": "sdi_code",
-  // Phone
-  "telefono": "phone",
-  "tel": "phone",
-  "tel.": "phone",
-  // Mobile
-  "cellulare": "_cellulare",
-  "cell": "_cellulare",
-  "mobile": "_cellulare",
-  // Fax
-  "fax": "_fax",
-  // Email
-  "email": "email",
-  "e-mail": "email",
-  "mail": "email",
-  // PEC
-  "pec": "pec",
-  // Web
-  "web": "_web",
-  "sito": "_web",
-  "website": "_web",
-  "sito web": "_web",
-  // Nota
-  "nota": "_nota",
-  "note": "_nota",
-  // Tipo
-  "tipo": "_tipo",
-  // Bank
-  "nome banca": "_banca",
-  "banca": "_banca",
-  // IBAN
-  "iban": "_iban",
-};
+// Keyword-based column detection: if the column contains any of these keywords, map to the field
+// Order matters: more specific patterns first
+const FIELD_DETECTION: Array<{ field: keyof MappedCustomer; keywords: string[]; excludeKeywords?: string[] }> = [
+  { field: "tax_id", keywords: ["p.iva", "p. iva", "piva", "partita iva", "p.i."] },
+  { field: "_cod_fiscale", keywords: ["cod. fiscale", "cod.fiscale", "codice fiscale", "c.f."], excludeKeywords: ["p.iva"] },
+  { field: "sdi_code", keywords: ["destinatario", "sdi", "codice univoco"] },
+  { field: "name", keywords: ["rag. sociale", "rag sociale", "ragione sociale", "denominazione", "intestazione"] },
+  { field: "company_name", keywords: ["riferimento", "referente", "contatto"] },
+  { field: "pec", keywords: ["pec"] },
+  { field: "email", keywords: ["email", "e-mail", "mail"], excludeKeywords: ["pec"] },
+  { field: "address", keywords: ["indirizzo", "via", "sede"] },
+  { field: "city", keywords: ["città", "citta", "comune"] },
+  { field: "province", keywords: ["provincia", "prov"] },
+  { field: "postal_code", keywords: ["cap", "codice postale"] },
+  { field: "country", keywords: ["paese", "nazione"] },
+  { field: "phone", keywords: ["telefono", "tel"], excludeKeywords: ["cell"] },
+  { field: "_cellulare", keywords: ["cellulare", "cell", "mobile"] },
+  { field: "_fax", keywords: ["fax"] },
+  { field: "_web", keywords: ["web", "sito"] },
+  { field: "_nota", keywords: ["nota", "note"] },
+  { field: "_tipo", keywords: ["tipo"] },
+  { field: "_banca", keywords: ["banca"] },
+  { field: "_iban", keywords: ["iban"] },
+];
 
-function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
+function detectColumnField(colName: string): keyof MappedCustomer | null {
+  const lower = colName.toLowerCase().trim().replace(/\s+/g, " ");
+  for (const { field, keywords, excludeKeywords } of FIELD_DETECTION) {
+    if (excludeKeywords?.some(ek => lower.includes(ek))) continue;
+    if (keywords.some(kw => lower.includes(kw))) return field;
+  }
+  return null;
+}
+
+function mapRow(row: ParsedRow, columnFieldMap: Map<string, keyof MappedCustomer>): MappedCustomer {
   const result: any = {
     name: "",
     company_name: null,
@@ -157,14 +108,10 @@ function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
     sdi_code: null,
   };
 
-  for (const col of columns) {
-    const colLower = col.toLowerCase().trim();
-    const field = COLUMN_MAP[colLower];
-    if (field) {
-      const val = String(row[col] || "").trim();
-      if (val) {
-        result[field] = val;
-      }
+  for (const [col, field] of columnFieldMap.entries()) {
+    const val = String(row[col] || "").trim();
+    if (val) {
+      result[field] = val;
     }
   }
 
@@ -176,6 +123,17 @@ function mapRow(row: ParsedRow, columns: string[]): MappedCustomer {
   // If no phone but we have cellulare, use that
   if (!result.phone && result._cellulare) {
     result.phone = result._cellulare;
+  }
+
+  // If still no name, try to use any non-empty first column as fallback
+  if (!result.name) {
+    for (const [col] of columnFieldMap.entries()) {
+      const val = String(row[col] || "").trim();
+      if (val && val.length > 1) {
+        result.name = val;
+        break;
+      }
+    }
   }
 
   return result;
@@ -226,9 +184,18 @@ export function CustomerImportDialog({ open, onOpenChange, existingCustomers, on
         const cols = Object.keys(json[0]);
         setRowCount(json.length);
 
+        // Build column→field map once
+        const columnFieldMap = new Map<string, keyof MappedCustomer>();
+        for (const col of cols) {
+          const field = detectColumnField(col);
+          if (field) columnFieldMap.set(col, field);
+        }
+
+        console.log("Column mapping detected:", Object.fromEntries(columnFieldMap));
+
         // Auto-map + match in one go
         const results: MatchResult[] = json.map((row, idx) => {
-          const mapped = mapRow(row, cols);
+          const mapped = mapRow(row, columnFieldMap);
 
           let bestMatch: any = null;
           let bestScore = 0;
