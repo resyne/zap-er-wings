@@ -79,7 +79,7 @@ const erpSections: SectionDoc[] = [
     pages: [
       { title: "Lead", path: "/crm/leads", icon: Users, description: "Gestione lead con pipeline Kanban, filtri avanzati, automazioni, mappa geografica e integrazione WhatsApp." },
       { title: "Lead KPI", path: "/crm/leads/kpi", icon: TrendingUp, description: "Analisi performance commerciale: conversioni, tempi di risposta, valore pipeline e statistiche per agente." },
-      { title: "Clienti", path: "/crm/customers", icon: Building2, description: "Anagrafica clienti con contatti, storico ordini, documenti fiscali (P.IVA, SDI, PEC) e comunicazioni." },
+      { title: "Anagrafica Clienti", path: "/crm/customers", icon: Building2, description: "Anagrafica clienti con contatti, storico ordini, documenti fiscali (P.IVA, SDI, PEC) e comunicazioni." },
       { title: "Preventivatore Costi", path: "/crm/cost-estimator", icon: DollarSign, description: "Strumento per creare preventivi dettagliati con materiali, manodopera, macchinari e margini." },
       { title: "Offerte", path: "/crm/offers", icon: FileText, description: "Creazione e gestione offerte commerciali con template personalizzabili, PDF e invio via email." },
       { title: "Configuratore Prodotti", path: "/crm/product-configurator", icon: Settings, description: "Configuratore interattivo per personalizzare prodotti (modello, potenza, dimensioni) con link condivisibili." },
