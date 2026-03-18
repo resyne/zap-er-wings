@@ -196,6 +196,9 @@ export default function PrimaNotaPage() {
   const [detailEntryId, setDetailEntryId] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
+  // State for delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; description: string; amount: number } | null>(null);
+
   const openValidateDialog = (movementId: string) => {
     const fullEntry = rawEntries.find(e => e.id === movementId);
     if (fullEntry) {
@@ -711,30 +714,17 @@ export default function PrimaNotaPage() {
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Elimina movimento</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Sei sicuro di voler eliminare "{m.description}" di {formatEuro(m.amount)}? Questa azione non può essere annullata.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annulla</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteMutation.mutate(m.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Elimina
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget({ id: m.id, description: m.description, amount: m.amount });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -751,6 +741,29 @@ export default function PrimaNotaPage() {
         onOpenChange={setDetailDialogOpen}
       />
 
+      {/* Shared delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina movimento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare "{deleteTarget?.description}" di {formatEuro(deleteTarget?.amount || 0)}? Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* WhatsApp Prima Nota Config */}
       <Collapsible>
         <CollapsibleTrigger asChild>
