@@ -600,14 +600,20 @@ export default function ScadenziarioPage() {
   return (
     <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Clock className="h-5 w-5 text-primary" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Clock className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Scadenziario</h1>
+            <p className="text-sm text-muted-foreground">Gestione crediti e debiti raggruppati per soggetto</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Scadenziario</h1>
-          <p className="text-sm text-muted-foreground">Gestione crediti e debiti raggruppati per soggetto</p>
-        </div>
+        <Button variant="outline" onClick={() => setReconciliationOpen(true)} className="gap-2">
+          <Link2 className="h-4 w-4" />
+          Riconciliazione Bancaria
+        </Button>
       </div>
 
       {/* KPI Bar compatta */}
