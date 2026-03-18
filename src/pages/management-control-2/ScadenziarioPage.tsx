@@ -125,6 +125,7 @@ export default function ScadenziarioPage() {
   const [noteRegistrazione, setNoteRegistrazione] = useState<string>("");
   const [paymentFiles, setPaymentFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
 
   // Helper function - defined early to be used in useMemo
   const getGiorniScadenza = (dataScadenza: string) => {
