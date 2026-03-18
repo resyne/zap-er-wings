@@ -18,6 +18,7 @@ import {
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
   MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck
 } from "lucide-react";
+import { OrderDetailSections } from "@/components/hr/zapp/OrderDetailSections";
 import { cn } from "@/lib/utils";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -44,6 +45,7 @@ interface Order {
   delivery_mode: string | null;
   notes: string | null;
   order_subject: string | null;
+  customer_id: string | null;
   customers?: { name: string; code: string } | null;
   commesse?: Array<{ id: string; number: string; status: string; type: string }>;
 }
@@ -296,7 +298,7 @@ export default function ZAppOrdiniPage() {
       const { data, error } = await supabase
         .from("sales_orders")
         .select(`
-          id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject,
+          id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject, customer_id,
           customers(name, code),
           commesse(id, number, status, type)
         `)
@@ -811,20 +813,8 @@ export default function ZAppOrdiniPage() {
             ) : null}
           </div>
 
-          {subs.length > 0 && (
-            <div className="bg-white rounded-xl border border-border p-4 space-y-3">
-              <h3 className="font-semibold text-sm">Commesse Collegate</h3>
-              {subs.map((sub, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="text-sm font-medium">{sub.number}</p>
-                    <p className="text-xs text-muted-foreground">{sub.type}</p>
-                  </div>
-                  <Badge variant="outline" className="text-xs">{sub.status}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
+          <OrderDetailSections orderId={selectedOrder.id} customerId={selectedOrder.customer_id || undefined} />
+
         </div>
 
         {/* Delete Confirmation */}
