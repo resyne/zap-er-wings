@@ -273,6 +273,13 @@ export default function CustomersPage() {
           />
         </div>
       )}
+
+      <CustomerImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        existingCustomers={customers}
+        onImportComplete={loadCustomers}
+      />
     </div>
   );
 }
