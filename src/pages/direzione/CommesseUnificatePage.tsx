@@ -558,13 +558,13 @@ export default function CommesseUnificatePage() {
   const totalCustomers = customerGroups.length;
   const totalCommesse = filteredCommesse.length;
 
-  // Stats by phase type
+  // Stats: count commesse that have at least one active phase of each type
   const stats = useMemo(() => {
-    const allPhases = commesse.flatMap(c => c.phases);
+    const activeCommesse = commesse.filter(c => c.status !== "completata");
     return {
-      produzione: allPhases.filter(p => p.phase_type === "produzione" && !completedStatuses.includes(p.status)).length,
-      spedizione: allPhases.filter(p => p.phase_type === "spedizione" && !completedStatuses.includes(p.status)).length,
-      installazione: allPhases.filter(p => (p.phase_type === "installazione" || p.phase_type === "manutenzione") && !completedStatuses.includes(p.status)).length,
+      produzione: activeCommesse.filter(c => c.phases.some(p => p.phase_type === "produzione" && !completedStatuses.includes(p.status))).length,
+      spedizione: activeCommesse.filter(c => c.phases.some(p => p.phase_type === "spedizione" && !completedStatuses.includes(p.status))).length,
+      installazione: activeCommesse.filter(c => c.phases.some(p => (p.phase_type === "installazione" || p.phase_type === "manutenzione") && !completedStatuses.includes(p.status))).length,
     };
   }, [commesse]);
 
