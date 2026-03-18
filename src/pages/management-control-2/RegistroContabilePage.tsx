@@ -2043,7 +2043,7 @@ export default function RegistroContabilePage() {
       // 5. Aggiorna lo stato finanziario della fattura
       const newFinancialStatus = isFullyPaid 
         ? (isAcquisto ? 'pagata' : 'incassata')
-        : invoice.financial_status; // Resta da_pagare/da_incassare se parziale
+        : (isAcquisto ? 'parzialmente_pagata' : 'parzialmente_incassata');
       
       const { error: invError } = await supabase
         .from('invoice_registry')
