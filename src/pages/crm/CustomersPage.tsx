@@ -21,7 +21,7 @@ export default function CustomersPage() {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  
   const { toast } = useToast();
 
   useEffect(() => {
