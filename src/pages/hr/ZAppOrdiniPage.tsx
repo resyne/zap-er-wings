@@ -298,7 +298,7 @@ export default function ZAppOrdiniPage() {
       const { data, error } = await supabase
         .from("sales_orders")
         .select(`
-          id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject,
+          id, number, order_date, delivery_date, status, order_type, order_type_category, delivery_mode, notes, order_subject, customer_id,
           customers(name, code),
           commesse(id, number, status, type)
         `)
