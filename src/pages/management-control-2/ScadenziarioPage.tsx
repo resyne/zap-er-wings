@@ -598,200 +598,175 @@ export default function ScadenziarioPage() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Scadenziario</h1>
-        <p className="text-muted-foreground">
-          Gestione crediti e debiti raggruppati per cliente
-        </p>
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Clock className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Scadenziario</h1>
+          <p className="text-sm text-muted-foreground">Gestione crediti e debiti raggruppati per soggetto</p>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-700 font-medium">Crediti</p>
-                <p className="text-2xl font-bold text-green-800">
-                  € {totali.crediti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <ArrowUpCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-red-100/50 border-red-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-700 font-medium">Debiti</p>
-                <p className="text-2xl font-bold text-red-800">
-                  € {totali.debiti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <ArrowDownCircle className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-700 font-medium">Saldo Netto</p>
-                <p className={`text-2xl font-bold ${totali.crediti - totali.debiti >= 0 ? "text-green-800" : "text-red-800"}`}>
-                  € {(totali.crediti - totali.debiti).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <Euro className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={`bg-gradient-to-br ${scaduteCount > 0 ? "from-orange-50 to-orange-100/50 border-orange-200" : "from-gray-50 to-gray-100/50 border-gray-200"}`}>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm font-medium ${scaduteCount > 0 ? "text-orange-700" : "text-gray-700"}`}>Scadute</p>
-                <p className={`text-2xl font-bold ${scaduteCount > 0 ? "text-orange-800" : "text-gray-800"}`}>
-                  {scaduteCount}
-                </p>
-              </div>
-              <AlertTriangle className={`h-8 w-8 ${scaduteCount > 0 ? "text-orange-600" : "text-gray-400"}`} />
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI Bar compatta */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+          <ArrowUpCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Crediti</p>
+            <p className="text-lg font-bold text-emerald-700 truncate">
+              € {totali.crediti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+          <ArrowDownCircle className="h-5 w-5 text-red-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Debiti</p>
+            <p className="text-lg font-bold text-red-700 truncate">
+              € {totali.debiti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+          <Euro className="h-5 w-5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Saldo Netto</p>
+            <p className={cn("text-lg font-bold truncate", totali.crediti - totali.debiti >= 0 ? "text-emerald-700" : "text-red-700")}>
+              € {(totali.crediti - totali.debiti).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+          <AlertTriangle className={cn("h-5 w-5 shrink-0", scaduteCount > 0 ? "text-orange-600" : "text-muted-foreground")} />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Scadute</p>
+            <p className={cn("text-lg font-bold", scaduteCount > 0 ? "text-orange-700" : "text-muted-foreground")}>
+              {scaduteCount}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="tutti">Tutti</TabsTrigger>
-                <TabsTrigger value="crediti" className="gap-1">
-                  <ArrowUpCircle className="h-4 w-4" />
-                  Crediti
-                </TabsTrigger>
-                <TabsTrigger value="debiti" className="gap-1">
-                  <ArrowDownCircle className="h-4 w-4" />
-                  Debiti
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
+          <TabsList>
+            <TabsTrigger value="tutti">Tutti</TabsTrigger>
+            <TabsTrigger value="crediti" className="gap-1.5">
+              <ArrowUpCircle className="h-3.5 w-3.5" />
+              Crediti
+            </TabsTrigger>
+            <TabsTrigger value="debiti" className="gap-1.5">
+              <ArrowDownCircle className="h-3.5 w-3.5" />
+              Debiti
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-            <div className="flex gap-2">
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cerca cliente o fattura..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as typeof statoFilter)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tutti">Tutti</SelectItem>
-                  <SelectItem value="aperta">Aperte</SelectItem>
-                  <SelectItem value="parziale">Parziali</SelectItem>
-                  <SelectItem value="chiusa">Chiuse</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="flex gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cerca cliente o fattura..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as typeof statoFilter)}>
+            <SelectTrigger className="w-28 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tutti">Tutti</SelectItem>
+              <SelectItem value="aperta">Aperte</SelectItem>
+              <SelectItem value="parziale">Parziali</SelectItem>
+              <SelectItem value="chiusa">Chiuse</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-      {/* Client Groups */}
-      <div className="space-y-3">
-        {clientiGroups.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nessuna scadenza trovata</p>
-            </CardContent>
-          </Card>
-        ) : (
-          clientiGroups.map((group) => {
-            const clientKey = `${group.nome}-${group.tipo}`;
-            const isExpanded = expandedClients.has(clientKey);
-            const percentualePagato = group.totaleImporto > 0 
-              ? ((group.totaleImporto - group.totaleResiduo) / group.totaleImporto) * 100 
-              : 0;
+      {/* Client Groups - Compact */}
+      <Card className="border shadow-sm overflow-hidden">
+        <CardContent className="p-0">
+          {clientiGroups.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">Nessuna scadenza trovata</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {clientiGroups.map((group) => {
+                const clientKey = `${group.nome}-${group.tipo}`;
+                const isExpanded = expandedClients.has(clientKey);
+                const percentualePagato = group.totaleImporto > 0 
+                  ? ((group.totaleImporto - group.totaleResiduo) / group.totaleImporto) * 100 
+                  : 0;
 
-            return (
-              <Card key={clientKey} className={`overflow-hidden transition-all ${group.scadenzeScadute > 0 ? "border-orange-300" : ""}`}>
-                <Collapsible open={isExpanded} onOpenChange={() => toggleClientExpand(clientKey)}>
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-4">
-                      <div className="flex items-center gap-4">
+                return (
+                  <Collapsible key={clientKey} open={isExpanded} onOpenChange={() => toggleClientExpand(clientKey)}>
+                    <CollapsibleTrigger asChild>
+                      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors">
                         {isExpanded ? (
-                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         )}
                         
-                        <div className={`p-2 rounded-lg ${group.tipo === "credito" ? "bg-green-100" : "bg-red-100"}`}>
-                          <Building2 className={`h-5 w-5 ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`} />
+                        <div className={cn("p-1.5 rounded-md shrink-0", group.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                          <Building2 className={cn("h-4 w-4", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold truncate">{group.nome}</h3>
-                            <Badge variant="outline" className={group.tipo === "credito" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm truncate">{group.nome}</span>
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", group.tipo === "credito" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200")}>
                               {group.tipo === "credito" ? "Cliente" : "Fornitore"}
                             </Badge>
                             {group.scadenzeScadute > 0 && (
-                              <Badge variant="destructive" className="gap-1">
-                                <AlertTriangle className="h-3 w-3" />
+                              <Badge variant="destructive" className="gap-0.5 text-[10px] px-1.5 py-0">
+                                <AlertTriangle className="h-2.5 w-2.5" />
                                 {group.scadenzeScadute} scadute
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                            <span>{group.scadenze.length} fattur{group.scadenze.length === 1 ? "a" : "e"}</span>
-                            <span>•</span>
-                            <span>{group.scadenzeAperte} apert{group.scadenzeAperte === 1 ? "a" : "e"}</span>
-                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {group.scadenze.length} fattur{group.scadenze.length === 1 ? "a" : "e"} · {group.scadenzeAperte} apert{group.scadenzeAperte === 1 ? "a" : "e"}
+                          </p>
                         </div>
 
-                        <div className="text-right hidden md:block">
-                          <div className="text-sm text-muted-foreground mb-1">Residuo / Totale</div>
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
+                        <div className="text-right shrink-0 hidden sm:block">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Residuo / Totale</p>
+                          <div className="flex items-baseline gap-1.5 justify-end">
+                            <span className={cn("font-bold text-sm", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
                               € {group.totaleResiduo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                             </span>
-                            <span className="text-muted-foreground">/</span>
-                            <span className="text-muted-foreground">
-                              € {group.totaleImporto.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                            <span className="text-xs text-muted-foreground">
+                              / € {group.totaleImporto.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                             </span>
                           </div>
-                          <Progress value={percentualePagato} className="h-1.5 mt-2 w-40" />
+                          {percentualePagato > 0 && (
+                            <Progress value={percentualePagato} className="h-1 mt-1 w-32 ml-auto" />
+                          )}
                         </div>
                       </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
+                    </CollapsibleTrigger>
 
-                  <CollapsibleContent>
-                    <CardContent className="pt-0">
-                      <div className="border rounded-lg overflow-hidden">
+                    <CollapsibleContent>
+                      <div className="border-t bg-muted/20">
                         <Table>
                           <TableHeader>
-                            <TableRow className="bg-muted/50">
-                              <TableHead className="w-10"></TableHead>
-                              <TableHead>Fattura</TableHead>
-                              <TableHead>Data Doc.</TableHead>
-                              <TableHead>Scadenza</TableHead>
-                              <TableHead className="text-right">Importo</TableHead>
-                              <TableHead className="text-right">Residuo</TableHead>
-                              <TableHead>Stato</TableHead>
-                              <TableHead></TableHead>
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableHead className="w-8 pl-12"></TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fattura</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data Doc.</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Scadenza</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Importo</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Residuo</TableHead>
+                              <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                              <TableHead className="w-24"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -803,62 +778,55 @@ export default function ScadenziarioPage() {
                                 <>
                                   <TableRow 
                                     key={scadenza.id} 
-                                    className={`${isClosedScadenza(scadenza) ? "opacity-60" : ""} ${giorni < 0 && !isClosedScadenza(scadenza) ? "bg-orange-50/50" : ""}`}
+                                    className={cn(
+                                      isClosedScadenza(scadenza) && "opacity-50",
+                                      giorni < 0 && !isClosedScadenza(scadenza) && "bg-orange-50/50"
+                                    )}
                                   >
-                                    <TableCell>
+                                    <TableCell className="pl-12">
                                       <Button
                                         variant="ghost"
                                         size="icon"
                                         className="h-6 w-6"
                                         onClick={() => setExpandedScadenza(isScadenzaExpanded ? null : scadenza.id)}
                                       >
-                                        {isScadenzaExpanded ? (
-                                          <ChevronDown className="h-4 w-4" />
-                                        ) : (
-                                          <ChevronRight className="h-4 w-4" />
-                                        )}
+                                        {isScadenzaExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                       </Button>
                                     </TableCell>
                                     <TableCell>
                                       <div className="flex items-center gap-2">
-                                        <Receipt className="h-4 w-4 text-muted-foreground" />
+                                        <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                                         <div>
-                                          <div className="font-medium">{scadenza.invoice_number || "N/D"}</div>
+                                          <span className="font-mono font-medium text-sm">{scadenza.invoice_number || "N/D"}</span>
                                           {scadenza.note && (
-                                            <div className="text-xs text-muted-foreground truncate max-w-40">
-                                              {scadenza.note}
-                                            </div>
+                                            <p className="text-xs text-muted-foreground truncate max-w-36">{scadenza.note}</p>
                                           )}
                                         </div>
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-sm">
+                                    <TableCell className="text-sm text-muted-foreground">
                                       {format(parseISO(scadenza.data_documento), "dd/MM/yyyy")}
                                     </TableCell>
                                     <TableCell>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm">
-                                          {format(parseISO(scadenza.data_scadenza), "dd/MM/yyyy")}
-                                        </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-sm">{format(parseISO(scadenza.data_scadenza), "dd/MM/yyyy")}</span>
                                         {getGiorniBadge(giorni, scadenza.stato)}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-medium">
+                                    <TableCell className="text-right text-sm">
                                       € {Number(scadenza.importo_totale).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell className={`text-right font-bold ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`}>
+                                    <TableCell className={cn("text-right font-semibold text-sm", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
                                       € {Number(scadenza.importo_residuo).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
                                     </TableCell>
-                                    <TableCell>
-                                      {getStatoBadge(scadenza.stato)}
-                                    </TableCell>
+                                    <TableCell>{getStatoBadge(scadenza.stato)}</TableCell>
                                     <TableCell>
                                       {!isClosedScadenza(scadenza) && (
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           onClick={() => openRegistraDialog(scadenza)}
-                                          className="gap-1"
+                                          className="gap-1 h-7 text-xs"
                                         >
                                           <CreditCard className="h-3 w-3" />
                                           {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
@@ -867,48 +835,43 @@ export default function ScadenziarioPage() {
                                     </TableCell>
                                   </TableRow>
 
-                                  {/* Expanded row for movements */}
                                   {isScadenzaExpanded && (
                                     <TableRow>
-                                      <TableCell colSpan={8} className="bg-muted/30 p-4">
-                                        <div className="space-y-3">
-                                          <div className="flex items-center gap-2 text-sm font-medium">
-                                            <History className="h-4 w-4" />
+                                      <TableCell colSpan={8} className="bg-muted/30 p-4 pl-14">
+                                        <div className="space-y-2">
+                                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            <History className="h-3.5 w-3.5" />
                                             Storico Movimenti
                                           </div>
                                           {movimenti && movimenti.length > 0 ? (
-                                            <div className="space-y-2">
+                                            <div className="space-y-1.5">
                                               {movimenti.map((mov) => (
                                                 <div 
                                                   key={mov.id}
-                                                  className="flex items-center justify-between p-3 bg-background rounded-lg border"
+                                                  className="flex items-center justify-between p-2.5 bg-background rounded-md border text-sm"
                                                 >
-                                                  <div className="flex items-center gap-3">
-                                                    <div className={`p-2 rounded-full ${group.tipo === "credito" ? "bg-green-100" : "bg-red-100"}`}>
-                                                      <CreditCard className={`h-4 w-4 ${group.tipo === "credito" ? "text-green-700" : "text-red-700"}`} />
+                                                  <div className="flex items-center gap-2.5">
+                                                    <div className={cn("p-1.5 rounded-full", group.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                      <CreditCard className={cn("h-3.5 w-3.5", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
                                                     </div>
                                                     <div>
-                                                      <div className="font-medium">
+                                                      <span className="font-medium">
                                                         € {mov.importo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                                      </div>
-                                                      <div className="text-sm text-muted-foreground">
+                                                      </span>
+                                                      <span className="text-muted-foreground ml-2 text-xs">
                                                         {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
-                                                        {mov.metodo_pagamento && ` • ${mov.metodo_pagamento}`}
-                                                      </div>
+                                                        {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
+                                                      </span>
                                                     </div>
                                                   </div>
                                                   {mov.note && (
-                                                    <div className="text-sm text-muted-foreground max-w-xs truncate">
-                                                      {mov.note}
-                                                    </div>
+                                                    <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>
                                                   )}
                                                 </div>
                                               ))}
                                             </div>
                                           ) : (
-                                            <p className="text-sm text-muted-foreground py-2">
-                                              Nessun movimento registrato
-                                            </p>
+                                            <p className="text-sm text-muted-foreground py-1">Nessun movimento registrato</p>
                                           )}
                                         </div>
                                       </TableCell>
@@ -920,14 +883,29 @@ export default function ScadenziarioPage() {
                           </TableBody>
                         </Table>
                       </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
-            );
-          })
-        )}
-      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Toggle scadenze chiuse */}
+      {closedGroupsCount > 0 && (
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowClosed(!showClosed)}
+            className="gap-2 text-muted-foreground"
+          >
+            <CheckCircle className="h-4 w-4" />
+            {showClosed ? "Nascondi" : "Mostra"} {closedGroupsCount} soggett{closedGroupsCount === 1 ? "o" : "i"} saldat{closedGroupsCount === 1 ? "o" : "i"}
+          </Button>
+        </div>
+      )}
 
       {/* Dialog registrazione */}
       <Dialog open={registraDialogOpen} onOpenChange={setRegistraDialogOpen}>
