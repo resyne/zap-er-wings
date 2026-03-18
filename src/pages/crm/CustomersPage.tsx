@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle, X } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle, X, FileUp } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
 import { CustomerEmailComposer } from "@/components/crm/CustomerEmailComposer";
+import { CustomerImportDialog } from "@/components/crm/CustomerImportDialog";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -18,6 +19,7 @@ export default function CustomersPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -70,10 +72,18 @@ export default function CustomersPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Clienti</h1>
+          <h1 className="text-3xl font-bold">Anagrafica Clienti</h1>
           <p className="text-muted-foreground">Gestisci i tuoi clienti e le loro informazioni</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setImportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <FileUp className="w-4 h-4" />
+            Import Excel
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => setEmailComposerOpen(true)}
@@ -263,6 +273,13 @@ export default function CustomersPage() {
           />
         </div>
       )}
+
+      <CustomerImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        existingCustomers={customers}
+        onImportComplete={loadCustomers}
+      />
     </div>
   );
 }

@@ -41,7 +41,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       { title: "Lead", url: "/crm/leads" },
       { title: "Lead KPI", url: "/crm/leads/kpi" },
-      { title: "Clienti", url: "/crm/customers" },
+      { title: "Anagrafica Clienti", url: "/crm/customers" },
       { title: "Preventivatore Costi", url: "/crm/cost-estimator" },
       { title: "Offerte", url: "/crm/offers" },
       { title: "Configuratore Prodotti", url: "/crm/product-configurator" },
