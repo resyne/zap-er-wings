@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle, X, FileUp } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, FileUp } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
 import { CustomerEmailComposer } from "@/components/crm/CustomerEmailComposer";
@@ -21,7 +21,7 @@ export default function CustomersPage() {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,16 +57,6 @@ export default function CustomersPage() {
   const totalCustomers = filteredCustomers.length;
   const activeCustomers = filteredCustomers.filter(customer => customer.active);
 
-  // Function to check if customer profile is incomplete (excluding shipping_address)
-  const isProfileIncomplete = (customer: any) => {
-    const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'country', 'tax_id'];
-    const missingFields = requiredFields.filter(field => !customer[field] || customer[field].trim() === '');
-    return missingFields.length > 0 && !dismissedAlerts.has(customer.id);
-  };
-
-  const dismissAlert = (customerId: string) => {
-    setDismissedAlerts(prev => new Set([...prev, customerId]));
-  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -162,22 +152,6 @@ export default function CustomersPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{customer.name}</span>
-                          {isProfileIncomplete(customer) && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-md text-amber-700">
-                              <AlertTriangle className="w-3 h-3" />
-                              <span className="text-xs font-medium">Anagrafica da completare</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  dismissAlert(customer.id);
-                                }}
-                                className="ml-1 hover:bg-amber-100 rounded-sm p-0.5"
-                                title="Nascondi avviso"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           Codice: {customer.code}
