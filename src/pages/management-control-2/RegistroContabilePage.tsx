@@ -237,6 +237,7 @@ export default function RegistroContabilePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [scadenzaResiduo, setScadenzaResiduo] = useState<number | null>(null);
   const [paymentData, setPaymentData] = useState({
     amount: 0,
     payment_date: format(new Date(), 'yyyy-MM-dd'),
