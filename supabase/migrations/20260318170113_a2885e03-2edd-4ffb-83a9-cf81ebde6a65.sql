@@ -1,0 +1,1 @@
+DELETE FROM invoice_email_log WHERE id = 'e419e066-f59f-4ea0-a176-19c828259f11';
