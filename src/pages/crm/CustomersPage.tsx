@@ -72,10 +72,18 @@ export default function CustomersPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Clienti</h1>
+          <h1 className="text-3xl font-bold">Anagrafica Clienti</h1>
           <p className="text-muted-foreground">Gestisci i tuoi clienti e le loro informazioni</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setImportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <FileUp className="w-4 h-4" />
+            Import Excel
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => setEmailComposerOpen(true)}
