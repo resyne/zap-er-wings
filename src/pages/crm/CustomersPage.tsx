@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle, X } from "lucide-react";
+import { Search, Building2, Mail, Phone, MapPin, Plus, Edit, Send, AlertTriangle, X, FileUp } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
 import { EditCustomerDialog } from "@/components/crm/EditCustomerDialog";
 import { CustomerEmailComposer } from "@/components/crm/CustomerEmailComposer";
+import { CustomerImportDialog } from "@/components/crm/CustomerImportDialog";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
