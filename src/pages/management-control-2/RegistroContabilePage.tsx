@@ -2830,17 +2830,7 @@ export default function RegistroContabilePage() {
           )}
           {/* Pulsante Registra Pagamento per fatture con scadenza aperta */}
           {invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
-            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => {
-              setSelectedInvoice(invoice);
-              setPaymentData({
-                amount: invoice.total_amount,
-                payment_date: format(new Date(), 'yyyy-MM-dd'),
-                payment_method: invoice.payment_method || 'bonifico',
-                notes: '',
-                is_partial: false
-              });
-              setShowPaymentDialog(true);
-            }}>
+            <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => openPaymentDialog(invoice)}>
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
               {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
             </Button>
