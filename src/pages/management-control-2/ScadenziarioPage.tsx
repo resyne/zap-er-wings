@@ -596,7 +596,7 @@ export default function ScadenziarioPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
