@@ -355,41 +355,83 @@ export default function DdtSection() {
                       ? ddtData?.intestazione
                       : ddtData?.destinatario;
 
-                    return (
-                      <TableRow key={ddt.id} className={cn("hover:bg-muted/50", ddt.archived && "opacity-50")}>
-                        <TableCell className="font-mono font-medium">{ddt.ddt_number}</TableCell>
-                        <TableCell>
-                          <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"} className="text-xs">
-                            {ddt.direction === "inbound" ? "Entrata" : "Uscita"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{counterpart || "—"}</TableCell>
-                        <TableCell className="text-sm">
-                          {ddt.document_date
-                            ? format(new Date(ddt.document_date), "dd/MM/yyyy", { locale: it })
-                            : ddt.created_at
-                            ? format(new Date(ddt.created_at), "dd/MM/yyyy", { locale: it })
-                            : "—"}
-                        </TableCell>
-                        <TableCell>{itemCount > 0 ? <Badge variant="outline" className="text-xs">{itemCount} righe</Badge> : "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {ddt.attachment_url && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                                <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="h-3.5 w-3.5" />
-                                </a>
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
-                              <Archive className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      return (
+                        <TableRow key={ddt.id} className={cn("hover:bg-muted/50 group", ddt.archived && "opacity-50")}>
+                          <TableCell className="font-mono font-medium">{ddt.ddt_number}</TableCell>
+                          <TableCell>
+                            <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"} className="text-xs">
+                              {ddt.direction === "inbound" ? "Entrata" : "Uscita"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">{counterpart || "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {ddt.document_date
+                              ? format(new Date(ddt.document_date), "dd/MM/yyyy", { locale: it })
+                              : ddt.created_at
+                              ? format(new Date(ddt.created_at), "dd/MM/yyyy", { locale: it })
+                              : "—"}
+                          </TableCell>
+                          <TableCell>{itemCount > 0 ? <Badge variant="outline" className="text-xs">{itemCount} righe</Badge> : "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  {(ddt as any).invoiced ? (
+                                    <Badge variant="default" className="text-xs gap-1">
+                                      <FileCheck className="h-3 w-3" />
+                                      {(ddt as any).invoice_number || "Collegato"}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Mancante
+                                    </Badge>
+                                  )}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {(ddt as any).invoiced ? "Documento contabile collegato" : "Nessun documento contabile collegato"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {ddt.attachment_url && (
+                                    <DropdownMenuItem asChild>
+                                      <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Visualizza
+                                      </a>
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => setLinkDialog({
+                                    open: true,
+                                    ddtId: ddt.id,
+                                    ddtLabel: ddt.ddt_number || "DDT",
+                                    currentLinkedId: null
+                                  })}>
+                                    <LinkIcon className="h-4 w-4 mr-2" />
+                                    {(ddt as any).invoiced ? "Cambia doc. contabile" : "Collega doc. contabile"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    {ddt.archived ? "Ripristina" : "Archivia"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                     );
                   })}
                 </TableBody>
