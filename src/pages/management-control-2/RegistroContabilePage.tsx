@@ -2113,6 +2113,7 @@ export default function RegistroContabilePage() {
       toast.success(msg);
       setShowPaymentDialog(false);
       setSelectedInvoice(null);
+      setScadenzaResiduo(null);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
       queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
       queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
