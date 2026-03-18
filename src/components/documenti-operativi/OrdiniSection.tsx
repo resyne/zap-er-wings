@@ -1,23 +1,29 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, ShoppingCart, Archive } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Search, ShoppingCart, Archive, MoreHorizontal, LinkIcon, AlertTriangle, FileCheck, Unlink } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Bozza", variant: "outline" },
   confirmed: { label: "Confermato", variant: "default" },
   in_progress: { label: "In Lavorazione", variant: "secondary" },
   completed: { label: "Completato", variant: "default" },
+  completato: { label: "Completato", variant: "default" },
   cancelled: { label: "Annullato", variant: "destructive" },
+  commissionato: { label: "Commissionato", variant: "secondary" },
+  in_lavorazione: { label: "In Lavorazione", variant: "secondary" },
 };
 
 const typeMap: Record<string, string> = {
@@ -28,15 +34,19 @@ const typeMap: Record<string, string> = {
 };
 
 export default function OrdiniSection() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; orderId: string; orderNumber: string; currentLinkedId: string | null }>({
+    open: false, orderId: "", orderNumber: "", currentLinkedId: null
+  });
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["sales-orders-operativi", showArchived],
     queryFn: async () => {
       let q = supabase
         .from("sales_orders")
-        .select("id, number, order_date, customer_id, total_amount, status, order_type, invoiced, invoice_number, archived, order_source")
+        .select("id, number, order_date, customer_id, total_amount, status, order_type, invoiced, invoice_number, archived, order_source, accounting_document_id, non_contabilizzato")
         .order("created_at", { ascending: false });
       if (!showArchived) q = q.or("archived.is.null,archived.eq.false");
       const { data, error } = await q;
@@ -67,8 +77,20 @@ export default function OrdiniSection() {
     );
   });
 
+  const pendingCount = orders.filter(o => !o.invoiced && !o.non_contabilizzato && !o.archived).length;
+
   return (
     <div className="space-y-4">
+      {/* Alert for unlinked docs */}
+      {pendingCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-700">
+            <span className="font-semibold">{pendingCount} ordini</span> senza documento contabile collegato
+          </p>
+        </div>
+      )}
+
       {/* Search + Filter bar */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1">
@@ -123,15 +145,17 @@ export default function OrdiniSection() {
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Importo</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fatturato</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Origine</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Contabilità</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map(order => {
                     const st = statusMap[order.status || ""] || { label: order.status || "—", variant: "outline" as const };
+                    const hasAccounting = !!order.accounting_document_id || !!order.invoiced;
+                    const isExcluded = order.non_contabilizzato;
                     return (
-                      <TableRow key={order.id} className={cn("hover:bg-muted/50", order.archived && "opacity-50")}>
+                      <TableRow key={order.id} className={cn("hover:bg-muted/50 group", order.archived && "opacity-50")}>
                         <TableCell className="font-mono font-medium">{order.number}</TableCell>
                         <TableCell className="max-w-[180px] truncate">{custMap.get(order.customer_id || "") || "—"}</TableCell>
                         <TableCell className="text-sm">{order.order_date ? format(new Date(order.order_date), "dd/MM/yyyy", { locale: it }) : "—"}</TableCell>
@@ -139,16 +163,59 @@ export default function OrdiniSection() {
                         <TableCell className="text-right font-medium">{order.total_amount != null ? `€ ${order.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "—"}</TableCell>
                         <TableCell><Badge variant={st.variant} className="text-xs">{st.label}</Badge></TableCell>
                         <TableCell>
-                          {order.invoiced ? (
-                            <Badge variant="default" className="text-xs">{order.invoice_number || "Sì"}</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">No</Badge>
-                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                {hasAccounting ? (
+                                  <Badge variant="default" className="text-xs gap-1">
+                                    <FileCheck className="h-3 w-3" />
+                                    {order.invoice_number || "Collegato"}
+                                  </Badge>
+                                ) : isExcluded ? (
+                                  <Badge variant="outline" className="text-xs text-muted-foreground">N/A</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Mancante
+                                  </Badge>
+                                )}
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {hasAccounting ? "Documento contabile collegato" : isExcluded ? "Escluso dalla contabilità" : "Nessun documento contabile collegato"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {order.order_source === "z-app" ? "Z-APP" : "ERP"}
-                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setLinkDialog({
+                                open: true,
+                                orderId: order.id,
+                                orderNumber: order.number,
+                                currentLinkedId: order.accounting_document_id
+                              })}>
+                                <LinkIcon className="h-4 w-4 mr-2" />
+                                {hasAccounting ? "Cambia doc. contabile" : "Collega doc. contabile"}
+                              </DropdownMenuItem>
+                              {hasAccounting && (
+                                <DropdownMenuItem onClick={() => setLinkDialog({
+                                  open: true,
+                                  orderId: order.id,
+                                  orderNumber: order.number,
+                                  currentLinkedId: order.accounting_document_id
+                                })}>
+                                  <Unlink className="h-4 w-4 mr-2" />
+                                  Scollega
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     );
@@ -159,6 +226,16 @@ export default function OrdiniSection() {
           </CardContent>
         </Card>
       )}
+
+      <LinkAccountingDocDialog
+        open={linkDialog.open}
+        onOpenChange={open => setLinkDialog(prev => ({ ...prev, open }))}
+        docType="order"
+        docId={linkDialog.orderId}
+        docLabel={linkDialog.orderNumber}
+        currentLinkedId={linkDialog.currentLinkedId}
+        onLinked={() => queryClient.invalidateQueries({ queryKey: ["sales-orders-operativi"] })}
+      />
     </div>
   );
 }

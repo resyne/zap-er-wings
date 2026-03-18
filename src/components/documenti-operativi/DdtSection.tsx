@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, Loader2, Search, Eye, Archive, FileText, CheckCircle2, AlertCircle, Truck, Camera } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Upload, Loader2, Search, Eye, Archive, FileText, CheckCircle2, AlertCircle, Truck, Camera, MoreHorizontal, LinkIcon, AlertTriangle, FileCheck } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -16,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface UploadQueueItem {
   file: File;
@@ -29,6 +32,9 @@ export default function DdtSection() {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [linkDialog, setLinkDialog] = useState<{ open: boolean; ddtId: string; ddtLabel: string; currentLinkedId: string | null }>({
+    open: false, ddtId: "", ddtLabel: "", currentLinkedId: null
+  });
   const [showUploadProgress, setShowUploadProgress] = useState(false);
 
   const { data: ddts = [], isLoading } = useQuery({
@@ -336,8 +342,9 @@ export default function DdtSection() {
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Controparte</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Articoli</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                    <TableHead className="text-right w-20"></TableHead>
+                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Contabilità</TableHead>
+                     <TableHead className="text-right w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -348,41 +355,83 @@ export default function DdtSection() {
                       ? ddtData?.intestazione
                       : ddtData?.destinatario;
 
-                    return (
-                      <TableRow key={ddt.id} className={cn("hover:bg-muted/50", ddt.archived && "opacity-50")}>
-                        <TableCell className="font-mono font-medium">{ddt.ddt_number}</TableCell>
-                        <TableCell>
-                          <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"} className="text-xs">
-                            {ddt.direction === "inbound" ? "Entrata" : "Uscita"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{counterpart || "—"}</TableCell>
-                        <TableCell className="text-sm">
-                          {ddt.document_date
-                            ? format(new Date(ddt.document_date), "dd/MM/yyyy", { locale: it })
-                            : ddt.created_at
-                            ? format(new Date(ddt.created_at), "dd/MM/yyyy", { locale: it })
-                            : "—"}
-                        </TableCell>
-                        <TableCell>{itemCount > 0 ? <Badge variant="outline" className="text-xs">{itemCount} righe</Badge> : "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {ddt.attachment_url && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                                <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
-                                  <Eye className="h-3.5 w-3.5" />
-                                </a>
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
-                              <Archive className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      return (
+                        <TableRow key={ddt.id} className={cn("hover:bg-muted/50 group", ddt.archived && "opacity-50")}>
+                          <TableCell className="font-mono font-medium">{ddt.ddt_number}</TableCell>
+                          <TableCell>
+                            <Badge variant={ddt.direction === "inbound" ? "secondary" : "default"} className="text-xs">
+                              {ddt.direction === "inbound" ? "Entrata" : "Uscita"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">{counterpart || "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {ddt.document_date
+                              ? format(new Date(ddt.document_date), "dd/MM/yyyy", { locale: it })
+                              : ddt.created_at
+                              ? format(new Date(ddt.created_at), "dd/MM/yyyy", { locale: it })
+                              : "—"}
+                          </TableCell>
+                          <TableCell>{itemCount > 0 ? <Badge variant="outline" className="text-xs">{itemCount} righe</Badge> : "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  {(ddt as any).invoiced ? (
+                                    <Badge variant="default" className="text-xs gap-1">
+                                      <FileCheck className="h-3 w-3" />
+                                      {(ddt as any).invoice_number || "Collegato"}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Mancante
+                                    </Badge>
+                                  )}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {(ddt as any).invoiced ? "Documento contabile collegato" : "Nessun documento contabile collegato"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {ddt.attachment_url && (
+                                    <DropdownMenuItem asChild>
+                                      <a href={ddt.attachment_url} target="_blank" rel="noopener noreferrer">
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Visualizza
+                                      </a>
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => setLinkDialog({
+                                    open: true,
+                                    ddtId: ddt.id,
+                                    ddtLabel: ddt.ddt_number || "DDT",
+                                    currentLinkedId: null
+                                  })}>
+                                    <LinkIcon className="h-4 w-4 mr-2" />
+                                    {(ddt as any).invoiced ? "Cambia doc. contabile" : "Collega doc. contabile"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    {ddt.archived ? "Ripristina" : "Archivia"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                     );
                   })}
                 </TableBody>
@@ -438,6 +487,16 @@ export default function DdtSection() {
           )}
         </DialogContent>
       </Dialog>
+
+      <LinkAccountingDocDialog
+        open={linkDialog.open}
+        onOpenChange={open => setLinkDialog(prev => ({ ...prev, open }))}
+        docType="ddt"
+        docId={linkDialog.ddtId}
+        docLabel={linkDialog.ddtLabel}
+        currentLinkedId={linkDialog.currentLinkedId}
+        onLinked={() => queryClient.invalidateQueries({ queryKey: ["ddts-operativi"] })}
+      />
     </div>
   );
 }
