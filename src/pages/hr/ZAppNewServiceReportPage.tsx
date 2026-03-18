@@ -1018,16 +1018,41 @@ export default function ZAppNewServiceReportPage() {
             <MobileSection title="Cliente & Commessa" icon={Building2} badge={selectedCustomer ? "✓" : undefined}>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Commessa (opzionale)</Label>
-                <Select onValueChange={handleWorkOrderSelect}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Seleziona commessa..." /></SelectTrigger>
-                  <SelectContent>
-                    {workOrders.map(wo => (
-                      <SelectItem key={wo.id} value={wo.id}>
-                        {wo.customer_name ? `${wo.customer_name} - ` : ''}{wo.title || wo.number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn("w-full justify-between h-11 rounded-xl text-sm", selectedWorkOrder && "border-blue-300 bg-blue-50/50")}
+                    >
+                      {selectedWorkOrder
+                        ? <span className="truncate">{selectedWorkOrder.customer_name ? `${selectedWorkOrder.customer_name} - ` : ''}{selectedWorkOrder.title || selectedWorkOrder.number}</span>
+                        : <span className="text-muted-foreground">Seleziona commessa...</span>
+                      }
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[calc(100vw-3rem)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Cerca commessa..." />
+                      <CommandList>
+                        <CommandEmpty>Nessuna commessa trovata</CommandEmpty>
+                        <CommandGroup>
+                          {workOrders.map(wo => (
+                            <CommandItem
+                              key={wo.id}
+                              value={`${wo.customer_name} ${wo.title} ${wo.number}`}
+                              onSelect={() => handleWorkOrderSelect(wo.id)}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", selectedWorkOrder?.id === wo.id ? "opacity-100" : "opacity-0")} />
+                              <span className="truncate">{wo.customer_name ? `${wo.customer_name} - ` : ''}{wo.title || wo.number}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Cliente *</Label>
