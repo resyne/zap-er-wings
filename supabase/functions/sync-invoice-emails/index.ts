@@ -105,10 +105,15 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const { data: urlData } = supabase.storage
+            // Use signed URL so AI can access the file
+            const { data: urlData, error: signedUrlError } = await supabase.storage
               .from('accounting-documents')
-              .getPublicUrl(storagePath);
-            const fileUrl = urlData?.publicUrl;
+              .createSignedUrl(storagePath, 3600); // 1 hour expiry
+            const fileUrl = urlData?.signedUrl;
+            if (signedUrlError || !fileUrl) {
+              console.error('Signed URL error:', signedUrlError);
+              continue;
+            }
 
             // Log as pending
             const { data: logEntry } = await supabase.from('invoice_email_log').insert({
