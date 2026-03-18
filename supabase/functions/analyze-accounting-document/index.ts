@@ -79,14 +79,25 @@ Devi:
         { role: "user", content: `Analizza questa fattura elettronica XML:\n\n${xmlContent.substring(0, 15000)}` }
       ];
     } else {
-      // PDF - use image_url approach (Gemini supports PDF URLs)
+      // PDF - download and send as base64 data URL (Gemini doesn't support PDF via URL)
+      const pdfResp = await fetch(fileUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to download PDF: ${pdfResp.status}`);
+      const pdfBuffer = await pdfResp.arrayBuffer();
+      const pdfBytes = new Uint8Array(pdfBuffer);
+      let binary = '';
+      for (let i = 0; i < pdfBytes.length; i++) {
+        binary += String.fromCharCode(pdfBytes[i]);
+      }
+      const pdfBase64 = btoa(binary);
+      const dataUrl = `data:application/pdf;base64,${pdfBase64}`;
+      
       messages = [
         { role: "system", content: systemPrompt },
         { 
           role: "user", 
           content: [
             { type: "text", text: "Analizza questa fattura/documento contabile PDF e restituisci i dati strutturati." },
-            { type: "image_url", image_url: { url: fileUrl } }
+            { type: "image_url", image_url: { url: dataUrl } }
           ]
         }
       ];
