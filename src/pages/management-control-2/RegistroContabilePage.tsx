@@ -5060,7 +5060,21 @@ function InvoiceDetailsDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-row gap-2 sm:justify-between">
+          <div className="flex gap-2">
+            {invoice.status === 'bozza' && onEdit && (
+              <Button variant="outline" onClick={() => onEdit(invoice)}>
+                <Pencil className="w-4 h-4 mr-1.5" />
+                Modifica
+              </Button>
+            )}
+            {invoice.status === 'bozza' && onRegister && (
+              <Button onClick={() => onRegister(invoice)} className="gap-1.5">
+                <FileCheck className="w-4 h-4" />
+                Contabilizza
+              </Button>
+            )}
+          </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Chiudi
           </Button>
