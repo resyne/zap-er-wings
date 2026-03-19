@@ -152,18 +152,6 @@ const erpSections: SectionDoc[] = [
     ]
   },
   {
-    section: "Controllo di Gestione",
-    color: "bg-rose-100 text-rose-800",
-    pages: [
-      { title: "Dashboard CEO", path: "/management-control", icon: LayoutDashboard, description: "Cruscotto direzionale con margini, ricavi, costi, trend e indicatori finanziari chiave." },
-      { title: "Setup", path: "/management-control/setup", icon: Settings, description: "Configurazione parametri del controllo di gestione: categorie, centri di costo e regole." },
-      { title: "Movimenti", path: "/management-control/movements", icon: FileText, description: "Registrazione e analisi movimenti economici con classificazione per categoria e progetto." },
-      { title: "Commesse (Progetti)", path: "/management-control/projects", icon: Target, description: "Analisi economica per commessa: costi, ricavi, margini e confronto con budget." },
-      { title: "Budget & Forecast", path: "/management-control/budget", icon: BarChart3, description: "Pianificazione budget annuale per conto e centro, con confronto actual vs previsto." },
-      { title: "Crediti e Debiti", path: "/management-control/credits-debts", icon: DollarSign, description: "Monitoraggio crediti verso clienti e debiti verso fornitori con scadenzario e aging." },
-    ]
-  },
-  {
     section: "Controllo di Gestione 2 (Contabilità Avanzata)",
     color: "bg-fuchsia-100 text-fuchsia-800",
     pages: [

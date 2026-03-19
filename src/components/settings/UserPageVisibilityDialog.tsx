@@ -97,17 +97,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Controllo di Gestione",
-    items: [
-      { title: "Dashboard CEO", url: "/management-control" },
-      { title: "Setup", url: "/management-control/setup" },
-      { title: "Movimenti", url: "/management-control/movements" },
-      { title: "Commesse", url: "/management-control/projects" },
-      { title: "Budget & Forecast", url: "/management-control/budget" },
-      { title: "Crediti e Debiti", url: "/management-control/credits-debts" },
-    ]
-  },
-  {
     title: "Controllo di Gestione 2",
     items: [
       { title: "Documenti Operativi", url: "/contabilita/documenti" },
