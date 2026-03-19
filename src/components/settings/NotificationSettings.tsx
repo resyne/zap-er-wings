@@ -31,7 +31,7 @@ interface Profile {
   phone?: string | null;
 }
 
-type NotificationEventType = "nuova_commessa" | "cambio_stato_commessa" | "nuovo_ordine" | "scadenza_imminente" | "nuovo_ordine_acquisto" | "cambio_stato_ordine_acquisto" | "calendarizzazione_commessa";
+type NotificationEventType = "nuova_commessa" | "cambio_stato_commessa" | "nuovo_ordine" | "scadenza_imminente" | "nuovo_ordine_acquisto" | "cambio_stato_ordine_acquisto" | "calendarizzazione_commessa" | "nuovo_rapporto_intervento";
 type NotificationChannel = "whatsapp" | "email";
 
 interface NotificationRule {
