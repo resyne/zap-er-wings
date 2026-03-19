@@ -1147,7 +1147,7 @@ export default function ZAppCommesse() {
   const { data: commesse = [], isLoading } = useQuery({
     queryKey: ["zapp-commesse", statusFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("commesse")
         .select(`
           id, number, title, description, type, delivery_mode, intervention_type,
@@ -1160,8 +1160,17 @@ export default function ZAppCommesse() {
           sales_orders(number, offer_id),
           commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
         `)
-        .eq("archived", statusFilter === "archived" ? true : false)
         .order("created_at", { ascending: false });
+      
+      // "all" fetches everything, "active" only non-archived, "completed"/"archived" only archived
+      if (statusFilter === "active") {
+        query = query.eq("archived", false);
+      } else if (statusFilter === "completed" || statusFilter === "archived") {
+        query = query.eq("archived", true);
+      }
+      // "all" → no filter on archived
+
+      const { data, error } = await query;
       if (error) throw error;
 
       return (data || []).map((c: any): Commessa => ({
