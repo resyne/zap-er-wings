@@ -3314,10 +3314,7 @@ export default function RegistroContabilePage() {
             setShowDetailsDialog(true);
           }}
           onEdit={(invoice) => openEditDialog(invoice as any)}
-          onRegister={(invoice) => {
-            setSelectedInvoice(invoice as any);
-            setShowRegisterDialog(true);
-          }}
+          onRegister={(invoice) => openEditDialog(invoice as any)}
           onDelete={(invoice) => {
             if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
           }}
