@@ -4756,6 +4756,15 @@ export default function RegistroContabilePage() {
         accounts={accounts}
         costCenters={costCenters}
         profitCenters={profitCenters}
+        onRegister={(inv) => {
+          setShowDetailsDialog(false);
+          setSelectedInvoice(inv as any);
+          setShowRegisterDialog(true);
+        }}
+        onEdit={(inv) => {
+          setShowDetailsDialog(false);
+          openEditDialog(inv as any);
+        }}
       />
     </div>
   );
