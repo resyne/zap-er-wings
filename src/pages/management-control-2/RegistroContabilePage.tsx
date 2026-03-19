@@ -3918,6 +3918,37 @@ export default function RegistroContabilePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Alert Dialog per fattura duplicata (creazione manuale) */}
+      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Fattura già registrata
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>Esiste già una fattura con numero <strong>{duplicateInvoiceInfo.number}</strong> nel registro.</p>
+                {duplicateInvoiceInfo.existing && (
+                  <div className="mt-2 p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><span className="font-medium">Soggetto:</span> {duplicateInvoiceInfo.existing.subject_name}</p>
+                    <p><span className="font-medium">Data:</span> {format(new Date(duplicateInvoiceInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+                    <p><span className="font-medium">Importo:</span> €{duplicateInvoiceInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                )}
+                <p className="mt-3">Procedere comunque con la registrazione?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSaveDuplicate}>
+              Procedi comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Alert Dialog per fattura duplicata (bulk upload) */}
       <AlertDialog open={showBulkDuplicateAlert} onOpenChange={(open) => {
         if (!open && bulkDuplicateResolveRef.current) {
