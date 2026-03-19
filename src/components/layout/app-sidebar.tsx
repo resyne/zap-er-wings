@@ -155,16 +155,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Finanza",
-    items: [
-      { title: "Prima Nota", url: "/finance/prima-nota", icon: FileText },
-      { title: "Fatture", url: "/finance/invoices", icon: FileText },
-      { title: "Flusso di Cassa", url: "/finance/cash", icon: DollarSign },
-      { title: "Report", url: "/finance/reports", icon: BarChart3 },
-      { title: "Esportazioni", url: "/finance/exports", icon: FileText },
-    ]
-  },
-  {
     title: "Controllo di Gestione",
     items: [
       { title: "Dashboard CEO", url: "/management-control", icon: LayoutDashboard },

@@ -67,8 +67,6 @@ const ReplenishmentPage = lazy(() => import("./pages/procurement/ReplenishmentPa
 const ImportersPage = lazy(() => import("./pages/partnerships/ImportersPage"));
 const InstallersPage = lazy(() => import("./pages/partnerships/InstallersPage"));
 const ResellersPage = lazy(() => import("./pages/partnerships/ResellersPage"));
-const PrimaNotaPage = lazy(() => import("./pages/finance/PrimaNotaPage"));
-const InvoicesPage = lazy(() => import("./pages/finance/InvoicesPage"));
 const ManagementControlPage = lazy(() => import("./pages/management-control/ManagementControlPage"));
 const SetupPage = lazy(() => import("./pages/management-control/SetupPage"));
 const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"));
@@ -248,8 +246,6 @@ const App = () => (
                 <Route path="partnerships/importers" element={<LazyPage><ImportersPage /></LazyPage>} />
                 <Route path="partnerships/installers" element={<LazyPage><InstallersPage /></LazyPage>} />
                 <Route path="partnerships/resellers" element={<LazyPage><ResellersPage /></LazyPage>} />
-                <Route path="finance/prima-nota" element={<LazyPage><PrimaNotaPage /></LazyPage>} />
-                <Route path="finance/invoices" element={<LazyPage><InvoicesPage /></LazyPage>} />
                 <Route path="management-control" element={<LazyPage><ManagementControlPage /></LazyPage>} />
                 <Route path="management-control/setup" element={<LazyPage><SetupPage /></LazyPage>} />
                 <Route path="management-control/movements" element={<LazyPage><MovementsPageMC /></LazyPage>} />
