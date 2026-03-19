@@ -4756,6 +4756,15 @@ export default function RegistroContabilePage() {
         accounts={accounts}
         costCenters={costCenters}
         profitCenters={profitCenters}
+        onRegister={(inv) => {
+          setShowDetailsDialog(false);
+          setSelectedInvoice(inv as any);
+          setShowRegisterDialog(true);
+        }}
+        onEdit={(inv) => {
+          setShowDetailsDialog(false);
+          openEditDialog(inv as any);
+        }}
       />
     </div>
   );
@@ -4768,7 +4777,9 @@ function InvoiceDetailsDialog({
   invoice,
   accounts,
   costCenters,
-  profitCenters
+  profitCenters,
+  onRegister,
+  onEdit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -4776,6 +4787,8 @@ function InvoiceDetailsDialog({
   accounts: any[];
   costCenters: any[];
   profitCenters: any[];
+  onRegister?: (invoice: InvoiceRegistry) => void;
+  onEdit?: (invoice: InvoiceRegistry) => void;
 }) {
   const { data: primaNotaData } = useQuery({
     queryKey: ['prima-nota-details', invoice?.prima_nota_id],
@@ -5047,7 +5060,21 @@ function InvoiceDetailsDialog({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-row gap-2 sm:justify-between">
+          <div className="flex gap-2">
+            {invoice.status === 'bozza' && onEdit && (
+              <Button variant="outline" onClick={() => onEdit(invoice)}>
+                <Pencil className="w-4 h-4 mr-1.5" />
+                Modifica
+              </Button>
+            )}
+            {invoice.status === 'bozza' && onRegister && (
+              <Button onClick={() => onRegister(invoice)} className="gap-1.5">
+                <FileCheck className="w-4 h-4" />
+                Contabilizza
+              </Button>
+            )}
+          </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Chiudi
           </Button>
