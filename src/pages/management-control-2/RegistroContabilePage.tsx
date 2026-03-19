@@ -4343,16 +4343,54 @@ export default function RegistroContabilePage() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Annulla
             </Button>
-            <Button 
-              onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
-                invoice: selectedInvoice, 
-                updates: editFormData,
-                accountSplits: editSplitEnabled ? editSplitLines : undefined
-              })}
-              disabled={updateInvoiceMutation.isPending}
-            >
-              {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
-            </Button>
+            {selectedInvoice?.status === 'bozza' ? (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
+                    invoice: selectedInvoice, 
+                    updates: editFormData,
+                    accountSplits: editSplitEnabled ? editSplitLines : undefined
+                  })}
+                  disabled={updateInvoiceMutation.isPending}
+                >
+                  {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    if (!selectedInvoice) return;
+                    // First save, then register
+                    updateInvoiceMutation.mutate({ 
+                      invoice: selectedInvoice, 
+                      updates: editFormData,
+                      accountSplits: editSplitEnabled ? editSplitLines : undefined
+                    }, {
+                      onSuccess: (updatedInvoice) => {
+                        setShowEditDialog(false);
+                        const inv = updatedInvoice || { ...selectedInvoice, ...editFormData };
+                        registerMutation.mutate({ invoice: inv as any, scadenze: scadenzeLines });
+                      }
+                    });
+                  }}
+                  disabled={updateInvoiceMutation.isPending || registerMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <FileCheck className="w-4 h-4" />
+                  {registerMutation.isPending ? 'Contabilizzazione...' : 'Contabilizza'}
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
+                  invoice: selectedInvoice, 
+                  updates: editFormData,
+                  accountSplits: editSplitEnabled ? editSplitLines : undefined
+                })}
+                disabled={updateInvoiceMutation.isPending}
+              >
+                {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
