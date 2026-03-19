@@ -444,6 +444,10 @@ export default function ZAppOrdiniPage() {
     setSmokeInlet("");
     setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
+    setPaymentAmount("");
+    setPaymentOnDelivery(false);
+    setPaymentMethod("");
+    setAgreements("");
     setSelectedPriority("");
     setSelectedOfferIdForOrder(null);
     setSelectedLeadIdForOrder(null);
