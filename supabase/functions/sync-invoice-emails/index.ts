@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
                     total_amount: extracted.total_amount || 0,
                     due_date: extracted.due_date || null,
                     vat_regime: 'domestica_imponibile',
-                    financial_status: 'da_pagare',
+                    financial_status: invoiceType === 'vendita' ? 'da_incassare' : 'da_pagare',
                     status: 'bozza',
                     attachment_url: fileUrl,
                     notes: `📧 Importata automaticamente da email: ${parsed.subject || 'N/A'}\nMittente: ${parsed.from || 'N/A'}\nConfidenza AI: ${Math.round((extracted.confidence || 0) * 100)}%`,
