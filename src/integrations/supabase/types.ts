@@ -9843,6 +9843,7 @@ export type Database = {
           data_documento: string
           data_scadenza: string
           evento_id: string | null
+          fattura_id: string | null
           id: string
           importo_residuo: number
           importo_totale: number
@@ -9864,6 +9865,7 @@ export type Database = {
           data_documento: string
           data_scadenza: string
           evento_id?: string | null
+          fattura_id?: string | null
           id?: string
           importo_residuo: number
           importo_totale: number
@@ -9885,6 +9887,7 @@ export type Database = {
           data_documento?: string
           data_scadenza?: string
           evento_id?: string | null
+          fattura_id?: string | null
           id?: string
           importo_residuo?: number
           importo_totale?: number
@@ -9905,6 +9908,13 @@ export type Database = {
             columns: ["evento_id"]
             isOneToOne: false
             referencedRelation: "accounting_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scadenze_fattura_id_fkey"
+            columns: ["fattura_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
             referencedColumns: ["id"]
           },
           {
