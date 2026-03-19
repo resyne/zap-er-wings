@@ -1,0 +1,1 @@
+DELETE FROM invoice_email_log WHERE status = 'failed' AND error_message LIKE '%vat_regime_check%';
