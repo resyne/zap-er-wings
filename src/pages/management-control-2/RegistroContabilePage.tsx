@@ -301,6 +301,31 @@ export default function RegistroContabilePage() {
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateInvoiceInfo, setDuplicateInvoiceInfo] = useState<{ number: string; existing: InvoiceRegistry | null }>({ number: '', existing: null });
 
+  // Stato per duplicati durante upload (singolo e bulk)
+  const [showBulkDuplicateAlert, setShowBulkDuplicateAlert] = useState(false);
+  const [bulkDuplicateInfo, setBulkDuplicateInfo] = useState<{ fileName: string; invoiceNumber: string; existing: InvoiceRegistry | null }>({ fileName: '', invoiceNumber: '', existing: null });
+  const bulkDuplicateResolveRef = useRef<((action: 'replace' | 'skip') => void) | null>(null);
+
+  // Helper: check for duplicate invoice by number (and optionally subject)
+  const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
+    if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
+    const { data } = await supabase
+      .from('invoice_registry')
+      .select('*')
+      .eq('invoice_number', invoiceNumber);
+    const valid = data?.find((inv: any) => inv.contabilizzazione_valida !== false);
+    return (valid as InvoiceRegistry) || null;
+  };
+
+  // Show duplicate dialog and wait for user response
+  const askDuplicateAction = (fileName: string, invoiceNumber: string, existing: InvoiceRegistry): Promise<'replace' | 'skip'> => {
+    return new Promise((resolve) => {
+      bulkDuplicateResolveRef.current = resolve;
+      setBulkDuplicateInfo({ fileName, invoiceNumber, existing });
+      setShowBulkDuplicateAlert(true);
+    });
+  };
+
   // Process a single file: upload to storage + AI analysis
   const processSingleFile = useCallback(async (file: File): Promise<{ extracted: any; fileUrl: string; subjectResult: any } | null> => {
     const fileExt = file.name.split(".").pop();
@@ -549,6 +574,20 @@ export default function RegistroContabilePage() {
         const totalAmount = (extracted.imponibile || 0) + ivaAmount;
 
         const { data: user } = await supabase.auth.getUser();
+
+        // Check for duplicate invoice
+        const invoiceNum = extracted.invoice_number || `DOC-${Date.now()}`;
+        const existingDuplicate = await checkDuplicateInvoice(invoiceNum);
+        if (existingDuplicate) {
+          const action = await askDuplicateAction(files[i].name, invoiceNum, existingDuplicate);
+          if (action === 'skip') {
+            setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: 'Duplicato saltato' } : item));
+            errorCount++;
+            continue;
+          }
+          // Replace: delete the old record first
+          await supabase.from('invoice_registry').delete().eq('id', existingDuplicate.id);
+        }
 
         // Save directly to invoice_registry
         const { error: insertError } = await supabase.from('invoice_registry').insert({
@@ -3879,7 +3918,7 @@ export default function RegistroContabilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Alert Dialog per fattura duplicata */}
+      {/* Alert Dialog per fattura duplicata (creazione manuale) */}
       <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -3887,22 +3926,76 @@ export default function RegistroContabilePage() {
               <AlertCircle className="w-5 h-5 text-amber-500" />
               Fattura già registrata
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esiste già una fattura con numero <strong>{duplicateInvoiceInfo.number}</strong> nel registro.
-              {duplicateInvoiceInfo.existing && (
-                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                  <p>Soggetto: {duplicateInvoiceInfo.existing.subject_name}</p>
-                  <p>Data: {format(new Date(duplicateInvoiceInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
-                  <p>Importo: €{duplicateInvoiceInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                </div>
-              )}
-              <p className="mt-3">Procedere comunque con la registrazione?</p>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>Esiste già una fattura con numero <strong>{duplicateInvoiceInfo.number}</strong> nel registro.</p>
+                {duplicateInvoiceInfo.existing && (
+                  <div className="mt-2 p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><span className="font-medium">Soggetto:</span> {duplicateInvoiceInfo.existing.subject_name}</p>
+                    <p><span className="font-medium">Data:</span> {format(new Date(duplicateInvoiceInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+                    <p><span className="font-medium">Importo:</span> €{duplicateInvoiceInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                )}
+                <p className="mt-3">Procedere comunque con la registrazione?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction onClick={confirmSaveDuplicate}>
               Procedi comunque
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert Dialog per fattura duplicata (bulk upload) */}
+      <AlertDialog open={showBulkDuplicateAlert} onOpenChange={(open) => {
+        if (!open && bulkDuplicateResolveRef.current) {
+          bulkDuplicateResolveRef.current('skip');
+          bulkDuplicateResolveRef.current = null;
+        }
+        setShowBulkDuplicateAlert(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Fattura duplicata rilevata
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>Il file <strong>{bulkDuplicateInfo.fileName}</strong> contiene la fattura n. <strong>{bulkDuplicateInfo.invoiceNumber}</strong> che è già presente nel registro.</p>
+                {bulkDuplicateInfo.existing && (
+                  <div className="mt-2 p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><span className="font-medium">Soggetto:</span> {bulkDuplicateInfo.existing.subject_name}</p>
+                    <p><span className="font-medium">Data:</span> {format(new Date(bulkDuplicateInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+                    <p><span className="font-medium">Importo:</span> €{bulkDuplicateInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                    <p><span className="font-medium">Stato:</span> {bulkDuplicateInfo.existing.status}</p>
+                  </div>
+                )}
+                <p className="mt-3">Vuoi sostituire la registrazione esistente o saltare questo file?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              if (bulkDuplicateResolveRef.current) {
+                bulkDuplicateResolveRef.current('skip');
+                bulkDuplicateResolveRef.current = null;
+              }
+              setShowBulkDuplicateAlert(false);
+            }}>
+              Salta (non importare)
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (bulkDuplicateResolveRef.current) {
+                bulkDuplicateResolveRef.current('replace');
+                bulkDuplicateResolveRef.current = null;
+              }
+              setShowBulkDuplicateAlert(false);
+            }} className="bg-amber-600 hover:bg-amber-700">
+              Sostituisci
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
