@@ -67,6 +67,13 @@ serve(async (req) => {
       ? new Date(deadline).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "Non specificata";
 
+    // Sanitize commessa_title: remove newlines and truncate for Meta template compliance (max 1024 chars)
+    const sanitizeForTemplate = (text: string, maxLen = 200): string => {
+      if (!text) return "Nuova commessa";
+      return text.replace(/\n+/g, " ").replace(/\s+/g, " ").trim().substring(0, maxLen);
+    };
+    const cleanTitle = sanitizeForTemplate(commessa_title);
+
     const results: { name: string; success: boolean; error?: string }[] = [];
 
     // Process WhatsApp rules
@@ -81,7 +88,7 @@ serve(async (req) => {
       try {
         const templateParams = [
           rule.recipient_name,
-          commessa_title || "Nuova commessa",
+          cleanTitle,
           typeLabel,
           deadlineFormatted,
           customer_name || "N/D",
@@ -133,11 +140,11 @@ serve(async (req) => {
         await supabase.from("email_queue").insert({
           recipient_email: email,
           recipient_name: rule.recipient_name,
-          subject: `Nuova Commessa: ${commessa_title || "Nuova commessa"}`,
-          message: `È stata inserita una nuova commessa: ${commessa_title}\nTipologia: ${typeLabel}\nScadenza: ${deadlineFormatted}\nCliente: ${customer_name || "N/D"}`,
+          subject: `Nuova Commessa: ${cleanTitle}`,
+          message: `È stata inserita una nuova commessa: ${cleanTitle}\nTipologia: ${typeLabel}\nScadenza: ${deadlineFormatted}\nCliente: ${customer_name || "N/D"}`,
           html_content: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <h2 style="color:#667eea;">📋 Nuova Commessa</h2>
-            <p><strong>${commessa_title || "Nuova commessa"}</strong></p>
+            <p><strong>${cleanTitle}</strong></p>
             <ul>
               <li>📌 Tipologia: ${typeLabel}</li>
               <li>📅 Scadenza: ${deadlineFormatted}</li>
