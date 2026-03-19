@@ -725,7 +725,7 @@ export default function RegistroContabilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ddts')
-        .select('id, ddt_number, created_at')
+        .select('id, ddt_number, created_at, customer:customer_id(id, name, company_name), ddt_data')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -739,7 +739,7 @@ export default function RegistroContabilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_orders')
-        .select('id, number, created_at, customer:customer_id(id, name, company_name)')
+        .select('id, number, order_date, created_at, customer:customer_id(id, name, company_name)')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -753,7 +753,7 @@ export default function RegistroContabilePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('service_reports')
-        .select('id, intervention_type, intervention_date, technician_name')
+        .select('id, intervention_type, intervention_date, technician_name, customer:customer_id(id, name, company_name)')
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
