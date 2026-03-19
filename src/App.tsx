@@ -246,8 +246,6 @@ const App = () => (
                 <Route path="partnerships/importers" element={<LazyPage><ImportersPage /></LazyPage>} />
                 <Route path="partnerships/installers" element={<LazyPage><InstallersPage /></LazyPage>} />
                 <Route path="partnerships/resellers" element={<LazyPage><ResellersPage /></LazyPage>} />
-                <Route path="finance/prima-nota" element={<LazyPage><PrimaNotaPage /></LazyPage>} />
-                <Route path="finance/invoices" element={<LazyPage><InvoicesPage /></LazyPage>} />
                 <Route path="management-control" element={<LazyPage><ManagementControlPage /></LazyPage>} />
                 <Route path="management-control/setup" element={<LazyPage><SetupPage /></LazyPage>} />
                 <Route path="management-control/movements" element={<LazyPage><MovementsPageMC /></LazyPage>} />
