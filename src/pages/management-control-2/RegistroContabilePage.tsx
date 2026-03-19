@@ -301,6 +301,31 @@ export default function RegistroContabilePage() {
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
   const [duplicateInvoiceInfo, setDuplicateInvoiceInfo] = useState<{ number: string; existing: InvoiceRegistry | null }>({ number: '', existing: null });
 
+  // Stato per duplicati durante upload (singolo e bulk)
+  const [showBulkDuplicateAlert, setShowBulkDuplicateAlert] = useState(false);
+  const [bulkDuplicateInfo, setBulkDuplicateInfo] = useState<{ fileName: string; invoiceNumber: string; existing: InvoiceRegistry | null }>({ fileName: '', invoiceNumber: '', existing: null });
+  const bulkDuplicateResolveRef = useRef<((action: 'replace' | 'skip') => void) | null>(null);
+
+  // Helper: check for duplicate invoice by number (and optionally subject)
+  const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
+    if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
+    const { data } = await supabase
+      .from('invoice_registry')
+      .select('*')
+      .eq('invoice_number', invoiceNumber);
+    const valid = data?.find((inv: any) => inv.contabilizzazione_valida !== false);
+    return (valid as InvoiceRegistry) || null;
+  };
+
+  // Show duplicate dialog and wait for user response
+  const askDuplicateAction = (fileName: string, invoiceNumber: string, existing: InvoiceRegistry): Promise<'replace' | 'skip'> => {
+    return new Promise((resolve) => {
+      bulkDuplicateResolveRef.current = resolve;
+      setBulkDuplicateInfo({ fileName, invoiceNumber, existing });
+      setShowBulkDuplicateAlert(true);
+    });
+  };
+
   // Process a single file: upload to storage + AI analysis
   const processSingleFile = useCallback(async (file: File): Promise<{ extracted: any; fileUrl: string; subjectResult: any } | null> => {
     const fileExt = file.name.split(".").pop();
