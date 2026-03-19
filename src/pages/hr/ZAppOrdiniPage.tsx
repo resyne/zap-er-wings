@@ -184,6 +184,11 @@ export default function ZAppOrdiniPage() {
     { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }
   ]);
 
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentOnDelivery, setPaymentOnDelivery] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [agreements, setAgreements] = useState("");
+
   const [formData, setFormData] = useState({
     notes: "",
     order_date: new Date().toISOString().split("T")[0],
