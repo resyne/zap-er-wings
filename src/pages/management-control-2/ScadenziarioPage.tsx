@@ -71,6 +71,7 @@ interface Scadenza {
   id: string;
   evento_id: string | null;
   prima_nota_id: string | null;
+  fattura_id: string | null;
   tipo: "credito" | "debito";
   soggetto_tipo: string | null;
   soggetto_nome: string | null;
@@ -88,6 +89,8 @@ interface Scadenza {
   created_at: string;
   invoice_number?: string;
   invoice_date?: string;
+  invoice_type?: string;
+  financial_status?: string;
 }
 
 interface ScadenzaMovimento {
