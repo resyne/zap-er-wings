@@ -1058,96 +1058,99 @@ export default function ZAppOrdiniPage() {
                         </div>
 
                         {/* Input based on mode */}
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            {item.mode === "text" && (
-                              <Input placeholder="Es: Forno rotativo mod. X..." value={item.text}
-                                onChange={e => updateOrderItem(item.id, { text: e.target.value })} className="h-10 text-sm" />
-                            )}
-                            {item.mode === "product" && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
-                                    {item.productId ? (() => { const p = products.find(pr => pr.id === item.productId); return p ? `${p.code} - ${p.name}` : "..."; })() : "Seleziona prodotto..."}
-                                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-full p-0" align="start">
-                                  <Command>
-                                    <CommandInput placeholder="Cerca prodotto..." />
-                                    <CommandList>
-                                      <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
-                                      <CommandGroup>
-                                        {products.map(p => (
-                                          <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => updateOrderItem(item.id, { productId: p.id })}>
-                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                            <div>
-                                              <p className="font-medium text-sm">{p.name}</p>
-                                              <p className="text-xs text-muted-foreground">{p.code}</p>
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                            {item.mode === "material" && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
-                                    {item.materialId ? (() => { const m = materials.find(ma => ma.id === item.materialId); return m ? `${m.code} - ${m.name}` : "..."; })() : "Seleziona materiale..."}
-                                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-full p-0" align="start">
-                                  <Command>
-                                    <CommandInput placeholder="Cerca materiale..." />
-                                    <CommandList>
-                                      <CommandEmpty>Nessun materiale trovato</CommandEmpty>
-                                      <CommandGroup>
-                                        {materials.map(m => (
-                                          <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => updateOrderItem(item.id, { materialId: m.id })}>
-                                            <Check className={cn("mr-2 h-4 w-4", item.materialId === m.id ? "opacity-100" : "opacity-0")} />
-                                            <div>
-                                              <p className="font-medium text-sm">{m.name}</p>
-                                              <p className="text-xs text-muted-foreground">{m.code}</p>
-                                            </div>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
-                            )}
-                            {item.mode === "service" && (
-                              <Select value={item.serviceType} onValueChange={val => updateOrderItem(item.id, { serviceType: val })}>
-                                <SelectTrigger className="h-10 text-sm">
-                                  <SelectValue placeholder="Seleziona servizio..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SERVICE_TYPES.map(s => (
-                                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              {item.mode === "text" && (
+                                <Textarea placeholder="Es: Forno rotativo mod. X, descrizione dettagliata del prodotto o servizio richiesto..." value={item.text}
+                                  onChange={e => updateOrderItem(item.id, { text: e.target.value })} className="text-sm min-h-[80px] resize-y" rows={3} />
+                              )}
+                              {item.mode === "product" && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                      {item.productId ? (() => { const p = products.find(pr => pr.id === item.productId); return p ? `${p.code} - ${p.name}` : "..."; })() : "Seleziona prodotto..."}
+                                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full p-0" align="start">
+                                    <Command>
+                                      <CommandInput placeholder="Cerca prodotto..." />
+                                      <CommandList>
+                                        <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
+                                        <CommandGroup>
+                                          {products.map(p => (
+                                            <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => updateOrderItem(item.id, { productId: p.id })}>
+                                              <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                              <div>
+                                                <p className="font-medium text-sm">{p.name}</p>
+                                                <p className="text-xs text-muted-foreground">{p.code}</p>
+                                              </div>
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                              {item.mode === "material" && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                      {item.materialId ? (() => { const m = materials.find(ma => ma.id === item.materialId); return m ? `${m.code} - ${m.name}` : "..."; })() : "Seleziona materiale..."}
+                                      <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full p-0" align="start">
+                                    <Command>
+                                      <CommandInput placeholder="Cerca materiale..." />
+                                      <CommandList>
+                                        <CommandEmpty>Nessun materiale trovato</CommandEmpty>
+                                        <CommandGroup>
+                                          {materials.map(m => (
+                                            <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => updateOrderItem(item.id, { materialId: m.id })}>
+                                              <Check className={cn("mr-2 h-4 w-4", item.materialId === m.id ? "opacity-100" : "opacity-0")} />
+                                              <div>
+                                                <p className="font-medium text-sm">{m.name}</p>
+                                                <p className="text-xs text-muted-foreground">{m.code}</p>
+                                              </div>
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                              {item.mode === "service" && (
+                                <Select value={item.serviceType} onValueChange={val => updateOrderItem(item.id, { serviceType: val })}>
+                                  <SelectTrigger className="h-10 text-sm">
+                                    <SelectValue placeholder="Seleziona servizio..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SERVICE_TYPES.map(s => (
+                                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                            {item.mode !== "service" && (
+                              <div className="w-16 shrink-0">
+                                <Label className="text-[10px] text-muted-foreground mb-0.5 block">Qtà</Label>
+                                <Input type="number" min={1} value={item.quantity}
+                                  onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                                  className="h-10 text-sm text-center font-medium" />
+                              </div>
                             )}
                           </div>
-                          {item.mode !== "service" && (
-                            <div className="w-16">
-                              <Input type="number" min={1} value={item.quantity}
-                                onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                                className="h-10 text-sm text-center font-medium" placeholder="Qtà" />
-                            </div>
-                          )}
-                        </div>
 
-                        {/* Details field */}
-                        <Input placeholder="Dettagli aggiuntivi (opzionale)..." value={item.details}
-                          onChange={e => updateOrderItem(item.id, { details: e.target.value })}
-                          className="h-9 text-xs bg-muted/30 border-dashed" />
+                          {/* Details field */}
+                          <Textarea placeholder="Dettagli aggiuntivi, specifiche tecniche, note particolari..." value={item.details}
+                            onChange={e => updateOrderItem(item.id, { details: e.target.value })}
+                            className="text-xs bg-muted/30 border-dashed min-h-[48px] resize-y" rows={2} />
+                        </div>
                       </div>
                     );
                   })}
