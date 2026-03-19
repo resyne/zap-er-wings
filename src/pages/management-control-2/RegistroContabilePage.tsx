@@ -1506,7 +1506,8 @@ export default function RegistroContabilePage() {
                 data_scadenza: scad.due_date,
                 stato: 'aperta',
                 evento_id: accountingEntry.id,
-                prima_nota_id: primaNota.id
+                prima_nota_id: primaNota.id,
+                fattura_id: invoice.id
               })
               .select()
               .single();
