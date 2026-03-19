@@ -203,6 +203,12 @@ ESTRAI SEMPRE LE DUE PARTI:
     const extracted = JSON.parse(toolCall.function.arguments);
     console.log("Extracted invoice data:", extracted);
 
+    // Sanitize: AI sometimes returns "None" or "null" strings instead of actual null
+    if (extracted.matched_subject_id && (extracted.matched_subject_id === "None" || extracted.matched_subject_id === "null" || extracted.matched_subject_id === "none")) {
+      extracted.matched_subject_id = null;
+      extracted.needs_new_subject = true;
+    }
+
     // Auto-create or update subject if needed
     let subjectResult = null;
     if (extracted.matched_subject_id) {
