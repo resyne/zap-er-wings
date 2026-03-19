@@ -382,46 +382,37 @@ function typeBadge(type: InvoiceRegistry["invoice_type"]) {
 }
 
 function paymentStatusBadge(status: string, invoiceType: string, dueDate?: string | null) {
-  // Determine labels based on invoice type
   const isVendita = invoiceType === "vendita" || invoiceType === "nota_credito";
 
-  const map: Record<string, { label: string; className: string }> = {
-    da_incassare: {
-      label: "Da incassare",
-      className: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-    },
-    da_pagare: {
-      label: "Da pagare",
-      className: "bg-orange-500/10 text-orange-600 border-orange-500/30",
-    },
-    parzialmente_incassata: {
-      label: "Parz. incassata",
-      className: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    },
-    parzialmente_pagata: {
-      label: "Parz. pagata",
-      className: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    },
-    incassata: {
-      label: "Saldato",
-      className: "bg-green-500/10 text-green-600 border-green-500/30",
-    },
-    pagata: {
-      label: "Saldato",
-      className: "bg-green-500/10 text-green-600 border-green-500/30",
-    },
-  };
+  // Normalize: if status doesn't match invoice type, correct the display
+  const isPending = ["da_incassare", "da_pagare"].includes(status);
+  const isPartial = ["parzialmente_incassata", "parzialmente_pagata"].includes(status);
+  const isSettled = ["incassata", "pagata"].includes(status);
 
-  const cfg = map[status];
-  if (!cfg) return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  let label: string;
+  let className: string;
 
-  // Check if overdue
-  const isOverdue = dueDate && new Date(dueDate) < new Date() && !["incassata", "pagata"].includes(status);
+  if (isPending) {
+    label = isVendita ? "Da incassare" : "Da pagare";
+    className = isVendita
+      ? "bg-blue-500/10 text-blue-600 border-blue-500/30"
+      : "bg-orange-500/10 text-orange-600 border-orange-500/30";
+  } else if (isPartial) {
+    label = isVendita ? "Parz. incassata" : "Parz. pagata";
+    className = "bg-amber-500/10 text-amber-600 border-amber-500/30";
+  } else if (isSettled) {
+    label = "Saldato";
+    className = "bg-green-500/10 text-green-600 border-green-500/30";
+  } else {
+    return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  }
+
+  const isOverdue = dueDate && new Date(dueDate) < new Date() && !isSettled;
 
   return (
     <div className="flex flex-col gap-1">
-      <Badge variant="outline" className={cn("text-xs", cfg.className)}>
-        {cfg.label}
+      <Badge variant="outline" className={cn("text-xs", className)}>
+        {label}
       </Badge>
       {dueDate && (
         <span className={cn("text-[10px]", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground")}>
