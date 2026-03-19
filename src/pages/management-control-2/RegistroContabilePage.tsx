@@ -575,6 +575,20 @@ export default function RegistroContabilePage() {
 
         const { data: user } = await supabase.auth.getUser();
 
+        // Check for duplicate invoice
+        const invoiceNum = extracted.invoice_number || `DOC-${Date.now()}`;
+        const existingDuplicate = await checkDuplicateInvoice(invoiceNum);
+        if (existingDuplicate) {
+          const action = await askDuplicateAction(files[i].name, invoiceNum, existingDuplicate);
+          if (action === 'skip') {
+            setUploadQueue(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: 'Duplicato saltato' } : item));
+            errorCount++;
+            continue;
+          }
+          // Replace: delete the old record first
+          await supabase.from('invoice_registry').delete().eq('id', existingDuplicate.id);
+        }
+
         // Save directly to invoice_registry
         const { error: insertError } = await supabase.from('invoice_registry').insert({
           invoice_number: extracted.invoice_number || `DOC-${Date.now()}`,
