@@ -3314,10 +3314,7 @@ export default function RegistroContabilePage() {
             setShowDetailsDialog(true);
           }}
           onEdit={(invoice) => openEditDialog(invoice as any)}
-          onRegister={(invoice) => {
-            setSelectedInvoice(invoice as any);
-            setShowRegisterDialog(true);
-          }}
+          onRegister={(invoice) => openEditDialog(invoice as any)}
           onDelete={(invoice) => {
             if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
           }}
@@ -4346,16 +4343,60 @@ export default function RegistroContabilePage() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Annulla
             </Button>
-            <Button 
-              onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
-                invoice: selectedInvoice, 
-                updates: editFormData,
-                accountSplits: editSplitEnabled ? editSplitLines : undefined
-              })}
-              disabled={updateInvoiceMutation.isPending}
-            >
-              {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
-            </Button>
+            {selectedInvoice?.status === 'bozza' ? (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
+                    invoice: selectedInvoice, 
+                    updates: editFormData,
+                    accountSplits: editSplitEnabled ? editSplitLines : undefined
+                  })}
+                  disabled={updateInvoiceMutation.isPending}
+                >
+                  {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (!selectedInvoice) return;
+                    updateInvoiceMutation.mutate({ 
+                      invoice: selectedInvoice, 
+                      updates: editFormData,
+                      accountSplits: editSplitEnabled ? editSplitLines : undefined
+                    }, {
+                      onSuccess: () => {
+                        setShowEditDialog(false);
+                        const ivaAmount = editFormData.imponibile * (editFormData.iva_rate / 100);
+                        const totalAmount = editFormData.imponibile + ivaAmount;
+                        const inv = { 
+                          ...selectedInvoice, 
+                          ...editFormData,
+                          iva_amount: ivaAmount,
+                          total_amount: totalAmount,
+                        } as any as InvoiceRegistry;
+                        registerMutation.mutate({ invoice: inv, scadenze: scadenzeLines });
+                      }
+                    });
+                  }}
+                  disabled={updateInvoiceMutation.isPending || registerMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <FileCheck className="w-4 h-4" />
+                  {registerMutation.isPending ? 'Contabilizzazione...' : 'Contabilizza'}
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => selectedInvoice && updateInvoiceMutation.mutate({ 
+                  invoice: selectedInvoice, 
+                  updates: editFormData,
+                  accountSplits: editSplitEnabled ? editSplitLines : undefined
+                })}
+                disabled={updateInvoiceMutation.isPending}
+              >
+                {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Modifiche'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -4758,8 +4799,7 @@ export default function RegistroContabilePage() {
         profitCenters={profitCenters}
         onRegister={(inv) => {
           setShowDetailsDialog(false);
-          setSelectedInvoice(inv as any);
-          setShowRegisterDialog(true);
+          openEditDialog(inv as any);
         }}
         onEdit={(inv) => {
           setShowDetailsDialog(false);
