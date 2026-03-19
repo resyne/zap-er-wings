@@ -97,16 +97,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Finanza",
-    items: [
-      { title: "Prima Nota", url: "/finance/prima-nota" },
-      { title: "Fatture", url: "/finance/invoices" },
-      { title: "Flusso di Cassa", url: "/finance/cash" },
-      { title: "Report", url: "/finance/reports" },
-      { title: "Esportazioni", url: "/finance/exports" },
-    ]
-  },
-  {
     title: "Controllo di Gestione",
     items: [
       { title: "Dashboard CEO", url: "/management-control" },

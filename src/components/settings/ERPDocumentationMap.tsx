@@ -152,14 +152,6 @@ const erpSections: SectionDoc[] = [
     ]
   },
   {
-    section: "Finanza",
-    color: "bg-emerald-100 text-emerald-800",
-    pages: [
-      { title: "Prima Nota", path: "/finance/prima-nota", icon: FileText, description: "Registrazione movimenti contabili giornalieri con importazione XML fatture e classificazione AI." },
-      { title: "Fatture", path: "/finance/invoices", icon: FileText, description: "Gestione fatture attive e passive con importazione elettronica e sincronizzazione Fattura24." },
-    ]
-  },
-  {
     section: "Controllo di Gestione",
     color: "bg-rose-100 text-rose-800",
     pages: [
