@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
-  MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck
+  MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck,
+  CreditCard, Handshake, Euro, GripVertical
 } from "lucide-react";
 import { OrderDetailSections } from "@/components/hr/zapp/OrderDetailSections";
 import { cn } from "@/lib/utils";
@@ -182,6 +183,11 @@ export default function ZAppOrdiniPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
     { id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }
   ]);
+
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentOnDelivery, setPaymentOnDelivery] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [agreements, setAgreements] = useState("");
 
   const [formData, setFormData] = useState({
     notes: "",
@@ -438,6 +444,10 @@ export default function ZAppOrdiniPage() {
     setSmokeInlet("");
     setOrderItems([{ id: crypto.randomUUID(), mode: "text", text: "", productId: "", materialId: "", serviceType: "", details: "", quantity: 1 }]);
     setFormData({ notes: "", order_date: new Date().toISOString().split("T")[0], delivery_date: "", deadline: "" });
+    setPaymentAmount("");
+    setPaymentOnDelivery(false);
+    setPaymentMethod("");
+    setAgreements("");
     setSelectedPriority("");
     setSelectedOfferIdForOrder(null);
     setSelectedLeadIdForOrder(null);
@@ -524,7 +534,8 @@ export default function ZAppOrdiniPage() {
           intervention_type: orderTypeCategory === "intervento" ? derivedInterventionType : null,
           is_warranty: isWarranty,
           order_subject: subject,
-          notes: formData.notes || null,
+          total_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+          notes: [formData.notes, agreements ? `[Accordi] ${agreements}` : "", paymentOnDelivery ? "[Pagamento alla consegna]" : "", paymentMethod ? `[Pagamento: ${paymentMethod}]` : ""].filter(Boolean).join("\n") || null,
           order_source: "sale",
           offer_id: selectedOfferIdForOrder || null,
           lead_id: selectedLeadIdForOrder || null,
@@ -567,7 +578,7 @@ export default function ZAppOrdiniPage() {
           priority: selectedPriority === "molto_urgente" ? "urgent" : selectedPriority === "urgente" ? "high" : selectedPriority === "normale" ? "low" : "medium",
           status: "da_fare",
           article: subject || null,
-          notes: formData.notes || null,
+          notes: [formData.notes, agreements ? `[Accordi] ${agreements}` : "", paymentMethod ? `[Pagamento: ${paymentMethod}]` : ""].filter(Boolean).join("\n") || null,
           deadline: formData.deadline || null,
           shipping_address: custData?.shipping_address || custData?.address || null,
           shipping_city: custData?.city || null,
@@ -575,6 +586,8 @@ export default function ZAppOrdiniPage() {
           is_warranty: isWarranty,
           lead_id: selectedLeadIdForOrder || null,
           smoke_inlet: (orderTypeCategory === "fornitura" && smokeInlet) ? smokeInlet : null,
+          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+          payment_on_delivery: paymentOnDelivery,
         }] as any)
         .select()
         .single();
@@ -975,148 +988,176 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
-            {/* 3. Voci dell'ordine (multi-item) */}
+            {/* 3. Voci dell'ordine (multi-item) — REDESIGNED */}
             {orderTypeCategory && selectedCustomer && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <div className="bg-background rounded-xl border-2 border-primary/20 p-4 space-y-3 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <Label className="font-semibold text-sm">Voci dell'ordine *</Label>
-                  <Button type="button" variant="ghost" size="sm" onClick={addOrderItem} className="h-7 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" /> Aggiungi voce
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <ShoppingCart className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <Label className="font-semibold text-sm">Voci dell'ordine *</Label>
+                      <p className="text-[10px] text-muted-foreground">{orderItems.length} {orderItems.length === 1 ? 'voce' : 'voci'}</p>
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addOrderItem} className="h-8 text-xs gap-1.5 rounded-lg border-dashed border-primary/30 text-primary hover:bg-primary/5">
+                    <Plus className="h-3.5 w-3.5" /> Aggiungi
                   </Button>
                 </div>
 
-                {orderItems.map((item, idx) => (
-                  <div key={item.id} className="border border-border rounded-lg p-3 space-y-2 relative">
-                    {orderItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOrderItem(item.id)}
-                        className="absolute top-2 right-2 text-muted-foreground hover:text-destructive text-xs"
-                      >
-                        ✕
-                      </button>
-                    )}
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Voce {idx + 1}</p>
-                    
-                    {/* Mode selector */}
-                    <div className="flex gap-1 bg-muted rounded-lg p-1">
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "text", productId: "", materialId: "", serviceType: "" })}
-                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "text" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
-                        <FileText className="h-3 w-3" /> Testo
-                      </button>
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "product", text: "", materialId: "", serviceType: "" })}
-                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "product" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
-                        <Package className="h-3 w-3" /> Prodotto
-                      </button>
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "material", text: "", productId: "", serviceType: "" })}
-                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "material" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
-                        <Settings className="h-3 w-3" /> Materiale
-                      </button>
-                      <button type="button" onClick={() => updateOrderItem(item.id, { mode: "service", text: "", productId: "", materialId: "" })}
-                        className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-0.5", item.mode === "service" ? "bg-white shadow-sm font-medium" : "text-muted-foreground")}>
-                        <Wrench className="h-3 w-3" /> Servizio
-                      </button>
-                    </div>
-
-                    {/* Input based on mode */}
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        {item.mode === "text" && (
-                          <Input placeholder="Es: Forno rotativo mod. X..." value={item.text}
-                            onChange={e => updateOrderItem(item.id, { text: e.target.value })} className="h-10 text-sm" />
-                        )}
-                        {item.mode === "product" && (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
-                                {item.productId ? (() => { const p = products.find(pr => pr.id === item.productId); return p ? `${p.code} - ${p.name}` : "..."; })() : "Seleziona prodotto..."}
-                                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Cerca prodotto..." />
-                                <CommandList>
-                                  <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
-                                  <CommandGroup>
-                                    {products.map(p => (
-                                      <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => updateOrderItem(item.id, { productId: p.id })}>
-                                        <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
-                                        <div>
-                                          <p className="font-medium text-sm">{p.name}</p>
-                                          <p className="text-xs text-muted-foreground">{p.code}</p>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {item.mode === "material" && (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
-                                {item.materialId ? (() => { const m = materials.find(ma => ma.id === item.materialId); return m ? `${m.code} - ${m.name}` : "..."; })() : "Seleziona materiale..."}
-                                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-full p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Cerca materiale..." />
-                                <CommandList>
-                                  <CommandEmpty>Nessun materiale trovato</CommandEmpty>
-                                  <CommandGroup>
-                                    {materials.map(m => (
-                                      <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => updateOrderItem(item.id, { materialId: m.id })}>
-                                        <Check className={cn("mr-2 h-4 w-4", item.materialId === m.id ? "opacity-100" : "opacity-0")} />
-                                        <div>
-                                          <p className="font-medium text-sm">{m.name}</p>
-                                          <p className="text-xs text-muted-foreground">{m.code}</p>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {item.mode === "service" && (
-                          <Select value={item.serviceType} onValueChange={val => updateOrderItem(item.id, { serviceType: val })}>
-                            <SelectTrigger className="h-10 text-sm">
-                              <SelectValue placeholder="Seleziona servizio..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {SERVICE_TYPES.map(s => (
-                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
-                      {item.mode !== "service" && (
-                        <div className="w-16">
-                          <Input type="number" min={1} value={item.quantity}
-                            onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                            className="h-10 text-sm text-center" placeholder="Qtà" />
+                <div className="space-y-3">
+                  {orderItems.map((item, idx) => {
+                    const modeIcons = {
+                      text: <FileText className="h-3.5 w-3.5" />,
+                      product: <Package className="h-3.5 w-3.5" />,
+                      material: <Settings className="h-3.5 w-3.5" />,
+                      service: <Wrench className="h-3.5 w-3.5" />,
+                    };
+                    const modeColors = {
+                      text: "border-l-blue-400",
+                      product: "border-l-amber-400",
+                      material: "border-l-purple-400",
+                      service: "border-l-emerald-400",
+                    };
+                    return (
+                      <div key={item.id} className={cn("border border-border border-l-4 rounded-xl p-3 space-y-2.5 bg-background relative transition-all hover:shadow-sm", modeColors[item.mode])}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">{idx + 1}</span>
+                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                              {item.mode === "text" ? "Testo libero" : item.mode === "product" ? "Prodotto" : item.mode === "material" ? "Materiale" : "Servizio"}
+                            </span>
+                          </div>
+                          {orderItems.length > 1 && (
+                            <button type="button" onClick={() => removeOrderItem(item.id)}
+                              className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
-                      )}
-                    </div>
+                        
+                        {/* Mode selector — pill style */}
+                        <div className="flex gap-1 bg-muted/60 rounded-lg p-0.5">
+                          {([
+                            { mode: "text" as const, icon: FileText, label: "Testo" },
+                            { mode: "product" as const, icon: Package, label: "Prodotto" },
+                            { mode: "material" as const, icon: Settings, label: "Materiale" },
+                            { mode: "service" as const, icon: Wrench, label: "Servizio" },
+                          ] as const).map(opt => {
+                            const isActive = item.mode === opt.mode;
+                            return (
+                              <button key={opt.mode} type="button"
+                                onClick={() => updateOrderItem(item.id, { mode: opt.mode, ...(opt.mode !== "text" ? { text: "" } : {}), ...(opt.mode !== "product" ? { productId: "" } : {}), ...(opt.mode !== "material" ? { materialId: "" } : {}), ...(opt.mode !== "service" ? { serviceType: "" } : {}) })}
+                                className={cn("flex-1 text-[10px] py-1.5 px-1 rounded-md transition-all flex items-center justify-center gap-1",
+                                  isActive ? "bg-background shadow-sm font-semibold text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                                <opt.icon className="h-3 w-3" /> {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
 
-                    {/* Details field */}
-                    <Input placeholder="Dettagli aggiuntivi (opzionale)..." value={item.details}
-                      onChange={e => updateOrderItem(item.id, { details: e.target.value })}
-                      className="h-9 text-xs" />
-                  </div>
-                ))}
+                        {/* Input based on mode */}
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            {item.mode === "text" && (
+                              <Input placeholder="Es: Forno rotativo mod. X..." value={item.text}
+                                onChange={e => updateOrderItem(item.id, { text: e.target.value })} className="h-10 text-sm" />
+                            )}
+                            {item.mode === "product" && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                    {item.productId ? (() => { const p = products.find(pr => pr.id === item.productId); return p ? `${p.code} - ${p.name}` : "..."; })() : "Seleziona prodotto..."}
+                                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Cerca prodotto..." />
+                                    <CommandList>
+                                      <CommandEmpty>Nessun prodotto trovato</CommandEmpty>
+                                      <CommandGroup>
+                                        {products.map(p => (
+                                          <CommandItem key={p.id} value={`${p.code} ${p.name}`} onSelect={() => updateOrderItem(item.id, { productId: p.id })}>
+                                            <Check className={cn("mr-2 h-4 w-4", item.productId === p.id ? "opacity-100" : "opacity-0")} />
+                                            <div>
+                                              <p className="font-medium text-sm">{p.name}</p>
+                                              <p className="text-xs text-muted-foreground">{p.code}</p>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                            {item.mode === "material" && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" role="combobox" className="w-full justify-between h-10 text-sm">
+                                    {item.materialId ? (() => { const m = materials.find(ma => ma.id === item.materialId); return m ? `${m.code} - ${m.name}` : "..."; })() : "Seleziona materiale..."}
+                                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Cerca materiale..." />
+                                    <CommandList>
+                                      <CommandEmpty>Nessun materiale trovato</CommandEmpty>
+                                      <CommandGroup>
+                                        {materials.map(m => (
+                                          <CommandItem key={m.id} value={`${m.code} ${m.name}`} onSelect={() => updateOrderItem(item.id, { materialId: m.id })}>
+                                            <Check className={cn("mr-2 h-4 w-4", item.materialId === m.id ? "opacity-100" : "opacity-0")} />
+                                            <div>
+                                              <p className="font-medium text-sm">{m.name}</p>
+                                              <p className="text-xs text-muted-foreground">{m.code}</p>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                            {item.mode === "service" && (
+                              <Select value={item.serviceType} onValueChange={val => updateOrderItem(item.id, { serviceType: val })}>
+                                <SelectTrigger className="h-10 text-sm">
+                                  <SelectValue placeholder="Seleziona servizio..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SERVICE_TYPES.map(s => (
+                                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                          {item.mode !== "service" && (
+                            <div className="w-16">
+                              <Input type="number" min={1} value={item.quantity}
+                                onChange={e => updateOrderItem(item.id, { quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                                className="h-10 text-sm text-center font-medium" placeholder="Qtà" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Details field */}
+                        <Input placeholder="Dettagli aggiuntivi (opzionale)..." value={item.details}
+                          onChange={e => updateOrderItem(item.id, { details: e.target.value })}
+                          className="h-9 text-xs bg-muted/30 border-dashed" />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             {/* 4. Modalità di consegna (only for types that need it) */}
             {needsDeliveryMode && selectedCustomer && hasValidItems && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Modalità di consegna *</Label>
                 <div className="space-y-2">
                   {availableDeliveryModes.map(dm => {
@@ -1145,10 +1186,9 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
-
             {/* 4a. Ingresso Fumi (only for fornitura) */}
             {orderTypeCategory === "fornitura" && selectedCustomer && hasValidItems && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="font-semibold text-sm">Ingresso Fumi</Label>
                 <p className="text-xs text-muted-foreground">Seleziona il lato dell'ingresso fumi (opzionale)</p>
                 <div className="flex gap-3">
@@ -1176,10 +1216,86 @@ export default function ZAppOrdiniPage() {
               </div>
             )}
 
+            {/* 4b. Pagamento & Accordi */}
+            {orderTypeCategory && selectedCustomer && hasValidItems && (
+              <div className="bg-background rounded-xl border border-border p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <Label className="font-semibold text-sm">Pagamento & Accordi</Label>
+                    <p className="text-[10px] text-muted-foreground">Condizioni economiche e accordi con il cliente</p>
+                  </div>
+                </div>
+
+                {/* Importo */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Importo ordine (€)</Label>
+                  <div className="relative">
+                    <Euro className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0,00"
+                      value={paymentAmount}
+                      onChange={e => setPaymentAmount(e.target.value)}
+                      className="pl-9 h-10 text-sm font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Pagamento alla consegna */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border/50">
+                  <div className="flex items-center gap-2.5">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Pagamento alla consegna</p>
+                      <p className="text-[10px] text-muted-foreground">Il cliente paga al momento della consegna/installazione</p>
+                    </div>
+                  </div>
+                  <Switch checked={paymentOnDelivery} onCheckedChange={setPaymentOnDelivery} />
+                </div>
+
+                {/* Metodo di pagamento */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Metodo di pagamento</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <SelectValue placeholder="Seleziona metodo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bonifico">Bonifico Bancario</SelectItem>
+                      <SelectItem value="contanti">Contanti</SelectItem>
+                      <SelectItem value="assegno">Assegno</SelectItem>
+                      <SelectItem value="carta">Carta di Credito/Debito</SelectItem>
+                      <SelectItem value="riba">Ri.Ba.</SelectItem>
+                      <SelectItem value="altro">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Accordi */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Handshake className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label className="text-xs text-muted-foreground">Accordi con il cliente</Label>
+                  </div>
+                  <Textarea
+                    placeholder="Es: Acconto 30% alla conferma, saldo a completamento lavori..."
+                    value={agreements}
+                    onChange={e => setAgreements(e.target.value)}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* 5. Date */}
             {orderTypeCategory && selectedCustomer && (
-               <div className="bg-white rounded-xl border border-border p-4">
+               <div className="bg-background rounded-xl border border-border p-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">Data Ordine</Label>
                   <Input type="date" value={formData.order_date} onChange={e => setFormData(p => ({ ...p, order_date: e.target.value }))} className="mt-1" />
@@ -1189,7 +1305,7 @@ export default function ZAppOrdiniPage() {
 
             {/* 5b. Scadenza e Priorità */}
             {orderTypeCategory && selectedCustomer && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-3">
+              <div className="bg-background rounded-xl border border-border p-4 space-y-3">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Scadenza Ordine</Label>
                 <div className="flex flex-wrap gap-2">
                   {[
@@ -1229,9 +1345,9 @@ export default function ZAppOrdiniPage() {
 
             {/* 6. Note */}
             {orderTypeCategory && selectedCustomer && (
-              <div className="bg-white rounded-xl border border-border p-4 space-y-2">
-                <Label className="text-xs text-muted-foreground">Note</Label>
-                <Textarea placeholder="Note sull'ordine..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
+              <div className="bg-background rounded-xl border border-border p-4 space-y-2">
+                <Label className="text-xs text-muted-foreground">Note interne</Label>
+                <Textarea placeholder="Note sull'ordine (visibili solo internamente)..." value={formData.notes} onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))} rows={2} />
               </div>
             )}
 
