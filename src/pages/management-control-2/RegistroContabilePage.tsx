@@ -4357,18 +4357,24 @@ export default function RegistroContabilePage() {
                   {updateInvoiceMutation.isPending ? 'Salvataggio...' : 'Salva Bozza'}
                 </Button>
                 <Button 
-                  onClick={async () => {
+                  onClick={() => {
                     if (!selectedInvoice) return;
-                    // First save, then register
                     updateInvoiceMutation.mutate({ 
                       invoice: selectedInvoice, 
                       updates: editFormData,
                       accountSplits: editSplitEnabled ? editSplitLines : undefined
                     }, {
-                      onSuccess: (updatedInvoice) => {
+                      onSuccess: () => {
                         setShowEditDialog(false);
-                        const inv = updatedInvoice || { ...selectedInvoice, ...editFormData };
-                        registerMutation.mutate({ invoice: inv as any, scadenze: scadenzeLines });
+                        const ivaAmount = editFormData.imponibile * (editFormData.iva_rate / 100);
+                        const totalAmount = editFormData.imponibile + ivaAmount;
+                        const inv: InvoiceRegistry = { 
+                          ...selectedInvoice, 
+                          ...editFormData,
+                          iva_amount: ivaAmount,
+                          total_amount: totalAmount,
+                        };
+                        registerMutation.mutate({ invoice: inv, scadenze: scadenzeLines });
                       }
                     });
                   }}
