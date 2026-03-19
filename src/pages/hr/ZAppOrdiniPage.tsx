@@ -578,7 +578,7 @@ export default function ZAppOrdiniPage() {
           priority: selectedPriority === "molto_urgente" ? "urgent" : selectedPriority === "urgente" ? "high" : selectedPriority === "normale" ? "low" : "medium",
           status: "da_fare",
           article: subject || null,
-          notes: formData.notes || null,
+          notes: [formData.notes, agreements ? `[Accordi] ${agreements}` : "", paymentMethod ? `[Pagamento: ${paymentMethod}]` : ""].filter(Boolean).join("\n") || null,
           deadline: formData.deadline || null,
           shipping_address: custData?.shipping_address || custData?.address || null,
           shipping_city: custData?.city || null,
