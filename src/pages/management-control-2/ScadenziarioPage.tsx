@@ -798,7 +798,19 @@ export default function ScadenziarioPage() {
                                       <div className="flex items-center gap-2">
                                         <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                                         <div>
-                                          <span className="font-mono font-medium text-sm">{scadenza.invoice_number || "N/D"}</span>
+                                          {scadenza.fattura_id ? (
+                                            <button
+                                              className="font-mono font-medium text-sm text-primary hover:underline cursor-pointer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                window.location.href = '/contabilita/registro-contabile';
+                                              }}
+                                            >
+                                              {scadenza.invoice_number || "N/D"}
+                                            </button>
+                                          ) : (
+                                            <span className="font-mono font-medium text-sm">{scadenza.invoice_number || "N/D"}</span>
+                                          )}
                                           {scadenza.note && (
                                             <p className="text-xs text-muted-foreground truncate max-w-36">{scadenza.note}</p>
                                           )}
