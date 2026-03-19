@@ -3764,24 +3764,30 @@ export default function RegistroContabilePage() {
                         <Select value={formData.source_document_id} onValueChange={(v) => handleFormChange('source_document_id', v)}>
                           <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                           <SelectContent>
-                            {formData.source_document_type === 'ddt' && ddts.map(d => (
-                              <SelectItem key={d.id} value={d.id}>{d.ddt_number}</SelectItem>
-                            ))}
-                            {formData.source_document_type === 'sales_order' && salesOrders.map(o => (
-                              <SelectItem key={o.id} value={o.id}>
-                                <div className="flex flex-col">
-                                  <span>{o.number}</span>
-                                  {o.customer && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {(o.customer as any).company_name || (o.customer as any).name}
-                                    </span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))}
-                            {formData.source_document_type === 'service_report' && serviceReports.map(r => (
-                              <SelectItem key={r.id} value={r.id}>{r.intervention_date} - {r.intervention_type} ({r.technician_name})</SelectItem>
-                            ))}
+                            {formData.source_document_type === 'ddt' && ddts.map(d => {
+                              const customerName = (d.customer as any)?.company_name || (d.customer as any)?.name || (d.ddt_data as any)?.destinatario || '';
+                              return (
+                                <SelectItem key={d.id} value={d.id}>
+                                  <span>{d.ddt_number}{customerName ? ` — ${customerName}` : ''}</span>
+                                </SelectItem>
+                              );
+                            })}
+                            {formData.source_document_type === 'sales_order' && salesOrders.map(o => {
+                              const customerName = (o.customer as any)?.company_name || (o.customer as any)?.name || '';
+                              return (
+                                <SelectItem key={o.id} value={o.id}>
+                                  <span>{o.number}{customerName ? ` — ${customerName}` : ''}{o.order_date ? ` (${format(new Date(o.order_date), 'dd/MM/yyyy')})` : ''}</span>
+                                </SelectItem>
+                              );
+                            })}
+                            {formData.source_document_type === 'service_report' && serviceReports.map(r => {
+                              const customerName = (r.customer as any)?.company_name || (r.customer as any)?.name || '';
+                              return (
+                                <SelectItem key={r.id} value={r.id}>
+                                  <span>{r.intervention_date} - {r.intervention_type}{customerName ? ` — ${customerName}` : ''}</span>
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
