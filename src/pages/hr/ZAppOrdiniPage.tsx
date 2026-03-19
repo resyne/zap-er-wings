@@ -585,6 +585,8 @@ export default function ZAppOrdiniPage() {
           is_warranty: isWarranty,
           lead_id: selectedLeadIdForOrder || null,
           smoke_inlet: (orderTypeCategory === "fornitura" && smokeInlet) ? smokeInlet : null,
+          payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+          payment_on_delivery: paymentOnDelivery,
         }] as any)
         .select()
         .single();
