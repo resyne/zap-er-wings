@@ -1220,10 +1220,10 @@ export default function ZAppCommesse() {
       const q = debouncedSearch.toLowerCase();
       const matchesSearch = !q || c.title.toLowerCase().includes(q) || c.number.toLowerCase().includes(q) ||
         (c.customer_name || "").toLowerCase().includes(q) || (c.article || "").toLowerCase().includes(q);
-      if (statusFilter === "archived") return matchesSearch; // already filtered by query
+      if (statusFilter === "completed") return matchesSearch && c.status === "completata";
+      if (statusFilter === "archived") return matchesSearch; // all archived
       const matchesStatus = statusFilter === "all" ||
-        (statusFilter === "active" && c.status !== "completata") ||
-        (statusFilter === "completed" && c.status === "completata");
+        (statusFilter === "active" && c.status !== "completata");
       return matchesSearch && matchesStatus;
     });
   }, [commesse, debouncedSearch, statusFilter]);
