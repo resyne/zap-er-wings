@@ -1,0 +1,2 @@
+UPDATE invoice_registry SET financial_status = 'da_incassare' WHERE invoice_type = 'vendita' AND financial_status = 'da_pagare';
+UPDATE invoice_registry SET financial_status = 'da_pagare' WHERE invoice_type = 'acquisto' AND financial_status = 'da_incassare';
