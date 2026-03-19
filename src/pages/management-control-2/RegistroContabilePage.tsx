@@ -3918,30 +3918,53 @@ export default function RegistroContabilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Alert Dialog per fattura duplicata */}
-      <AlertDialog open={showDuplicateAlert} onOpenChange={setShowDuplicateAlert}>
+      {/* Alert Dialog per fattura duplicata (bulk upload) */}
+      <AlertDialog open={showBulkDuplicateAlert} onOpenChange={(open) => {
+        if (!open && bulkDuplicateResolveRef.current) {
+          bulkDuplicateResolveRef.current('skip');
+          bulkDuplicateResolveRef.current = null;
+        }
+        setShowBulkDuplicateAlert(open);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-500" />
-              Fattura già registrata
+              Fattura duplicata rilevata
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esiste già una fattura con numero <strong>{duplicateInvoiceInfo.number}</strong> nel registro.
-              {duplicateInvoiceInfo.existing && (
-                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                  <p>Soggetto: {duplicateInvoiceInfo.existing.subject_name}</p>
-                  <p>Data: {format(new Date(duplicateInvoiceInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
-                  <p>Importo: €{duplicateInvoiceInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-                </div>
-              )}
-              <p className="mt-3">Procedere comunque con la registrazione?</p>
+            <AlertDialogDescription asChild>
+              <div>
+                <p>Il file <strong>{bulkDuplicateInfo.fileName}</strong> contiene la fattura n. <strong>{bulkDuplicateInfo.invoiceNumber}</strong> che è già presente nel registro.</p>
+                {bulkDuplicateInfo.existing && (
+                  <div className="mt-2 p-3 bg-muted rounded-lg text-sm space-y-1">
+                    <p><span className="font-medium">Soggetto:</span> {bulkDuplicateInfo.existing.subject_name}</p>
+                    <p><span className="font-medium">Data:</span> {format(new Date(bulkDuplicateInfo.existing.invoice_date), 'dd/MM/yyyy', { locale: it })}</p>
+                    <p><span className="font-medium">Importo:</span> €{bulkDuplicateInfo.existing.total_amount.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+                    <p><span className="font-medium">Stato:</span> {bulkDuplicateInfo.existing.status}</p>
+                  </div>
+                )}
+                <p className="mt-3">Vuoi sostituire la registrazione esistente o saltare questo file?</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSaveDuplicate}>
-              Procedi comunque
+            <AlertDialogCancel onClick={() => {
+              if (bulkDuplicateResolveRef.current) {
+                bulkDuplicateResolveRef.current('skip');
+                bulkDuplicateResolveRef.current = null;
+              }
+              setShowBulkDuplicateAlert(false);
+            }}>
+              Salta (non importare)
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (bulkDuplicateResolveRef.current) {
+                bulkDuplicateResolveRef.current('replace');
+                bulkDuplicateResolveRef.current = null;
+              }
+              setShowBulkDuplicateAlert(false);
+            }} className="bg-amber-600 hover:bg-amber-700">
+              Sostituisci
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
