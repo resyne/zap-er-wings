@@ -67,6 +67,13 @@ serve(async (req) => {
       ? new Date(deadline).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "Non specificata";
 
+    // Sanitize commessa_title: remove newlines and truncate for Meta template compliance (max 1024 chars)
+    const sanitizeForTemplate = (text: string, maxLen = 200): string => {
+      if (!text) return "Nuova commessa";
+      return text.replace(/\n+/g, " ").replace(/\s+/g, " ").trim().substring(0, maxLen);
+    };
+    const cleanTitle = sanitizeForTemplate(commessa_title);
+
     const results: { name: string; success: boolean; error?: string }[] = [];
 
     // Process WhatsApp rules
