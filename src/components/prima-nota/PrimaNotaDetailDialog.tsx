@@ -55,6 +55,21 @@ export function PrimaNotaDetailDialog({ entryId, open, onOpenChange }: Props) {
     enabled: !!entryId && open,
   });
 
+  // Fetch the user who created the segnalazione
+  const { data: createdByUser } = useQuery({
+    queryKey: ["profile-name", entry?.user_id],
+    queryFn: async () => {
+      if (!entry?.user_id) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name, email")
+        .eq("id", entry.user_id)
+        .single();
+      return data;
+    },
+    enabled: !!entry?.user_id,
+  });
+
   // Fetch linked customer name
   const { data: linkedCustomer } = useQuery({
     queryKey: ["customer-name", entry?.economic_subject_id],
