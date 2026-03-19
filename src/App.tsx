@@ -67,12 +67,6 @@ const ReplenishmentPage = lazy(() => import("./pages/procurement/ReplenishmentPa
 const ImportersPage = lazy(() => import("./pages/partnerships/ImportersPage"));
 const InstallersPage = lazy(() => import("./pages/partnerships/InstallersPage"));
 const ResellersPage = lazy(() => import("./pages/partnerships/ResellersPage"));
-const ManagementControlPage = lazy(() => import("./pages/management-control/ManagementControlPage"));
-const SetupPage = lazy(() => import("./pages/management-control/SetupPage"));
-const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"));
-const BudgetPage = lazy(() => import("./pages/management-control/BudgetPage"));
-const MovementsPageMC = lazy(() => import("./pages/management-control/MovementsPage"));
-const CreditsDebtsPage = lazy(() => import("./pages/management-control/CreditsDebtsPage"));
 const RegistroPage = lazy(() => import("./pages/management-control-2/RegistroPage"));
 const MovimentiFinanziariPage = lazy(() => import("./pages/management-control-2/MovimentiFinanziariPage"));
 const ChartOfAccountsPage = lazy(() => import("./pages/management-control-2/ChartOfAccountsPage"));
@@ -246,12 +240,6 @@ const App = () => (
                 <Route path="partnerships/importers" element={<LazyPage><ImportersPage /></LazyPage>} />
                 <Route path="partnerships/installers" element={<LazyPage><InstallersPage /></LazyPage>} />
                 <Route path="partnerships/resellers" element={<LazyPage><ResellersPage /></LazyPage>} />
-                <Route path="management-control" element={<LazyPage><ManagementControlPage /></LazyPage>} />
-                <Route path="management-control/setup" element={<LazyPage><SetupPage /></LazyPage>} />
-                <Route path="management-control/movements" element={<LazyPage><MovementsPageMC /></LazyPage>} />
-                <Route path="management-control/projects" element={<LazyPage><ProjectsPage /></LazyPage>} />
-                <Route path="management-control/budget" element={<LazyPage><BudgetPage /></LazyPage>} />
-                <Route path="management-control/credits-debts" element={<LazyPage><CreditsDebtsPage /></LazyPage>} />
                 <Route path="management-control-2/registro" element={<LazyPage><RegistroPage /></LazyPage>} />
                 <Route path="management-control-2/movimenti-finanziari" element={<LazyPage><PrimaNotaPageMC2 /></LazyPage>} />
                 <Route path="management-control-2/setup-contabile" element={<LazyPage><SetupContabilePage /></LazyPage>} />

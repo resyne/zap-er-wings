@@ -155,17 +155,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Controllo di Gestione",
-    items: [
-      { title: "Dashboard CEO", url: "/management-control", icon: LayoutDashboard },
-      { title: "Setup", url: "/management-control/setup", icon: Settings },
-      { title: "Movimenti", url: "/management-control/movements", icon: FileText },
-      { title: "Commesse", url: "/management-control/projects", icon: Target },
-      { title: "Budget & Forecast", url: "/management-control/budget", icon: BarChart3 },
-      { title: "Crediti e Debiti", url: "/management-control/credits-debts", icon: DollarSign },
-    ]
-  },
-  {
     title: "Contabilità",
     items: [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
