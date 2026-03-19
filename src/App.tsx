@@ -67,12 +67,6 @@ const ReplenishmentPage = lazy(() => import("./pages/procurement/ReplenishmentPa
 const ImportersPage = lazy(() => import("./pages/partnerships/ImportersPage"));
 const InstallersPage = lazy(() => import("./pages/partnerships/InstallersPage"));
 const ResellersPage = lazy(() => import("./pages/partnerships/ResellersPage"));
-const ManagementControlPage = lazy(() => import("./pages/management-control/ManagementControlPage"));
-const SetupPage = lazy(() => import("./pages/management-control/SetupPage"));
-const ProjectsPage = lazy(() => import("./pages/management-control/ProjectsPage"));
-const BudgetPage = lazy(() => import("./pages/management-control/BudgetPage"));
-const MovementsPageMC = lazy(() => import("./pages/management-control/MovementsPage"));
-const CreditsDebtsPage = lazy(() => import("./pages/management-control/CreditsDebtsPage"));
 const RegistroPage = lazy(() => import("./pages/management-control-2/RegistroPage"));
 const MovimentiFinanziariPage = lazy(() => import("./pages/management-control-2/MovimentiFinanziariPage"));
 const ChartOfAccountsPage = lazy(() => import("./pages/management-control-2/ChartOfAccountsPage"));
