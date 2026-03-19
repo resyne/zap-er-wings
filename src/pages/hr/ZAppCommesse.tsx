@@ -1160,6 +1160,7 @@ export default function ZAppCommesse() {
           sales_orders(number, offer_id),
           commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
         `)
+        .order("deadline", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       
       // "all" fetches everything, "active" only non-archived, "completed"/"archived" only archived
