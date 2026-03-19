@@ -140,11 +140,11 @@ serve(async (req) => {
         await supabase.from("email_queue").insert({
           recipient_email: email,
           recipient_name: rule.recipient_name,
-          subject: `Nuova Commessa: ${commessa_title || "Nuova commessa"}`,
-          message: `È stata inserita una nuova commessa: ${commessa_title}\nTipologia: ${typeLabel}\nScadenza: ${deadlineFormatted}\nCliente: ${customer_name || "N/D"}`,
+          subject: `Nuova Commessa: ${cleanTitle}`,
+          message: `È stata inserita una nuova commessa: ${cleanTitle}\nTipologia: ${typeLabel}\nScadenza: ${deadlineFormatted}\nCliente: ${customer_name || "N/D"}`,
           html_content: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
             <h2 style="color:#667eea;">📋 Nuova Commessa</h2>
-            <p><strong>${commessa_title || "Nuova commessa"}</strong></p>
+            <p><strong>${cleanTitle}</strong></p>
             <ul>
               <li>📌 Tipologia: ${typeLabel}</li>
               <li>📅 Scadenza: ${deadlineFormatted}</li>
