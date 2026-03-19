@@ -530,6 +530,19 @@ export default function ZAppNewServiceReportPage() {
       setSavedReportId(data.id);
       setStep("done");
       toast.success("Rapporto salvato con successo");
+
+      // Notify about new service report (fire-and-forget)
+      supabase.functions.invoke("notify-rapporto-intervento", {
+        body: {
+          report_number: data.report_number,
+          customer_name: selectedCustomer?.name || selectedCustomer?.company_name || "",
+          technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : "",
+          intervention_date: formData.intervention_date,
+          notes: formData.notes || null,
+        },
+      }).then(res => {
+        if (res.error) console.error("Service report notification error:", res.error);
+      });
     } catch (error) {
       console.error('Error saving report:', error);
       toast.error("Errore nel salvare il rapporto");

@@ -31,7 +31,7 @@ interface Profile {
   phone?: string | null;
 }
 
-type NotificationEventType = "nuova_commessa" | "cambio_stato_commessa" | "nuovo_ordine" | "scadenza_imminente" | "nuovo_ordine_acquisto" | "cambio_stato_ordine_acquisto" | "calendarizzazione_commessa";
+type NotificationEventType = "nuova_commessa" | "cambio_stato_commessa" | "nuovo_ordine" | "scadenza_imminente" | "nuovo_ordine_acquisto" | "cambio_stato_ordine_acquisto" | "calendarizzazione_commessa" | "nuovo_rapporto_intervento";
 type NotificationChannel = "whatsapp" | "email";
 
 interface NotificationRule {
@@ -53,6 +53,7 @@ const EVENT_SECTIONS: { type: NotificationEventType; label: string; description:
   { type: "cambio_stato_ordine_acquisto", label: "Cambio Stato Ordine Acquisto", description: "Notifica quando un ordine di acquisto cambia stato", icon: "🔃" },
   { type: "scadenza_imminente", label: "Scadenza Imminente", description: "Notifica quando una commessa è vicina alla deadline", icon: "⏰" },
   { type: "calendarizzazione_commessa", label: "Calendarizzazione Commessa", description: "Notifica quando una fase viene calendarizzata o riprogrammata", icon: "📅" },
+  { type: "nuovo_rapporto_intervento", label: "Nuovo Rapporto di Intervento", description: "Notifica alla creazione di un rapporto di intervento", icon: "🔧" },
 ];
 
 export function NotificationSettings() {

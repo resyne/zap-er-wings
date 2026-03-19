@@ -1,0 +1,1 @@
+ALTER TYPE notification_event_type ADD VALUE IF NOT EXISTS 'nuovo_rapporto_intervento';
