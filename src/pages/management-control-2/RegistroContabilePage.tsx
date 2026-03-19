@@ -4777,7 +4777,9 @@ function InvoiceDetailsDialog({
   invoice,
   accounts,
   costCenters,
-  profitCenters
+  profitCenters,
+  onRegister,
+  onEdit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -4785,6 +4787,8 @@ function InvoiceDetailsDialog({
   accounts: any[];
   costCenters: any[];
   profitCenters: any[];
+  onRegister?: (invoice: InvoiceRegistry) => void;
+  onEdit?: (invoice: InvoiceRegistry) => void;
 }) {
   const { data: primaNotaData } = useQuery({
     queryKey: ['prima-nota-details', invoice?.prima_nota_id],
