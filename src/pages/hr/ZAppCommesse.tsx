@@ -1154,14 +1154,13 @@ export default function ZAppCommesse() {
           priority, status, current_phase, article, notes, bom_id, lead_id,
           diameter, smoke_inlet, payment_on_delivery, payment_amount, is_warranty,
           shipping_address, shipping_city, shipping_country, shipping_province, shipping_postal_code,
-          archived, deadline, created_at, sales_order_id,
+          archived, deadline, created_at, updated_at, sales_order_id,
           customers(name, code),
           boms(name, version),
           sales_orders(number, offer_id),
           commessa_phases(id, phase_type, phase_order, status, assigned_to, scheduled_date, started_date, completed_date, notes)
         `)
-        .order("deadline", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
+        .order("updated_at", { ascending: false });
       
       // "all" fetches everything, "active" only non-archived, "completed"/"archived" only archived
       if (statusFilter === "active") {
