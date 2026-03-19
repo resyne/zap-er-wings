@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Search, ShoppingCart, ChevronRight, Package, Truck, Wrench,
   Plus, Check, ChevronsUpDown, Loader2, Factory, Settings, Shield, Zap,
-  MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck
+  MapPin, Building2, FileText, Pencil, Trash2, Save, FileCheck,
+  CreditCard, Handshake, Euro, GripVertical
 } from "lucide-react";
 import { OrderDetailSections } from "@/components/hr/zapp/OrderDetailSections";
 import { cn } from "@/lib/utils";
