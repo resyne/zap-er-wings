@@ -148,7 +148,7 @@ export default function ScadenziarioPage() {
     queryFn: async () => {
       let query = supabase
         .from("scadenze")
-        .select("*")
+        .select("*, fattura:invoice_registry!scadenze_fattura_id_fkey(id, invoice_number, invoice_date, invoice_type, financial_status)")
         .order("data_scadenza", { ascending: true });
 
       if (activeTab === "crediti") {
@@ -164,26 +164,15 @@ export default function ScadenziarioPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const scadenzeBase = (data as Scadenza[]) ?? [];
-
-      // Fetch invoice details for each scadenza
-      const scadenzeIds = scadenzeBase.map(s => s.id);
-      if (scadenzeIds.length > 0) {
-        const { data: invoices } = await supabase
-          .from("invoice_registry")
-          .select("scadenza_id, invoice_number, invoice_date")
-          .in("scadenza_id", scadenzeIds);
-
-        const invoiceMap = new Map(invoices?.map(inv => [inv.scadenza_id, inv]) || []);
-        
-        return scadenzeBase.map(s => ({
-          ...s,
-          invoice_number: invoiceMap.get(s.id)?.invoice_number,
-          invoice_date: invoiceMap.get(s.id)?.invoice_date,
-        }));
-      }
-
-      return scadenzeBase;
+      return ((data as any[]) ?? []).map((s: any) => ({
+        ...s,
+        invoice_number: s.fattura?.invoice_number || undefined,
+        invoice_date: s.fattura?.invoice_date || undefined,
+        invoice_type: s.fattura?.invoice_type || undefined,
+        financial_status: s.fattura?.financial_status || undefined,
+        fattura_id: s.fattura_id,
+        fattura: undefined,
+      })) as Scadenza[];
     },
   });
 
