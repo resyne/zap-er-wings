@@ -88,7 +88,7 @@ serve(async (req) => {
       try {
         const templateParams = [
           rule.recipient_name,
-          commessa_title || "Nuova commessa",
+          cleanTitle,
           typeLabel,
           deadlineFormatted,
           customer_name || "N/D",
