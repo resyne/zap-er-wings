@@ -4755,8 +4755,7 @@ export default function RegistroContabilePage() {
         profitCenters={profitCenters}
         onRegister={(inv) => {
           setShowDetailsDialog(false);
-          setSelectedInvoice(inv as any);
-          setShowRegisterDialog(true);
+          openEditDialog(inv as any);
         }}
         onEdit={(inv) => {
           setShowDetailsDialog(false);
