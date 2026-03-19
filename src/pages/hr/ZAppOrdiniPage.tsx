@@ -602,7 +602,8 @@ export default function ZAppOrdiniPage() {
           : phase === "Installazione" ? "installazione"
           : phase.includes("Manutenzione") ? "manutenzione"
           : phase.includes("Riparazione") ? "riparazione"
-          : "produzione";
+          : phase.includes("Intervento") ? "intervento"
+          : "intervento";
         
         const initialStatus = phaseType === "spedizione" ? "da_preparare"
           : (phaseType === "installazione" || phaseType === "manutenzione" || phaseType === "riparazione") ? "da_programmare"
