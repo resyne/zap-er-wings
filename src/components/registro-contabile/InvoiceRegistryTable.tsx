@@ -18,6 +18,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Calendar,
+  CheckCircle2,
+  Clock,
   ExternalLink,
   FileCheck,
   FileText,
@@ -45,6 +47,7 @@ export type InvoiceRegistry = {
   prima_nota_id: string | null;
   scadenza_id: string | null;
   attachment_url?: string | null;
+  due_date?: string | null;
 };
 
 type Group = { label: string; invoices: InvoiceRegistry[] };
@@ -112,13 +115,14 @@ export function InvoiceRegistryTable({
   return (
     <Card className="border shadow-sm overflow-hidden">
       <CardContent className="p-0 overflow-x-auto">
-        <Table className="min-w-[980px]">
+        <Table className="min-w-[1050px]">
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Documento</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Soggetto</TableHead>
               <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Importi</TableHead>
-              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stati</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
+              <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato Pagamento</TableHead>
               <TableHead className="text-right w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -190,7 +194,7 @@ function GroupHeaderRow({ group }: { group: Group }) {
           Totale: {totSigned >= 0 ? "+" : ""}{formatEuro(totSigned, { absolute: false })}
         </div>
       </TableCell>
-      <TableCell colSpan={2} />
+      <TableCell colSpan={3} />
     </TableRow>
   );
 }
@@ -216,11 +220,12 @@ function InvoiceRow({
   isRegenerating: boolean;
   onGoScadenziario: () => void;
 }) {
-  const canOpen = true;
+  const isBozza = invoice.status === "bozza";
+  const isContabilizzato = ["registrata", "contabilizzato"].includes(invoice.status);
 
   return (
     <TableRow
-      className={canOpen ? "cursor-pointer hover:bg-muted/50" : ""}
+      className="cursor-pointer hover:bg-muted/50"
       onClick={() => onOpenDetails(invoice)}
     >
       <TableCell>
@@ -261,11 +266,44 @@ function InvoiceRow({
         </div>
       </TableCell>
 
+      {/* Stato: solo Bozza / Contabilizzata */}
       <TableCell>
-        <div className="flex flex-wrap gap-2">
-          {registryStatusBadge(invoice.status)}
-          {financialStatusBadge(invoice.financial_status)}
-        </div>
+        {isBozza ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-amber-500/50 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegister(invoice);
+            }}
+          >
+            <Clock className="h-3 w-3" />
+            Bozza
+          </Button>
+        ) : isContabilizzato ? (
+          <Badge variant="default" className="gap-1 text-xs">
+            <CheckCircle2 className="h-3 w-3" />
+            Contabilizzata
+          </Badge>
+        ) : invoice.status === "rettificato" ? (
+          <Badge variant="destructive" className="gap-1 text-xs">
+            <Lock className="h-3 w-3" />
+            Bloccata
+          </Badge>
+        ) : invoice.status === "da_riclassificare" ? (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <RefreshCw className="h-3 w-3" />
+            Da riclass.
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-xs">{invoice.status}</Badge>
+        )}
+      </TableCell>
+
+      {/* Stato Pagamento */}
+      <TableCell>
+        {paymentStatusBadge(invoice.financial_status, invoice.invoice_type, invoice.due_date)}
       </TableCell>
 
       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -288,7 +326,6 @@ function InvoiceRow({
               </DropdownMenuItem>
             )}
 
-            {/* Registra pagamento/incasso per fatture con scadenza aperta */}
             {onPayment && invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
               <DropdownMenuItem onClick={() => onPayment(invoice)}>
                 <FileCheck className="h-4 w-4 mr-2" />
@@ -298,7 +335,6 @@ function InvoiceRow({
 
             <DropdownMenuSeparator />
 
-            {/* Modifica: disponibile per tutti tranne rettificato e periodo chiuso */}
             {invoice.status !== "rettificato" && (
               <DropdownMenuItem onClick={() => onEdit(invoice)}>
                 <Pencil className="h-4 w-4 mr-2" />
@@ -310,7 +346,7 @@ function InvoiceRow({
               <>
                 <DropdownMenuItem onClick={() => onRegister(invoice)}>
                   <FileCheck className="h-4 w-4 mr-2" />
-                  Registra
+                  Contabilizza
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(invoice)}>
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -345,38 +381,56 @@ function typeBadge(type: InvoiceRegistry["invoice_type"]) {
   return <Badge variant="outline" className="text-xs">{type === "vendita" ? "Vendita" : "Acquisto"}</Badge>;
 }
 
-function registryStatusBadge(status: string) {
-  const effective = status === "registrata" ? "contabilizzato" : status;
-  const map: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string; icon: React.ReactNode }> = {
-    bozza: { variant: "secondary", label: "Bozza", icon: <FileText className="h-3 w-3" /> },
-    da_classificare: { variant: "outline", label: "Da annotare", icon: <FileText className="h-3 w-3" /> },
-    da_riclassificare: { variant: "secondary", label: "Da riclass.", icon: <RefreshCw className="h-3 w-3" /> },
-    contabilizzato: { variant: "default", label: "Contabilizzato", icon: <FileCheck className="h-3 w-3" /> },
-    rettificato: { variant: "destructive", label: "Bloccato", icon: <Lock className="h-3 w-3" /> },
-    archiviato: { variant: "outline", label: "Archiviato", icon: <FileText className="h-3 w-3" /> },
-  };
-  const cfg = map[effective];
-  if (!cfg) return <Badge variant="outline" className="text-xs">{status}</Badge>;
-  return (
-    <Badge variant={cfg.variant} className="gap-1 text-xs">
-      {cfg.icon}
-      {cfg.label}
-    </Badge>
-  );
-}
+function paymentStatusBadge(status: string, invoiceType: string, dueDate?: string | null) {
+  // Determine labels based on invoice type
+  const isVendita = invoiceType === "vendita" || invoiceType === "nota_credito";
 
-function financialStatusBadge(status: string) {
-  const map: Record<string, { variant: "default" | "secondary" | "outline"; label: string; className?: string }> = {
-    da_incassare: { variant: "secondary", label: "Da incassare" },
-    da_pagare: { variant: "secondary", label: "Da pagare" },
-    parzialmente_incassata: { variant: "outline", label: "Parz. incassata", className: "border-amber-500/50 text-amber-600 bg-amber-500/10" },
-    parzialmente_pagata: { variant: "outline", label: "Parz. pagata", className: "border-amber-500/50 text-amber-600 bg-amber-500/10" },
-    incassata: { variant: "default", label: "Incassata" },
-    pagata: { variant: "default", label: "Pagata" },
+  const map: Record<string, { label: string; className: string }> = {
+    da_incassare: {
+      label: "Da incassare",
+      className: "bg-blue-500/10 text-blue-600 border-blue-500/30",
+    },
+    da_pagare: {
+      label: "Da pagare",
+      className: "bg-orange-500/10 text-orange-600 border-orange-500/30",
+    },
+    parzialmente_incassata: {
+      label: "Parz. incassata",
+      className: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+    },
+    parzialmente_pagata: {
+      label: "Parz. pagata",
+      className: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+    },
+    incassata: {
+      label: "Saldato",
+      className: "bg-green-500/10 text-green-600 border-green-500/30",
+    },
+    pagata: {
+      label: "Saldato",
+      className: "bg-green-500/10 text-green-600 border-green-500/30",
+    },
   };
+
   const cfg = map[status];
   if (!cfg) return <Badge variant="outline" className="text-xs">{status}</Badge>;
-  return <Badge variant={cfg.variant} className={cn("text-xs", cfg.className)}>{cfg.label}</Badge>;
+
+  // Check if overdue
+  const isOverdue = dueDate && new Date(dueDate) < new Date() && !["incassata", "pagata"].includes(status);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Badge variant="outline" className={cn("text-xs", cfg.className)}>
+        {cfg.label}
+      </Badge>
+      {dueDate && (
+        <span className={cn("text-[10px]", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground")}>
+          {isOverdue ? "⚠ Scad. " : "Scad. "}
+          {format(new Date(dueDate), "dd/MM/yy")}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function vatRegimeLabel(regime: string) {
