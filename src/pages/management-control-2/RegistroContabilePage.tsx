@@ -4368,12 +4368,12 @@ export default function RegistroContabilePage() {
                         setShowEditDialog(false);
                         const ivaAmount = editFormData.imponibile * (editFormData.iva_rate / 100);
                         const totalAmount = editFormData.imponibile + ivaAmount;
-                        const inv: InvoiceRegistry = { 
+                        const inv = { 
                           ...selectedInvoice, 
                           ...editFormData,
                           iva_amount: ivaAmount,
                           total_amount: totalAmount,
-                        };
+                        } as any as InvoiceRegistry;
                         registerMutation.mutate({ invoice: inv, scadenze: scadenzeLines });
                       }
                     });
