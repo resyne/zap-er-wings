@@ -742,6 +742,137 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_movements: {
+        Row: {
+          amount: number
+          bank_account: string | null
+          created_at: string
+          description: string
+          direction: string
+          iban: string | null
+          id: string
+          import_batch_id: string
+          imported_by: string | null
+          matched_subject_id: string | null
+          matched_subject_name: string | null
+          movement_date: string
+          raw_data: Json | null
+          reference: string | null
+          status: string
+          updated_at: string
+          value_date: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account?: string | null
+          created_at?: string
+          description: string
+          direction?: string
+          iban?: string | null
+          id?: string
+          import_batch_id?: string
+          imported_by?: string | null
+          matched_subject_id?: string | null
+          matched_subject_name?: string | null
+          movement_date: string
+          raw_data?: Json | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account?: string | null
+          created_at?: string
+          description?: string
+          direction?: string
+          iban?: string | null
+          id?: string
+          import_batch_id?: string
+          imported_by?: string | null
+          matched_subject_id?: string | null
+          matched_subject_name?: string | null
+          movement_date?: string
+          raw_data?: Json | null
+          reference?: string | null
+          status?: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Relationships: []
+      }
+      bank_reconciliations: {
+        Row: {
+          bank_movement_id: string
+          created_at: string
+          id: string
+          invoice_id: string | null
+          match_score: number | null
+          match_type: string
+          notes: string | null
+          prima_nota_id: string | null
+          reconciled_amount: number
+          reconciled_by: string | null
+          scadenza_id: string | null
+        }
+        Insert: {
+          bank_movement_id: string
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          match_score?: number | null
+          match_type?: string
+          notes?: string | null
+          prima_nota_id?: string | null
+          reconciled_amount: number
+          reconciled_by?: string | null
+          scadenza_id?: string | null
+        }
+        Update: {
+          bank_movement_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+          match_score?: number | null
+          match_type?: string
+          notes?: string | null
+          prima_nota_id?: string | null
+          reconciled_amount?: number
+          reconciled_by?: string | null
+          scadenza_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_reconciliations_bank_movement_id_fkey"
+            columns: ["bank_movement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_prima_nota_id_fkey"
+            columns: ["prima_nota_id"]
+            isOneToOne: false
+            referencedRelation: "prima_nota"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       becca_activity_log: {
         Row: {
           account_id: string
