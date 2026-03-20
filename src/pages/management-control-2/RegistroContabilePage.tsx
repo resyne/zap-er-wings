@@ -307,6 +307,21 @@ export default function RegistroContabilePage() {
   const [showBulkDuplicateAlert, setShowBulkDuplicateAlert] = useState(false);
   const [bulkDuplicateInfo, setBulkDuplicateInfo] = useState<{ fileName: string; invoiceNumber: string; existing: InvoiceRegistry | null }>({ fileName: '', invoiceNumber: '', existing: null });
   const bulkDuplicateResolveRef = useRef<((action: 'replace' | 'skip') => void) | null>(null);
+  
+  // AI Accounting Analysis states
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    cost_account_id?: string;
+    revenue_account_id?: string;
+    cost_center_id?: string;
+    profit_center_id?: string;
+    vat_regime?: string;
+    iva_rate?: number;
+    financial_status?: string;
+    reasoning?: string;
+    confidence?: string;
+    warnings?: string[];
+  } | null>(null);
 
   // Helper: check for duplicate invoice by number (and optionally subject)
   const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
