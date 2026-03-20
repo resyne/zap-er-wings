@@ -290,6 +290,17 @@ export default function RiconciliazionePagamentiPage() {
     totalAmount: movements.reduce((s: number, m: any) => s + Number(m.amount), 0),
   };
 
+  // Admin guard (after all hooks)
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <ShieldAlert className="h-16 w-16 text-destructive/40" />
+        <h2 className="text-xl font-semibold text-foreground">Accesso Riservato</h2>
+        <p className="text-sm text-muted-foreground">Solo gli amministratori possono accedere alla riconciliazione pagamenti.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
