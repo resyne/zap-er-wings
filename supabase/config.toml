@@ -1,5 +1,8 @@
 project_id = "rucjkoleodtwrbftwgsm"
 
+[functions.ai-accounting-analysis]
+verify_jwt = false
+
 [functions.classify-accounting-entry]
 verify_jwt = false
 
