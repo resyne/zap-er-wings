@@ -57,7 +57,9 @@ import {
   Undo2,
   Lock,
   UserPlus,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Sparkles,
+  Brain
 } from "lucide-react";
 
 interface AccountSplitLine {
