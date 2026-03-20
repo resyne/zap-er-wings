@@ -1072,16 +1072,13 @@ export default function OffersPage() {
   };
 
   const handleCustomerCreated = async (customerId?: string) => {
-    // Refetch only customers to avoid resetting dialog state via setLoading
-    const { data: customersData } = await supabase
-      .from('customers')
-      .select('id, name, email, phone, address, tax_id, code, company_name')
-      .eq('active', true);
-    if (customersData) {
-      setCustomers(customersData);
-    }
+    // Refetch all active customers with pagination (prevents missing freshly created records)
+    const customersData = await fetchAllActiveCustomers();
+    setCustomers(customersData);
+
     if (customerId) {
       setNewOffer(prev => ({ ...prev, customer_id: customerId }));
+      setCustomerSearchOpen(true);
     }
   };
 
