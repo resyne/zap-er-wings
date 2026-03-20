@@ -928,7 +928,11 @@ export default function ServiceReportsPage() {
       amount: '',
       vat_rate: '22',
       total_amount: '',
-      kilometers: '0'
+      kilometers: '0',
+      payment_received: false,
+      payment_amount: '',
+      payment_method: '',
+      payment_notes: ''
     });
     setTechniciansList([]);
     setMaterialItems([]);
