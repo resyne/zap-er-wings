@@ -10150,7 +10150,10 @@ export type Database = {
           materials_used: string | null
           non_contabilizzato: boolean
           notes: string | null
+          payment_amount: number | null
           payment_date: string | null
+          payment_method: string | null
+          payment_notes: string | null
           payment_status: string
           production_work_order_id: string | null
           report_number: string | null
@@ -10191,7 +10194,10 @@ export type Database = {
           materials_used?: string | null
           non_contabilizzato?: boolean
           notes?: string | null
+          payment_amount?: number | null
           payment_date?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
           payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
@@ -10232,7 +10238,10 @@ export type Database = {
           materials_used?: string | null
           non_contabilizzato?: boolean
           notes?: string | null
+          payment_amount?: number | null
           payment_date?: string | null
+          payment_method?: string | null
+          payment_notes?: string | null
           payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
