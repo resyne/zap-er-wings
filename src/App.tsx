@@ -137,8 +137,7 @@ const GeofencesPage = lazy(() => import("./pages/hr/attendance/GeofencesPage"));
 const AttendanceSettingsPage = lazy(() => import("./pages/hr/attendance/AttendanceSettingsPage"));
 const LeavesPage = lazy(() => import("./pages/hr/attendance/LeavesPage"));
 const CorrectionsPage = lazy(() => import("./pages/hr/attendance/CorrectionsPage"));
-const RiconciliazioneIncassiPage = lazy(() => import("./pages/finanza/RiconciliazioneIncassiPage"));
-const RiconciliazionePagamentiPage = lazy(() => import("./pages/finanza/RiconciliazionePagamentiPage"));
+const TesoreriaPage = lazy(() => import("./pages/finanza/TesoreriaPage"));
 
 // Loading fallback for lazy routes
 const PageLoader = () => (
@@ -305,8 +304,7 @@ const App = () => (
                 <Route path="tasks" element={<LazyPage><TasksPage /></LazyPage>} />
                 <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
                 <Route path="personal-area/calendario" element={<LazyPage><CalendarioPersonale /></LazyPage>} />
-                <Route path="finanza/riconciliazione-incassi" element={<LazyPage><RiconciliazioneIncassiPage /></LazyPage>} />
-                <Route path="finanza/riconciliazione-pagamenti" element={<LazyPage><RiconciliazionePagamentiPage /></LazyPage>} />
+                <Route path="finanza/tesoreria" element={<LazyPage><TesoreriaPage /></LazyPage>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />
