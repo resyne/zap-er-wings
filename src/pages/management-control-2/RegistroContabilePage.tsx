@@ -57,7 +57,9 @@ import {
   Undo2,
   Lock,
   UserPlus,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Sparkles,
+  Brain
 } from "lucide-react";
 
 interface AccountSplitLine {
@@ -305,6 +307,21 @@ export default function RegistroContabilePage() {
   const [showBulkDuplicateAlert, setShowBulkDuplicateAlert] = useState(false);
   const [bulkDuplicateInfo, setBulkDuplicateInfo] = useState<{ fileName: string; invoiceNumber: string; existing: InvoiceRegistry | null }>({ fileName: '', invoiceNumber: '', existing: null });
   const bulkDuplicateResolveRef = useRef<((action: 'replace' | 'skip') => void) | null>(null);
+  
+  // AI Accounting Analysis states
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    cost_account_id?: string;
+    revenue_account_id?: string;
+    cost_center_id?: string;
+    profit_center_id?: string;
+    vat_regime?: string;
+    iva_rate?: number;
+    financial_status?: string;
+    reasoning?: string;
+    confidence?: string;
+    warnings?: string[];
+  } | null>(null);
 
   // Helper: check for duplicate invoice by number (and optionally subject)
   const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
@@ -2506,6 +2523,59 @@ export default function RegistroContabilePage() {
     }
     
     setShowEditDialog(true);
+    setAiSuggestion(null);
+  };
+
+  // AI Accounting Analysis handler
+  const runAiAnalysis = async (formDataToAnalyze: FormData, isEdit: boolean = true) => {
+    setIsAiAnalyzing(true);
+    setAiSuggestion(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-accounting-analysis', {
+        body: {
+          invoice: {
+            invoice_type: formDataToAnalyze.invoice_type,
+            subject_name: formDataToAnalyze.subject_name,
+            subject_type: formDataToAnalyze.subject_type,
+            imponibile: formDataToAnalyze.imponibile,
+            iva_rate: formDataToAnalyze.iva_rate,
+            vat_regime: formDataToAnalyze.vat_regime,
+            financial_status: formDataToAnalyze.financial_status,
+            invoice_date: formDataToAnalyze.invoice_date,
+            notes: formDataToAnalyze.notes,
+          },
+          chartOfAccounts: accounts,
+          costCenters,
+          profitCenters,
+        }
+      });
+      if (error) throw error;
+      if (data?.success && data?.suggestion) {
+        setAiSuggestion(data.suggestion);
+        toast.success('Analisi AI completata');
+      } else {
+        toast.error(data?.error || 'Errore nell\'analisi AI');
+      }
+    } catch (err: any) {
+      console.error('AI analysis error:', err);
+      toast.error('Errore nell\'analisi AI: ' + (err.message || 'Errore sconosciuto'));
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
+
+  const applyAiSuggestion = (isEdit: boolean = true) => {
+    if (!aiSuggestion) return;
+    const setter = isEdit ? handleEditFormChange : handleFormChange;
+    if (aiSuggestion.cost_account_id) setter('cost_account_id', aiSuggestion.cost_account_id);
+    if (aiSuggestion.revenue_account_id) setter('revenue_account_id', aiSuggestion.revenue_account_id);
+    if (aiSuggestion.cost_center_id) setter('cost_center_id', aiSuggestion.cost_center_id);
+    if (aiSuggestion.profit_center_id) setter('profit_center_id', aiSuggestion.profit_center_id);
+    if (aiSuggestion.vat_regime) setter('vat_regime', aiSuggestion.vat_regime);
+    if (aiSuggestion.iva_rate !== undefined) setter('iva_rate', aiSuggestion.iva_rate);
+    if (aiSuggestion.financial_status) setter('financial_status', aiSuggestion.financial_status);
+    toast.success('Suggerimenti AI applicati');
+    setAiSuggestion(null);
   };
 
   // Filter by selected period first
@@ -3896,6 +3966,56 @@ export default function RegistroContabilePage() {
                 </CollapsibleContent>
               </Collapsible>
             </div>
+            
+            {/* AI Analysis for Create */}
+            <div className="border border-dashed border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">Analisi AI</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => runAiAnalysis(formData, false)}
+                  disabled={isAiAnalyzing || !formData.imponibile}
+                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  {isAiAnalyzing ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />Analisi...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5" />Suggerisci classificazione</>
+                  )}
+                </Button>
+              </div>
+              
+              {aiSuggestion && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <Badge className={cn(
+                    aiSuggestion.confidence === 'high' ? 'bg-green-500/20 text-green-600 border-green-500/30' :
+                    aiSuggestion.confidence === 'medium' ? 'bg-amber-500/20 text-amber-600 border-amber-500/30' :
+                    'bg-red-500/20 text-red-600 border-red-500/30'
+                  )}>
+                    {aiSuggestion.confidence === 'high' ? '🎯 Alta confidenza' :
+                     aiSuggestion.confidence === 'medium' ? '⚡ Media confidenza' : '⚠️ Bassa confidenza'}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground italic">{aiSuggestion.reasoning}</p>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={() => applyAiSuggestion(false)} className="gap-1.5">
+                      <Check className="w-3.5 h-3.5" />Applica
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAiSuggestion(null)}>Ignora</Button>
+                  </div>
+                </div>
+              )}
+              
+              {!aiSuggestion && !isAiAnalyzing && (
+                <p className="text-xs text-muted-foreground">
+                  L'AI suggerirà conto, centro e regime IVA basandosi sullo storico del soggetto.
+                </p>
+              )}
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -4440,6 +4560,132 @@ export default function RegistroContabilePage() {
               <div className="flex justify-between font-semibold">
                 <span>Totale:</span>
                 <span className="text-primary">€{(editFormData.imponibile * (1 + editFormData.iva_rate / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+            
+            {/* AI Accounting Analysis */}
+            <div className="col-span-2">
+              <div className="border border-dashed border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-primary">Analisi AI Contabilizzazione</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => runAiAnalysis(editFormData, true)}
+                    disabled={isAiAnalyzing || !editFormData.imponibile}
+                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    {isAiAnalyzing ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" />Analisi...</>
+                    ) : (
+                      <><Sparkles className="w-3.5 h-3.5" />Analizza</>
+                    )}
+                  </Button>
+                </div>
+                
+                {aiSuggestion && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                    {/* Confidence badge */}
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn(
+                        aiSuggestion.confidence === 'high' ? 'bg-green-500/20 text-green-600 border-green-500/30' :
+                        aiSuggestion.confidence === 'medium' ? 'bg-amber-500/20 text-amber-600 border-amber-500/30' :
+                        'bg-red-500/20 text-red-600 border-red-500/30'
+                      )}>
+                        {aiSuggestion.confidence === 'high' ? '🎯 Alta confidenza' :
+                         aiSuggestion.confidence === 'medium' ? '⚡ Media confidenza' :
+                         '⚠️ Bassa confidenza'}
+                      </Badge>
+                    </div>
+                    
+                    {/* Reasoning */}
+                    <p className="text-sm text-muted-foreground italic">
+                      {aiSuggestion.reasoning}
+                    </p>
+                    
+                    {/* Suggestions detail */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {aiSuggestion.cost_account_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Conto Costo:</span>
+                          <p className="font-medium">{accounts.find(a => a.id === aiSuggestion.cost_account_id)?.name || aiSuggestion.cost_account_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.revenue_account_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Conto Ricavo:</span>
+                          <p className="font-medium">{accounts.find(a => a.id === aiSuggestion.revenue_account_id)?.name || aiSuggestion.revenue_account_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.cost_center_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Centro Costo:</span>
+                          <p className="font-medium">{costCenters.find(c => c.id === aiSuggestion.cost_center_id)?.name || aiSuggestion.cost_center_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.profit_center_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Centro Ricavo:</span>
+                          <p className="font-medium">{profitCenters.find(c => c.id === aiSuggestion.profit_center_id)?.name || aiSuggestion.profit_center_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.vat_regime && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Regime IVA:</span>
+                          <p className="font-medium">{aiSuggestion.vat_regime === 'domestica_imponibile' ? 'Ordinario' : aiSuggestion.vat_regime === 'reverse_charge' ? 'Reverse Charge' : aiSuggestion.vat_regime}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.iva_rate !== undefined && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Aliquota IVA:</span>
+                          <p className="font-medium">{aiSuggestion.iva_rate}%</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Warnings */}
+                    {aiSuggestion.warnings && aiSuggestion.warnings.length > 0 && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 space-y-1">
+                        {aiSuggestion.warnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-600 flex items-start gap-1">
+                            <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />{w}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Apply button */}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => applyAiSuggestion(true)}
+                        className="gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Applica suggerimenti
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAiSuggestion(null)}
+                      >
+                        Ignora
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {!aiSuggestion && !isAiAnalyzing && (
+                  <p className="text-xs text-muted-foreground">
+                    L'AI analizzerà la fattura e suggerirà conto, centro di costo/ricavo e regime IVA basandosi sullo storico.
+                  </p>
+                )}
               </div>
             </div>
           </div>
