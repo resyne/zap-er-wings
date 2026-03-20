@@ -48,17 +48,6 @@ export default function RiconciliazionePagamentiPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isAutoMatching, setIsAutoMatching] = useState(false);
 
-  // Admin guard
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <ShieldAlert className="h-16 w-16 text-destructive/40" />
-        <h2 className="text-xl font-semibold text-foreground">Accesso Riservato</h2>
-        <p className="text-sm text-muted-foreground">Solo gli amministratori possono accedere alla riconciliazione pagamenti.</p>
-      </div>
-    );
-  }
-
   // Fetch outflow movements
   const { data: movements = [], isLoading } = useQuery({
     queryKey: ["bank-movements-outflow"],
