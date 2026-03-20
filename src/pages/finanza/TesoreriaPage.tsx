@@ -135,32 +135,63 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
 
       if (rows.length === 0) { toast.error("Il file non contiene dati"); return; }
 
+      // Auto-detect columns by scanning keys
+      const sampleKeys = Object.keys(rows[0] || {});
+      const findCol = (patterns: string[]) =>
+        sampleKeys.find(k => patterns.some(p => k.toLowerCase().includes(p)));
+
+      const amountCol = findCol(["importo", "amount", "dare", "avere", "totale", "saldo", "valuta"]);
+      const dateCol = findCol(["data", "date", "valuta", "operazione"]);
+      const descCol = findCol(["descrizione", "description", "causale", "motivo", "oggetto", "riferimento"]);
+      const ibanCol = findCol(["iban"]);
+      const refCol = findCol(["riferimento", "reference", "cro", "trn"]);
+      const accountCol = findCol(["conto", "account", "corrente"]);
+
+      console.log("Colonne rilevate:", { amountCol, dateCol, descCol, keys: sampleKeys });
+
+      if (!amountCol) {
+        toast.error(`Colonna importo non trovata. Colonne nel file: ${sampleKeys.join(", ")}`);
+        return;
+      }
+
       const batchId = crypto.randomUUID();
       const items = rows.map((row) => {
+        // Try to parse amount from detected column, fallback to scanning all numeric-looking values
+        let rawAmount = row[amountCol!] || "0";
         let amount = parseFloat(
-          String(row.Importo || row.Amount || row.importo || row.amount || "0")
-            .replace(/[€\s]/g, "").replace(",", ".")
+          String(rawAmount).replace(/[€\s.]/g, "").replace(",", ".")
         );
+        // If dot is used as thousands separator (e.g. "1.234,56"), handle it
+        if (isNaN(amount)) {
+          amount = parseFloat(String(rawAmount).replace(/[€\s]/g, "").replace(",", "."));
+        }
         if (isNaN(amount)) return null;
         amount = Math.abs(amount);
         if (amount === 0) return null;
 
-        const dateStr = row.Data || row.Date || row.data || row.date || row["Data Operazione"] || row["Data operazione"] || "";
+        const dateStr = dateCol ? (row[dateCol] || "") : "";
         let movDate: string;
         try {
-          const d = new Date(dateStr);
+          // Handle dd/MM/yyyy format common in Italian banks
+          const parts = String(dateStr).split("/");
+          let d: Date;
+          if (parts.length === 3 && parts[0].length <= 2) {
+            d = new Date(`${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`);
+          } else {
+            d = new Date(dateStr);
+          }
           movDate = isNaN(d.getTime()) ? new Date().toISOString().split("T")[0] : d.toISOString().split("T")[0];
         } catch { movDate = new Date().toISOString().split("T")[0]; }
 
         return {
           import_batch_id: batchId,
           movement_date: movDate,
-          description: row.Descrizione || row.Description || row.descrizione || row.Causale || row.causale || "",
+          description: descCol ? (row[descCol] || "") : "",
           amount,
           direction,
-          bank_account: row.Conto || row["Conto Corrente"] || null,
-          iban: row.IBAN || row.iban || null,
-          reference: row.Riferimento || row.Reference || row.CRO || null,
+          bank_account: accountCol ? (row[accountCol] || null) : null,
+          iban: ibanCol ? (row[ibanCol] || null) : null,
+          reference: refCol ? (row[refCol] || null) : null,
           raw_data: row,
           status: "unmatched" as const,
           imported_by: user?.id,
