@@ -2523,6 +2523,59 @@ export default function RegistroContabilePage() {
     }
     
     setShowEditDialog(true);
+    setAiSuggestion(null);
+  };
+
+  // AI Accounting Analysis handler
+  const runAiAnalysis = async (formDataToAnalyze: FormData, isEdit: boolean = true) => {
+    setIsAiAnalyzing(true);
+    setAiSuggestion(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-accounting-analysis', {
+        body: {
+          invoice: {
+            invoice_type: formDataToAnalyze.invoice_type,
+            subject_name: formDataToAnalyze.subject_name,
+            subject_type: formDataToAnalyze.subject_type,
+            imponibile: formDataToAnalyze.imponibile,
+            iva_rate: formDataToAnalyze.iva_rate,
+            vat_regime: formDataToAnalyze.vat_regime,
+            financial_status: formDataToAnalyze.financial_status,
+            invoice_date: formDataToAnalyze.invoice_date,
+            notes: formDataToAnalyze.notes,
+          },
+          chartOfAccounts: accounts,
+          costCenters,
+          profitCenters,
+        }
+      });
+      if (error) throw error;
+      if (data?.success && data?.suggestion) {
+        setAiSuggestion(data.suggestion);
+        toast.success('Analisi AI completata');
+      } else {
+        toast.error(data?.error || 'Errore nell\'analisi AI');
+      }
+    } catch (err: any) {
+      console.error('AI analysis error:', err);
+      toast.error('Errore nell\'analisi AI: ' + (err.message || 'Errore sconosciuto'));
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
+
+  const applyAiSuggestion = (isEdit: boolean = true) => {
+    if (!aiSuggestion) return;
+    const setter = isEdit ? handleEditFormChange : handleFormChange;
+    if (aiSuggestion.cost_account_id) setter('cost_account_id', aiSuggestion.cost_account_id);
+    if (aiSuggestion.revenue_account_id) setter('revenue_account_id', aiSuggestion.revenue_account_id);
+    if (aiSuggestion.cost_center_id) setter('cost_center_id', aiSuggestion.cost_center_id);
+    if (aiSuggestion.profit_center_id) setter('profit_center_id', aiSuggestion.profit_center_id);
+    if (aiSuggestion.vat_regime) setter('vat_regime', aiSuggestion.vat_regime);
+    if (aiSuggestion.iva_rate !== undefined) setter('iva_rate', aiSuggestion.iva_rate);
+    if (aiSuggestion.financial_status) setter('financial_status', aiSuggestion.financial_status);
+    toast.success('Suggerimenti AI applicati');
+    setAiSuggestion(null);
   };
 
   // Filter by selected period first
