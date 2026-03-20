@@ -155,6 +155,13 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Finanza",
+    items: [
+      { title: "Riconciliazione Incassi", url: "/finanza/riconciliazione-incassi", icon: ArrowDownCircle },
+      { title: "Riconciliazione Pagamenti", url: "/finanza/riconciliazione-pagamenti", icon: ArrowUpCircle },
+    ]
+  },
+  {
     title: "Contabilità",
     items: [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
