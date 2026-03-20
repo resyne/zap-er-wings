@@ -44,7 +44,9 @@ import {
   MessageCircle,
   MapPin,
   AlertTriangle,
-  Bot
+  Bot,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from "lucide-react";
 
 import {

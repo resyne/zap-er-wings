@@ -305,6 +305,8 @@ const App = () => (
                 <Route path="tasks" element={<LazyPage><TasksPage /></LazyPage>} />
                 <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
                 <Route path="personal-area/calendario" element={<LazyPage><CalendarioPersonale /></LazyPage>} />
+                <Route path="finanza/riconciliazione-incassi" element={<LazyPage><RiconciliazioneIncassiPage /></LazyPage>} />
+                <Route path="finanza/riconciliazione-pagamenti" element={<LazyPage><RiconciliazionePagamentiPage /></LazyPage>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />
