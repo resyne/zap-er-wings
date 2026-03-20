@@ -3966,6 +3966,56 @@ export default function RegistroContabilePage() {
                 </CollapsibleContent>
               </Collapsible>
             </div>
+            
+            {/* AI Analysis for Create */}
+            <div className="border border-dashed border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">Analisi AI</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => runAiAnalysis(formData, false)}
+                  disabled={isAiAnalyzing || !formData.imponibile}
+                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  {isAiAnalyzing ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />Analisi...</>
+                  ) : (
+                    <><Sparkles className="w-3.5 h-3.5" />Suggerisci classificazione</>
+                  )}
+                </Button>
+              </div>
+              
+              {aiSuggestion && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <Badge className={cn(
+                    aiSuggestion.confidence === 'high' ? 'bg-green-500/20 text-green-600 border-green-500/30' :
+                    aiSuggestion.confidence === 'medium' ? 'bg-amber-500/20 text-amber-600 border-amber-500/30' :
+                    'bg-red-500/20 text-red-600 border-red-500/30'
+                  )}>
+                    {aiSuggestion.confidence === 'high' ? '🎯 Alta confidenza' :
+                     aiSuggestion.confidence === 'medium' ? '⚡ Media confidenza' : '⚠️ Bassa confidenza'}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground italic">{aiSuggestion.reasoning}</p>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={() => applyAiSuggestion(false)} className="gap-1.5">
+                      <Check className="w-3.5 h-3.5" />Applica
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAiSuggestion(null)}>Ignora</Button>
+                  </div>
+                </div>
+              )}
+              
+              {!aiSuggestion && !isAiAnalyzing && (
+                <p className="text-xs text-muted-foreground">
+                  L'AI suggerirà conto, centro e regime IVA basandosi sullo storico del soggetto.
+                </p>
+              )}
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
