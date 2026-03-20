@@ -970,7 +970,11 @@ export default function ServiceReportsPage() {
       amount: report.amount?.toString() || '',
       vat_rate: report.vat_rate?.toString() || '22',
       total_amount: report.total_amount?.toString() || '',
-      kilometers: (report as any).kilometers?.toString() || '0'
+      kilometers: (report as any).kilometers?.toString() || '0',
+      payment_received: (report as any).payment_status === 'pagato',
+      payment_amount: (report as any).payment_amount?.toString() || '',
+      payment_method: (report as any).payment_method || '',
+      payment_notes: (report as any).payment_notes || ''
     });
 
     // Set customer and technician
