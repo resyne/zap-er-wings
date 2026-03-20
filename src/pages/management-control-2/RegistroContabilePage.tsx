@@ -4512,6 +4512,132 @@ export default function RegistroContabilePage() {
                 <span className="text-primary">€{(editFormData.imponibile * (1 + editFormData.iva_rate / 100)).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
+            
+            {/* AI Accounting Analysis */}
+            <div className="col-span-2">
+              <div className="border border-dashed border-primary/30 rounded-lg p-4 space-y-3 bg-primary/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-primary">Analisi AI Contabilizzazione</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => runAiAnalysis(editFormData, true)}
+                    disabled={isAiAnalyzing || !editFormData.imponibile}
+                    className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    {isAiAnalyzing ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" />Analisi...</>
+                    ) : (
+                      <><Sparkles className="w-3.5 h-3.5" />Analizza</>
+                    )}
+                  </Button>
+                </div>
+                
+                {aiSuggestion && (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                    {/* Confidence badge */}
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn(
+                        aiSuggestion.confidence === 'high' ? 'bg-green-500/20 text-green-600 border-green-500/30' :
+                        aiSuggestion.confidence === 'medium' ? 'bg-amber-500/20 text-amber-600 border-amber-500/30' :
+                        'bg-red-500/20 text-red-600 border-red-500/30'
+                      )}>
+                        {aiSuggestion.confidence === 'high' ? '🎯 Alta confidenza' :
+                         aiSuggestion.confidence === 'medium' ? '⚡ Media confidenza' :
+                         '⚠️ Bassa confidenza'}
+                      </Badge>
+                    </div>
+                    
+                    {/* Reasoning */}
+                    <p className="text-sm text-muted-foreground italic">
+                      {aiSuggestion.reasoning}
+                    </p>
+                    
+                    {/* Suggestions detail */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {aiSuggestion.cost_account_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Conto Costo:</span>
+                          <p className="font-medium">{accounts.find(a => a.id === aiSuggestion.cost_account_id)?.name || aiSuggestion.cost_account_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.revenue_account_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Conto Ricavo:</span>
+                          <p className="font-medium">{accounts.find(a => a.id === aiSuggestion.revenue_account_id)?.name || aiSuggestion.revenue_account_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.cost_center_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Centro Costo:</span>
+                          <p className="font-medium">{costCenters.find(c => c.id === aiSuggestion.cost_center_id)?.name || aiSuggestion.cost_center_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.profit_center_id && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Centro Ricavo:</span>
+                          <p className="font-medium">{profitCenters.find(c => c.id === aiSuggestion.profit_center_id)?.name || aiSuggestion.profit_center_id}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.vat_regime && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Regime IVA:</span>
+                          <p className="font-medium">{aiSuggestion.vat_regime === 'domestica_imponibile' ? 'Ordinario' : aiSuggestion.vat_regime === 'reverse_charge' ? 'Reverse Charge' : aiSuggestion.vat_regime}</p>
+                        </div>
+                      )}
+                      {aiSuggestion.iva_rate !== undefined && (
+                        <div className="bg-background rounded p-2">
+                          <span className="text-muted-foreground">Aliquota IVA:</span>
+                          <p className="font-medium">{aiSuggestion.iva_rate}%</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Warnings */}
+                    {aiSuggestion.warnings && aiSuggestion.warnings.length > 0 && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 space-y-1">
+                        {aiSuggestion.warnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-600 flex items-start gap-1">
+                            <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />{w}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Apply button */}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => applyAiSuggestion(true)}
+                        className="gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Applica suggerimenti
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAiSuggestion(null)}
+                      >
+                        Ignora
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {!aiSuggestion && !isAiAnalyzing && (
+                  <p className="text-xs text-muted-foreground">
+                    L'AI analizzerà la fattura e suggerirà conto, centro di costo/ricavo e regime IVA basandosi sullo storico.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
