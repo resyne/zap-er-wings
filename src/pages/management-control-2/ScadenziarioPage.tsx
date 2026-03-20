@@ -3,7 +3,21 @@ import { BankReconciliationDialog } from "@/components/riconciliazione/BankRecon
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDropzone } from "react-dropzone";
 import { supabase } from "@/integrations/supabase/client";
-import { format, differenceInDays, parseISO } from "date-fns";
+import {
+  format,
+  differenceInDays,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+  addMonths,
+  subMonths,
+  addDays,
+  subDays,
+  isSameMonth,
+  isSameDay,
+} from "date-fns";
 import { it } from "date-fns/locale";
 import { toast } from "sonner";
 import {
@@ -14,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,9 +53,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowUpCircle,
@@ -51,6 +63,7 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Euro,
   FileText,
   History,
@@ -58,15 +71,18 @@ import {
   CreditCard,
   Receipt,
   Search,
-  Plus,
   Upload,
   X,
   File,
   Image as ImageIcon,
   Link2,
+  Calendar,
+  Users,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ── Types ──────────────────────────────────────────
 interface Scadenza {
   id: string;
   evento_id: string | null;
@@ -105,9 +121,16 @@ interface ScadenzaMovimento {
   created_at: string;
 }
 
-interface ClienteGroup {
-  nome: string;
-  tipo: "credito" | "debito";
+type GroupByMode = "soggetto" | "mese" | "giorno";
+type TipoFilter = "tutti" | "crediti" | "debiti";
+type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa";
+
+interface GroupData {
+  key: string;
+  label: string;
+  sublabel?: string;
+  icon: "building" | "calendar" | "day";
+  tipo?: "credito" | "debito";
   scadenze: Scadenza[];
   totaleImporto: number;
   totaleResiduo: number;
@@ -115,34 +138,60 @@ interface ClienteGroup {
   scadenzeScadute: number;
 }
 
+// ── Helpers ────────────────────────────────────────
+const getGiorniScadenza = (dataScadenza: string) => {
+  return differenceInDays(parseISO(dataScadenza), new Date());
+};
+
+const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
+
+const fmtEuro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
+
+// ── Main Component ─────────────────────────────────
 export default function ScadenziarioPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"tutti" | "crediti" | "debiti">("tutti");
-  const [statoFilter, setStatoFilter] = useState<"tutti" | "aperta" | "parziale" | "chiusa">("tutti");
+
+  // Filters
+  const [activeTab, setActiveTab] = useState<TipoFilter>("tutti");
+  const [statoFilter, setStatoFilter] = useState<StatoFilter>("tutti");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [showClosed, setShowClosed] = useState(false);
+
+  // Grouping & period
+  const [groupBy, setGroupBy] = useState<GroupByMode>("mese");
+  const [selectedPeriod, setSelectedPeriod] = useState(new Date());
+
+  // UI state
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [expandedScadenza, setExpandedScadenza] = useState<string | null>(null);
+
+  // Payment dialog
   const [registraDialogOpen, setRegistraDialogOpen] = useState(false);
   const [selectedScadenza, setSelectedScadenza] = useState<Scadenza | null>(null);
-  const [importoRegistrazione, setImportoRegistrazione] = useState<string>("");
-  const [dataRegistrazione, setDataRegistrazione] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [metodoRegistrazione, setMetodoRegistrazione] = useState<string>("bonifico");
-  const [noteRegistrazione, setNoteRegistrazione] = useState<string>("");
+  const [importoRegistrazione, setImportoRegistrazione] = useState("");
+  const [dataRegistrazione, setDataRegistrazione] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [metodoRegistrazione, setMetodoRegistrazione] = useState("bonifico");
+  const [noteRegistrazione, setNoteRegistrazione] = useState("");
   const [paymentFiles, setPaymentFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [showClosed, setShowClosed] = useState(false);
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
-  // Helper function - defined early to be used in useMemo
-  const getGiorniScadenza = (dataScadenza: string) => {
-    const oggi = new Date();
-    const scadenza = parseISO(dataScadenza);
-    return differenceInDays(scadenza, oggi);
+  // ── Period navigation ─────────────────────────────
+  const periodLabel = useMemo(() => {
+    if (groupBy === "mese") return format(selectedPeriod, "MMMM yyyy", { locale: it });
+    if (groupBy === "giorno") return format(selectedPeriod, "EEEE d MMMM yyyy", { locale: it });
+    return "";
+  }, [groupBy, selectedPeriod]);
+
+  const goBack = () => {
+    setSelectedPeriod(p => groupBy === "mese" ? subMonths(p, 1) : subDays(p, 1));
   };
+  const goForward = () => {
+    setSelectedPeriod(p => groupBy === "mese" ? addMonths(p, 1) : addDays(p, 1));
+  };
+  const goToday = () => setSelectedPeriod(new Date());
 
-  const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
-
-  // Fetch scadenze con dettagli fattura
+  // ── Data fetching ─────────────────────────────────
   const { data: scadenze, isLoading } = useQuery({
     queryKey: ["scadenze-dettagliate", activeTab, statoFilter],
     queryFn: async () => {
@@ -151,15 +200,9 @@ export default function ScadenziarioPage() {
         .select("*, fattura:invoice_registry!scadenze_fattura_id_fkey(id, invoice_number, invoice_date, invoice_type, financial_status)")
         .order("data_scadenza", { ascending: true });
 
-      if (activeTab === "crediti") {
-        query = query.eq("tipo", "credito");
-      } else if (activeTab === "debiti") {
-        query = query.eq("tipo", "debito");
-      }
-
-      if (statoFilter !== "tutti") {
-        query = query.eq("stato", statoFilter);
-      }
+      if (activeTab === "crediti") query = query.eq("tipo", "credito");
+      else if (activeTab === "debiti") query = query.eq("tipo", "debito");
+      if (statoFilter !== "tutti") query = query.eq("stato", statoFilter);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -176,7 +219,6 @@ export default function ScadenziarioPage() {
     },
   });
 
-  // Fetch movimenti per scadenza espansa
   const { data: movimenti } = useQuery({
     queryKey: ["scadenza-movimenti", expandedScadenza],
     queryFn: async () => {
@@ -192,74 +234,119 @@ export default function ScadenziarioPage() {
     enabled: !!expandedScadenza,
   });
 
-  // Raggruppa scadenze per cliente
-  const clientiGroups = useMemo(() => {
-    if (!scadenze) return [];
+  // ── Grouping logic ────────────────────────────────
+  const { groups, closedCount } = useMemo(() => {
+    if (!scadenze) return { groups: [] as GroupData[], closedCount: 0 };
 
-    const filteredScadenze = searchQuery
-      ? scadenze.filter(s => 
+    // Text filter
+    const filtered = searchQuery
+      ? scadenze.filter(s =>
           s.soggetto_nome?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           s.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : scadenze;
 
-    const grouped = new Map<string, ClienteGroup>();
-
-    filteredScadenze.forEach(s => {
-      const key = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
-      
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          nome: s.soggetto_nome || "Sconosciuto",
-          tipo: s.tipo,
-          scadenze: [],
-          totaleImporto: 0,
-          totaleResiduo: 0,
-          scadenzeAperte: 0,
-          scadenzeScadute: 0,
+    // Period filter for mese/giorno modes
+    const periodFiltered = groupBy === "soggetto"
+      ? filtered
+      : filtered.filter(s => {
+          const d = parseISO(s.data_scadenza);
+          if (groupBy === "mese") return isSameMonth(d, selectedPeriod);
+          return isSameDay(d, selectedPeriod);
         });
-      }
 
-      const group = grouped.get(key)!;
-      group.scadenze.push(s);
-      group.totaleImporto += Number(s.importo_totale);
-      group.totaleResiduo += Number(s.importo_residuo);
-      
-      if (s.stato === "aperta" || s.stato === "parziale") {
-        group.scadenzeAperte++;
-        if (getGiorniScadenza(s.data_scadenza) < 0) {
-          group.scadenzeScadute++;
+    const buildGroup = (key: string, label: string, sublabel: string | undefined, icon: GroupData["icon"], tipo: "credito" | "debito" | undefined, items: Scadenza[]): GroupData => {
+      let totaleImporto = 0, totaleResiduo = 0, scadenzeAperte = 0, scadenzeScadute = 0;
+      items.forEach(s => {
+        totaleImporto += Number(s.importo_totale);
+        totaleResiduo += Number(s.importo_residuo);
+        if (s.stato === "aperta" || s.stato === "parziale") {
+          scadenzeAperte++;
+          if (getGiorniScadenza(s.data_scadenza) < 0) scadenzeScadute++;
         }
-      }
-    });
+      });
+      return { key, label, sublabel, icon, tipo, scadenze: items, totaleImporto, totaleResiduo, scadenzeAperte, scadenzeScadute };
+    };
 
-    const allGroups = Array.from(grouped.values()).sort((a, b) => {
-      if (a.scadenzeScadute !== b.scadenzeScadute) {
-        return b.scadenzeScadute - a.scadenzeScadute;
-      }
-      return b.totaleResiduo - a.totaleResiduo;
-    });
+    let allGroups: GroupData[] = [];
 
-    // Filter out fully closed groups unless showClosed is true
-    if (!showClosed) {
-      return allGroups.filter(g => g.totaleResiduo > 0 || g.scadenzeAperte > 0);
+    if (groupBy === "soggetto") {
+      const map = new Map<string, Scadenza[]>();
+      periodFiltered.forEach(s => {
+        const k = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
+        if (!map.has(k)) map.set(k, []);
+        map.get(k)!.push(s);
+      });
+      map.forEach((items, k) => {
+        const nome = items[0].soggetto_nome || "Sconosciuto";
+        const tipo = items[0].tipo;
+        allGroups.push(buildGroup(k, nome, tipo === "credito" ? "Cliente" : "Fornitore", "building", tipo, items));
+      });
+      allGroups.sort((a, b) => b.scadenzeScadute - a.scadenzeScadute || b.totaleResiduo - a.totaleResiduo);
+    } else if (groupBy === "mese") {
+      // Group by day within the selected month
+      const map = new Map<string, Scadenza[]>();
+      periodFiltered.forEach(s => {
+        const dayKey = format(parseISO(s.data_scadenza), "yyyy-MM-dd");
+        if (!map.has(dayKey)) map.set(dayKey, []);
+        map.get(dayKey)!.push(s);
+      });
+      const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+      sorted.forEach(([dayKey, items]) => {
+        const d = parseISO(dayKey);
+        const label = format(d, "EEEE d MMMM", { locale: it });
+        const giorni = differenceInDays(d, new Date());
+        let sublabel = "";
+        if (giorni < 0) sublabel = `${Math.abs(giorni)} giorni fa`;
+        else if (giorni === 0) sublabel = "Oggi";
+        else sublabel = `Tra ${giorni} giorni`;
+        allGroups.push(buildGroup(dayKey, label, sublabel, "day", undefined, items));
+      });
+    } else {
+      // giorno: group by soggetto within the day
+      const map = new Map<string, Scadenza[]>();
+      periodFiltered.forEach(s => {
+        const k = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
+        if (!map.has(k)) map.set(k, []);
+        map.get(k)!.push(s);
+      });
+      map.forEach((items, k) => {
+        const nome = items[0].soggetto_nome || "Sconosciuto";
+        const tipo = items[0].tipo;
+        allGroups.push(buildGroup(k, nome, tipo === "credito" ? "Cliente" : "Fornitore", "building", tipo, items));
+      });
+      allGroups.sort((a, b) => b.totaleResiduo - a.totaleResiduo);
     }
-    return allGroups;
-  }, [scadenze, searchQuery, showClosed]);
 
-  const closedGroupsCount = useMemo(() => {
-    if (!scadenze) return 0;
-    const grouped = new Map<string, { residuo: number; aperte: number }>();
-    scadenze.forEach(s => {
-      const key = `${s.soggetto_nome || "Sconosciuto"}-${s.tipo}`;
-      if (!grouped.has(key)) grouped.set(key, { residuo: 0, aperte: 0 });
-      const g = grouped.get(key)!;
-      g.residuo += Number(s.importo_residuo);
-      if (s.stato === "aperta" || s.stato === "parziale") g.aperte++;
-    });
-    return Array.from(grouped.values()).filter(g => g.residuo <= 0 && g.aperte === 0).length;
-  }, [scadenze]);
+    const closedCount = allGroups.filter(g => g.totaleResiduo <= 0 && g.scadenzeAperte === 0).length;
 
+    if (!showClosed) {
+      allGroups = allGroups.filter(g => g.totaleResiduo > 0 || g.scadenzeAperte > 0);
+    }
+
+    return { groups: allGroups, closedCount };
+  }, [scadenze, searchQuery, groupBy, selectedPeriod, showClosed]);
+
+  // ── KPI totals ────────────────────────────────────
+  const totali = useMemo(() => {
+    const items = groups.flatMap(g => g.scadenze);
+    return items.reduce(
+      (acc, s) => {
+        if (!isClosedScadenza(s)) {
+          if (s.tipo === "credito") acc.crediti += Number(s.importo_residuo);
+          else acc.debiti += Number(s.importo_residuo);
+        }
+        return acc;
+      },
+      { crediti: 0, debiti: 0 }
+    );
+  }, [groups]);
+
+  const scaduteCount = useMemo(() => {
+    return groups.flatMap(g => g.scadenze).filter(s => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length;
+  }, [groups]);
+
+  // ── Mutations ─────────────────────────────────────
   const registraMutation = useMutation({
     mutationFn: async ({
       scadenza,
@@ -276,40 +363,26 @@ export default function ScadenziarioPage() {
       note: string;
       files: File[];
     }) => {
-      // Upload files first
       const uploadedFiles: { path: string; name: string; size: number; type: string }[] = [];
-      
+
       if (files.length > 0) {
         setUploadingFiles(true);
         try {
           for (const file of files) {
             const fileExt = file.name.split('.').pop();
             const fileName = `payments/${scadenza.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
             const { error: uploadError, data: uploadData } = await supabase.storage
               .from('accounting-files')
-              .upload(fileName, file, {
-                cacheControl: '3600',
-                upsert: false
-              });
-
-            if (uploadError) {
-              console.error('File upload error:', uploadError);
-              // Continue with other files
-            } else if (uploadData) {
-              uploadedFiles.push({
-                path: uploadData.path,
-                name: file.name,
-                size: file.size,
-                type: file.type
-              });
+              .upload(fileName, file, { cacheControl: '3600', upsert: false });
+            if (!uploadError && uploadData) {
+              uploadedFiles.push({ path: uploadData.path, name: file.name, size: file.size, type: file.type });
             }
           }
         } finally {
           setUploadingFiles(false);
         }
       }
-      // 1. Crea evento finanziario
+
       const eventoFinanziario = {
         document_date: data,
         document_type: "documento_interno",
@@ -330,10 +403,8 @@ export default function ScadenziarioPage() {
         .insert(eventoFinanziario)
         .select()
         .single();
-
       if (eventoError) throw eventoError;
 
-      // 2. Crea movimento prima nota finanziaria
       const primaNotaData = {
         accounting_entry_id: eventoData.id,
         movement_type: "finanziario",
@@ -349,64 +420,21 @@ export default function ScadenziarioPage() {
         .insert(primaNotaData)
         .select()
         .single();
-
       if (primaNotaError) throw primaNotaError;
 
-      // 3. Genera righe prima nota (partita doppia)
-      const righe: Array<{
-        prima_nota_id: string;
-        line_order: number;
-        account_type: string;
-        dynamic_account_key: string;
-        dare: number;
-        avere: number;
-        description: string;
-      }> = [];
-
-      if (scadenza.tipo === "credito") {
-        righe.push({
-          prima_nota_id: primaNotaResult.id,
-          line_order: 1,
-          account_type: "structural",
-          dynamic_account_key: "BANCA",
-          dare: importo,
-          avere: 0,
-          description: "Incasso da cliente",
-        });
-        righe.push({
-          prima_nota_id: primaNotaResult.id,
-          line_order: 2,
-          account_type: "structural",
-          dynamic_account_key: "CREDITI_CLIENTI",
-          dare: 0,
-          avere: importo,
-          description: "Chiusura credito",
-        });
-      } else {
-        righe.push({
-          prima_nota_id: primaNotaResult.id,
-          line_order: 1,
-          account_type: "structural",
-          dynamic_account_key: "DEBITI_FORNITORI",
-          dare: importo,
-          avere: 0,
-          description: "Chiusura debito",
-        });
-        righe.push({
-          prima_nota_id: primaNotaResult.id,
-          line_order: 2,
-          account_type: "structural",
-          dynamic_account_key: "BANCA",
-          dare: 0,
-          avere: importo,
-          description: "Pagamento a fornitore",
-        });
-      }
+      const righe = scadenza.tipo === "credito"
+        ? [
+            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "structural", dynamic_account_key: "BANCA", dare: importo, avere: 0, description: "Incasso da cliente" },
+            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "structural", dynamic_account_key: "CREDITI_CLIENTI", dare: 0, avere: importo, description: "Chiusura credito" },
+          ]
+        : [
+            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "structural", dynamic_account_key: "DEBITI_FORNITORI", dare: importo, avere: 0, description: "Chiusura debito" },
+            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "structural", dynamic_account_key: "BANCA", dare: 0, avere: importo, description: "Pagamento a fornitore" },
+          ];
 
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
       if (righeError) throw righeError;
 
-      // 4. Crea movimento scadenza with file attachments
       const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert({
         scadenza_id: scadenza.id,
         evento_finanziario_id: eventoData.id,
@@ -417,21 +445,15 @@ export default function ScadenziarioPage() {
         note: note + (uploadedFiles.length > 0 ? `\n\nAllegati: ${uploadedFiles.map(f => f.name).join(', ')}` : ''),
         attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
       });
-
       if (movimentoError) throw movimentoError;
 
-      // 5. Aggiorna scadenza
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
       const nuovoStato = nuovoResiduo <= 0 ? "chiusa" : nuovoResiduo < Number(scadenza.importo_totale) ? "parziale" : "aperta";
 
       const { error: updateError } = await supabase
         .from("scadenze")
-        .update({
-          importo_residuo: Math.max(0, nuovoResiduo),
-          stato: nuovoStato,
-        })
+        .update({ importo_residuo: Math.max(0, nuovoResiduo), stato: nuovoStato })
         .eq("id", scadenza.id);
-
       if (updateError) throw updateError;
 
       return { success: true };
@@ -444,7 +466,6 @@ export default function ScadenziarioPage() {
       resetForm();
     },
     onError: (error) => {
-      console.error("Errore registrazione:", error);
       toast.error(`Errore durante la registrazione: ${error.message}`);
     },
   });
@@ -477,25 +498,16 @@ export default function ScadenziarioPage() {
       'application/pdf': ['.pdf'],
       'video/*': ['.mp4', '.mov', '.avi', '.webm'],
     },
-    maxSize: 20 * 1024 * 1024, // 20MB
+    maxSize: 20 * 1024 * 1024,
   });
 
-  const removeFile = (index: number) => {
-    setPaymentFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeFile = (index: number) => setPaymentFiles(prev => prev.filter((_, i) => i !== index));
 
   const handleRegistra = () => {
     if (!selectedScadenza) return;
     const importo = parseFloat(importoRegistrazione);
-    if (isNaN(importo) || importo <= 0) {
-      toast.error("Inserisci un importo valido");
-      return;
-    }
-    if (importo > selectedScadenza.importo_residuo) {
-      toast.error("L'importo non può superare il residuo");
-      return;
-    }
-
+    if (isNaN(importo) || importo <= 0) { toast.error("Inserisci un importo valido"); return; }
+    if (importo > selectedScadenza.importo_residuo) { toast.error("L'importo non può superare il residuo"); return; }
     registraMutation.mutate({
       scadenza: selectedScadenza,
       importo,
@@ -506,226 +518,206 @@ export default function ScadenziarioPage() {
     });
   };
 
-  const toggleClientExpand = (clientKey: string) => {
-    const newExpanded = new Set(expandedClients);
-    if (newExpanded.has(clientKey)) {
-      newExpanded.delete(clientKey);
-    } else {
-      newExpanded.add(clientKey);
-    }
-    setExpandedClients(newExpanded);
+  const toggleGroupExpand = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   };
 
-
+  // ── Badge helpers ─────────────────────────────────
   const getStatoBadge = (stato: string) => {
     switch (stato) {
-      case "aperta":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Aperta</Badge>;
-      case "parziale":
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Parziale</Badge>;
-      case "chiusa":
-      case "saldata":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Chiusa</Badge>;
-      case "stornata":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">Stornata</Badge>;
-      default:
-        return <Badge variant="outline">{stato}</Badge>;
+      case "aperta": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Aperta</Badge>;
+      case "parziale": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px]">Parziale</Badge>;
+      case "chiusa": case "saldata": return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">Chiusa</Badge>;
+      case "stornata": return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">Stornata</Badge>;
+      default: return <Badge variant="outline" className="text-[10px]">{stato}</Badge>;
     }
   };
 
   const getGiorniBadge = (giorni: number, stato: string) => {
     if (stato === "chiusa" || stato === "saldata") return null;
-    
-    if (giorni < 0) {
-      return (
-        <Badge variant="destructive" className="gap-1 text-xs">
-          <AlertTriangle className="h-3 w-3" />
-          -{Math.abs(giorni)}gg
-        </Badge>
-      );
-    }
-    if (giorni <= 7) {
-      return (
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-xs">
-          <Clock className="h-3 w-3" />
-          {giorni}gg
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 text-xs">
-        {giorni}gg
-      </Badge>
-    );
+    if (giorni < 0) return <Badge variant="destructive" className="gap-0.5 text-[10px]"><AlertTriangle className="h-2.5 w-2.5" />-{Math.abs(giorni)}gg</Badge>;
+    if (giorni <= 7) return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-0.5 text-[10px]"><Clock className="h-2.5 w-2.5" />{giorni}gg</Badge>;
+    return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">{giorni}gg</Badge>;
   };
 
-  // Calcolo totali
-  const totali = scadenze?.reduce(
-    (acc, s) => {
-      if (!isClosedScadenza(s)) {
-        if (s.tipo === "credito") {
-          acc.crediti += Number(s.importo_residuo);
-        } else {
-          acc.debiti += Number(s.importo_residuo);
-        }
-      }
-      return acc;
-    },
-    { crediti: 0, debiti: 0 }
-  ) || { crediti: 0, debiti: 0 };
-
-  const scaduteCount = scadenze?.filter((s) => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length || 0;
-
+  // ── Render ────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="container mx-auto py-6 space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        <div className="grid grid-cols-4 gap-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-20" />)}</div>
         <Skeleton className="h-96" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Clock className="h-5 w-5 text-primary" />
+    <div className="mx-auto px-4 md:px-6 max-w-[1600px] space-y-4">
+      {/* ── Sticky Filter Bar ─────────────────────── */}
+      <div className="sticky top-3 z-10 rounded-xl border bg-card/95 backdrop-blur-sm p-4 shadow-sm space-y-3">
+        {/* Row 1: Quick type filters + GroupBy + Period nav */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Quick type filters */}
+          <div className="flex items-center gap-1.5">
+            {([["tutti", "Tutti"], ["crediti", "Crediti"], ["debiti", "Debiti"]] as const).map(([val, label]) => (
+              <Button
+                key={val}
+                size="sm"
+                variant={activeTab === val ? "default" : "ghost"}
+                className={cn("h-7 text-xs px-3 rounded-full", activeTab !== val && "text-muted-foreground hover:text-foreground")}
+                onClick={() => setActiveTab(val)}
+              >
+                {val === "crediti" && <ArrowUpCircle className="h-3 w-3 mr-1" />}
+                {val === "debiti" && <ArrowDownCircle className="h-3 w-3 mr-1" />}
+                {label}
+              </Button>
+            ))}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Scadenziario</h1>
-            <p className="text-sm text-muted-foreground">Gestione crediti e debiti raggruppati per soggetto</p>
+
+          <div className="flex items-center gap-2">
+            {/* GroupBy selector */}
+            <div className="flex items-center border rounded-lg bg-background overflow-hidden">
+              {([["soggetto", "Soggetto", Users], ["mese", "Mese", Calendar], ["giorno", "Giorno", CalendarDays]] as const).map(([val, label, Icon]) => (
+                <Button
+                  key={val}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-8 rounded-none text-xs px-3 gap-1.5",
+                    groupBy === val
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}
+                  onClick={() => setGroupBy(val)}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Period navigator (only for mese/giorno) */}
+            {groupBy !== "soggetto" && (
+              <div className="flex items-center gap-1 border rounded-lg bg-background px-1">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goBack}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <button onClick={goToday} className="px-3 h-8 text-sm font-medium capitalize hover:bg-muted rounded transition-colors min-w-[160px] text-center">
+                  {periodLabel}
+                </button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goForward}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-        <Button variant="outline" onClick={() => setReconciliationOpen(true)} className="gap-2">
-          <Link2 className="h-4 w-4" />
-          Riconciliazione Bancaria
-        </Button>
+
+        {/* Row 2: KPIs inline + search + stato filter */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Compact inline KPIs */}
+          <div className="flex items-center gap-4 mr-auto">
+            <div className="flex items-center gap-1.5">
+              <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs text-muted-foreground">Crediti</span>
+              <span className="text-sm font-bold text-emerald-700">{fmtEuro(totali.crediti)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ArrowDownCircle className="h-4 w-4 text-red-600" />
+              <span className="text-xs text-muted-foreground">Debiti</span>
+              <span className="text-sm font-bold text-red-700">{fmtEuro(totali.debiti)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Euro className="h-4 w-4 text-primary" />
+              <span className="text-xs text-muted-foreground">Saldo</span>
+              <span className={cn("text-sm font-bold", totali.crediti - totali.debiti >= 0 ? "text-emerald-700" : "text-red-700")}>
+                {fmtEuro(totali.crediti - totali.debiti)}
+              </span>
+            </div>
+            {scaduteCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-bold text-orange-700">{scaduteCount} scadute</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca soggetto o fattura…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 w-56 bg-background"
+              />
+            </div>
+            <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as StatoFilter)}>
+              <SelectTrigger className="w-28 h-9 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tutti">Tutti</SelectItem>
+                <SelectItem value="aperta">Aperte</SelectItem>
+                <SelectItem value="parziale">Parziali</SelectItem>
+                <SelectItem value="chiusa">Chiuse</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setReconciliationOpen(true)} className="gap-1.5 h-9">
+              <Link2 className="h-3.5 w-3.5" />
+              Riconcilia
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* KPI Bar compatta */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-          <ArrowUpCircle className="h-5 w-5 text-emerald-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Crediti</p>
-            <p className="text-lg font-bold text-emerald-700 truncate">
-              € {totali.crediti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-          <ArrowDownCircle className="h-5 w-5 text-red-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Debiti</p>
-            <p className="text-lg font-bold text-red-700 truncate">
-              € {totali.debiti.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-          <Euro className="h-5 w-5 text-primary shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Saldo Netto</p>
-            <p className={cn("text-lg font-bold truncate", totali.crediti - totali.debiti >= 0 ? "text-emerald-700" : "text-red-700")}>
-              € {(totali.crediti - totali.debiti).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-          <AlertTriangle className={cn("h-5 w-5 shrink-0", scaduteCount > 0 ? "text-orange-600" : "text-muted-foreground")} />
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Scadute</p>
-            <p className={cn("text-lg font-bold", scaduteCount > 0 ? "text-orange-700" : "text-muted-foreground")}>
-              {scaduteCount}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1">
-          <TabsList>
-            <TabsTrigger value="tutti">Tutti</TabsTrigger>
-            <TabsTrigger value="crediti" className="gap-1.5">
-              <ArrowUpCircle className="h-3.5 w-3.5" />
-              Crediti
-            </TabsTrigger>
-            <TabsTrigger value="debiti" className="gap-1.5">
-              <ArrowDownCircle className="h-3.5 w-3.5" />
-              Debiti
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-56">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cerca cliente o fattura..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-          <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as typeof statoFilter)}>
-            <SelectTrigger className="w-28 h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="tutti">Tutti</SelectItem>
-              <SelectItem value="aperta">Aperte</SelectItem>
-              <SelectItem value="parziale">Parziali</SelectItem>
-              <SelectItem value="chiusa">Chiuse</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Client Groups - Compact */}
+      {/* ── Groups ────────────────────────────────── */}
       <Card className="border shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          {clientiGroups.length === 0 ? (
+          {groups.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground">
               <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="font-medium">Nessuna scadenza trovata</p>
+              <p className="text-sm mt-1">
+                {groupBy !== "soggetto" ? "Prova a cambiare periodo o modalità di raggruppamento" : "Nessun risultato per i filtri attivi"}
+              </p>
             </div>
           ) : (
             <div className="divide-y">
-              {clientiGroups.map((group) => {
-                const clientKey = `${group.nome}-${group.tipo}`;
-                const isExpanded = expandedClients.has(clientKey);
-                const percentualePagato = group.totaleImporto > 0 
-                  ? ((group.totaleImporto - group.totaleResiduo) / group.totaleImporto) * 100 
+              {groups.map((group) => {
+                const isExpanded = expandedGroups.has(group.key);
+                const pctPaid = group.totaleImporto > 0
+                  ? ((group.totaleImporto - group.totaleResiduo) / group.totaleImporto) * 100
                   : 0;
 
                 return (
-                  <Collapsible key={clientKey} open={isExpanded} onOpenChange={() => toggleClientExpand(clientKey)}>
+                  <Collapsible key={group.key} open={isExpanded} onOpenChange={() => toggleGroupExpand(group.key)}>
                     <CollapsibleTrigger asChild>
                       <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
-                        
-                        <div className={cn("p-1.5 rounded-md shrink-0", group.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                          <Building2 className={cn("h-4 w-4", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
-                        </div>
+                        {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
 
+                        {/* Icon */}
+                        {group.icon === "building" ? (
+                          <div className={cn("p-1.5 rounded-md shrink-0", group.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                            <Building2 className={cn("h-4 w-4", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                          </div>
+                        ) : (
+                          <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                            <CalendarDays className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+
+                        {/* Label */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm truncate">{group.nome}</span>
-                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", group.tipo === "credito" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200")}>
-                              {group.tipo === "credito" ? "Cliente" : "Fornitore"}
-                            </Badge>
+                            <span className="font-semibold text-sm capitalize truncate">{group.label}</span>
+                            {group.sublabel && (
+                              <span className="text-xs text-muted-foreground">{group.sublabel}</span>
+                            )}
                             {group.scadenzeScadute > 0 && (
                               <Badge variant="destructive" className="gap-0.5 text-[10px] px-1.5 py-0">
                                 <AlertTriangle className="h-2.5 w-2.5" />
@@ -734,23 +726,22 @@ export default function ScadenziarioPage() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {group.scadenze.length} fattur{group.scadenze.length === 1 ? "a" : "e"} · {group.scadenzeAperte} apert{group.scadenzeAperte === 1 ? "a" : "e"}
+                            {group.scadenze.length} scadenz{group.scadenze.length === 1 ? "a" : "e"} · {group.scadenzeAperte} apert{group.scadenzeAperte === 1 ? "a" : "e"}
                           </p>
                         </div>
 
+                        {/* Amounts */}
                         <div className="text-right shrink-0 hidden sm:block">
                           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Residuo / Totale</p>
                           <div className="flex items-baseline gap-1.5 justify-end">
-                            <span className={cn("font-bold text-sm", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
-                              € {group.totaleResiduo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                            <span className={cn("font-bold text-sm",
+                              group.tipo === "credito" ? "text-emerald-700" : group.tipo === "debito" ? "text-red-700" : "text-foreground"
+                            )}>
+                              {fmtEuro(group.totaleResiduo)}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              / € {group.totaleImporto.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                            </span>
+                            <span className="text-xs text-muted-foreground">/ {fmtEuro(group.totaleImporto)}</span>
                           </div>
-                          {percentualePagato > 0 && (
-                            <Progress value={percentualePagato} className="h-1 mt-1 w-32 ml-auto" />
-                          )}
+                          {pctPaid > 0 && <Progress value={pctPaid} className="h-1 mt-1 w-32 ml-auto" />}
                         </div>
                       </div>
                     </CollapsibleTrigger>
@@ -761,6 +752,9 @@ export default function ScadenziarioPage() {
                           <TableHeader>
                             <TableRow className="bg-muted/30 hover:bg-muted/30">
                               <TableHead className="w-8 pl-12"></TableHead>
+                              {groupBy !== "soggetto" && (
+                                <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Soggetto</TableHead>
+                              )}
                               <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fattura</TableHead>
                               <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Data Doc.</TableHead>
                               <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Scadenza</TableHead>
@@ -777,42 +771,36 @@ export default function ScadenziarioPage() {
 
                               return (
                                 <>
-                                  <TableRow 
-                                    key={scadenza.id} 
+                                  <TableRow
+                                    key={scadenza.id}
                                     className={cn(
                                       isClosedScadenza(scadenza) && "opacity-50",
                                       giorni < 0 && !isClosedScadenza(scadenza) && "bg-orange-50/50"
                                     )}
                                   >
                                     <TableCell className="pl-12">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={() => setExpandedScadenza(isScadenzaExpanded ? null : scadenza.id)}
-                                      >
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setExpandedScadenza(isScadenzaExpanded ? null : scadenza.id)}>
                                         {isScadenzaExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                       </Button>
                                     </TableCell>
+                                    {groupBy !== "soggetto" && (
+                                      <TableCell>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", scadenza.tipo === "credito" ? "bg-emerald-500" : "bg-red-500")} />
+                                          <span className="text-sm font-medium truncate max-w-[150px]">{scadenza.soggetto_nome || "N/D"}</span>
+                                        </div>
+                                      </TableCell>
+                                    )}
                                     <TableCell>
                                       <div className="flex items-center gap-2">
                                         <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                                         <div>
                                           {scadenza.fattura_id ? (
-                                            <button
-                                              className="font-mono font-medium text-sm text-primary hover:underline cursor-pointer"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                window.location.href = '/contabilita/registro-contabile';
-                                              }}
-                                            >
+                                            <button className="font-mono font-medium text-sm text-primary hover:underline" onClick={(e) => { e.stopPropagation(); window.location.href = '/contabilita/registro-contabile'; }}>
                                               {scadenza.invoice_number || "N/D"}
                                             </button>
                                           ) : (
                                             <span className="font-mono font-medium text-sm">{scadenza.invoice_number || "N/D"}</span>
-                                          )}
-                                          {scadenza.note && (
-                                            <p className="text-xs text-muted-foreground truncate max-w-36">{scadenza.note}</p>
                                           )}
                                         </div>
                                       </div>
@@ -827,20 +815,15 @@ export default function ScadenziarioPage() {
                                       </div>
                                     </TableCell>
                                     <TableCell className="text-right text-sm">
-                                      € {Number(scadenza.importo_totale).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                      {fmtEuro(Number(scadenza.importo_totale))}
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-semibold text-sm", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
-                                      € {Number(scadenza.importo_residuo).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                    <TableCell className={cn("text-right font-semibold text-sm", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
+                                      {fmtEuro(Number(scadenza.importo_residuo))}
                                     </TableCell>
                                     <TableCell>{getStatoBadge(scadenza.stato)}</TableCell>
                                     <TableCell>
                                       {!isClosedScadenza(scadenza) && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => openRegistraDialog(scadenza)}
-                                          className="gap-1 h-7 text-xs"
-                                        >
+                                        <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
                                           <CreditCard className="h-3 w-3" />
                                           {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
                                         </Button>
@@ -849,8 +832,8 @@ export default function ScadenziarioPage() {
                                   </TableRow>
 
                                   {isScadenzaExpanded && (
-                                    <TableRow>
-                                      <TableCell colSpan={8} className="bg-muted/30 p-4 pl-14">
+                                    <TableRow key={`${scadenza.id}-expanded`}>
+                                      <TableCell colSpan={groupBy !== "soggetto" ? 9 : 8} className="bg-muted/30 p-4 pl-14">
                                         <div className="space-y-2">
                                           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                             <History className="h-3.5 w-3.5" />
@@ -859,27 +842,20 @@ export default function ScadenziarioPage() {
                                           {movimenti && movimenti.length > 0 ? (
                                             <div className="space-y-1.5">
                                               {movimenti.map((mov) => (
-                                                <div 
-                                                  key={mov.id}
-                                                  className="flex items-center justify-between p-2.5 bg-background rounded-md border text-sm"
-                                                >
+                                                <div key={mov.id} className="flex items-center justify-between p-2.5 bg-background rounded-md border text-sm">
                                                   <div className="flex items-center gap-2.5">
-                                                    <div className={cn("p-1.5 rounded-full", group.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                      <CreditCard className={cn("h-3.5 w-3.5", group.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                    <div className={cn("p-1.5 rounded-full", scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                      <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
                                                     </div>
                                                     <div>
-                                                      <span className="font-medium">
-                                                        € {mov.importo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                                                      </span>
+                                                      <span className="font-medium">{fmtEuro(mov.importo)}</span>
                                                       <span className="text-muted-foreground ml-2 text-xs">
                                                         {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
                                                         {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
                                                       </span>
                                                     </div>
                                                   </div>
-                                                  {mov.note && (
-                                                    <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>
-                                                  )}
+                                                  {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
                                                 </div>
                                               ))}
                                             </div>
@@ -905,22 +881,17 @@ export default function ScadenziarioPage() {
         </CardContent>
       </Card>
 
-      {/* Toggle scadenze chiuse */}
-      {closedGroupsCount > 0 && (
+      {/* Toggle closed */}
+      {closedCount > 0 && (
         <div className="flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowClosed(!showClosed)}
-            className="gap-2 text-muted-foreground"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setShowClosed(!showClosed)} className="gap-2 text-muted-foreground">
             <CheckCircle className="h-4 w-4" />
-            {showClosed ? "Nascondi" : "Mostra"} {closedGroupsCount} soggett{closedGroupsCount === 1 ? "o" : "i"} saldat{closedGroupsCount === 1 ? "o" : "i"}
+            {showClosed ? "Nascondi" : "Mostra"} {closedCount} posizion{closedCount === 1 ? "e" : "i"} saldat{closedCount === 1 ? "a" : "e"}
           </Button>
         </div>
       )}
 
-      {/* Dialog registrazione */}
+      {/* ── Payment Dialog ────────────────────────── */}
       <Dialog open={registraDialogOpen} onOpenChange={setRegistraDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -944,13 +915,11 @@ export default function ScadenziarioPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Importo totale</span>
-                    <span>€ {Number(selectedScadenza.importo_totale).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                    <span>{fmtEuro(Number(selectedScadenza.importo_totale))}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Residuo</span>
-                    <span className="font-bold text-lg">
-                      € {Number(selectedScadenza.importo_residuo).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                    </span>
+                    <span className="font-bold text-lg">{fmtEuro(Number(selectedScadenza.importo_residuo))}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -958,32 +927,18 @@ export default function ScadenziarioPage() {
 
             <div className="space-y-2">
               <Label htmlFor="importo">Importo da registrare</Label>
-              <Input
-                id="importo"
-                type="number"
-                step="0.01"
-                value={importoRegistrazione}
-                onChange={(e) => setImportoRegistrazione(e.target.value)}
-                placeholder="0.00"
-              />
+              <Input id="importo" type="number" step="0.01" value={importoRegistrazione} onChange={(e) => setImportoRegistrazione(e.target.value)} placeholder="0.00" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="data">Data</Label>
-              <Input
-                id="data"
-                type="date"
-                value={dataRegistrazione}
-                onChange={(e) => setDataRegistrazione(e.target.value)}
-              />
+              <Input id="data" type="date" value={dataRegistrazione} onChange={(e) => setDataRegistrazione(e.target.value)} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="metodo">Metodo di pagamento</Label>
               <Select value={metodoRegistrazione} onValueChange={setMetodoRegistrazione}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bonifico">Bonifico</SelectItem>
                   <SelectItem value="contanti">Contanti</SelectItem>
@@ -996,63 +951,34 @@ export default function ScadenziarioPage() {
 
             <div className="space-y-2">
               <Label htmlFor="note">Note (opzionale)</Label>
-              <Textarea
-                id="note"
-                value={noteRegistrazione}
-                onChange={(e) => setNoteRegistrazione(e.target.value)}
-                placeholder="Eventuali note..."
-                rows={2}
-              />
+              <Textarea id="note" value={noteRegistrazione} onChange={(e) => setNoteRegistrazione(e.target.value)} placeholder="Eventuali note..." rows={2} />
             </div>
 
-            {/* File Upload Area */}
             <div className="space-y-2">
               <Label>Prova di pagamento (opzionale)</Label>
               <div
                 {...getRootProps()}
                 className={cn(
                   "border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
-                  isDragActive
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-primary hover:bg-accent/50"
+                  isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary hover:bg-accent/50"
                 )}
               >
                 <input {...getInputProps()} />
                 <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-                {isDragActive ? (
-                  <p className="text-sm text-primary">Rilascia i file qui...</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Trascina qui ricevute, screenshot o documenti (max 20MB)
-                  </p>
-                )}
+                {isDragActive
+                  ? <p className="text-sm text-primary">Rilascia i file qui...</p>
+                  : <p className="text-xs text-muted-foreground">Trascina qui ricevute, screenshot o documenti (max 20MB)</p>
+                }
               </div>
-              
-              {/* File List */}
               {paymentFiles.length > 0 && (
                 <div className="space-y-1 mt-2">
                   {paymentFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-muted rounded-md text-sm"
-                    >
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        {file.type.startsWith('image/') ? (
-                          <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" />
-                        ) : (
-                          <File className="h-4 w-4 text-muted-foreground shrink-0" />
-                        )}
+                        {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4 text-blue-500 shrink-0" /> : <File className="h-4 w-4 text-muted-foreground shrink-0" />}
                         <span className="truncate">{file.name}</span>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        className="shrink-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)} className="shrink-0"><X className="h-4 w-4" /></Button>
                     </div>
                   ))}
                 </div>
@@ -1061,9 +987,7 @@ export default function ScadenziarioPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRegistraDialogOpen(false)}>
-              Annulla
-            </Button>
+            <Button variant="outline" onClick={() => setRegistraDialogOpen(false)}>Annulla</Button>
             <Button onClick={handleRegistra} disabled={registraMutation.isPending}>
               {registraMutation.isPending ? "Registrazione..." : "Conferma"}
             </Button>
@@ -1089,7 +1013,6 @@ export default function ScadenziarioPage() {
           for (const match of matches) {
             const scadenza = scadenze?.find(s => s.id === match.scadenzaId);
             if (!scadenza) continue;
-            
             await registraMutation.mutateAsync({
               scadenza,
               importo: match.importo,
