@@ -44,7 +44,9 @@ import {
   MessageCircle,
   MapPin,
   AlertTriangle,
-  Bot
+  Bot,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from "lucide-react";
 
 import {
@@ -152,6 +154,13 @@ const navigationGroups: NavGroup[] = [
       { title: "Ricevimenti", url: "/procurement/receipts", icon: Package },
       { title: "Controllo Qualità", url: "/procurement/qc", icon: ClipboardCheck },
       { title: "Rifornimenti", url: "/procurement/replenishment", icon: BarChart3 },
+    ]
+  },
+  {
+    title: "Finanza",
+    items: [
+      { title: "Riconciliazione Incassi", url: "/finanza/riconciliazione-incassi", icon: ArrowDownCircle },
+      { title: "Riconciliazione Pagamenti", url: "/finanza/riconciliazione-pagamenti", icon: ArrowUpCircle },
     ]
   },
   {
