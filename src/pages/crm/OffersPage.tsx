@@ -223,6 +223,31 @@ export default function OffersPage() {
     }
   }, [loading, offers, searchParams]);
 
+  const fetchAllActiveCustomers = async (): Promise<Customer[]> => {
+    const pageSize = 1000;
+    let from = 0;
+    const allCustomers: Customer[] = [];
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, email, phone, address, tax_id, code, company_name')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .range(from, from + pageSize - 1);
+
+      if (error) throw error;
+
+      const batch = (data || []) as Customer[];
+      allCustomers.push(...batch);
+
+      if (batch.length < pageSize) break;
+      from += pageSize;
+    }
+
+    return allCustomers;
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -246,13 +271,8 @@ export default function OffersPage() {
         customer_name: offer.customers?.name || offer.customer_name,
       }));
 
-      // Load customers
-      const { data: customersData, error: customersError } = await supabase
-        .from('customers')
-        .select('id, name, email, phone, address, tax_id, code, company_name')
-        .eq('active', true);
-
-      if (customersError) throw customersError;
+      // Load customers (all records, paginated to avoid Supabase 1000-row default cap)
+      const customersData = await fetchAllActiveCustomers();
 
       // Load leads
       const { data: leadsData, error: leadsError } = await supabase
