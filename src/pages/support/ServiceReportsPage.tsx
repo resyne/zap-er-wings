@@ -785,6 +785,33 @@ export default function ServiceReportsPage() {
         }
       }
 
+      // Payment receipt section
+      if (formData.payment_received && parseFloat(formData.payment_amount || '0') > 0) {
+        if (y > 230) { doc.addPage(); y = 20; }
+        y += 3;
+        doc.setDrawColor(34, 139, 34);
+        doc.setFillColor(240, 255, 240);
+        doc.roundedRect(15, y - 3, 180, 30, 3, 3, 'FD');
+        doc.setTextColor(0, 100, 0);
+        doc.setFontSize(11);
+        doc.setFont(undefined, "bold");
+        doc.text("RICEVUTA DI PAGAMENTO", 105, y + 4, { align: "center" });
+        doc.setFontSize(9);
+        doc.setFont(undefined, "normal");
+        y += 10;
+        doc.text(`Importo ricevuto: €${parseFloat(formData.payment_amount).toFixed(2)}`, 25, y); y += 5;
+        if (formData.payment_method) {
+          const methodLabels: Record<string, string> = { contanti: 'Contanti', carta: 'Carta', bonifico: 'Bonifico', assegno: 'Assegno', altro: 'Altro' };
+          doc.text(`Metodo: ${methodLabels[formData.payment_method] || formData.payment_method}`, 25, y); y += 5;
+        }
+        if (formData.payment_notes) {
+          doc.text(`Note: ${formData.payment_notes}`, 25, y); y += 5;
+        }
+        doc.text(`Data: ${formData.intervention_date}`, 25, y);
+        doc.setTextColor(0, 0, 0);
+        y += 10;
+      }
+
       // Listino Prezzi
       if (y > 180) { doc.addPage(); y = 20; }
       y += 5;
