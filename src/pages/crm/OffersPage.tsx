@@ -1734,7 +1734,10 @@ export default function OffersPage() {
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[400px] p-0" align="start">
-                                  <Command>
+                                  <Command filter={(value, search) => {
+                                      if (!search) return 1;
+                                      return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                                    }}>
                                     <CommandInput placeholder="Cerca azienda..." />
                                     <CommandList>
                                       <CommandEmpty>Nessuna azienda trovata.</CommandEmpty>
