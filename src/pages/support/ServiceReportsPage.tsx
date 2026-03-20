@@ -1286,10 +1286,11 @@ export default function ServiceReportsPage() {
                           {report.payment_status === 'pagato' ? (
                             <Badge className="text-xs bg-green-600 hover:bg-green-700 flex items-center gap-1">
                               <CircleDollarSign className="w-3 h-3" />
-                              Pagato
+                              Pagato {(report as any).payment_amount ? `€${Number((report as any).payment_amount).toFixed(2)}` : ''}
+                              {(report as any).payment_method ? ` (${(report as any).payment_method})` : ''}
                             </Badge>
                           ) : (
-                            <Badge variant="destructive" className="text-xs">Non Pagato</Badge>
+                            <Badge variant="outline" className="text-xs">Da Fatturare</Badge>
                           )}
                         </div>
 
