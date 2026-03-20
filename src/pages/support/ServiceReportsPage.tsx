@@ -12,7 +12,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users, Archive, Trash2, Receipt, CircleDollarSign } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users, Archive, Trash2, Receipt, CircleDollarSign, Banknote, CreditCard, Wallet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
@@ -121,7 +122,11 @@ export default function ServiceReportsPage() {
     amount: '',
     vat_rate: '22',
     total_amount: '',
-    kilometers: '0'
+    kilometers: '0',
+    payment_received: false,
+    payment_amount: '',
+    payment_method: '',
+    payment_notes: ''
   });
   
   // Technicians list - dynamic adding
@@ -245,6 +250,8 @@ export default function ServiceReportsPage() {
           invoiced,
           invoice_number,
           payment_status,
+          payment_amount,
+          payment_method,
           archived,
           customers (
             id,
@@ -516,7 +523,12 @@ export default function ServiceReportsPage() {
         technicians_count: techniciansList.length || 1,
         kilometers: parseFloat(formData.kilometers) || 0,
         head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
-        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length,
+        payment_status: formData.payment_received ? 'pagato' : 'non_pagato',
+        payment_amount: formData.payment_received ? (parseFloat(formData.payment_amount) || 0) : 0,
+        payment_method: formData.payment_received ? (formData.payment_method || null) : null,
+        payment_notes: formData.payment_received ? (formData.payment_notes || null) : null,
+        payment_date: formData.payment_received ? formData.intervention_date : null
       };
 
       let reportId: string;
@@ -773,6 +785,33 @@ export default function ServiceReportsPage() {
         }
       }
 
+      // Payment receipt section
+      if (formData.payment_received && parseFloat(formData.payment_amount || '0') > 0) {
+        if (y > 230) { doc.addPage(); y = 20; }
+        y += 3;
+        doc.setDrawColor(34, 139, 34);
+        doc.setFillColor(240, 255, 240);
+        doc.roundedRect(15, y - 3, 180, 30, 3, 3, 'FD');
+        doc.setTextColor(0, 100, 0);
+        doc.setFontSize(11);
+        doc.setFont(undefined, "bold");
+        doc.text("RICEVUTA DI PAGAMENTO", 105, y + 4, { align: "center" });
+        doc.setFontSize(9);
+        doc.setFont(undefined, "normal");
+        y += 10;
+        doc.text(`Importo ricevuto: €${parseFloat(formData.payment_amount).toFixed(2)}`, 25, y); y += 5;
+        if (formData.payment_method) {
+          const methodLabels: Record<string, string> = { contanti: 'Contanti', carta: 'Carta', bonifico: 'Bonifico', assegno: 'Assegno', altro: 'Altro' };
+          doc.text(`Metodo: ${methodLabels[formData.payment_method] || formData.payment_method}`, 25, y); y += 5;
+        }
+        if (formData.payment_notes) {
+          doc.text(`Note: ${formData.payment_notes}`, 25, y); y += 5;
+        }
+        doc.text(`Data: ${formData.intervention_date}`, 25, y);
+        doc.setTextColor(0, 0, 0);
+        y += 10;
+      }
+
       // Listino Prezzi
       if (y > 180) { doc.addPage(); y = 20; }
       y += 5;
@@ -923,7 +962,11 @@ export default function ServiceReportsPage() {
       amount: '',
       vat_rate: '22',
       total_amount: '',
-      kilometers: '0'
+      kilometers: '0',
+      payment_received: false,
+      payment_amount: '',
+      payment_method: '',
+      payment_notes: ''
     });
     setTechniciansList([]);
     setMaterialItems([]);
@@ -961,7 +1004,11 @@ export default function ServiceReportsPage() {
       amount: report.amount?.toString() || '',
       vat_rate: report.vat_rate?.toString() || '22',
       total_amount: report.total_amount?.toString() || '',
-      kilometers: (report as any).kilometers?.toString() || '0'
+      kilometers: (report as any).kilometers?.toString() || '0',
+      payment_received: (report as any).payment_status === 'pagato',
+      payment_amount: (report as any).payment_amount?.toString() || '',
+      payment_method: (report as any).payment_method || '',
+      payment_notes: (report as any).payment_notes || ''
     });
 
     // Set customer and technician
@@ -1266,10 +1313,11 @@ export default function ServiceReportsPage() {
                           {report.payment_status === 'pagato' ? (
                             <Badge className="text-xs bg-green-600 hover:bg-green-700 flex items-center gap-1">
                               <CircleDollarSign className="w-3 h-3" />
-                              Pagato
+                              Pagato {(report as any).payment_amount ? `€${Number((report as any).payment_amount).toFixed(2)}` : ''}
+                              {(report as any).payment_method ? ` (${(report as any).payment_method})` : ''}
                             </Badge>
                           ) : (
-                            <Badge variant="destructive" className="text-xs">Non Pagato</Badge>
+                            <Badge variant="outline" className="text-xs">Da Fatturare</Badge>
                           )}
                         </div>
 
@@ -1785,13 +1833,118 @@ export default function ServiceReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Nota Fatturazione */}
-          <Card className="border-0 sm:border shadow-none sm:shadow-sm bg-muted/30">
-            <CardContent className="px-0 sm:px-6 py-4">
-              <p className="text-sm text-muted-foreground italic text-center">
-                Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata
-              </p>
-            </CardContent>
+          {/* Sezione Pagamento / Ricevuta */}
+          <Card className="border-0 sm:border shadow-none sm:shadow-sm overflow-hidden">
+            <CardHeader className="px-0 sm:px-6 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    formData.payment_received ? "bg-green-100 dark:bg-green-900/30" : "bg-muted"
+                  )}>
+                    <Banknote className={cn("h-5 w-5", formData.payment_received ? "text-green-600" : "text-muted-foreground")} />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Pagamento Ricevuto</CardTitle>
+                    <CardDescription className="text-xs">Il cliente ha effettuato il pagamento sul posto?</CardDescription>
+                  </div>
+                </div>
+                <Switch
+                  checked={formData.payment_received}
+                  onCheckedChange={(checked) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      payment_received: checked,
+                      payment_amount: checked && !prev.payment_amount ? prev.total_amount : prev.payment_amount
+                    }));
+                  }}
+                />
+              </div>
+            </CardHeader>
+            {formData.payment_received && (
+              <CardContent className="px-0 sm:px-6 pt-0 space-y-4">
+                <Separator />
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Importo Pagato (€) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.payment_amount}
+                      onChange={(e) => handleInputChange('payment_amount', e.target.value)}
+                      placeholder="0.00"
+                      className="h-12 text-lg font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Metodo di Pagamento</Label>
+                    <Select value={formData.payment_method} onValueChange={(value) => handleInputChange('payment_method', value)}>
+                      <SelectTrigger className="h-12">
+                        <SelectValue placeholder="Seleziona..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contanti">
+                          <span className="flex items-center gap-2"><Wallet className="h-4 w-4" /> Contanti</span>
+                        </SelectItem>
+                        <SelectItem value="carta">
+                          <span className="flex items-center gap-2"><CreditCard className="h-4 w-4" /> Carta</span>
+                        </SelectItem>
+                        <SelectItem value="bonifico">
+                          <span className="flex items-center gap-2"><Banknote className="h-4 w-4" /> Bonifico</span>
+                        </SelectItem>
+                        <SelectItem value="assegno">
+                          <span className="flex items-center gap-2"><Receipt className="h-4 w-4" /> Assegno</span>
+                        </SelectItem>
+                        <SelectItem value="altro">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Note Pagamento</Label>
+                  <Input
+                    value={formData.payment_notes}
+                    onChange={(e) => handleInputChange('payment_notes', e.target.value)}
+                    placeholder="Es: Pagamento in contanti alla consegna"
+                    className="h-10"
+                  />
+                </div>
+                {/* Riepilogo ricevuta */}
+                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CircleDollarSign className="h-5 w-5 text-green-600" />
+                    <span className="font-semibold text-green-800 dark:text-green-300">Ricevuta di Pagamento</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="text-muted-foreground">Totale intervento:</div>
+                    <div className="font-medium text-right">€{parseFloat(formData.total_amount || '0').toFixed(2)}</div>
+                    <div className="text-muted-foreground">Importo pagato:</div>
+                    <div className="font-semibold text-green-700 dark:text-green-400 text-right">€{parseFloat(formData.payment_amount || '0').toFixed(2)}</div>
+                    {formData.payment_method && (
+                      <>
+                        <div className="text-muted-foreground">Metodo:</div>
+                        <div className="font-medium text-right capitalize">{formData.payment_method}</div>
+                      </>
+                    )}
+                    {parseFloat(formData.total_amount || '0') - parseFloat(formData.payment_amount || '0') > 0.01 && (
+                      <>
+                        <div className="text-muted-foreground">Residuo:</div>
+                        <div className="font-medium text-orange-600 text-right">
+                          €{(parseFloat(formData.total_amount || '0') - parseFloat(formData.payment_amount || '0')).toFixed(2)}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            )}
+            {!formData.payment_received && (
+              <CardContent className="px-0 sm:px-6 pt-0">
+                <p className="text-sm text-muted-foreground italic text-center">
+                  Seguirà fattura secondo listino intervento fuori contratto di manutenzione programmata
+                </p>
+              </CardContent>
+            )}
           </Card>
 
           {/* Bottom CTA */}
