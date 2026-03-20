@@ -521,7 +521,12 @@ export default function ServiceReportsPage() {
         technicians_count: techniciansList.length || 1,
         kilometers: parseFloat(formData.kilometers) || 0,
         head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'head').length,
-        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length
+        specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => t.type === 'specialized').length,
+        payment_status: formData.payment_received ? 'pagato' : 'non_pagato',
+        payment_amount: formData.payment_received ? (parseFloat(formData.payment_amount) || 0) : 0,
+        payment_method: formData.payment_received ? (formData.payment_method || null) : null,
+        payment_notes: formData.payment_received ? (formData.payment_notes || null) : null,
+        payment_date: formData.payment_received ? formData.intervention_date : null
       };
 
       let reportId: string;
