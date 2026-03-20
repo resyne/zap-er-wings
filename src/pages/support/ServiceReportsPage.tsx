@@ -250,6 +250,8 @@ export default function ServiceReportsPage() {
           invoiced,
           invoice_number,
           payment_status,
+          payment_amount,
+          payment_method,
           archived,
           customers (
             id,
