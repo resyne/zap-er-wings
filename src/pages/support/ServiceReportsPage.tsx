@@ -12,7 +12,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users, Archive, Trash2, Receipt, CircleDollarSign } from "lucide-react";
+import { Plus, FileText, User, Wrench, ClipboardList, Download, Mail, Check, ChevronsUpDown, Settings, Car, Users, Archive, Trash2, Receipt, CircleDollarSign, Banknote, CreditCard, Wallet } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CreateCustomerDialog } from "@/components/support/CreateCustomerDialog";
 import { SignatureCanvas } from "@/components/support/SignatureCanvas";
