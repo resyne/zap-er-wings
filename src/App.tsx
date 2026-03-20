@@ -137,8 +137,7 @@ const GeofencesPage = lazy(() => import("./pages/hr/attendance/GeofencesPage"));
 const AttendanceSettingsPage = lazy(() => import("./pages/hr/attendance/AttendanceSettingsPage"));
 const LeavesPage = lazy(() => import("./pages/hr/attendance/LeavesPage"));
 const CorrectionsPage = lazy(() => import("./pages/hr/attendance/CorrectionsPage"));
-const RiconciliazioneIncassiPage = lazy(() => import("./pages/finanza/RiconciliazioneIncassiPage"));
-const RiconciliazionePagamentiPage = lazy(() => import("./pages/finanza/RiconciliazionePagamentiPage"));
+const TesoreriaPage = lazy(() => import("./pages/finanza/TesoreriaPage"));
 
 // Loading fallback for lazy routes
 const PageLoader = () => (
