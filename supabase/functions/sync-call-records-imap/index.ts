@@ -428,7 +428,7 @@ async function syncLegacyConfig(supabase: any, config: any) {
         if (callData) {
           let { data: existing } = await supabase
             .from('call_records')
-            .select('id, duration_seconds, recording_url, call_time, unique_call_id')
+            .select('id, duration_seconds, recording_url, call_time, unique_call_id, transcription')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
 
@@ -440,7 +440,8 @@ async function syncLegacyConfig(supabase: any, config: any) {
             }
           }
 
-          const shouldRefreshRecording = !!existing && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
+          const hasValidTranscription = existing?.transcription && existing.transcription.length > 20;
+          const shouldRefreshRecording = !!existing && !hasValidTranscription && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
             (!existing.recording_url || !existing.recording_url.includes(callData.unique_call_id));
 
           // If record exists and new data is better, update it
