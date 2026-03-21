@@ -206,7 +206,8 @@ async function syncPbxEmails(supabase: any, pbx: any) {
             }
           }
 
-          const shouldRefreshRecording = !!existing && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
+          const hasValidTranscription = existing?.transcription && existing.transcription.length > 20;
+          const shouldRefreshRecording = !!existing && !hasValidTranscription && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
             (!existing.recording_url || !existing.recording_url.includes(callData.unique_call_id));
 
           // If record exists and we have better data, update duration and/or recording
