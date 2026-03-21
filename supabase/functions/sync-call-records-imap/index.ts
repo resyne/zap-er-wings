@@ -935,7 +935,7 @@ async function findExistingCallBySignature(supabase: any, callData: CallRecordDa
   try {
     let query = supabase
       .from('call_records')
-      .select('id, duration_seconds, recording_url, call_time, unique_call_id')
+      .select('id, duration_seconds, recording_url, call_time, unique_call_id, transcription')
       .eq('call_date', callData.call_date)
       .eq('caller_number', callData.caller_number)
       .eq('called_number', callData.called_number)
