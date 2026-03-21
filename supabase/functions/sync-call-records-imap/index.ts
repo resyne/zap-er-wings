@@ -194,7 +194,7 @@ async function syncPbxEmails(supabase: any, pbx: any) {
           // Check if record exists
           let { data: existing } = await supabase
             .from('call_records')
-            .select('id, duration_seconds, recording_url, call_time, unique_call_id')
+            .select('id, duration_seconds, recording_url, call_time, unique_call_id, transcription')
             .eq('unique_call_id', callData.unique_call_id)
             .single();
 
