@@ -691,12 +691,14 @@ const CommesseGestioneSection = () => {
                         <TableHead>Titolo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead>Margine</TableHead>
+                        <TableHead>Periodo</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {commesseReali.map((c: any) => {
                         const customerName = c.customers?.company_name || c.customers?.name || "-";
+                        const md = byCommessa[c.id];
                         return (
                           <TableRow key={c.id}>
                             <TableCell className="font-medium">{c.number}</TableCell>
@@ -707,9 +709,12 @@ const CommesseGestioneSection = () => {
                                 {c.status?.replace(/_/g, " ") || "-"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{mgmtBadge(byCommessa[c.id])}</TableCell>
+                            <TableCell>{mgmtBadge(md)}</TableCell>
                             <TableCell>
-                              <CommessaDetailDialog commessa={c} managementData={byCommessa[c.id]} upsertMut={upsertMut} />
+                              {md ? <Badge variant="outline" className="text-[10px]">{getRiferimentoPeriodo(md)}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell>
+                              <CommessaDetailDialog commessa={c} managementData={md} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );
