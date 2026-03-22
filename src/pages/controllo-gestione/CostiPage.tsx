@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, Archive, Copy, Edit2 } from "lucide-react";
+import { Plus, Search, Filter, Archive, Copy, Edit2, UserPlus } from "lucide-react";
 import { useManagementCosts, useCostCategories, useCreateCost, useUpdateCost, useDeleteCost, ManagementCost } from "@/hooks/useManagementCosts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 // Metodi di pagamento allineati con Registro Contabile e Prima Nota
 const PAYMENT_METHODS = [
