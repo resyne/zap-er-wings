@@ -143,7 +143,14 @@ const CostiPage = () => {
   const handleAddSupplier = async () => {
     if (!newSupplierName.trim()) return;
     try {
-      const { data, error } = await supabase.from('suppliers').insert({ name: newSupplierName.trim(), active: true } as any).select('id, name').single();
+      const code = 'SUP-' + Date.now().toString(36).toUpperCase();
+      const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const { data, error } = await supabase.from('suppliers').insert({
+        name: newSupplierName.trim(),
+        code,
+        access_code: accessCode,
+        active: true,
+      } as any).select('id, name').single();
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ['suppliers-active'] });
       setEditingCost(p => ({ ...p!, supplier_id: data.id, supplier_name: data.name }));
