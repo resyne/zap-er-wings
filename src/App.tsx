@@ -80,6 +80,10 @@ const RegistroContabilePageContabilita = lazy(() => import("./pages/contabilita/
 const RegistroContabilePage = lazy(() => import("./pages/management-control-2/RegistroContabilePage"));
 const SetupContabilePage = lazy(() => import("./pages/management-control-2/SetupContabilePage"));
 const EventClassificationPage = lazy(() => import("./pages/management-control-2/EventClassificationPage"));
+const DashboardMarginalitaPage = lazy(() => import("./pages/controllo-gestione/DashboardMarginalitaPage"));
+const CostiPage = lazy(() => import("./pages/controllo-gestione/CostiPage"));
+const CentriDiCostoGestionePage = lazy(() => import("./pages/controllo-gestione/CentriDiCostoGestionePage"));
+const AnalisiVenditeCostiPage = lazy(() => import("./pages/controllo-gestione/AnalisiVenditeCostiPage"));
 const FluidaPage = lazy(() => import("./pages/hr/FluidaPage"));
 const DocumentationPage = lazy(() => import("./pages/documentation/DocumentationPage"));
 const TechnicalSheetsPage = lazy(() => import("./pages/documentation/TechnicalSheetsPage"));
