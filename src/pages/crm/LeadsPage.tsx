@@ -2167,6 +2167,26 @@ export default function LeadsPage() {
                                     </div>
                                   </div>
                                 </div>
+                                 {/* Source badge */}
+                                 {lead.source && (
+                                   <Badge variant="outline" className={cn(
+                                     "text-[8px] px-1 py-0 h-3.5 font-medium",
+                                     lead.source === 'facebook' && "bg-blue-100 text-blue-700 border-blue-200",
+                                     lead.source === 'website' && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                     lead.source === 'vesuviano_website' && "bg-teal-100 text-teal-700 border-teal-200",
+                                     lead.source === 'phone_call' && "bg-amber-100 text-amber-700 border-amber-200",
+                                     lead.source === 'social_media' && "bg-pink-100 text-pink-700 border-pink-200",
+                                     lead.source === 'referral' && "bg-purple-100 text-purple-700 border-purple-200",
+                                   )}>
+                                     {lead.source === 'facebook' ? 'FB' : 
+                                      lead.source === 'website' ? 'SITO' :
+                                      lead.source === 'vesuviano_website' ? 'VESUV' :
+                                      lead.source === 'phone_call' ? 'TEL' :
+                                      lead.source === 'social_media' ? 'SOCIAL' :
+                                      lead.source === 'referral' ? 'REF' :
+                                      lead.source.toUpperCase().slice(0, 5)}
+                                   </Badge>
+                                 )}
 
                                  {/* Info compatte: telefono + valore */}
                                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
