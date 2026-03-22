@@ -227,10 +227,10 @@ serve(async (req) => {
     }).join("\n");
 
     const taskStats = {
-      total: tasks.length,
-      todo: tasks.filter(t => t.status === 'todo').length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      done: tasks.filter(t => t.status === 'done').length,
+      total: fullTaskData.length,
+      todo: fullTaskData.filter((t: any) => t.status === 'todo').length,
+      inProgress: fullTaskData.filter((t: any) => t.status === 'in_progress').length,
+      done: fullTaskData.filter((t: any) => t.status === 'done').length,
     };
 
     const orderStats = {
