@@ -122,6 +122,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
   const [open, setOpen] = useState(false);
   const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
   const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [dataCompetenza, setDataCompetenza] = useState(managementData?.data_competenza || "");
+  const [dataFattura, setDataFattura] = useState(managementData?.data_fattura || "");
+  const [numeroFattura, setNumeroFattura] = useState(managementData?.numero_fattura || "");
   const [editing, setEditing] = useState(false);
 
   const customerName = commessa.customers?.company_name || commessa.customers?.name || "-";
@@ -133,6 +136,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
     if (val) {
       setRicavo(Number(managementData?.ricavo || 0));
       setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setDataCompetenza(managementData?.data_competenza || "");
+      setDataFattura(managementData?.data_fattura || "");
+      setNumeroFattura(managementData?.numero_fattura || "");
       setEditing(false);
     }
   };
@@ -144,6 +150,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
       cliente: customerName,
       ricavo,
       costo_diretto_stimato: costo,
+      data_competenza: dataCompetenza || null,
+      data_fattura: dataFattura || null,
+      numero_fattura: numeroFattura || null,
       existing_id: managementData?.id,
     }, { onSuccess: () => setEditing(false) });
   };
