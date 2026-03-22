@@ -1,0 +1,1 @@
+ALTER TABLE management_costs ADD COLUMN IF NOT EXISTS iva_mode text;
