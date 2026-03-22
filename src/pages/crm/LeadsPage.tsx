@@ -1913,13 +1913,33 @@ export default function LeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutte le fonti</SelectItem>
-                <SelectItem value="website">Sito web</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="social_media">Social Media</SelectItem>
-                <SelectItem value="cold_call">Cold Call</SelectItem>
-                <SelectItem value="trade_show">Fiera</SelectItem>
-                <SelectItem value="zapier">Zapier</SelectItem>
-                <SelectItem value="other">Altro</SelectItem>
+                <SelectItem value="facebook">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Facebook</span>
+                </SelectItem>
+                <SelectItem value="website">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Sito Web</span>
+                </SelectItem>
+                <SelectItem value="vesuviano_website">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />Sito Vesuviano</span>
+                </SelectItem>
+                <SelectItem value="phone_call">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Telefonata</span>
+                </SelectItem>
+                <SelectItem value="social_media">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-500 inline-block" />Social Media</span>
+                </SelectItem>
+                <SelectItem value="referral">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />Referral</span>
+                </SelectItem>
+                <SelectItem value="cold_call">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-500 inline-block" />Cold Call</span>
+                </SelectItem>
+                <SelectItem value="zapier">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />Zapier</span>
+                </SelectItem>
+                <SelectItem value="other">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />Altro</span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -2027,9 +2047,17 @@ export default function LeadsPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             className={cn(
-                              "cursor-pointer transition-all",
+                              "cursor-pointer transition-all border-l-4",
                               snapshot.isDragging && "shadow-lg scale-105",
-                              isMobile && "touch-manipulation"
+                              isMobile && "touch-manipulation",
+                              lead.source === 'facebook' && "border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/20",
+                              lead.source === 'website' && "border-l-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20",
+                              lead.source === 'vesuviano_website' && "border-l-teal-500 bg-teal-50/40 dark:bg-teal-950/20",
+                              lead.source === 'phone_call' && "border-l-amber-500",
+                              lead.source === 'social_media' && "border-l-pink-500 bg-pink-50/30 dark:bg-pink-950/20",
+                              lead.source === 'referral' && "border-l-purple-500",
+                              lead.source === 'zapier' && "border-l-orange-500",
+                              !lead.source && "border-l-gray-300"
                             )}
                             onClick={() => {
                               setSelectedLead(lead);
@@ -2139,6 +2167,26 @@ export default function LeadsPage() {
                                     </div>
                                   </div>
                                 </div>
+                                 {/* Source badge */}
+                                 {lead.source && (
+                                   <Badge variant="outline" className={cn(
+                                     "text-[8px] px-1 py-0 h-3.5 font-medium",
+                                     lead.source === 'facebook' && "bg-blue-100 text-blue-700 border-blue-200",
+                                     lead.source === 'website' && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                     lead.source === 'vesuviano_website' && "bg-teal-100 text-teal-700 border-teal-200",
+                                     lead.source === 'phone_call' && "bg-amber-100 text-amber-700 border-amber-200",
+                                     lead.source === 'social_media' && "bg-pink-100 text-pink-700 border-pink-200",
+                                     lead.source === 'referral' && "bg-purple-100 text-purple-700 border-purple-200",
+                                   )}>
+                                     {lead.source === 'facebook' ? 'FB' : 
+                                      lead.source === 'website' ? 'SITO' :
+                                      lead.source === 'vesuviano_website' ? 'VESUV' :
+                                      lead.source === 'phone_call' ? 'TEL' :
+                                      lead.source === 'social_media' ? 'SOCIAL' :
+                                      lead.source === 'referral' ? 'REF' :
+                                      lead.source.toUpperCase().slice(0, 5)}
+                                   </Badge>
+                                 )}
 
                                  {/* Info compatte: telefono + valore */}
                                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
