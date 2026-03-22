@@ -161,30 +161,32 @@ export default function OrdiniSection() {
                         <TableCell className="text-right font-medium">{order.total_amount != null ? `€ ${order.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "—"}</TableCell>
                         <TableCell><Badge variant={st.variant} className="text-xs">{st.label}</Badge></TableCell>
                         <TableCell>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  {hasAccounting ? (
-                                    <Badge variant="default" className="text-xs gap-1">
-                                      <FileCheck className="h-3 w-3" />
-                                      {order.invoice_number || "Collegato"}
-                                    </Badge>
-                                  ) : isExcluded ? (
-                                    <Badge variant="outline" className="text-xs text-muted-foreground">N/A</Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
-                                      <AlertTriangle className="h-3 w-3" />
-                                      Mancante
-                                    </Badge>
-                                  )}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {hasAccounting ? "Documento contabile collegato" : isExcluded ? "Escluso dalla contabilità" : "Nessun documento contabile collegato"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLinkDialog({
+                                open: true,
+                                orderId: order.id,
+                                orderNumber: order.number,
+                                currentLinkedId: order.accounting_document_id
+                              });
+                            }}
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            {hasAccounting ? (
+                              <Badge variant="default" className="text-xs gap-1">
+                                <FileCheck className="h-3 w-3" />
+                                {order.invoice_number || "Fatturato"}
+                              </Badge>
+                            ) : isExcluded ? (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">N/A</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20">
+                                <AlertTriangle className="h-3 w-3" />
+                                Da fatturare
+                              </Badge>
+                            )}
+                          </button>
                         </TableCell>
                         <TableCell onClick={e => e.stopPropagation()}>
                           <DropdownMenu>
