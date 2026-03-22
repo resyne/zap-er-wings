@@ -359,18 +359,31 @@ const CostiPage = () => {
                 </Select>
               </div>
               <div>
-                <Label>IVA %</Label>
-                <Input type="number" value={editingCost.vat_rate || ""} onChange={e => {
-                  const rate = parseFloat(e.target.value) || 0;
+                <Label>Regime IVA</Label>
+                <Select value={(editingCost as any).iva_mode || "none"} onValueChange={v => {
+                  const opt = IVA_OPTIONS.find(o => o.value === v);
+                  const rate = opt?.rate || 0;
                   const vatAmount = (editingCost.amount || 0) * rate / 100;
-                  setEditingCost(p => ({ ...p!, vat_rate: rate, vat_amount: vatAmount, net_amount: (p!.amount || 0) + vatAmount }));
-                }} />
+                  setEditingCost(p => ({
+                    ...p!,
+                    vat_rate: rate,
+                    vat_amount: vatAmount,
+                    net_amount: (p!.amount || 0) + vatAmount,
+                    ...(v !== "none" ? { iva_mode: v } : { iva_mode: undefined }),
+                  } as any));
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona regime IVA" /></SelectTrigger>
+                  <SelectContent>
+                    {IVA_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Metodo Pagamento</Label>
-                <Select value={editingCost.payment_method || ""} onValueChange={v => setEditingCost(p => ({ ...p!, payment_method: v }))}>
+                <Select value={editingCost.payment_method || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, payment_method: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuno —</SelectItem>
                     {PAYMENT_METHODS.map(pm => (
                       <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
                     ))}
@@ -381,9 +394,10 @@ const CostiPage = () => {
               {/* Centro di Costo — allineato con Registro Contabile */}
               <div>
                 <Label>Centro di Costo</Label>
-                <Select value={editingCost.cost_center_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, cost_center_id: v }))}>
+                <Select value={editingCost.cost_center_id || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, cost_center_id: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuno —</SelectItem>
                     {costCenters.map((cc: any) => (
                       <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
                     ))}
@@ -394,9 +408,10 @@ const CostiPage = () => {
               {/* Business Unit */}
               <div>
                 <Label>Business Unit</Label>
-                <Select value={editingCost.business_unit_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, business_unit_id: v }))}>
+                <Select value={editingCost.business_unit_id || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, business_unit_id: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuna —</SelectItem>
                     {businessUnits.map((bu: any) => (
                       <SelectItem key={bu.id} value={bu.id}>{bu.code} - {bu.name}</SelectItem>
                     ))}
@@ -414,6 +429,23 @@ const CostiPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nuovo Fornitore */}
+      <Dialog open={newSupplierOpen} onOpenChange={setNewSupplierOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nuovo Fornitore</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome Fornitore *</Label>
+              <Input value={newSupplierName} onChange={e => setNewSupplierName(e.target.value)} placeholder="Es. Acme S.r.l." />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setNewSupplierOpen(false)}>Annulla</Button>
+              <Button onClick={handleAddSupplier} disabled={!newSupplierName.trim()}>Aggiungi</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
