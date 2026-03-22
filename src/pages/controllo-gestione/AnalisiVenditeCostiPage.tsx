@@ -21,7 +21,7 @@ const AnalisiVenditeCostiPage = () => {
   const monthlyAnalysis = useMemo(() => {
     const months: Record<string, { periodo: string; ricavi: number; costiVariabili: number; margineLordo: number; costiFissiAllocati: number; margineNetto: number; profitLoss: number; marginePct: number }> = {};
     const year = now.getFullYear();
-    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || Number(r.totale) || 0), 0);
+    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0);
     const totalFixedCosts = costs.filter(c => c.cost_type === "fixed").reduce((s, c) => s + Number(c.amount), 0);
 
     for (let m = 0; m < 12; m++) {
