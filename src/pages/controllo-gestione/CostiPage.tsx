@@ -28,6 +28,15 @@ const PAYMENT_METHODS = [
   { value: 'banca_intesa', label: 'Banca Intesa' },
 ];
 
+// Regimi IVA standard allineati con Prima Nota e Registro Contabile
+const IVA_OPTIONS = [
+  { value: 'none', label: '— Nessuna —', rate: 0 },
+  { value: 'ORDINARIO_22', label: 'Ordinario (22%)', rate: 22 },
+  { value: 'REVERSE_CHARGE', label: 'Reverse Charge (0%)', rate: 0 },
+  { value: 'INTRA_UE', label: 'Intra UE (0%)', rate: 0 },
+  { value: 'EXTRA_UE', label: 'Extra UE (0%)', rate: 0 },
+];
+
 const emptyForm = (): Partial<ManagementCost> => ({
   date: format(new Date(), "yyyy-MM-dd"),
   description: "",
@@ -44,6 +53,9 @@ const CostiPage = () => {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCost, setEditingCost] = useState<Partial<ManagementCost> | null>(null);
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const queryClient = useQueryClient();
 
   const { data: costs = [], isLoading } = useManagementCosts({ status: "active" });
   const { data: categories = [] } = useCostCategories();
