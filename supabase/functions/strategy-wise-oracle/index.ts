@@ -250,24 +250,35 @@ Analizza questo OKR e fornisci un feedback completo.`
     }
 
     if (action === "oracle_analyze") {
-      // Fetch ERP data for analysis
-      const [leadsResult, ordersResult, offersResult, workOrdersResult, customersResult] = await Promise.all([
-        supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("offers").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("work_orders").select("*").order("created_at", { ascending: false }).limit(50),
-        supabase.from("customers").select("*").limit(100),
+      // Helper to fetch all rows with pagination (bypasses 1000 row limit)
+      async function fetchAll(table: string, select: string = "*", orderBy?: string) {
+        const allRows: any[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          let query = supabase.from(table).select(select).range(from, from + pageSize - 1);
+          if (orderBy) query = query.order(orderBy, { ascending: false });
+          const { data, error } = await query;
+          if (error || !data || data.length === 0) break;
+          allRows.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return allRows;
+      }
+
+      // Fetch ALL ERP data for comprehensive analysis
+      const [leads, orders, offers, workOrders, customers] = await Promise.all([
+        fetchAll("leads", "*", "created_at"),
+        fetchAll("sales_orders", "*", "created_at"),
+        fetchAll("offers", "*", "created_at"),
+        fetchAll("work_orders", "*", "created_at"),
+        fetchAll("customers", "*"),
       ]);
 
-      const erpData = {
-        leads: leadsResult.data || [],
-        orders: ordersResult.data || [],
-        offers: offersResult.data || [],
-        workOrders: workOrdersResult.data || [],
-        customers: customersResult.data || [],
-      };
+      const erpData = { leads, orders, offers, workOrders, customers };
 
-      console.log(`ERP Data loaded: ${erpData.leads.length} leads, ${erpData.orders.length} orders, ${erpData.offers.length} offers`);
+      console.log(`ERP Data loaded: ${erpData.leads.length} leads, ${erpData.orders.length} orders, ${erpData.offers.length} offers, ${erpData.customers.length} customers`);
 
       const systemPrompt = `Sei ORACLE, la funzione esplorativa del sistema Strategy Wise Oracle.
 Analizza i dati ERP forniti per far emergere pattern, colli di bottiglia, opportunità e rischi strategici.

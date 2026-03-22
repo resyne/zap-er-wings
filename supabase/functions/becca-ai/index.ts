@@ -103,21 +103,28 @@ serve(async (req) => {
     }
 
     // Step 3: Fetch comprehensive ERP context data in parallel
+    // Use aggregate queries for accurate stats + recent records for context
     const [
-      customersRes, leadsRes, tasksRes, ordersRes, commesseRes, commessaPhasesRes, conversationHistory, settingsRes
+      customersRes, leadsRecentRes, tasksRes, ordersRes, commesseRes, commessaPhasesRes, conversationHistory, settingsRes,
+      leadStatsRes, taskStatsRes, orderStatsRes, commessaStatsRes
     ] = await Promise.all([
-      supabase.from("customers").select("id, name, company_name, tax_id, email, phone").limit(100),
-      supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(50),
-      supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(30),
-      supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(30),
-      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, shipping_city, shipping_province, shipping_address, article, description, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(30),
+      supabase.from("customers").select("id, name, company_name, tax_id, email, phone").limit(200),
+      supabase.from("leads").select("id, contact_name, company_name, email, phone, status, pipeline, value, source, notes, assigned_to, country, created_at").order("created_at", { ascending: false }).limit(100),
+      supabase.from("tasks").select("id, title, description, status, priority, due_date, assigned_to, category, created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("sales_orders").select("id, number, customer_name, total_amount, status, order_type, notes, created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("commesse").select("id, number, title, status, type, priority, deadline, customer_id, shipping_city, shipping_province, shipping_address, article, description, created_at, customers(name, company_name)").order("created_at", { ascending: false }).limit(50),
       supabase.from("commessa_phases").select("id, commessa_id, phase_type, phase_order, status, scheduled_date, started_date, completed_date, assigned_to, notes").order("phase_order", { ascending: true }).limit(100),
       supabase.from("whatsapp_messages").select("direction, content, message_type, created_at").eq("conversation_id", body.conversation_id).order("created_at", { ascending: false }).limit(20),
       supabase.from("becca_settings").select("*").eq("account_id", body.account_id).single(),
+      // Aggregate stats - accurate counts from the full database
+      supabase.from("leads").select("id, status, pipeline", { count: "exact", head: false }),
+      supabase.from("tasks").select("id, status", { count: "exact", head: false }),
+      supabase.from("sales_orders").select("id, status", { count: "exact", head: false }),
+      supabase.from("commesse").select("id, status", { count: "exact", head: false }),
     ]);
 
     const customers = customersRes.data || [];
-    const leads = leadsRes.data || [];
+    const leads = leadsRecentRes.data || [];
     const tasks = tasksRes.data || [];
     const orders = ordersRes.data || [];
     const commesse = commesseRes.data || [];
@@ -125,19 +132,61 @@ serve(async (req) => {
     const history = (conversationHistory.data || []).reverse();
     const settings = settingsRes.data;
 
+    // Fetch ALL leads for stats using pagination if needed
+    const allLeadStats = leadStatsRes.data || [];
+    const allTaskStats = taskStatsRes.data || [];
+    const allOrderStats = orderStatsRes.data || [];
+    const allCommessaStats = commessaStatsRes.data || [];
+
+    // If we hit the 1000 limit, fetch more pages
+    async function fetchAllRows(table: string, select: string) {
+      const allRows: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase.from(table).select(select).range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        allRows.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allRows;
+    }
+
+    // Fetch complete stats if we hit the 1000 row limit
+    let fullLeadData = allLeadStats;
+    if (allLeadStats.length >= 1000) {
+      fullLeadData = await fetchAllRows("leads", "id, status, pipeline");
+    }
+
+    let fullTaskData = allTaskStats;
+    if (allTaskStats.length >= 1000) {
+      fullTaskData = await fetchAllRows("tasks", "id, status");
+    }
+
+    let fullOrderData = allOrderStats;
+    if (allOrderStats.length >= 1000) {
+      fullOrderData = await fetchAllRows("sales_orders", "id, status");
+    }
+
+    let fullCommessaData = allCommessaStats;
+    if (allCommessaStats.length >= 1000) {
+      fullCommessaData = await fetchAllRows("commesse", "id, status");
+    }
+
     const persona = settings?.ai_persona || "Sei Becca, l'assistente AI aziendale di Zapper. Sei efficiente, precisa e professionale.";
     const autoThreshold = settings?.auto_confirm_threshold || 90;
 
     // Build ERP context strings
     const customerList = customers.map(c => `- ${c.name || c.company_name} (ID: ${c.id}${c.email ? `, email: ${c.email}` : ''}${c.phone ? `, tel: ${c.phone}` : ''})`).join("\n");
 
-    const leadList = leads.slice(0, 20).map(l => `- ${l.contact_name || 'N/D'}${l.company_name ? ` @ ${l.company_name}` : ''} | Status: ${l.status} | Pipeline: ${l.pipeline} | Valore: €${l.value || 0}${l.phone ? ` | Tel: ${l.phone}` : ''} (ID: ${l.id})`).join("\n");
+    const leadList = leads.slice(0, 30).map(l => `- ${l.contact_name || 'N/D'}${l.company_name ? ` @ ${l.company_name}` : ''} | Status: ${l.status} | Pipeline: ${l.pipeline} | Valore: €${l.value || 0}${l.phone ? ` | Tel: ${l.phone}` : ''} (ID: ${l.id})`).join("\n");
 
-    const taskList = tasks.slice(0, 15).map(t => `- [${t.status}] ${t.title}${t.priority ? ` (priorità: ${t.priority})` : ''}${t.due_date ? ` scadenza: ${t.due_date}` : ''} (ID: ${t.id})`).join("\n");
+    const taskList = tasks.slice(0, 20).map(t => `- [${t.status}] ${t.title}${t.priority ? ` (priorità: ${t.priority})` : ''}${t.due_date ? ` scadenza: ${t.due_date}` : ''} (ID: ${t.id})`).join("\n");
 
-    const orderList = orders.slice(0, 15).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
+    const orderList = orders.slice(0, 20).map(o => `- ${o.number || 'N/D'} | ${o.customer_name || 'N/D'} | €${o.total_amount || 0} | Status: ${o.status} | Tipo: ${o.order_type} (ID: ${o.id})`).join("\n");
 
-    const commessaList = commesse.slice(0, 15).map((c: any) => {
+    const commessaList = commesse.slice(0, 20).map((c: any) => {
       const cliente = c.customers?.name || c.customers?.company_name || 'N/D';
       const loc = [c.shipping_city, c.shipping_province].filter(Boolean).join(', ');
       return `- ${c.number} | ${c.title} | Status: ${c.status} | Tipo: ${c.type}${c.deadline ? ` | Scadenza: ${c.deadline}` : ''} | Cliente: ${cliente}${loc ? ` | Località: ${loc}` : ''}${c.article ? ` | Articolo: ${c.article}` : ''} (ID: ${c.id})`;
@@ -151,27 +200,47 @@ serve(async (req) => {
       return `${role}: ${m.content || `[${m.message_type}]`}`;
     }).join("\n");
 
-    // Lead stats
+    // Accurate stats from FULL dataset
     const leadStats = {
-      total: leads.length,
-      new: leads.filter(l => l.status === 'new').length,
-      contacted: leads.filter(l => l.status === 'contacted').length,
-      qualified: leads.filter(l => l.status === 'qualified').length,
+      total: fullLeadData.length,
+      new: fullLeadData.filter((l: any) => l.status === 'new').length,
+      contacted: fullLeadData.filter((l: any) => l.status === 'contacted').length,
+      qualified: fullLeadData.filter((l: any) => l.status === 'qualified').length,
+      negotiation: fullLeadData.filter((l: any) => l.status === 'negotiation').length,
+      won: fullLeadData.filter((l: any) => l.status === 'won').length,
+      lost: fullLeadData.filter((l: any) => l.status === 'lost').length,
+      proposal: fullLeadData.filter((l: any) => l.status === 'proposal').length,
     };
 
+    // Pipeline breakdown
+    const pipelineBreakdown: Record<string, any> = {};
+    fullLeadData.forEach((l: any) => {
+      const p = l.pipeline || 'Senza pipeline';
+      if (!pipelineBreakdown[p]) pipelineBreakdown[p] = { total: 0, won: 0, lost: 0, new: 0, qualified: 0, negotiation: 0, contacted: 0, proposal: 0 };
+      pipelineBreakdown[p].total++;
+      if (l.status) pipelineBreakdown[p][l.status] = (pipelineBreakdown[p][l.status] || 0) + 1;
+    });
+
+    const pipelineStats = Object.entries(pipelineBreakdown).map(([name, stats]: [string, any]) => {
+      const convRate = stats.total > 0 ? ((stats.won / stats.total) * 100).toFixed(1) : '0';
+      return `  - ${name}: ${stats.total} lead (vinti: ${stats.won}, persi: ${stats.lost}, in trattativa: ${stats.negotiation || 0}, qualificati: ${stats.qualified || 0}, nuovi: ${stats.new || 0}) | Conversion rate: ${convRate}%`;
+    }).join("\n");
+
     const taskStats = {
-      total: tasks.length,
-      todo: tasks.filter(t => t.status === 'todo').length,
-      inProgress: tasks.filter(t => t.status === 'in_progress').length,
-      done: tasks.filter(t => t.status === 'done').length,
+      total: fullTaskData.length,
+      todo: fullTaskData.filter((t: any) => t.status === 'todo').length,
+      inProgress: fullTaskData.filter((t: any) => t.status === 'in_progress').length,
+      done: fullTaskData.filter((t: any) => t.status === 'done').length,
     };
 
     const orderStats = {
-      total: orders.length,
-      draft: orders.filter(o => o.status === 'draft').length,
-      inProgress: orders.filter(o => o.status === 'in_progress').length,
-      completed: orders.filter(o => o.status === 'completed').length,
+      total: fullOrderData.length,
+      draft: fullOrderData.filter((o: any) => o.status === 'draft').length,
+      inProgress: fullOrderData.filter((o: any) => o.status === 'in_progress').length,
+      completed: fullOrderData.filter((o: any) => o.status === 'completed').length,
     };
+
+    const globalConvRate = leadStats.total > 0 ? ((leadStats.won / leadStats.total) * 100).toFixed(1) : '0';
 
     const today = new Date().toISOString().split('T')[0];
     const allowedActionsStr = body.allowed_actions.join(", ");
@@ -188,13 +257,16 @@ Sei Becca, l'assistente AI aziendale di Zapper collegata all'ERP. Puoi:
 
 AZIONI DISPONIBILI PER QUESTO UTENTE: ${allowedActionsStr}
 
-═══ DATI ERP IN TEMPO REALE ═══
+═══ DATI ERP IN TEMPO REALE (DATI COMPLETI DA DATABASE) ═══
 
-📊 STATISTICHE:
-- Lead: ${leadStats.total} totali (${leadStats.new} nuovi, ${leadStats.contacted} contattati, ${leadStats.qualified} qualificati)
+📊 STATISTICHE GLOBALI (dati accurati su TUTTI i record):
+- Lead: ${leadStats.total} totali (${leadStats.new} nuovi, ${leadStats.contacted} contattati, ${leadStats.qualified} qualificati, ${leadStats.negotiation} in trattativa, ${leadStats.proposal} in proposta, ${leadStats.won} vinti, ${leadStats.lost} persi) | Conversion rate globale: ${globalConvRate}%
 - Task: ${taskStats.total} totali (${taskStats.todo} da fare, ${taskStats.inProgress} in corso, ${taskStats.done} completati)
 - Ordini: ${orderStats.total} totali (${orderStats.draft} bozze, ${orderStats.inProgress} in corso, ${orderStats.completed} completati)
-- Commesse: ${commesse.length} totali
+- Commesse: ${fullCommessaData.length} totali
+
+📈 DETTAGLIO PER PIPELINE:
+${pipelineStats || "Nessun dato pipeline"}
 
 👥 CLIENTI/FORNITORI:
 ${customerList || "Nessuno in database"}
