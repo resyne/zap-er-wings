@@ -1,0 +1,2 @@
+ALTER TABLE management_costs DROP CONSTRAINT management_costs_supplier_id_fkey;
+ALTER TABLE management_costs ADD CONSTRAINT management_costs_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES suppliers(id);
