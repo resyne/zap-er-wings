@@ -9,16 +9,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, DollarSign, TrendingUp, BarChart3, FileText, Wrench } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, TrendingUp, BarChart3, FileText, Wrench, Save, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
   useManagementCommesse,
   useCreateManagementCommessa,
   useUpdateManagementCommessa,
   useDeleteManagementCommessa,
   useCommesseTotals,
+  useManagementDataMap,
+  useUpsertManagementData,
   type ManagementCommessa,
 } from "@/hooks/useManagementCommesse";
 
@@ -54,7 +57,6 @@ const formatDate = (d: string | null) => {
   try { return format(new Date(d), "dd/MM/yyyy"); } catch { return d; }
 };
 
-// Hook to fetch commesse (linked orders) with customer info
 const useCommesseWithCustomer = () => {
   return useQuery({
     queryKey: ["gestione-commesse-reali"],
@@ -69,7 +71,6 @@ const useCommesseWithCustomer = () => {
   });
 };
 
-// Hook to fetch service reports with customer info
 const useServiceReportsGestione = () => {
   return useQuery({
     queryKey: ["gestione-service-reports"],
@@ -99,6 +100,100 @@ const reportStatusColors: Record<string, string> = {
   invoiced: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
 };
 
+// Inline editing row component for ricavo/costo
+interface InlineMarginProps {
+  entityId: string;
+  entityType: "commessa" | "report";
+  codice: string;
+  cliente: string;
+  managementData?: ManagementCommessa;
+  upsertMut: ReturnType<typeof useUpsertManagementData>;
+}
+
+const InlineMarginEditor = ({ entityId, entityType, codice, cliente, managementData, upsertMut }: InlineMarginProps) => {
+  const [editing, setEditing] = useState(false);
+  const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
+  const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+
+  const hasData = !!managementData;
+  const margine = ricavo - costo;
+  const marginePct = ricavo > 0 ? (margine / ricavo) * 100 : 0;
+
+  const handleSave = () => {
+    upsertMut.mutate({
+      commessa_id: entityType === "commessa" ? entityId : undefined,
+      service_report_id: entityType === "report" ? entityId : undefined,
+      codice_commessa: codice,
+      cliente: cliente,
+      ricavo,
+      costo_diretto_stimato: costo,
+      existing_id: managementData?.id,
+    }, {
+      onSuccess: () => setEditing(false),
+    });
+  };
+
+  if (!editing && !hasData) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground italic">Non compilato</span>
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditing(true)}>
+          <Pencil className="h-3 w-3 mr-1" />Compila
+        </Button>
+      </div>
+    );
+  }
+
+  if (!editing && hasData) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="text-sm">
+          <span className="text-muted-foreground">Ricavo:</span>{" "}
+          <span className="font-medium">{fmt(Number(managementData.ricavo))}</span>
+        </div>
+        <div className="text-sm">
+          <span className="text-muted-foreground">Costo:</span>{" "}
+          <span className="font-medium text-orange-600">{fmt(Number(managementData.costo_diretto_stimato))}</span>
+        </div>
+        <div className="text-sm">
+          <span className="text-muted-foreground">Margine:</span>{" "}
+          <span className={`font-bold ${Number(managementData.margine_calcolato) >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {fmt(Number(managementData.margine_calcolato))}
+          </span>
+        </div>
+        <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
+          {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
+        </Badge>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setRicavo(Number(managementData.ricavo)); setCosto(Number(managementData.costo_diretto_stimato)); setEditing(true); }}>
+          <Pencil className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Editing mode
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Ricavo €</span>
+        <Input type="number" min={0} className="h-7 w-24 text-sm" value={ricavo} onChange={e => setRicavo(Math.max(0, Number(e.target.value)))} />
+      </div>
+      <div className="flex items-center gap-1">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">Costo €</span>
+        <Input type="number" min={0} className="h-7 w-24 text-sm" value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
+      </div>
+      <div className="flex items-center gap-1 min-w-[80px]">
+        <span className={`text-sm font-bold ${margine >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(margine)}</span>
+        <Badge variant={margine >= 0 ? "default" : "destructive"} className="text-xs">{marginePct.toFixed(1)}%</Badge>
+      </div>
+      <Button variant="default" size="icon" className="h-7 w-7" onClick={handleSave} disabled={upsertMut.isPending}>
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>✕</Button>
+    </div>
+  );
+};
+
 const CommesseGestioneSection = () => {
   const { data: managementCommesse = [] } = useManagementCommesse();
   const { data: commesseReali = [] } = useCommesseWithCustomer();
@@ -106,7 +201,9 @@ const CommesseGestioneSection = () => {
   const createMut = useCreateManagementCommessa();
   const updateMut = useUpdateManagementCommessa();
   const deleteMut = useDeleteManagementCommessa();
+  const upsertMut = useUpsertManagementData();
   const totals = useCommesseTotals(managementCommesse);
+  const { byCommessa, byReport } = useManagementDataMap(managementCommesse);
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -141,11 +238,14 @@ const CommesseGestioneSection = () => {
   const marginePreview = form.ricavo - form.costo_diretto_stimato;
   const marginePctPreview = form.ricavo > 0 ? (marginePreview / form.ricavo) * 100 : 0;
 
-  // Summary stats
-  const totalReportsAmount = useMemo(() => 
+  const totalReportsAmount = useMemo(() =>
     serviceReports.reduce((s, r) => s + (Number(r.total_amount) || Number(r.amount) || 0), 0),
     [serviceReports]
   );
+
+  // Count how many have management data
+  const commesseWithData = commesseReali.filter((c: any) => !!byCommessa[c.id]).length;
+  const reportsWithData = serviceReports.filter((r: any) => !!byReport[r.id]).length;
 
   return (
     <div className="space-y-4">
@@ -155,26 +255,26 @@ const CommesseGestioneSection = () => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileText className="h-4 w-4" />Commesse Totali</div>
             <div className="text-2xl font-bold">{commesseReali.length}</div>
-            <p className="text-xs text-muted-foreground">dal sistema ordini</p>
+            <p className="text-xs text-muted-foreground">{commesseWithData} con dati gestionali</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Wrench className="h-4 w-4" />Rapporti di Intervento</div>
             <div className="text-2xl font-bold">{serviceReports.length}</div>
-            <p className="text-xs text-muted-foreground">Totale: {fmt(totalReportsAmount)}</p>
+            <p className="text-xs text-muted-foreground">{reportsWithData} con dati gestionali</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><DollarSign className="h-4 w-4" />Ricavi Commesse Gestione</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><DollarSign className="h-4 w-4" />Ricavi Gestione</div>
             <div className="text-2xl font-bold">{fmt(totals.totaleRicavi)}</div>
-            <p className="text-xs text-muted-foreground">{totals.count} commesse manuali attive</p>
+            <p className="text-xs text-muted-foreground">Costi var.: {fmt(totals.totaleCostiDiretti)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><TrendingUp className="h-4 w-4" />Margine Lordo Commesse</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><TrendingUp className="h-4 w-4" />Margine Lordo</div>
             <div className={`text-2xl font-bold ${totals.totaleMargineLordo >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(totals.totaleMargineLordo)}</div>
           </CardContent>
         </Card>
@@ -183,7 +283,7 @@ const CommesseGestioneSection = () => {
       {/* Tabs */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Commesse & Rapporti</CardTitle>
+          <CardTitle className="text-lg">Commesse & Rapporti di Intervento</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -197,12 +297,12 @@ const CommesseGestioneSection = () => {
                 <Badge variant="secondary" className="ml-2 text-xs">{serviceReports.length}</Badge>
               </TabsTrigger>
               <TabsTrigger value="gestione">
-                Commesse Gestione
-                <Badge variant="secondary" className="ml-2 text-xs">{managementCommesse.length}</Badge>
+                Commesse Manuali
+                <Badge variant="secondary" className="ml-2 text-xs">{managementCommesse.filter(c => !c.commessa_id && !c.service_report_id).length}</Badge>
               </TabsTrigger>
             </TabsList>
 
-            {/* Tab: Ordini / Commesse */}
+            {/* Tab: Ordini / Commesse with inline margin editing */}
             <TabsContent value="ordini">
               {commesseReali.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -217,10 +317,8 @@ const CommesseGestioneSection = () => {
                         <TableHead>Numero</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Titolo</TableHead>
-                        <TableHead>Tipo</TableHead>
                         <TableHead>Stato</TableHead>
-                        <TableHead>Data Creazione</TableHead>
-                        <TableHead>Scadenza</TableHead>
+                        <TableHead>Dati Gestionali (Imponibile)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -230,17 +328,22 @@ const CommesseGestioneSection = () => {
                           <TableRow key={c.id}>
                             <TableCell className="font-medium">{c.number}</TableCell>
                             <TableCell>{customerName}</TableCell>
-                            <TableCell className="max-w-[250px] truncate">{c.title}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs capitalize">{c.type}</Badge>
-                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">{c.title}</TableCell>
                             <TableCell>
                               <Badge className={commessaStatusColors[c.status] || "bg-muted text-muted-foreground"}>
                                 {c.status?.replace(/_/g, " ") || "-"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{formatDate(c.created_at)}</TableCell>
-                            <TableCell>{formatDate(c.deadline)}</TableCell>
+                            <TableCell>
+                              <InlineMarginEditor
+                                entityId={c.id}
+                                entityType="commessa"
+                                codice={c.number}
+                                cliente={customerName}
+                                managementData={byCommessa[c.id]}
+                                upsertMut={upsertMut}
+                              />
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -250,7 +353,7 @@ const CommesseGestioneSection = () => {
               )}
             </TabsContent>
 
-            {/* Tab: Rapporti di Intervento */}
+            {/* Tab: Rapporti di Intervento with inline margin editing */}
             <TabsContent value="rapporti">
               {serviceReports.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -265,16 +368,14 @@ const CommesseGestioneSection = () => {
                         <TableHead>N° Rapporto</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Cliente</TableHead>
-                        <TableHead>Tipo Intervento</TableHead>
-                        <TableHead>Tecnico</TableHead>
+                        <TableHead>Tipo</TableHead>
                         <TableHead>Stato</TableHead>
-                        <TableHead className="text-right">Importo</TableHead>
+                        <TableHead>Dati Gestionali (Imponibile)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {serviceReports.map((r: any) => {
                         const customerName = r.customers?.company_name || r.customers?.name || "-";
-                        const amount = Number(r.total_amount) || Number(r.amount) || 0;
                         return (
                           <TableRow key={r.id}>
                             <TableCell className="font-medium">{r.report_number || "-"}</TableCell>
@@ -283,13 +384,21 @@ const CommesseGestioneSection = () => {
                             <TableCell>
                               <Badge variant="outline" className="text-xs capitalize">{r.intervention_type}</Badge>
                             </TableCell>
-                            <TableCell>{r.technician_name || "-"}</TableCell>
                             <TableCell>
                               <Badge className={reportStatusColors[r.status] || "bg-muted text-muted-foreground"}>
                                 {r.status === "completed" ? "Completato" : r.status === "draft" ? "Bozza" : r.status === "invoiced" ? "Fatturato" : r.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right font-medium">{amount > 0 ? fmt(amount) : "-"}</TableCell>
+                            <TableCell>
+                              <InlineMarginEditor
+                                entityId={r.id}
+                                entityType="report"
+                                codice={r.report_number || r.id.slice(0, 8)}
+                                cliente={customerName}
+                                managementData={byReport[r.id]}
+                                upsertMut={upsertMut}
+                              />
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -343,7 +452,7 @@ const CommesseGestioneSection = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label>Ricavo (€)</Label>
+                          <Label>Ricavo Imponibile (€)</Label>
                           <Input type="number" min={0} value={form.ricavo} onChange={e => setForm(f => ({ ...f, ricavo: Math.max(0, Number(e.target.value)) }))} />
                         </div>
                         <div>
@@ -370,10 +479,10 @@ const CommesseGestioneSection = () => {
                 </Dialog>
               </div>
 
-              {managementCommesse.length === 0 ? (
+              {managementCommesse.filter(c => !c.commessa_id && !c.service_report_id).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <BarChart3 className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p>Nessuna commessa gestionale inserita. Clicca "Nuova Commessa" per iniziare.</p>
+                  <p>Nessuna commessa manuale inserita. Clicca "Nuova Commessa" per iniziare.</p>
                 </div>
               ) : (
                 <Table>
@@ -391,7 +500,7 @@ const CommesseGestioneSection = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {managementCommesse.map(c => {
+                    {managementCommesse.filter(c => !c.commessa_id && !c.service_report_id).map(c => {
                       const margine = Number(c.margine_calcolato);
                       const pct = Number(c.ricavo) > 0 ? (margine / Number(c.ricavo)) * 100 : 0;
                       return (
