@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useMemo } from "react";
 
 export interface ManagementCommessa {
   id: string;
@@ -14,6 +15,7 @@ export interface ManagementCommessa {
   margine_calcolato: number;
   note?: string;
   commessa_id?: string;
+  service_report_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -88,11 +90,70 @@ export const useDeleteManagementCommessa = () => {
   });
 };
 
+/** Upsert management data for a commessa or service report */
+export const useUpsertManagementData = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      commessa_id?: string;
+      service_report_id?: string;
+      codice_commessa: string;
+      cliente: string;
+      ricavo: number;
+      costo_diretto_stimato: number;
+      existing_id?: string;
+    }) => {
+      const { existing_id, ...rest } = input;
+      if (existing_id) {
+        // Update existing
+        const { error } = await supabase
+          .from("management_commesse")
+          .update({
+            ricavo: rest.ricavo,
+            costo_diretto_stimato: rest.costo_diretto_stimato,
+          } as any)
+          .eq("id", existing_id);
+        if (error) throw error;
+      } else {
+        // Insert new
+        const { error } = await supabase
+          .from("management_commesse")
+          .insert({
+            ...rest,
+            stato: "in_corso",
+            data: new Date().toISOString().split("T")[0],
+          } as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["management-commesse"] });
+      toast.success("Dati gestionali salvati");
+    },
+    onError: (e: any) => toast.error("Errore: " + e.message),
+  });
+};
+
 /** Returns totals for active commesse (excludes annullate) */
 export const useCommesseTotals = (commesse: ManagementCommessa[]) => {
-  const active = commesse.filter(c => c.stato !== "annullata");
-  const totaleRicavi = active.reduce((s, c) => s + Number(c.ricavo), 0);
-  const totaleCostiDiretti = active.reduce((s, c) => s + Number(c.costo_diretto_stimato), 0);
-  const totaleMargineLordo = totaleRicavi - totaleCostiDiretti;
-  return { totaleRicavi, totaleCostiDiretti, totaleMargineLordo, count: active.length };
+  return useMemo(() => {
+    const active = commesse.filter(c => c.stato !== "annullata");
+    const totaleRicavi = active.reduce((s, c) => s + Number(c.ricavo), 0);
+    const totaleCostiDiretti = active.reduce((s, c) => s + Number(c.costo_diretto_stimato), 0);
+    const totaleMargineLordo = totaleRicavi - totaleCostiDiretti;
+    return { totaleRicavi, totaleCostiDiretti, totaleMargineLordo, count: active.length };
+  }, [commesse]);
+};
+
+/** Build a lookup map from management_commesse by commessa_id and service_report_id */
+export const useManagementDataMap = (commesse: ManagementCommessa[]) => {
+  return useMemo(() => {
+    const byCommessa: Record<string, ManagementCommessa> = {};
+    const byReport: Record<string, ManagementCommessa> = {};
+    commesse.forEach(c => {
+      if (c.commessa_id) byCommessa[c.commessa_id] = c;
+      if (c.service_report_id) byReport[c.service_report_id] = c;
+    });
+    return { byCommessa, byReport };
+  }, [commesse]);
 };

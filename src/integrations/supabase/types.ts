@@ -6128,6 +6128,7 @@ export type Database = {
           margine_calcolato: number | null
           note: string | null
           ricavo: number
+          service_report_id: string | null
           stato: string
           updated_at: string
         }
@@ -6143,6 +6144,7 @@ export type Database = {
           margine_calcolato?: number | null
           note?: string | null
           ricavo?: number
+          service_report_id?: string | null
           stato?: string
           updated_at?: string
         }
@@ -6158,6 +6160,7 @@ export type Database = {
           margine_calcolato?: number | null
           note?: string | null
           ricavo?: number
+          service_report_id?: string | null
           stato?: string
           updated_at?: string
         }
@@ -6167,6 +6170,13 @@ export type Database = {
             columns: ["commessa_id"]
             isOneToOne: false
             referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_commesse_service_report_id_fkey"
+            columns: ["service_report_id"]
+            isOneToOne: false
+            referencedRelation: "service_reports"
             referencedColumns: ["id"]
           },
         ]
