@@ -92,6 +92,20 @@ const CostiPage = () => {
     }
   });
 
+  // Fornitori dalla tabella suppliers
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const filtered = costs.filter(c => {
     if (search && !c.description.toLowerCase().includes(search.toLowerCase()) && !(c.supplier_name || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterType !== "all" && c.cost_type !== filterType) return false;
@@ -247,16 +261,36 @@ const CostiPage = () => {
               </div>
               <div>
                 <Label>Fornitore</Label>
-                <Input value={editingCost.supplier_name || ""} onChange={e => setEditingCost(p => ({ ...p!, supplier_name: e.target.value }))} />
+                <Select value={editingCost.supplier_id || "none"} onValueChange={v => {
+                  if (v === "none") {
+                    setEditingCost(p => ({ ...p!, supplier_id: undefined, supplier_name: undefined }));
+                  } else {
+                    const sup = suppliers.find(s => s.id === v);
+                    setEditingCost(p => ({ ...p!, supplier_id: v, supplier_name: sup?.name }));
+                  }
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona fornitore" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nessuno —</SelectItem>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Categoria</Label>
-                <Select value={editingCost.category_id || ""} onValueChange={v => {
-                  const cat = categories.find(c => c.id === v);
-                  setEditingCost(p => ({ ...p!, category_id: v, category_name: cat?.name, cost_type: cat?.cost_type || p!.cost_type }));
+                <Select value={editingCost.category_id || "none"} onValueChange={v => {
+                  if (v === "none") {
+                    setEditingCost(p => ({ ...p!, category_id: undefined, category_name: undefined }));
+                  } else {
+                    const cat = categories.find(c => c.id === v);
+                    setEditingCost(p => ({ ...p!, category_id: v, category_name: cat?.name, cost_type: cat?.cost_type || p!.cost_type }));
+                  }
                 }}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
-                  <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({c.cost_type === "fixed" ? "F" : "V"})</SelectItem>)}</SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nessuna —</SelectItem>
+                    {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({c.cost_type === "fixed" ? "F" : "V"})</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
               <div>
