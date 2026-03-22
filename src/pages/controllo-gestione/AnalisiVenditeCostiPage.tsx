@@ -30,8 +30,8 @@ const AnalisiVenditeCostiPage = () => {
     }
 
     revenues.forEach(r => {
-      const key = (r.document_date || "").substring(0, 7);
-      if (months[key]) months[key].ricavi += Number(r.imponibile) || Number(r.totale) || 0;
+      const key = (r.invoice_date || "").substring(0, 7);
+      if (months[key]) months[key].ricavi += Number(r.imponibile) || 0;
     });
 
     costs.forEach(c => {

@@ -49,8 +49,8 @@ const DashboardMarginalitaPage = () => {
       months[key] = { month: label, ricavi: 0, costiVar: 0, costiFissi: 0, margineLordo: 0, margineNetto: 0 };
     }
     revenues.forEach(r => {
-      const key = (r.document_date || "").substring(0, 7);
-      if (months[key]) months[key].ricavi += Number(r.imponibile) || Number(r.totale) || 0;
+      const key = (r.invoice_date || "").substring(0, 7);
+      if (months[key]) months[key].ricavi += Number(r.imponibile) || 0;
     });
     costs.forEach(c => {
       const key = (c.date || "").substring(0, 7);

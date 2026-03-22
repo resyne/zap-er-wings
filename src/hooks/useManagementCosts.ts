@@ -151,13 +151,13 @@ export const useRevenueData = (dateFrom?: string, dateTo?: string) => {
     queryFn: async () => {
       let query = supabase
         .from("invoice_registry")
-        .select("*")
+        .select("id, imponibile, iva_amount, invoice_date, document_type, customer_name")
         .eq("document_type", "vendita");
-      if (dateFrom) query = query.gte("document_date", dateFrom);
-      if (dateTo) query = query.lte("document_date", dateTo);
+      if (dateFrom) query = query.gte("invoice_date", dateFrom);
+      if (dateTo) query = query.lte("invoice_date", dateTo);
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []) as Array<{ id: string; imponibile: number | null; iva_amount: number | null; invoice_date: string | null; document_type: string; customer_name: string | null }>;
     },
   });
 };
