@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, BarChart3, PieChart } from "lucide-react";
 import { useManagementCosts, useRevenueData } from "@/hooks/useManagementCosts";
+import { useManagementCommesse, useCommesseTotals } from "@/hooks/useManagementCommesse";
 import { format, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, Legend, Area, AreaChart, ReferenceLine } from "recharts";
+import CommesseGestioneSection from "@/components/controllo-gestione/CommesseGestioneSection";
 
 const DashboardMarginalitaPage = () => {
   const [period, setPeriod] = useState("year");
