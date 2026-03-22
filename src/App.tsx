@@ -309,6 +309,10 @@ const App = () => (
                 <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
                 <Route path="personal-area/calendario" element={<LazyPage><CalendarioPersonale /></LazyPage>} />
                 <Route path="finanza/tesoreria" element={<LazyPage><TesoreriaPage /></LazyPage>} />
+                <Route path="controllo-gestione/dashboard" element={<LazyPage><DashboardMarginalitaPage /></LazyPage>} />
+                <Route path="controllo-gestione/costi" element={<LazyPage><CostiPage /></LazyPage>} />
+                <Route path="controllo-gestione/centri-costo" element={<LazyPage><CentriDiCostoGestionePage /></LazyPage>} />
+                <Route path="controllo-gestione/analisi" element={<LazyPage><AnalisiVenditeCostiPage /></LazyPage>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
               <Route path="*" element={<NotFound />} />
