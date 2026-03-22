@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, Archive, Copy, Edit2 } from "lucide-react";
+import { Plus, Search, Filter, Archive, Copy, Edit2, UserPlus } from "lucide-react";
 import { useManagementCosts, useCostCategories, useCreateCost, useUpdateCost, useDeleteCost, ManagementCost } from "@/hooks/useManagementCosts";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 // Metodi di pagamento allineati con Registro Contabile e Prima Nota
 const PAYMENT_METHODS = [
@@ -25,6 +26,15 @@ const PAYMENT_METHODS = [
   { value: 'cassa', label: 'Cassa' },
   { value: 'anticipo_dipendente', label: 'Anticipo Dipendente' },
   { value: 'banca_intesa', label: 'Banca Intesa' },
+];
+
+// Regimi IVA standard allineati con Prima Nota e Registro Contabile
+const IVA_OPTIONS = [
+  { value: 'none', label: '— Nessuna —', rate: 0 },
+  { value: 'ORDINARIO_22', label: 'Ordinario (22%)', rate: 22 },
+  { value: 'REVERSE_CHARGE', label: 'Reverse Charge (0%)', rate: 0 },
+  { value: 'INTRA_UE', label: 'Intra UE (0%)', rate: 0 },
+  { value: 'EXTRA_UE', label: 'Extra UE (0%)', rate: 0 },
 ];
 
 const emptyForm = (): Partial<ManagementCost> => ({
@@ -43,6 +53,9 @@ const CostiPage = () => {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCost, setEditingCost] = useState<Partial<ManagementCost> | null>(null);
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const queryClient = useQueryClient();
 
   const { data: costs = [], isLoading } = useManagementCosts({ status: "active" });
   const { data: categories = [] } = useCostCategories();
@@ -125,6 +138,21 @@ const CostiPage = () => {
     }
     setDialogOpen(false);
     setEditingCost(null);
+  };
+
+  const handleAddSupplier = async () => {
+    if (!newSupplierName.trim()) return;
+    try {
+      const { data, error } = await supabase.from('suppliers').insert({ name: newSupplierName.trim(), active: true } as any).select('id, name').single();
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['suppliers-active'] });
+      setEditingCost(p => ({ ...p!, supplier_id: data.id, supplier_name: data.name }));
+      setNewSupplierName("");
+      setNewSupplierOpen(false);
+      toast.success("Fornitore aggiunto");
+    } catch (e: any) {
+      toast.error("Errore: " + e.message);
+    }
   };
 
   const handleArchive = async (cost: ManagementCost) => {
@@ -261,20 +289,25 @@ const CostiPage = () => {
               </div>
               <div>
                 <Label>Fornitore</Label>
-                <Select value={editingCost.supplier_id || "none"} onValueChange={v => {
-                  if (v === "none") {
-                    setEditingCost(p => ({ ...p!, supplier_id: undefined, supplier_name: undefined }));
-                  } else {
-                    const sup = suppliers.find(s => s.id === v);
-                    setEditingCost(p => ({ ...p!, supplier_id: v, supplier_name: sup?.name }));
-                  }
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona fornitore" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Nessuno —</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={editingCost.supplier_id || "none"} onValueChange={v => {
+                    if (v === "none") {
+                      setEditingCost(p => ({ ...p!, supplier_id: undefined, supplier_name: undefined }));
+                    } else {
+                      const sup = suppliers.find(s => s.id === v);
+                      setEditingCost(p => ({ ...p!, supplier_id: v, supplier_name: sup?.name }));
+                    }
+                  }}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Seleziona fornitore" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Nessuno —</SelectItem>
+                      {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setNewSupplierOpen(true)} title="Aggiungi fornitore">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>Categoria</Label>
@@ -326,18 +359,31 @@ const CostiPage = () => {
                 </Select>
               </div>
               <div>
-                <Label>IVA %</Label>
-                <Input type="number" value={editingCost.vat_rate || ""} onChange={e => {
-                  const rate = parseFloat(e.target.value) || 0;
+                <Label>Regime IVA</Label>
+                <Select value={(editingCost as any).iva_mode || "none"} onValueChange={v => {
+                  const opt = IVA_OPTIONS.find(o => o.value === v);
+                  const rate = opt?.rate || 0;
                   const vatAmount = (editingCost.amount || 0) * rate / 100;
-                  setEditingCost(p => ({ ...p!, vat_rate: rate, vat_amount: vatAmount, net_amount: (p!.amount || 0) + vatAmount }));
-                }} />
+                  setEditingCost(p => ({
+                    ...p!,
+                    vat_rate: rate,
+                    vat_amount: vatAmount,
+                    net_amount: (p!.amount || 0) + vatAmount,
+                    ...(v !== "none" ? { iva_mode: v } : { iva_mode: undefined }),
+                  } as any));
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona regime IVA" /></SelectTrigger>
+                  <SelectContent>
+                    {IVA_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Metodo Pagamento</Label>
-                <Select value={editingCost.payment_method || ""} onValueChange={v => setEditingCost(p => ({ ...p!, payment_method: v }))}>
+                <Select value={editingCost.payment_method || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, payment_method: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuno —</SelectItem>
                     {PAYMENT_METHODS.map(pm => (
                       <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
                     ))}
@@ -348,9 +394,10 @@ const CostiPage = () => {
               {/* Centro di Costo — allineato con Registro Contabile */}
               <div>
                 <Label>Centro di Costo</Label>
-                <Select value={editingCost.cost_center_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, cost_center_id: v }))}>
+                <Select value={editingCost.cost_center_id || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, cost_center_id: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuno —</SelectItem>
                     {costCenters.map((cc: any) => (
                       <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
                     ))}
@@ -361,9 +408,10 @@ const CostiPage = () => {
               {/* Business Unit */}
               <div>
                 <Label>Business Unit</Label>
-                <Select value={editingCost.business_unit_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, business_unit_id: v }))}>
+                <Select value={editingCost.business_unit_id || "none"} onValueChange={v => setEditingCost(p => ({ ...p!, business_unit_id: v === "none" ? undefined : v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">— Nessuna —</SelectItem>
                     {businessUnits.map((bu: any) => (
                       <SelectItem key={bu.id} value={bu.id}>{bu.code} - {bu.name}</SelectItem>
                     ))}
@@ -381,6 +429,23 @@ const CostiPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nuovo Fornitore */}
+      <Dialog open={newSupplierOpen} onOpenChange={setNewSupplierOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Nuovo Fornitore</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome Fornitore *</Label>
+              <Input value={newSupplierName} onChange={e => setNewSupplierName(e.target.value)} placeholder="Es. Acme S.r.l." />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setNewSupplierOpen(false)}>Annulla</Button>
+              <Button onClick={handleAddSupplier} disabled={!newSupplierName.trim()}>Aggiungi</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
