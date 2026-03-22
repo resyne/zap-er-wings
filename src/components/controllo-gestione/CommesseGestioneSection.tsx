@@ -500,6 +500,22 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
                     <Input type="number" min={0} value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
                   </div>
                 </div>
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground">Riferimento Periodo</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Data Competenza</Label>
+                    <Input type="date" value={dataCompetenza} onChange={e => setDataCompetenza(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Data Fattura</Label>
+                    <Input type="date" value={dataFattura} onChange={e => setDataFattura(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">N° Fattura</Label>
+                    <Input value={numeroFattura} onChange={e => setNumeroFattura(e.target.value)} placeholder="es. FV-2026-001" />
+                  </div>
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-background border">
                   <span className="text-sm font-medium">Margine</span>
                   <div className="flex items-center gap-2">
@@ -527,6 +543,12 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
                   <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
                     {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
                   </Badge>
+                } />
+                {managementData.data_fattura && <DetailRow label="Data Fattura" value={formatDate(managementData.data_fattura)} />}
+                {managementData.numero_fattura && <DetailRow label="N° Fattura" value={managementData.numero_fattura} />}
+                {managementData.data_competenza && <DetailRow label="Data Competenza" value={formatDate(managementData.data_competenza)} />}
+                <DetailRow label="Periodo Rif." value={
+                  <Badge variant="outline" className="text-xs">{getRiferimentoPeriodo(managementData)}</Badge>
                 } />
               </div>
             ) : (
