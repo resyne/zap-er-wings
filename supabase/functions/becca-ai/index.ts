@@ -234,11 +234,13 @@ serve(async (req) => {
     };
 
     const orderStats = {
-      total: orders.length,
-      draft: orders.filter(o => o.status === 'draft').length,
-      inProgress: orders.filter(o => o.status === 'in_progress').length,
-      completed: orders.filter(o => o.status === 'completed').length,
+      total: fullOrderData.length,
+      draft: fullOrderData.filter((o: any) => o.status === 'draft').length,
+      inProgress: fullOrderData.filter((o: any) => o.status === 'in_progress').length,
+      completed: fullOrderData.filter((o: any) => o.status === 'completed').length,
     };
+
+    const globalConvRate = leadStats.total > 0 ? ((leadStats.won / leadStats.total) * 100).toFixed(1) : '0';
 
     const today = new Date().toISOString().split('T')[0];
     const allowedActionsStr = body.allowed_actions.join(", ");
@@ -255,13 +257,16 @@ Sei Becca, l'assistente AI aziendale di Zapper collegata all'ERP. Puoi:
 
 AZIONI DISPONIBILI PER QUESTO UTENTE: ${allowedActionsStr}
 
-═══ DATI ERP IN TEMPO REALE ═══
+═══ DATI ERP IN TEMPO REALE (DATI COMPLETI DA DATABASE) ═══
 
-📊 STATISTICHE:
-- Lead: ${leadStats.total} totali (${leadStats.new} nuovi, ${leadStats.contacted} contattati, ${leadStats.qualified} qualificati)
+📊 STATISTICHE GLOBALI (dati accurati su TUTTI i record):
+- Lead: ${leadStats.total} totali (${leadStats.new} nuovi, ${leadStats.contacted} contattati, ${leadStats.qualified} qualificati, ${leadStats.negotiation} in trattativa, ${leadStats.proposal} in proposta, ${leadStats.won} vinti, ${leadStats.lost} persi) | Conversion rate globale: ${globalConvRate}%
 - Task: ${taskStats.total} totali (${taskStats.todo} da fare, ${taskStats.inProgress} in corso, ${taskStats.done} completati)
 - Ordini: ${orderStats.total} totali (${orderStats.draft} bozze, ${orderStats.inProgress} in corso, ${orderStats.completed} completati)
-- Commesse: ${commesse.length} totali
+- Commesse: ${fullCommessaData.length} totali
+
+📈 DETTAGLIO PER PIPELINE:
+${pipelineStats || "Nessun dato pipeline"}
 
 👥 CLIENTI/FORNITORI:
 ${customerList || "Nessuno in database"}
