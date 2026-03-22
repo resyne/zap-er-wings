@@ -1913,13 +1913,33 @@ export default function LeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tutte le fonti</SelectItem>
-                <SelectItem value="website">Sito web</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="social_media">Social Media</SelectItem>
-                <SelectItem value="cold_call">Cold Call</SelectItem>
-                <SelectItem value="trade_show">Fiera</SelectItem>
-                <SelectItem value="zapier">Zapier</SelectItem>
-                <SelectItem value="other">Altro</SelectItem>
+                <SelectItem value="facebook">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Facebook</span>
+                </SelectItem>
+                <SelectItem value="website">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Sito Web</span>
+                </SelectItem>
+                <SelectItem value="vesuviano_website">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />Sito Vesuviano</span>
+                </SelectItem>
+                <SelectItem value="phone_call">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Telefonata</span>
+                </SelectItem>
+                <SelectItem value="social_media">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-500 inline-block" />Social Media</span>
+                </SelectItem>
+                <SelectItem value="referral">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />Referral</span>
+                </SelectItem>
+                <SelectItem value="cold_call">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-500 inline-block" />Cold Call</span>
+                </SelectItem>
+                <SelectItem value="zapier">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />Zapier</span>
+                </SelectItem>
+                <SelectItem value="other">
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />Altro</span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
