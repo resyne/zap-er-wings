@@ -6123,10 +6123,13 @@ export type Database = {
           costo_diretto_stimato: number
           created_at: string
           data: string
+          data_competenza: string | null
+          data_fattura: string | null
           descrizione: string | null
           id: string
           margine_calcolato: number | null
           note: string | null
+          numero_fattura: string | null
           ricavo: number
           service_report_id: string | null
           stato: string
@@ -6139,10 +6142,13 @@ export type Database = {
           costo_diretto_stimato?: number
           created_at?: string
           data?: string
+          data_competenza?: string | null
+          data_fattura?: string | null
           descrizione?: string | null
           id?: string
           margine_calcolato?: number | null
           note?: string | null
+          numero_fattura?: string | null
           ricavo?: number
           service_report_id?: string | null
           stato?: string
@@ -6155,10 +6161,13 @@ export type Database = {
           costo_diretto_stimato?: number
           created_at?: string
           data?: string
+          data_competenza?: string | null
+          data_fattura?: string | null
           descrizione?: string | null
           id?: string
           margine_calcolato?: number | null
           note?: string | null
+          numero_fattura?: string | null
           ricavo?: number
           service_report_id?: string | null
           stato?: string

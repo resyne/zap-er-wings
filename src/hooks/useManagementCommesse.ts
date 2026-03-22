@@ -16,9 +16,24 @@ export interface ManagementCommessa {
   note?: string;
   commessa_id?: string;
   service_report_id?: string;
+  data_competenza?: string | null;
+  data_fattura?: string | null;
+  numero_fattura?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Get the reference period (YYYY-MM) for a management commessa */
+export const getRiferimentoPeriodo = (c: ManagementCommessa): string => {
+  const ref = c.data_fattura || c.data_competenza || c.created_at;
+  if (!ref) return "";
+  try {
+    const d = new Date(ref);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  } catch {
+    return "";
+  }
+};
 
 export const useManagementCommesse = () => {
   return useQuery({
