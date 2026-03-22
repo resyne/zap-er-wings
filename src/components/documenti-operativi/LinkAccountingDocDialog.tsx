@@ -246,7 +246,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-2xl w-[95vw] p-0 gap-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 pt-5 pb-3 space-y-1">
           <DialogTitle className="flex items-center gap-2 text-base">
