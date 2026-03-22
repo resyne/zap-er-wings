@@ -23,6 +23,7 @@ import {
   useCommesseTotals,
   useManagementDataMap,
   useUpsertManagementData,
+  getRiferimentoPeriodo,
   type ManagementCommessa,
 } from "@/hooks/useManagementCommesse";
 
@@ -121,6 +122,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
   const [open, setOpen] = useState(false);
   const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
   const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [dataCompetenza, setDataCompetenza] = useState(managementData?.data_competenza || "");
+  const [dataFattura, setDataFattura] = useState(managementData?.data_fattura || "");
+  const [numeroFattura, setNumeroFattura] = useState(managementData?.numero_fattura || "");
   const [editing, setEditing] = useState(false);
 
   const customerName = commessa.customers?.company_name || commessa.customers?.name || "-";
@@ -132,6 +136,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
     if (val) {
       setRicavo(Number(managementData?.ricavo || 0));
       setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setDataCompetenza(managementData?.data_competenza || "");
+      setDataFattura(managementData?.data_fattura || "");
+      setNumeroFattura(managementData?.numero_fattura || "");
       setEditing(false);
     }
   };
@@ -143,6 +150,9 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
       cliente: customerName,
       ricavo,
       costo_diretto_stimato: costo,
+      data_competenza: dataCompetenza || null,
+      data_fattura: dataFattura || null,
+      numero_fattura: numeroFattura || null,
       existing_id: managementData?.id,
     }, { onSuccess: () => setEditing(false) });
   };
@@ -254,6 +264,22 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
                     <Input type="number" min={0} value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
                   </div>
                 </div>
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground">Riferimento Periodo</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Data Competenza</Label>
+                    <Input type="date" value={dataCompetenza} onChange={e => setDataCompetenza(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Data Fattura</Label>
+                    <Input type="date" value={dataFattura} onChange={e => setDataFattura(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">N° Fattura</Label>
+                    <Input value={numeroFattura} onChange={e => setNumeroFattura(e.target.value)} placeholder="es. FV-2026-001" />
+                  </div>
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-background border">
                   <span className="text-sm font-medium">Margine</span>
                   <div className="flex items-center gap-2">
@@ -282,6 +308,12 @@ const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commess
                     {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
                   </Badge>
                 } />
+                {managementData.data_fattura && <DetailRow label="Data Fattura" value={formatDate(managementData.data_fattura)} />}
+                {managementData.numero_fattura && <DetailRow label="N° Fattura" value={managementData.numero_fattura} />}
+                {managementData.data_competenza && <DetailRow label="Data Competenza" value={formatDate(managementData.data_competenza)} />}
+                <DetailRow label="Periodo Rif." value={
+                  <Badge variant="outline" className="text-xs">{getRiferimentoPeriodo(managementData)}</Badge>
+                } />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">Nessun dato gestionale inserito.</p>
@@ -298,6 +330,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
   const [open, setOpen] = useState(false);
   const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
   const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [dataCompetenza, setDataCompetenza] = useState(managementData?.data_competenza || "");
+  const [dataFattura, setDataFattura] = useState(managementData?.data_fattura || report.invoice_date || "");
+  const [numeroFattura, setNumeroFattura] = useState(managementData?.numero_fattura || report.invoice_number || "");
   const [editing, setEditing] = useState(false);
 
   const customerName = report.customers?.company_name || report.customers?.name || "-";
@@ -309,6 +344,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
     if (val) {
       setRicavo(Number(managementData?.ricavo || 0));
       setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setDataCompetenza(managementData?.data_competenza || "");
+      setDataFattura(managementData?.data_fattura || report.invoice_date || "");
+      setNumeroFattura(managementData?.numero_fattura || report.invoice_number || "");
       setEditing(false);
     }
   };
@@ -320,6 +358,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
       cliente: customerName,
       ricavo,
       costo_diretto_stimato: costo,
+      data_competenza: dataCompetenza || null,
+      data_fattura: dataFattura || null,
+      numero_fattura: numeroFattura || null,
       existing_id: managementData?.id,
     }, { onSuccess: () => setEditing(false) });
   };
@@ -459,6 +500,22 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
                     <Input type="number" min={0} value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
                   </div>
                 </div>
+                <Separator />
+                <p className="text-xs font-semibold text-muted-foreground">Riferimento Periodo</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Data Competenza</Label>
+                    <Input type="date" value={dataCompetenza} onChange={e => setDataCompetenza(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Data Fattura</Label>
+                    <Input type="date" value={dataFattura} onChange={e => setDataFattura(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">N° Fattura</Label>
+                    <Input value={numeroFattura} onChange={e => setNumeroFattura(e.target.value)} placeholder="es. FV-2026-001" />
+                  </div>
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-background border">
                   <span className="text-sm font-medium">Margine</span>
                   <div className="flex items-center gap-2">
@@ -486,6 +543,12 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
                   <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
                     {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
                   </Badge>
+                } />
+                {managementData.data_fattura && <DetailRow label="Data Fattura" value={formatDate(managementData.data_fattura)} />}
+                {managementData.numero_fattura && <DetailRow label="N° Fattura" value={managementData.numero_fattura} />}
+                {managementData.data_competenza && <DetailRow label="Data Competenza" value={formatDate(managementData.data_competenza)} />}
+                <DetailRow label="Periodo Rif." value={
+                  <Badge variant="outline" className="text-xs">{getRiferimentoPeriodo(managementData)}</Badge>
                 } />
               </div>
             ) : (
@@ -628,12 +691,14 @@ const CommesseGestioneSection = () => {
                         <TableHead>Titolo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead>Margine</TableHead>
+                        <TableHead>Periodo</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {commesseReali.map((c: any) => {
                         const customerName = c.customers?.company_name || c.customers?.name || "-";
+                        const md = byCommessa[c.id];
                         return (
                           <TableRow key={c.id}>
                             <TableCell className="font-medium">{c.number}</TableCell>
@@ -644,9 +709,12 @@ const CommesseGestioneSection = () => {
                                 {c.status?.replace(/_/g, " ") || "-"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{mgmtBadge(byCommessa[c.id])}</TableCell>
+                            <TableCell>{mgmtBadge(md)}</TableCell>
                             <TableCell>
-                              <CommessaDetailDialog commessa={c} managementData={byCommessa[c.id]} upsertMut={upsertMut} />
+                              {md ? <Badge variant="outline" className="text-[10px]">{getRiferimentoPeriodo(md)}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell>
+                              <CommessaDetailDialog commessa={c} managementData={md} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );
@@ -675,12 +743,14 @@ const CommesseGestioneSection = () => {
                         <TableHead>Tipo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead>Margine</TableHead>
+                        <TableHead>Periodo</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {serviceReports.map((r: any) => {
                         const customerName = r.customers?.company_name || r.customers?.name || "-";
+                        const md = byReport[r.id];
                         return (
                           <TableRow key={r.id}>
                             <TableCell className="font-medium">{r.report_number || "-"}</TableCell>
@@ -694,9 +764,12 @@ const CommesseGestioneSection = () => {
                                 {r.status === "completed" ? "Completato" : r.status === "draft" ? "Bozza" : r.status === "invoiced" ? "Fatturato" : r.status}
                               </Badge>
                             </TableCell>
-                            <TableCell>{mgmtBadge(byReport[r.id])}</TableCell>
+                            <TableCell>{mgmtBadge(md)}</TableCell>
                             <TableCell>
-                              <ReportDetailDialog report={r} managementData={byReport[r.id]} upsertMut={upsertMut} />
+                              {md ? <Badge variant="outline" className="text-[10px]">{getRiferimentoPeriodo(md)}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell>
+                              <ReportDetailDialog report={r} managementData={md} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );

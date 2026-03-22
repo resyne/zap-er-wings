@@ -16,9 +16,24 @@ export interface ManagementCommessa {
   note?: string;
   commessa_id?: string;
   service_report_id?: string;
+  data_competenza?: string | null;
+  data_fattura?: string | null;
+  numero_fattura?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Get the reference period (YYYY-MM) for a management commessa */
+export const getRiferimentoPeriodo = (c: ManagementCommessa): string => {
+  const ref = c.data_fattura || c.data_competenza || c.created_at;
+  if (!ref) return "";
+  try {
+    const d = new Date(ref);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  } catch {
+    return "";
+  }
+};
 
 export const useManagementCommesse = () => {
   return useQuery({
@@ -101,6 +116,9 @@ export const useUpsertManagementData = () => {
       cliente: string;
       ricavo: number;
       costo_diretto_stimato: number;
+      data_competenza?: string | null;
+      data_fattura?: string | null;
+      numero_fattura?: string | null;
       existing_id?: string;
     }) => {
       const { existing_id, ...rest } = input;
@@ -111,6 +129,9 @@ export const useUpsertManagementData = () => {
           .update({
             ricavo: rest.ricavo,
             costo_diretto_stimato: rest.costo_diretto_stimato,
+            data_competenza: rest.data_competenza || null,
+            data_fattura: rest.data_fattura || null,
+            numero_fattura: rest.numero_fattura || null,
           } as any)
           .eq("id", existing_id);
         if (error) throw error;
