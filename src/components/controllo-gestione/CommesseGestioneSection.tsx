@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, DollarSign, TrendingUp, BarChart3, FileText, Wrench, Save, Check } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Pencil, Trash2, DollarSign, TrendingUp, BarChart3, FileText, Wrench, Check, Eye, Save } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -50,20 +51,26 @@ const statoLabels: Record<string, string> = {
   annullata: "Annullata",
 };
 
-const fmt = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmt = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const formatDate = (d: string | null) => {
   if (!d) return "-";
   try { return format(new Date(d), "dd/MM/yyyy"); } catch { return d; }
 };
 
+const formatTime = (t: string | null) => {
+  if (!t) return "-";
+  return t;
+};
+
+// Fetch commesse with ALL fields
 const useCommesseWithCustomer = () => {
   return useQuery({
     queryKey: ["gestione-commesse-reali"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("commesse")
-        .select("id, number, title, description, status, type, created_at, deadline, customer_id, sales_order_id, customers(name, company_name)")
+        .select("*, customers(name, company_name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -71,13 +78,14 @@ const useCommesseWithCustomer = () => {
   });
 };
 
+// Fetch service reports with ALL fields
 const useServiceReportsGestione = () => {
   return useQuery({
     queryKey: ["gestione-service-reports"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("service_reports")
-        .select("id, report_number, intervention_date, intervention_type, description, status, total_amount, amount, customer_id, technician_name, work_performed, customers(name, company_name)")
+        .select("*, customers(name, company_name)")
         .order("intervention_date", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -100,97 +108,393 @@ const reportStatusColors: Record<string, string> = {
   invoiced: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
 };
 
-// Inline editing row component for ricavo/costo
-interface InlineMarginProps {
-  entityId: string;
-  entityType: "commessa" | "report";
-  codice: string;
-  cliente: string;
-  managementData?: ManagementCommessa;
-  upsertMut: ReturnType<typeof useUpsertManagementData>;
-}
+// --- Detail row helper ---
+const DetailRow = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+  <div className="flex justify-between items-start py-1.5">
+    <span className="text-sm text-muted-foreground shrink-0">{label}</span>
+    <span className={`text-sm font-medium text-right max-w-[60%] ${className || ""}`}>{value || "-"}</span>
+  </div>
+);
 
-const InlineMarginEditor = ({ entityId, entityType, codice, cliente, managementData, upsertMut }: InlineMarginProps) => {
-  const [editing, setEditing] = useState(false);
+// --- Commessa Detail Dialog ---
+const CommessaDetailDialog = ({ commessa, managementData, upsertMut }: { commessa: any; managementData?: ManagementCommessa; upsertMut: ReturnType<typeof useUpsertManagementData> }) => {
+  const [open, setOpen] = useState(false);
   const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
   const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [editing, setEditing] = useState(false);
 
-  const hasData = !!managementData;
+  const customerName = commessa.customers?.company_name || commessa.customers?.name || "-";
   const margine = ricavo - costo;
   const marginePct = ricavo > 0 ? (margine / ricavo) * 100 : 0;
 
+  const handleOpen = (val: boolean) => {
+    setOpen(val);
+    if (val) {
+      setRicavo(Number(managementData?.ricavo || 0));
+      setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setEditing(false);
+    }
+  };
+
   const handleSave = () => {
     upsertMut.mutate({
-      commessa_id: entityType === "commessa" ? entityId : undefined,
-      service_report_id: entityType === "report" ? entityId : undefined,
-      codice_commessa: codice,
-      cliente: cliente,
+      commessa_id: commessa.id,
+      codice_commessa: commessa.number,
+      cliente: customerName,
       ricavo,
       costo_diretto_stimato: costo,
       existing_id: managementData?.id,
-    }, {
-      onSuccess: () => setEditing(false),
-    });
+    }, { onSuccess: () => setEditing(false) });
   };
 
-  if (!editing && !hasData) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground italic">Non compilato</span>
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditing(true)}>
-          <Pencil className="h-3 w-3 mr-1" />Compila
-        </Button>
-      </div>
-    );
-  }
-
-  if (!editing && hasData) {
-    return (
-      <div className="flex items-center gap-3">
-        <div className="text-sm">
-          <span className="text-muted-foreground">Ricavo:</span>{" "}
-          <span className="font-medium">{fmt(Number(managementData.ricavo))}</span>
-        </div>
-        <div className="text-sm">
-          <span className="text-muted-foreground">Costo:</span>{" "}
-          <span className="font-medium text-orange-600">{fmt(Number(managementData.costo_diretto_stimato))}</span>
-        </div>
-        <div className="text-sm">
-          <span className="text-muted-foreground">Margine:</span>{" "}
-          <span className={`font-bold ${Number(managementData.margine_calcolato) >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {fmt(Number(managementData.margine_calcolato))}
-          </span>
-        </div>
-        <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
-          {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
-        </Badge>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setRicavo(Number(managementData.ricavo)); setCosto(Number(managementData.costo_diretto_stimato)); setEditing(true); }}>
-          <Pencil className="h-3 w-3" />
-        </Button>
-      </div>
-    );
-  }
-
-  // Editing mode
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">Ricavo €</span>
-        <Input type="number" min={0} className="h-7 w-24 text-sm" value={ricavo} onChange={e => setRicavo(Math.max(0, Number(e.target.value)))} />
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">Costo €</span>
-        <Input type="number" min={0} className="h-7 w-24 text-sm" value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
-      </div>
-      <div className="flex items-center gap-1 min-w-[80px]">
-        <span className={`text-sm font-bold ${margine >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(margine)}</span>
-        <Badge variant={margine >= 0 ? "default" : "destructive"} className="text-xs">{marginePct.toFixed(1)}%</Badge>
-      </div>
-      <Button variant="default" size="icon" className="h-7 w-7" onClick={handleSave} disabled={upsertMut.isPending}>
-        <Check className="h-3.5 w-3.5" />
-      </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>✕</Button>
-    </div>
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7"><Eye className="h-4 w-4" /></Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Commessa {commessa.number}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Info generali */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Informazioni Generali</h4>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+              <DetailRow label="Numero" value={commessa.number} />
+              <DetailRow label="Titolo" value={commessa.title} />
+              <DetailRow label="Cliente" value={customerName} />
+              <DetailRow label="Tipo" value={commessa.type?.replace(/_/g, " ")} />
+              <DetailRow label="Stato" value={
+                <Badge className={commessaStatusColors[commessa.status] || "bg-muted text-muted-foreground"}>
+                  {commessa.status?.replace(/_/g, " ")}
+                </Badge>
+              } />
+              <DetailRow label="Priorità" value={commessa.priority || "-"} />
+              <DetailRow label="Descrizione" value={commessa.description} />
+              <DetailRow label="Data Creazione" value={formatDate(commessa.created_at)} />
+              <DetailRow label="Scadenza" value={formatDate(commessa.deadline)} />
+            </div>
+          </div>
+
+          {/* Dettagli tecnici */}
+          {(commessa.article || commessa.diameter || commessa.smoke_inlet || commessa.intervention_type) && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Dettagli Tecnici</h4>
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                {commessa.article && <DetailRow label="Articolo" value={commessa.article} />}
+                {commessa.diameter && <DetailRow label="Diametro" value={commessa.diameter} />}
+                {commessa.smoke_inlet && <DetailRow label="Ingresso fumi" value={commessa.smoke_inlet} />}
+                {commessa.intervention_type && <DetailRow label="Tipo Intervento" value={commessa.intervention_type} />}
+                {commessa.delivery_mode && <DetailRow label="Modalità Consegna" value={commessa.delivery_mode} />}
+              </div>
+            </div>
+          )}
+
+          {/* Spedizione */}
+          {(commessa.shipping_address || commessa.shipping_city) && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Spedizione</h4>
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                <DetailRow label="Indirizzo" value={commessa.shipping_address} />
+                <DetailRow label="Città" value={[commessa.shipping_city, commessa.shipping_province, commessa.shipping_postal_code].filter(Boolean).join(", ")} />
+                <DetailRow label="Paese" value={commessa.shipping_country} />
+              </div>
+            </div>
+          )}
+
+          {/* Pagamento */}
+          {(commessa.payment_amount || commessa.payment_on_delivery || commessa.is_warranty) && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Pagamento</h4>
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                {commessa.payment_amount != null && <DetailRow label="Importo" value={fmt(Number(commessa.payment_amount))} />}
+                <DetailRow label="Pagamento alla consegna" value={commessa.payment_on_delivery ? "Sì" : "No"} />
+                <DetailRow label="In garanzia" value={commessa.is_warranty ? "Sì" : "No"} />
+              </div>
+            </div>
+          )}
+
+          {/* Note */}
+          {commessa.notes && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Note</h4>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-sm whitespace-pre-wrap">{commessa.notes}</p>
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Dati Gestionali */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold">Dati Gestionali (Imponibile)</h4>
+              {!editing && (
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-3 w-3 mr-1" />{managementData ? "Modifica" : "Compila"}
+                </Button>
+              )}
+            </div>
+
+            {editing ? (
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Ricavo Imponibile (€)</Label>
+                    <Input type="number" min={0} value={ricavo} onChange={e => setRicavo(Math.max(0, Number(e.target.value)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Costo Diretto Stimato (€)</Label>
+                    <Input type="number" min={0} value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border">
+                  <span className="text-sm font-medium">Margine</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold ${margine >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(margine)}</span>
+                    <Badge variant={margine >= 0 ? "default" : "destructive"} className="text-xs">{marginePct.toFixed(1)}%</Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Annulla</Button>
+                  <Button size="sm" onClick={handleSave} disabled={upsertMut.isPending}>
+                    <Save className="h-3 w-3 mr-1" />Salva
+                  </Button>
+                </div>
+              </div>
+            ) : managementData ? (
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                <DetailRow label="Ricavo" value={fmt(Number(managementData.ricavo))} />
+                <DetailRow label="Costo Diretto Stimato" value={fmt(Number(managementData.costo_diretto_stimato))} className="text-orange-600" />
+                <DetailRow label="Margine" value={
+                  <span className={Number(managementData.margine_calcolato) >= 0 ? "text-green-600" : "text-red-600"}>
+                    {fmt(Number(managementData.margine_calcolato))}
+                  </span>
+                } />
+                <DetailRow label="% Margine" value={
+                  <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
+                    {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
+                  </Badge>
+                } />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Nessun dato gestionale inserito.</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// --- Service Report Detail Dialog ---
+const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any; managementData?: ManagementCommessa; upsertMut: ReturnType<typeof useUpsertManagementData> }) => {
+  const [open, setOpen] = useState(false);
+  const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
+  const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [editing, setEditing] = useState(false);
+
+  const customerName = report.customers?.company_name || report.customers?.name || "-";
+  const margine = ricavo - costo;
+  const marginePct = ricavo > 0 ? (margine / ricavo) * 100 : 0;
+
+  const handleOpen = (val: boolean) => {
+    setOpen(val);
+    if (val) {
+      setRicavo(Number(managementData?.ricavo || 0));
+      setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setEditing(false);
+    }
+  };
+
+  const handleSave = () => {
+    upsertMut.mutate({
+      service_report_id: report.id,
+      codice_commessa: report.report_number || report.id.slice(0, 8),
+      cliente: customerName,
+      ricavo,
+      costo_diretto_stimato: costo,
+      existing_id: managementData?.id,
+    }, { onSuccess: () => setEditing(false) });
+  };
+
+  const reportStatusLabel = (s: string) => {
+    if (s === "completed") return "Completato";
+    if (s === "draft") return "Bozza";
+    if (s === "invoiced") return "Fatturato";
+    return s;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7"><Eye className="h-4 w-4" /></Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wrench className="h-5 w-5" />
+            Rapporto {report.report_number || "-"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Info generali */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Informazioni Generali</h4>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+              <DetailRow label="N° Rapporto" value={report.report_number} />
+              <DetailRow label="Cliente" value={customerName} />
+              <DetailRow label="Tipo Intervento" value={report.intervention_type} />
+              <DetailRow label="Stato" value={
+                <Badge className={reportStatusColors[report.status] || "bg-muted text-muted-foreground"}>
+                  {reportStatusLabel(report.status)}
+                </Badge>
+              } />
+              <DetailRow label="Data Intervento" value={formatDate(report.intervention_date)} />
+              <DetailRow label="Orario Inizio" value={formatTime(report.start_time)} />
+              <DetailRow label="Orario Fine" value={formatTime(report.end_time)} />
+              <DetailRow label="Tecnico" value={report.technician_name} />
+              <DetailRow label="N° Tecnici" value={report.technicians_count} />
+              <DetailRow label="Descrizione" value={report.description} />
+            </div>
+          </div>
+
+          {/* Lavoro eseguito */}
+          {report.work_performed && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Lavoro Eseguito</h4>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-sm whitespace-pre-wrap">{report.work_performed}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Ore e km */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Dettagli Operativi</h4>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+              <DetailRow label="Ore Capo Tecnico" value={report.head_technician_hours != null ? `${report.head_technician_hours}h` : "-"} />
+              <DetailRow label="Ore Tecnico Specializzato" value={report.specialized_technician_hours != null ? `${report.specialized_technician_hours}h` : "-"} />
+              <DetailRow label="Chilometri" value={report.kilometers != null ? `${report.kilometers} km` : "-"} />
+              <DetailRow label="Materiali Utilizzati" value={report.materials_used} />
+              <DetailRow label="In Garanzia" value={report.is_warranty ? "Sì" : "No"} />
+              <DetailRow label="Contratto Manutenzione" value={report.is_maintenance_contract ? "Sì" : "No"} />
+            </div>
+          </div>
+
+          {/* Importi */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Importi Documento</h4>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+              <DetailRow label="Imponibile" value={report.amount != null ? fmt(Number(report.amount)) : "-"} />
+              <DetailRow label="Aliquota IVA" value={report.vat_rate != null ? `${report.vat_rate}%` : "-"} />
+              <DetailRow label="Totale" value={report.total_amount != null ? fmt(Number(report.total_amount)) : "-"} />
+            </div>
+          </div>
+
+          {/* Pagamento */}
+          {(report.payment_amount || report.payment_method || report.payment_status !== "pending") && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Pagamento</h4>
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                <DetailRow label="Stato Pagamento" value={report.payment_status} />
+                <DetailRow label="Importo Pagamento" value={report.payment_amount != null ? fmt(Number(report.payment_amount)) : "-"} />
+                <DetailRow label="Metodo" value={report.payment_method} />
+                <DetailRow label="Data Pagamento" value={formatDate(report.payment_date)} />
+                {report.payment_notes && <DetailRow label="Note Pagamento" value={report.payment_notes} />}
+              </div>
+            </div>
+          )}
+
+          {/* Fatturazione */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Fatturazione</h4>
+            <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+              <DetailRow label="Fatturato" value={report.invoiced ? "Sì" : "No"} />
+              <DetailRow label="N° Fattura" value={report.invoice_number} />
+              <DetailRow label="Data Fattura" value={formatDate(report.invoice_date)} />
+              <DetailRow label="Non Contabilizzato" value={report.non_contabilizzato ? "Sì" : "No"} />
+            </div>
+          </div>
+
+          {/* Note */}
+          {report.notes && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Note</h4>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <p className="text-sm whitespace-pre-wrap">{report.notes}</p>
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Dati Gestionali */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold">Dati Gestionali (Imponibile)</h4>
+              {!editing && (
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="h-3 w-3 mr-1" />{managementData ? "Modifica" : "Compila"}
+                </Button>
+              )}
+            </div>
+
+            {editing ? (
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Ricavo Imponibile (€)</Label>
+                    <Input type="number" min={0} value={ricavo} onChange={e => setRicavo(Math.max(0, Number(e.target.value)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Costo Diretto Stimato (€)</Label>
+                    <Input type="number" min={0} value={costo} onChange={e => setCosto(Math.max(0, Number(e.target.value)))} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-background border">
+                  <span className="text-sm font-medium">Margine</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold ${margine >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(margine)}</span>
+                    <Badge variant={margine >= 0 ? "default" : "destructive"} className="text-xs">{marginePct.toFixed(1)}%</Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Annulla</Button>
+                  <Button size="sm" onClick={handleSave} disabled={upsertMut.isPending}>
+                    <Save className="h-3 w-3 mr-1" />Salva
+                  </Button>
+                </div>
+              </div>
+            ) : managementData ? (
+              <div className="bg-muted/30 rounded-lg p-3 space-y-0.5">
+                <DetailRow label="Ricavo" value={fmt(Number(managementData.ricavo))} />
+                <DetailRow label="Costo Diretto Stimato" value={fmt(Number(managementData.costo_diretto_stimato))} className="text-orange-600" />
+                <DetailRow label="Margine" value={
+                  <span className={Number(managementData.margine_calcolato) >= 0 ? "text-green-600" : "text-red-600"}>
+                    {fmt(Number(managementData.margine_calcolato))}
+                  </span>
+                } />
+                <DetailRow label="% Margine" value={
+                  <Badge variant={Number(managementData.margine_calcolato) >= 0 ? "default" : "destructive"} className="text-xs">
+                    {(Number(managementData.ricavo) > 0 ? (Number(managementData.margine_calcolato) / Number(managementData.ricavo) * 100) : 0).toFixed(1)}%
+                  </Badge>
+                } />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Nessun dato gestionale inserito.</p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -238,14 +542,19 @@ const CommesseGestioneSection = () => {
   const marginePreview = form.ricavo - form.costo_diretto_stimato;
   const marginePctPreview = form.ricavo > 0 ? (marginePreview / form.ricavo) * 100 : 0;
 
-  const totalReportsAmount = useMemo(() =>
-    serviceReports.reduce((s, r) => s + (Number(r.total_amount) || Number(r.amount) || 0), 0),
-    [serviceReports]
-  );
-
-  // Count how many have management data
   const commesseWithData = commesseReali.filter((c: any) => !!byCommessa[c.id]).length;
   const reportsWithData = serviceReports.filter((r: any) => !!byReport[r.id]).length;
+
+  // Badge for management data status
+  const mgmtBadge = (data?: ManagementCommessa) => {
+    if (!data) return <Badge variant="outline" className="text-[10px]">Da compilare</Badge>;
+    const m = Number(data.margine_calcolato);
+    return (
+      <Badge variant={m >= 0 ? "default" : "destructive"} className="text-[10px]">
+        {fmt(m)}
+      </Badge>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -302,7 +611,7 @@ const CommesseGestioneSection = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* Tab: Ordini / Commesse with inline margin editing */}
+            {/* Tab: Ordini / Commesse */}
             <TabsContent value="ordini">
               {commesseReali.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -318,7 +627,8 @@ const CommesseGestioneSection = () => {
                         <TableHead>Cliente</TableHead>
                         <TableHead>Titolo</TableHead>
                         <TableHead>Stato</TableHead>
-                        <TableHead>Dati Gestionali (Imponibile)</TableHead>
+                        <TableHead>Margine</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -334,15 +644,9 @@ const CommesseGestioneSection = () => {
                                 {c.status?.replace(/_/g, " ") || "-"}
                               </Badge>
                             </TableCell>
+                            <TableCell>{mgmtBadge(byCommessa[c.id])}</TableCell>
                             <TableCell>
-                              <InlineMarginEditor
-                                entityId={c.id}
-                                entityType="commessa"
-                                codice={c.number}
-                                cliente={customerName}
-                                managementData={byCommessa[c.id]}
-                                upsertMut={upsertMut}
-                              />
+                              <CommessaDetailDialog commessa={c} managementData={byCommessa[c.id]} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );
@@ -353,7 +657,7 @@ const CommesseGestioneSection = () => {
               )}
             </TabsContent>
 
-            {/* Tab: Rapporti di Intervento with inline margin editing */}
+            {/* Tab: Rapporti di Intervento */}
             <TabsContent value="rapporti">
               {serviceReports.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -370,7 +674,8 @@ const CommesseGestioneSection = () => {
                         <TableHead>Cliente</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Stato</TableHead>
-                        <TableHead>Dati Gestionali (Imponibile)</TableHead>
+                        <TableHead>Margine</TableHead>
+                        <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -389,15 +694,9 @@ const CommesseGestioneSection = () => {
                                 {r.status === "completed" ? "Completato" : r.status === "draft" ? "Bozza" : r.status === "invoiced" ? "Fatturato" : r.status}
                               </Badge>
                             </TableCell>
+                            <TableCell>{mgmtBadge(byReport[r.id])}</TableCell>
                             <TableCell>
-                              <InlineMarginEditor
-                                entityId={r.id}
-                                entityType="report"
-                                codice={r.report_number || r.id.slice(0, 8)}
-                                cliente={customerName}
-                                managementData={byReport[r.id]}
-                                upsertMut={upsertMut}
-                              />
+                              <ReportDetailDialog report={r} managementData={byReport[r.id]} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );
