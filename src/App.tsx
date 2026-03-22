@@ -12,6 +12,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PresenceTracker } from "@/components/auth/PresenceTracker";
 import { AppLayout } from "./components/layout/app-layout";
+import { AdminGuard } from "@/components/guards/AdminGuard";
 
 // Public routes - loaded eagerly since they're entry points
 import AuthPage from "./pages/auth/AuthPage";
