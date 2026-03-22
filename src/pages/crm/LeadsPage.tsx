@@ -2047,9 +2047,17 @@ export default function LeadsPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             className={cn(
-                              "cursor-pointer transition-all",
+                              "cursor-pointer transition-all border-l-4",
                               snapshot.isDragging && "shadow-lg scale-105",
-                              isMobile && "touch-manipulation"
+                              isMobile && "touch-manipulation",
+                              lead.source === 'facebook' && "border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/20",
+                              lead.source === 'website' && "border-l-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20",
+                              lead.source === 'vesuviano_website' && "border-l-teal-500 bg-teal-50/40 dark:bg-teal-950/20",
+                              lead.source === 'phone_call' && "border-l-amber-500",
+                              lead.source === 'social_media' && "border-l-pink-500 bg-pink-50/30 dark:bg-pink-950/20",
+                              lead.source === 'referral' && "border-l-purple-500",
+                              lead.source === 'zapier' && "border-l-orange-500",
+                              !lead.source && "border-l-gray-300"
                             )}
                             onClick={() => {
                               setSelectedLead(lead);
