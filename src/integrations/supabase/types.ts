@@ -2283,6 +2283,39 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_categories: {
+        Row: {
+          cost_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cost_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cost_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cost_centers: {
         Row: {
           account_code: string | null
@@ -6081,6 +6114,183 @@ export type Database = {
           user_email?: string
         }
         Relationships: []
+      }
+      management_control_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      management_costs: {
+        Row: {
+          amount: number
+          business_unit_id: string | null
+          category_id: string | null
+          category_name: string | null
+          commessa_id: string | null
+          cost_center_id: string | null
+          cost_nature: string
+          cost_type: string
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          date: string
+          description: string
+          frequency: string
+          id: string
+          net_amount: number | null
+          notes: string | null
+          payment_method: string | null
+          product_id: string | null
+          sales_order_id: string | null
+          source: string | null
+          source_id: string | null
+          status: string
+          supplier_id: string | null
+          supplier_name: string | null
+          updated_at: string | null
+          vat_amount: number | null
+          vat_rate: number | null
+        }
+        Insert: {
+          amount: number
+          business_unit_id?: string | null
+          category_id?: string | null
+          category_name?: string | null
+          commessa_id?: string | null
+          cost_center_id?: string | null
+          cost_nature?: string
+          cost_type: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          date: string
+          description: string
+          frequency?: string
+          id?: string
+          net_amount?: number | null
+          notes?: string | null
+          payment_method?: string | null
+          product_id?: string | null
+          sales_order_id?: string | null
+          source?: string | null
+          source_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          business_unit_id?: string | null
+          category_id?: string | null
+          category_name?: string | null
+          commessa_id?: string | null
+          cost_center_id?: string | null
+          cost_nature?: string
+          cost_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          date?: string
+          description?: string
+          frequency?: string
+          id?: string
+          net_amount?: number | null
+          notes?: string | null
+          payment_method?: string | null
+          product_id?: string | null
+          sales_order_id?: string | null
+          source?: string | null
+          source_id?: string | null
+          status?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
+          updated_at?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_costs_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "cost_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_commessa_id_fkey"
+            columns: ["commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_costs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       management_projects: {
         Row: {

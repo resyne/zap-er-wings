@@ -163,6 +163,15 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
+    title: "Controllo di Gestione",
+    items: [
+      { title: "Dashboard Marginalità", url: "/controllo-gestione/dashboard", icon: BarChart3 },
+      { title: "Costi", url: "/controllo-gestione/costi", icon: DollarSign },
+      { title: "Centri di Costo", url: "/controllo-gestione/centri-costo", icon: PieChart },
+      { title: "Analisi Vendite vs Costi", url: "/controllo-gestione/analisi", icon: TrendingUp },
+    ]
+  },
+  {
     title: "Contabilità",
     items: [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
