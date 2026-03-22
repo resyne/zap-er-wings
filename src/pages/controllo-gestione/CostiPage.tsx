@@ -140,6 +140,21 @@ const CostiPage = () => {
     setEditingCost(null);
   };
 
+  const handleAddSupplier = async () => {
+    if (!newSupplierName.trim()) return;
+    try {
+      const { data, error } = await supabase.from('suppliers').insert({ name: newSupplierName.trim(), active: true } as any).select('id, name').single();
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['suppliers-active'] });
+      setEditingCost(p => ({ ...p!, supplier_id: data.id, supplier_name: data.name }));
+      setNewSupplierName("");
+      setNewSupplierOpen(false);
+      toast.success("Fornitore aggiunto");
+    } catch (e: any) {
+      toast.error("Errore: " + e.message);
+    }
+  };
+
   const handleArchive = async (cost: ManagementCost) => {
     await updateCost.mutateAsync({ id: cost.id, status: "archived" });
   };
