@@ -289,20 +289,25 @@ const CostiPage = () => {
               </div>
               <div>
                 <Label>Fornitore</Label>
-                <Select value={editingCost.supplier_id || "none"} onValueChange={v => {
-                  if (v === "none") {
-                    setEditingCost(p => ({ ...p!, supplier_id: undefined, supplier_name: undefined }));
-                  } else {
-                    const sup = suppliers.find(s => s.id === v);
-                    setEditingCost(p => ({ ...p!, supplier_id: v, supplier_name: sup?.name }));
-                  }
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona fornitore" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">— Nessuno —</SelectItem>
-                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={editingCost.supplier_id || "none"} onValueChange={v => {
+                    if (v === "none") {
+                      setEditingCost(p => ({ ...p!, supplier_id: undefined, supplier_name: undefined }));
+                    } else {
+                      const sup = suppliers.find(s => s.id === v);
+                      setEditingCost(p => ({ ...p!, supplier_id: v, supplier_name: sup?.name }));
+                    }
+                  }}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Seleziona fornitore" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Nessuno —</SelectItem>
+                      {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" size="icon" onClick={() => setNewSupplierOpen(true)} title="Aggiungi fornitore">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>Categoria</Label>
