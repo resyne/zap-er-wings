@@ -13,7 +13,7 @@ import { it } from "date-fns/locale";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Bozza", variant: "outline" },
@@ -126,7 +126,7 @@ export default function RapportiSection() {
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tipo</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tecnico</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right">Importo</TableHead>
-                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Contabilità</TableHead>
+                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fatturazione</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -143,26 +143,27 @@ export default function RapportiSection() {
                         <TableCell>{report.technician_name || "—"}</TableCell>
                         <TableCell className="text-right font-medium">{report.total_amount != null ? `€ ${report.total_amount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}` : "—"}</TableCell>
                         <TableCell>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                {hasAccounting ? (
-                                  <Badge variant="default" className="text-xs gap-1">
-                                    <FileCheck className="h-3 w-3" />
-                                    {report.invoice_number || "Collegato"}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Mancante
-                                  </Badge>
-                                )}
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {hasAccounting ? "Documento contabile collegato" : "Nessun documento contabile collegato"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <button
+                            onClick={() => setLinkDialog({
+                              open: true,
+                              reportId: report.id,
+                              reportLabel: report.report_number || "Rapporto",
+                              currentLinkedId: null
+                            })}
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            {hasAccounting ? (
+                              <Badge variant="default" className="text-xs gap-1">
+                                <FileCheck className="h-3 w-3" />
+                                {report.invoice_number || "Fatturato"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20">
+                                <AlertTriangle className="h-3 w-3" />
+                                Da fatturare
+                              </Badge>
+                            )}
+                          </button>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -179,7 +180,7 @@ export default function RapportiSection() {
                                 currentLinkedId: null
                               })}>
                                 <LinkIcon className="h-4 w-4 mr-2" />
-                                {hasAccounting ? "Cambia doc. contabile" : "Collega doc. contabile"}
+                                {hasAccounting ? "Cambia fattura" : "Collega fattura"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

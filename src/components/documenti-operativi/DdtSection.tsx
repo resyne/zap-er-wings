@@ -343,7 +343,7 @@ export default function DdtSection() {
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Data</TableHead>
                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Articoli</TableHead>
                      <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Stato</TableHead>
-                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Contabilità</TableHead>
+                     <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fatturazione</TableHead>
                      <TableHead className="text-right w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -376,26 +376,27 @@ export default function DdtSection() {
                             <Badge variant="outline" className="text-xs">{ddt.status || "ricevuto"}</Badge>
                           </TableCell>
                           <TableCell>
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  {(ddt as any).invoiced ? (
-                                    <Badge variant="default" className="text-xs gap-1">
-                                      <FileCheck className="h-3 w-3" />
-                                      {(ddt as any).invoice_number || "Collegato"}
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20">
-                                      <AlertTriangle className="h-3 w-3" />
-                                      Mancante
-                                    </Badge>
-                                  )}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {(ddt as any).invoiced ? "Documento contabile collegato" : "Nessun documento contabile collegato"}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <button
+                              onClick={() => setLinkDialog({
+                                open: true,
+                                ddtId: ddt.id,
+                                ddtLabel: ddt.ddt_number || "DDT",
+                                currentLinkedId: null
+                              })}
+                              className="cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              {(ddt as any).invoiced ? (
+                                <Badge variant="default" className="text-xs gap-1">
+                                  <FileCheck className="h-3 w-3" />
+                                  {(ddt as any).invoice_number || "Fatturato"}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-xs gap-1 text-amber-600 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Da fatturare
+                                </Badge>
+                              )}
+                            </button>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -421,7 +422,7 @@ export default function DdtSection() {
                                     currentLinkedId: null
                                   })}>
                                     <LinkIcon className="h-4 w-4 mr-2" />
-                                    {(ddt as any).invoiced ? "Cambia doc. contabile" : "Collega doc. contabile"}
+                                    {(ddt as any).invoiced ? "Cambia fattura" : "Collega fattura"}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => toggleArchive(ddt.id, ddt.archived || false)}>
                                     <Archive className="h-4 w-4 mr-2" />
