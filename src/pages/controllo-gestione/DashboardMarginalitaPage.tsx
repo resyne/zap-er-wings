@@ -24,11 +24,13 @@ const DashboardMarginalitaPage = () => {
 
   const { data: costs = [] } = useManagementCosts({ status: "active", dateFrom: dateRange.from, dateTo: dateRange.to });
   const { data: revenues = [] } = useRevenueData(dateRange.from, dateRange.to);
+  const { data: commesse = [] } = useManagementCommesse();
+  const commesseTotals = useCommesseTotals(commesse);
 
   const metrics = useMemo(() => {
-    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0);
+    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0) + commesseTotals.totaleRicavi;
     const fixedCosts = costs.filter(c => c.cost_type === "fixed").reduce((s, c) => s + Number(c.amount), 0);
-    const variableCosts = costs.filter(c => c.cost_type === "variable").reduce((s, c) => s + Number(c.amount), 0);
+    const variableCosts = costs.filter(c => c.cost_type === "variable").reduce((s, c) => s + Number(c.amount), 0) + commesseTotals.totaleCostiDiretti;
     const grossMargin = totalRevenue - variableCosts;
     const netMargin = totalRevenue - variableCosts - fixedCosts;
     const grossMarginPct = totalRevenue > 0 ? (grossMargin / totalRevenue) * 100 : 0;
@@ -39,7 +41,7 @@ const DashboardMarginalitaPage = () => {
     const breakEven = contributionMarginPct > 0 ? fixedCosts / (contributionMarginPct / 100) : 0;
 
     return { totalRevenue, fixedCosts, variableCosts, grossMargin, netMargin, grossMarginPct, netMarginPct, variableCostPct, fixedCostPct, breakEven };
-  }, [costs, revenues]);
+  }, [costs, revenues, commesseTotals]);
 
   // Monthly data for charts
   const monthlyData = useMemo(() => {
