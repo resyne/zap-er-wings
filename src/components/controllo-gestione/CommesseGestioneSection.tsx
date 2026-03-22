@@ -330,6 +330,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
   const [open, setOpen] = useState(false);
   const [ricavo, setRicavo] = useState(Number(managementData?.ricavo || 0));
   const [costo, setCosto] = useState(Number(managementData?.costo_diretto_stimato || 0));
+  const [dataCompetenza, setDataCompetenza] = useState(managementData?.data_competenza || "");
+  const [dataFattura, setDataFattura] = useState(managementData?.data_fattura || report.invoice_date || "");
+  const [numeroFattura, setNumeroFattura] = useState(managementData?.numero_fattura || report.invoice_number || "");
   const [editing, setEditing] = useState(false);
 
   const customerName = report.customers?.company_name || report.customers?.name || "-";
@@ -341,6 +344,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
     if (val) {
       setRicavo(Number(managementData?.ricavo || 0));
       setCosto(Number(managementData?.costo_diretto_stimato || 0));
+      setDataCompetenza(managementData?.data_competenza || "");
+      setDataFattura(managementData?.data_fattura || report.invoice_date || "");
+      setNumeroFattura(managementData?.numero_fattura || report.invoice_number || "");
       setEditing(false);
     }
   };
@@ -352,6 +358,9 @@ const ReportDetailDialog = ({ report, managementData, upsertMut }: { report: any
       cliente: customerName,
       ricavo,
       costo_diretto_stimato: costo,
+      data_competenza: dataCompetenza || null,
+      data_fattura: dataFattura || null,
+      numero_fattura: numeroFattura || null,
       existing_id: managementData?.id,
     }, { onSuccess: () => setEditing(false) });
   };
