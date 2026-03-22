@@ -240,6 +240,8 @@ const DashboardMarginalitaPage = () => {
           </CardContent>
         </Card>
       )}
+      {/* Commesse Section */}
+      <CommesseGestioneSection />
     </div>
   );
 };
