@@ -116,6 +116,9 @@ export const useUpsertManagementData = () => {
       cliente: string;
       ricavo: number;
       costo_diretto_stimato: number;
+      data_competenza?: string | null;
+      data_fattura?: string | null;
+      numero_fattura?: string | null;
       existing_id?: string;
     }) => {
       const { existing_id, ...rest } = input;
@@ -126,6 +129,9 @@ export const useUpsertManagementData = () => {
           .update({
             ricavo: rest.ricavo,
             costo_diretto_stimato: rest.costo_diretto_stimato,
+            data_competenza: rest.data_competenza || null,
+            data_fattura: rest.data_fattura || null,
+            numero_fattura: rest.numero_fattura || null,
           } as any)
           .eq("id", existing_id);
         if (error) throw error;
