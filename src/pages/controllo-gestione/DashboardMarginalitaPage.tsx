@@ -24,7 +24,7 @@ const DashboardMarginalitaPage = () => {
   const { data: revenues = [] } = useRevenueData(dateRange.from, dateRange.to);
 
   const metrics = useMemo(() => {
-    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || Number(r.totale) || 0), 0);
+    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0);
     const fixedCosts = costs.filter(c => c.cost_type === "fixed").reduce((s, c) => s + Number(c.amount), 0);
     const variableCosts = costs.filter(c => c.cost_type === "variable").reduce((s, c) => s + Number(c.amount), 0);
     const grossMargin = totalRevenue - variableCosts;
