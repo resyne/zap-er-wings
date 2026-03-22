@@ -743,12 +743,14 @@ const CommesseGestioneSection = () => {
                         <TableHead>Tipo</TableHead>
                         <TableHead>Stato</TableHead>
                         <TableHead>Margine</TableHead>
+                        <TableHead>Periodo</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {serviceReports.map((r: any) => {
                         const customerName = r.customers?.company_name || r.customers?.name || "-";
+                        const md = byReport[r.id];
                         return (
                           <TableRow key={r.id}>
                             <TableCell className="font-medium">{r.report_number || "-"}</TableCell>
@@ -762,9 +764,12 @@ const CommesseGestioneSection = () => {
                                 {r.status === "completed" ? "Completato" : r.status === "draft" ? "Bozza" : r.status === "invoiced" ? "Fatturato" : r.status}
                               </Badge>
                             </TableCell>
-                            <TableCell>{mgmtBadge(byReport[r.id])}</TableCell>
+                            <TableCell>{mgmtBadge(md)}</TableCell>
                             <TableCell>
-                              <ReportDetailDialog report={r} managementData={byReport[r.id]} upsertMut={upsertMut} />
+                              {md ? <Badge variant="outline" className="text-[10px]">{getRiferimentoPeriodo(md)}</Badge> : <span className="text-xs text-muted-foreground">-</span>}
+                            </TableCell>
+                            <TableCell>
+                              <ReportDetailDialog report={r} managementData={md} upsertMut={upsertMut} />
                             </TableCell>
                           </TableRow>
                         );
