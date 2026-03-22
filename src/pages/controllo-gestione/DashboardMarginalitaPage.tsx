@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, BarChart3, PieChart } from "lucide-react";
 import { useManagementCosts, useRevenueData } from "@/hooks/useManagementCosts";
+import { useManagementCommesse, useCommesseTotals } from "@/hooks/useManagementCommesse";
 import { format, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, Legend, Area, AreaChart, ReferenceLine } from "recharts";
+import CommesseGestioneSection from "@/components/controllo-gestione/CommesseGestioneSection";
 
 const DashboardMarginalitaPage = () => {
   const [period, setPeriod] = useState("year");
@@ -22,11 +24,13 @@ const DashboardMarginalitaPage = () => {
 
   const { data: costs = [] } = useManagementCosts({ status: "active", dateFrom: dateRange.from, dateTo: dateRange.to });
   const { data: revenues = [] } = useRevenueData(dateRange.from, dateRange.to);
+  const { data: commesse = [] } = useManagementCommesse();
+  const commesseTotals = useCommesseTotals(commesse);
 
   const metrics = useMemo(() => {
-    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0);
+    const totalRevenue = revenues.reduce((s, r) => s + (Number(r.imponibile) || 0), 0) + commesseTotals.totaleRicavi;
     const fixedCosts = costs.filter(c => c.cost_type === "fixed").reduce((s, c) => s + Number(c.amount), 0);
-    const variableCosts = costs.filter(c => c.cost_type === "variable").reduce((s, c) => s + Number(c.amount), 0);
+    const variableCosts = costs.filter(c => c.cost_type === "variable").reduce((s, c) => s + Number(c.amount), 0) + commesseTotals.totaleCostiDiretti;
     const grossMargin = totalRevenue - variableCosts;
     const netMargin = totalRevenue - variableCosts - fixedCosts;
     const grossMarginPct = totalRevenue > 0 ? (grossMargin / totalRevenue) * 100 : 0;
@@ -37,7 +41,7 @@ const DashboardMarginalitaPage = () => {
     const breakEven = contributionMarginPct > 0 ? fixedCosts / (contributionMarginPct / 100) : 0;
 
     return { totalRevenue, fixedCosts, variableCosts, grossMargin, netMargin, grossMarginPct, netMarginPct, variableCostPct, fixedCostPct, breakEven };
-  }, [costs, revenues]);
+  }, [costs, revenues, commesseTotals]);
 
   // Monthly data for charts
   const monthlyData = useMemo(() => {
@@ -236,6 +240,8 @@ const DashboardMarginalitaPage = () => {
           </CardContent>
         </Card>
       )}
+      {/* Commesse Section */}
+      <CommesseGestioneSection />
     </div>
   );
 };

@@ -6115,6 +6115,62 @@ export type Database = {
         }
         Relationships: []
       }
+      management_commesse: {
+        Row: {
+          cliente: string
+          codice_commessa: string
+          commessa_id: string | null
+          costo_diretto_stimato: number
+          created_at: string
+          data: string
+          descrizione: string | null
+          id: string
+          margine_calcolato: number | null
+          note: string | null
+          ricavo: number
+          stato: string
+          updated_at: string
+        }
+        Insert: {
+          cliente: string
+          codice_commessa: string
+          commessa_id?: string | null
+          costo_diretto_stimato?: number
+          created_at?: string
+          data?: string
+          descrizione?: string | null
+          id?: string
+          margine_calcolato?: number | null
+          note?: string | null
+          ricavo?: number
+          stato?: string
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string
+          codice_commessa?: string
+          commessa_id?: string | null
+          costo_diretto_stimato?: number
+          created_at?: string
+          data?: string
+          descrizione?: string | null
+          id?: string
+          margine_calcolato?: number | null
+          note?: string | null
+          ricavo?: number
+          stato?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_commesse_commessa_id_fkey"
+            columns: ["commessa_id"]
+            isOneToOne: false
+            referencedRelation: "commesse"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       management_control_settings: {
         Row: {
           created_at: string | null
