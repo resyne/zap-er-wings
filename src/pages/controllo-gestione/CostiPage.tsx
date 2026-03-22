@@ -92,6 +92,20 @@ const CostiPage = () => {
     }
   });
 
+  // Fornitori dalla tabella suppliers
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const filtered = costs.filter(c => {
     if (search && !c.description.toLowerCase().includes(search.toLowerCase()) && !(c.supplier_name || "").toLowerCase().includes(search.toLowerCase())) return false;
     if (filterType !== "all" && c.cost_type !== filterType) return false;
