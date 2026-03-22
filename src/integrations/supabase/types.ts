@@ -6159,6 +6159,7 @@ export type Database = {
           description: string
           frequency: string
           id: string
+          iva_mode: string | null
           net_amount: number | null
           notes: string | null
           payment_method: string | null
@@ -6189,6 +6190,7 @@ export type Database = {
           description: string
           frequency?: string
           id?: string
+          iva_mode?: string | null
           net_amount?: number | null
           notes?: string | null
           payment_method?: string | null
@@ -6219,6 +6221,7 @@ export type Database = {
           description?: string
           frequency?: string
           id?: string
+          iva_mode?: string | null
           net_amount?: number | null
           notes?: string | null
           payment_method?: string | null
