@@ -1,15 +1,31 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Filter, Archive, Copy, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, Archive, Copy, Edit2 } from "lucide-react";
 import { useManagementCosts, useCostCategories, useCreateCost, useUpdateCost, useDeleteCost, ManagementCost } from "@/hooks/useManagementCosts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+
+// Metodi di pagamento allineati con Registro Contabile e Prima Nota
+const PAYMENT_METHODS = [
+  { value: 'bonifico', label: 'Bonifico Bancario' },
+  { value: 'banca', label: 'Banca (altro)' },
+  { value: 'carta', label: 'Carta' },
+  { value: 'american_express', label: 'American Express' },
+  { value: 'carta_aziendale', label: 'Carta Aziendale' },
+  { value: 'carta_q8', label: 'Carta Q8' },
+  { value: 'contanti', label: 'Contanti' },
+  { value: 'cassa', label: 'Cassa' },
+  { value: 'anticipo_dipendente', label: 'Anticipo Dipendente' },
+  { value: 'banca_intesa', label: 'Banca Intesa' },
+];
 
 const emptyForm = (): Partial<ManagementCost> => ({
   date: format(new Date(), "yyyy-MM-dd"),
@@ -33,6 +49,48 @@ const CostiPage = () => {
   const createCost = useCreateCost();
   const updateCost = useUpdateCost();
   const deleteCost = useDeleteCost();
+
+  // Centri di costo — stessa query del Registro Contabile
+  const { data: costCenters = [] } = useQuery({
+    queryKey: ['cost-centers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cost_centers')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Centri di ricavo — stessa query del Registro Contabile
+  const { data: profitCenters = [] } = useQuery({
+    queryKey: ['profit-centers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profit_centers')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Business units
+  const { data: businessUnits = [] } = useQuery({
+    queryKey: ['business-units'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('business_units')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('code');
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const filtered = costs.filter(c => {
     if (search && !c.description.toLowerCase().includes(search.toLowerCase()) && !(c.supplier_name || "").toLowerCase().includes(search.toLowerCase())) return false;
@@ -67,6 +125,9 @@ const CostiPage = () => {
 
   const fmt = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 2 });
   const freqLabel: Record<string, string> = { one_time: "Una tantum", monthly: "Mensile", quarterly: "Trimestrale", annual: "Annuale" };
+  const paymentLabel = (v: string) => PAYMENT_METHODS.find(p => p.value === v)?.label || v || "-";
+
+  const getCostCenterName = (id?: string) => costCenters.find(c => c.id === id)?.name || "-";
 
   return (
     <div className="space-y-6">
@@ -125,14 +186,15 @@ const CostiPage = () => {
                   <th className="text-left p-3">Natura</th>
                   <th className="text-right p-3">Importo</th>
                   <th className="text-left p-3">Frequenza</th>
+                  <th className="text-left p-3">Centro Costo</th>
                   <th className="text-right p-3">Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Caricamento...</td></tr>
+                  <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Caricamento...</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nessun costo trovato. Crea il primo costo per iniziare.</td></tr>
+                  <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">Nessun costo trovato. Crea il primo costo per iniziare.</td></tr>
                 ) : filtered.map(cost => (
                   <tr key={cost.id} className="border-b hover:bg-muted/30">
                     <td className="p-3">{cost.date ? format(new Date(cost.date), "dd/MM/yyyy") : "-"}</td>
@@ -149,6 +211,7 @@ const CostiPage = () => {
                     </td>
                     <td className="p-3 text-right font-medium">{fmt(Number(cost.amount))}</td>
                     <td className="p-3">{freqLabel[cost.frequency] || cost.frequency}</td>
+                    <td className="p-3 text-xs">{getCostCenterName(cost.cost_center_id)}</td>
                     <td className="p-3 text-right">
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="icon" onClick={() => { setEditingCost(cost); setDialogOpen(true); }}><Edit2 className="h-3.5 w-3.5" /></Button>
@@ -241,13 +304,39 @@ const CostiPage = () => {
                 <Select value={editingCost.payment_method || ""} onValueChange={v => setEditingCost(p => ({ ...p!, payment_method: v }))}>
                   <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="bonifico">Bonifico</SelectItem>
-                    <SelectItem value="carta">Carta</SelectItem>
-                    <SelectItem value="contanti">Contanti</SelectItem>
-                    <SelectItem value="banca">Banca</SelectItem>
+                    {PAYMENT_METHODS.map(pm => (
+                      <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Centro di Costo — allineato con Registro Contabile */}
+              <div>
+                <Label>Centro di Costo</Label>
+                <Select value={editingCost.cost_center_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, cost_center_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
+                  <SelectContent>
+                    {costCenters.map((cc: any) => (
+                      <SelectItem key={cc.id} value={cc.id}>{cc.code} - {cc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Business Unit */}
+              <div>
+                <Label>Business Unit</Label>
+                <Select value={editingCost.business_unit_id || ""} onValueChange={v => setEditingCost(p => ({ ...p!, business_unit_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona" /></SelectTrigger>
+                  <SelectContent>
+                    {businessUnits.map((bu: any) => (
+                      <SelectItem key={bu.id} value={bu.id}>{bu.code} - {bu.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="col-span-2">
                 <Label>Note</Label>
                 <Textarea value={editingCost.notes || ""} onChange={e => setEditingCost(p => ({ ...p!, notes: e.target.value }))} rows={2} />
