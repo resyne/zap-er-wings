@@ -983,6 +983,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                     <TableHead className="text-right w-[120px]">Importo</TableHead>
                     <TableHead className="w-[160px]">{isInflow ? "Cliente" : "Fornitore"}</TableHead>
                     <TableHead className="w-[140px]">Match</TableHead>
+                    <TableHead className="w-[100px]">Prima Nota</TableHead>
                     <TableHead className="w-[130px]">Stato</TableHead>
                     <TableHead className="w-[180px] text-right">Azioni</TableHead>
                   </TableRow>
