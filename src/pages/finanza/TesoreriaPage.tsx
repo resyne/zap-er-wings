@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import {
   Upload, Search, Check, Link2, Plus, EyeOff, RefreshCw, FileSpreadsheet,
-  ArrowDownCircle, ArrowUpCircle, Lock, ShieldCheck
+  ArrowDownCircle, ArrowUpCircle, Lock, ShieldCheck, BookOpen, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
