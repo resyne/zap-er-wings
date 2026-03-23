@@ -470,17 +470,84 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     }
   }, [movements, openInvoices, user, queryClient, queryKey]);
 
+  // Helper: create prima nota + lines for a reconciliation payment
+  const createPrimaNotaForReconciliation = async (
+    movementId: string, 
+    invoiceId: string, 
+    amount: number, 
+    movementDate: string,
+    isCredit: boolean
+  ) => {
+    // Create accounting entry
+    const { data: ae, error: aeErr } = await supabase.from("accounting_entries").insert({
+      document_date: movementDate,
+      document_type: "documento_interno",
+      direction: isCredit ? "entrata" : "uscita",
+      amount,
+      totale: amount,
+      status: "registrato",
+      financial_status: isCredit ? "incassato" : "pagato",
+      payment_method: "bonifico",
+      payment_date: movementDate,
+      affects_income_statement: false,
+      note: `Riconciliazione bancaria - ${isCredit ? "Incasso" : "Pagamento"}`,
+      attachment_url: "",
+    }).select().single();
+    if (aeErr) throw aeErr;
+
+    // Create prima nota
+    const { data: pn, error: pnErr } = await supabase.from("prima_nota").insert({
+      accounting_entry_id: ae.id,
+      movement_type: "finanziario",
+      competence_date: movementDate,
+      amount,
+      description: `Riconciliazione bancaria - ${isCredit ? "Incasso" : "Pagamento"}`,
+      status: "registrato",
+      payment_method: "bonifico",
+    }).select().single();
+    if (pnErr) throw pnErr;
+
+    // Create double-entry lines
+    const lines = isCredit
+      ? [
+          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: amount, avere: 0, description: "Incasso da cliente (bonifico)" },
+          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "CREDITI_CLIENTI", chart_account_id: null, dare: 0, avere: amount, description: "Chiusura credito vs clienti" },
+        ]
+      : [
+          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "DEBITI_FORNITORI", chart_account_id: null, dare: amount, avere: 0, description: "Chiusura debito vs fornitori" },
+          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: 0, avere: amount, description: "Pagamento a fornitore (bonifico)" },
+        ];
+    
+    const { error: lErr } = await supabase.from("prima_nota_lines").insert(lines);
+    if (lErr) throw lErr;
+
+    // Update bank_reconciliation with prima_nota_id
+    await supabase.from("bank_reconciliations")
+      .update({ prima_nota_id: pn.id })
+      .eq("bank_movement_id", movementId)
+      .eq("invoice_id", invoiceId);
+
+    return pn.id;
+  };
+
   // Confirm match
   const confirmMatch = async (movementId: string) => {
     try {
+      const mov = movements.find((m: any) => m.id === movementId);
       await supabase.from("bank_movements").update({ status: "matched" }).eq("id", movementId);
       const { data: recons } = await supabase
         .from("bank_reconciliations")
-        .select("invoice_id, reconciled_amount")
+        .select("invoice_id, reconciled_amount, scadenza_id, prima_nota_id")
         .eq("bank_movement_id", movementId);
 
       if (recons) {
         for (const rec of recons) {
+          // Create prima nota if not already created
+          if (!rec.prima_nota_id && rec.invoice_id) {
+            const movDate = mov?.movement_date || new Date().toISOString().split("T")[0];
+            await createPrimaNotaForReconciliation(movementId, rec.invoice_id, rec.reconciled_amount, movDate, isInflow);
+          }
+
           if (rec.invoice_id) {
             const { data: inv } = await supabase
               .from("invoice_registry")
@@ -493,7 +560,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                 ? (paid ? "incassata" : "parzialmente_incassata")
                 : (paid ? "pagata" : "parzialmente_pagata");
               await supabase.from("invoice_registry")
-                .update({ financial_status: newStatus, payment_date: new Date().toISOString().split("T")[0] })
+                .update({ financial_status: newStatus, payment_date: mov?.movement_date || new Date().toISOString().split("T")[0] })
                 .eq("id", rec.invoice_id);
             }
           }
@@ -512,21 +579,32 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           }
         }
       }
-      toast.success("Match confermato e contabilità aggiornata");
+      toast.success("Match confermato, Prima Nota e scadenziario aggiornati");
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: [`open-invoices-${direction}`] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
     } catch (err: any) { toast.error(err.message); }
   };
 
   const linkToInvoice = async () => {
     if (!selectedMovement || !selectedInvoiceId) return;
     try {
+      const movDate = selectedMovement.movement_date || new Date().toISOString().split("T")[0];
+      
+      // Create prima nota for this reconciliation
+      const pnId = await createPrimaNotaForReconciliation(
+        selectedMovement.id, selectedInvoiceId, selectedMovement.amount, movDate, isInflow
+      );
+
       await supabase.from("bank_reconciliations").insert({
         bank_movement_id: selectedMovement.id,
         invoice_id: selectedInvoiceId,
         reconciled_amount: selectedMovement.amount,
         match_type: "manual",
         reconciled_by: user?.id,
+        prima_nota_id: pnId,
       });
       await supabase.from("bank_movements").update({ status: "matched" }).eq("id", selectedMovement.id);
 
@@ -542,7 +620,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           ? (paid ? "incassata" : "parzialmente_incassata")
           : (paid ? "pagata" : "parzialmente_pagata");
         await supabase.from("invoice_registry")
-          .update({ financial_status: newStatus, payment_date: new Date().toISOString().split("T")[0] })
+          .update({ financial_status: newStatus, payment_date: movDate })
           .eq("id", selectedInvoiceId);
       }
       // Update scadenze
@@ -558,11 +636,14 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         }
       }
 
-      toast.success("Fattura collegata e registro contabile aggiornato");
+      toast.success("Fattura collegata, Prima Nota e scadenziario aggiornati");
       setLinkDialogOpen(false);
       setSelectedInvoiceId("");
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: [`open-invoices-${direction}`] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
     } catch (err: any) { toast.error(err.message); }
   };
 
