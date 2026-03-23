@@ -591,12 +591,20 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
   const linkToInvoice = async () => {
     if (!selectedMovement || !selectedInvoiceId) return;
     try {
+      const movDate = selectedMovement.movement_date || new Date().toISOString().split("T")[0];
+      
+      // Create prima nota for this reconciliation
+      const pnId = await createPrimaNotaForReconciliation(
+        selectedMovement.id, selectedInvoiceId, selectedMovement.amount, movDate, isInflow
+      );
+
       await supabase.from("bank_reconciliations").insert({
         bank_movement_id: selectedMovement.id,
         invoice_id: selectedInvoiceId,
         reconciled_amount: selectedMovement.amount,
         match_type: "manual",
         reconciled_by: user?.id,
+        prima_nota_id: pnId,
       });
       await supabase.from("bank_movements").update({ status: "matched" }).eq("id", selectedMovement.id);
 
@@ -612,7 +620,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           ? (paid ? "incassata" : "parzialmente_incassata")
           : (paid ? "pagata" : "parzialmente_pagata");
         await supabase.from("invoice_registry")
-          .update({ financial_status: newStatus, payment_date: new Date().toISOString().split("T")[0] })
+          .update({ financial_status: newStatus, payment_date: movDate })
           .eq("id", selectedInvoiceId);
       }
       // Update scadenze
@@ -628,11 +636,14 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         }
       }
 
-      toast.success("Fattura collegata e registro contabile aggiornato");
+      toast.success("Fattura collegata, Prima Nota e scadenziario aggiornati");
       setLinkDialogOpen(false);
       setSelectedInvoiceId("");
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: [`open-invoices-${direction}`] });
+      queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
     } catch (err: any) { toast.error(err.message); }
   };
 
