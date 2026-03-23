@@ -392,14 +392,25 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         .select("movement_date, amount, description")
         .eq("direction", direction);
 
+      const normalizeDesc = (s: string) =>
+        (s || "")
+          .toLowerCase()
+          .replace(/\s+cod\.?\s*disp\.?\s*.*$/i, "")
+          .replace(/\s+cash\s+.*$/i, "")
+          .replace(/\s+notprovided.*$/i, "")
+          .replace(/\s+not\s+provided.*$/i, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .substring(0, 70);
+
       const existingSet = new Set(
-        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${(e.description || "").substring(0, 80).toLowerCase().trim()}`)
+        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${normalizeDesc(e.description)}`)
       );
 
       const batchId = crypto.randomUUID();
       const items = selected
         .filter(m => {
-          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${(m.descrizione || "").substring(0, 80).toLowerCase().trim()}`;
+          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${normalizeDesc(m.descrizione)}`;
           return !existingSet.has(key);
         })
         .map(m => ({
