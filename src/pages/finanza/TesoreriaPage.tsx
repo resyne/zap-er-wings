@@ -38,7 +38,7 @@ const statusConfig: Record<MovementStatus, { label: string; color: string }> = {
   ignored: { label: "Ignorato", color: "bg-gray-100 text-gray-600" },
 };
 
-const PAGAMENTI_ACCESS_CODE = "zapper2026";
+const PAGAMENTI_ACCESS_CODE = "33";
 
 function PagamentiGate({ onUnlock }: { onUnlock: () => void }) {
   const [code, setCode] = useState("");
