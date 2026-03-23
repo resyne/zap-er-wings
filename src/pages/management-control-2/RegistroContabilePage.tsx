@@ -26,6 +26,7 @@ import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOper
 import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
 import { RegistryFiltersBar } from "@/components/registro-contabile/RegistryFiltersBar";
+import { BulkAIClassificationDialog } from "@/components/registro-contabile/BulkAIClassificationDialog";
 import { InvoiceRegistryTable } from "@/components/registro-contabile/InvoiceRegistryTable";
 
 import { 
