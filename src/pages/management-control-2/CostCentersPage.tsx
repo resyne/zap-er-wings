@@ -161,34 +161,42 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
       return;
     }
 
-    const payload = {
+    const isRicavo = formData.center_type === "ricavo";
+    const tableName = isRicavo ? "profit_centers" : "cost_centers";
+
+    const payload: any = {
       code: formData.code || formData.name.substring(0, 10).toUpperCase().replace(/\s/g, "-"),
       name: formData.name,
       description: formData.description || null,
-      center_type: formData.center_type,
-      category: formData.category,
-      parent_id: formData.parent_id || null,
-      responsible_id: formData.responsible_id || null,
       is_active: formData.is_active,
     };
 
+    // cost_centers has extra fields
+    if (!isRicavo) {
+      payload.center_type = formData.center_type;
+      payload.category = formData.category;
+      payload.parent_id = formData.parent_id || null;
+      payload.responsible_id = formData.responsible_id || null;
+    }
+
     if (editingCenter) {
-      const { error } = await supabase
-        .from("cost_centers")
-        .update(payload)
-        .eq("id", editingCenter.id);
-
-      if (error) {
-        toast.error("Errore durante l'aggiornamento");
-        console.error(error);
+      const editTable = (editingCenter as any)._source || (editingCenter.center_type === "ricavo" ? "profit_centers" : "cost_centers");
+      
+      // If type changed between tables, delete from old and insert into new
+      if (editTable !== tableName) {
+        const { error: delErr } = await supabase.from(editTable).delete().eq("id", editingCenter.id);
+        if (delErr) { toast.error("Errore durante il cambio tipo"); return; }
+        const { error: insErr } = await supabase.from(tableName).insert([payload]);
+        if (insErr) { toast.error("Errore durante la creazione"); return; }
       } else {
-        toast.success("Centro aggiornato con successo");
-        fetchCenters();
-        setDialogOpen(false);
+        const { error } = await supabase.from(tableName).update(payload).eq("id", editingCenter.id);
+        if (error) { toast.error("Errore durante l'aggiornamento"); return; }
       }
+      toast.success("Centro aggiornato con successo");
+      fetchCenters();
+      setDialogOpen(false);
     } else {
-      const { error } = await supabase.from("cost_centers").insert([payload]);
-
+      const { error } = await supabase.from(tableName).insert([payload]);
       if (error) {
         toast.error("Errore durante la creazione");
         console.error(error);
