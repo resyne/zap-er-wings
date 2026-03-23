@@ -534,11 +534,41 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         match_type: "manual",
         reconciled_by: user?.id,
       });
-      await supabase.from("bank_movements").update({ status: "suggested" }).eq("id", selectedMovement.id);
-      toast.success("Fattura collegata");
+      await supabase.from("bank_movements").update({ status: "matched" }).eq("id", selectedMovement.id);
+
+      // Update invoice_registry financial_status and scadenze
+      const { data: inv } = await supabase
+        .from("invoice_registry")
+        .select("total_amount, invoice_type")
+        .eq("id", selectedInvoiceId)
+        .single();
+      if (inv) {
+        const paid = selectedMovement.amount >= inv.total_amount;
+        const newStatus = isInflow
+          ? (paid ? "incassata" : "parzialmente_incassata")
+          : (paid ? "pagata" : "parzialmente_pagata");
+        await supabase.from("invoice_registry")
+          .update({ financial_status: newStatus, payment_date: new Date().toISOString().split("T")[0] })
+          .eq("id", selectedInvoiceId);
+      }
+      // Update scadenze
+      const { data: scadenze } = await supabase
+        .from("scadenze").select("*").eq("fattura_id", selectedInvoiceId);
+      if (scadenze) {
+        for (const s of scadenze) {
+          const newResiduo = Math.max(0, s.importo_residuo - selectedMovement.amount);
+          await supabase.from("scadenze").update({
+            importo_residuo: newResiduo,
+            stato: newResiduo <= 0 ? "chiusa" : "parziale",
+          }).eq("id", s.id);
+        }
+      }
+
+      toast.success("Fattura collegata e registro contabile aggiornato");
       setLinkDialogOpen(false);
       setSelectedInvoiceId("");
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: [`open-invoices-${direction}`] });
     } catch (err: any) { toast.error(err.message); }
   };
 
