@@ -422,14 +422,19 @@ export default function ScadenziarioPage() {
         .single();
       if (primaNotaError) throw primaNotaError;
 
+      // Map payment method to dynamic account key
+      const paymentAccountKey = metodo === "contanti" || metodo === "cassa" ? "CASSA" 
+        : metodo === "carta" || metodo === "american_express" ? "BANCA" 
+        : "BANCA";
+
       const righe = scadenza.tipo === "credito"
         ? [
-            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "structural", dynamic_account_key: "BANCA", dare: importo, avere: 0, description: "Incasso da cliente" },
-            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "structural", dynamic_account_key: "CREDITI_CLIENTI", dare: 0, avere: importo, description: "Chiusura credito" },
+            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "dynamic", dynamic_account_key: paymentAccountKey, chart_account_id: null, dare: importo, avere: 0, description: `Incasso da cliente (${metodo})` },
+            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "CREDITI_CLIENTI", chart_account_id: null, dare: 0, avere: importo, description: "Chiusura credito vs clienti" },
           ]
         : [
-            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "structural", dynamic_account_key: "DEBITI_FORNITORI", dare: importo, avere: 0, description: "Chiusura debito" },
-            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "structural", dynamic_account_key: "BANCA", dare: 0, avere: importo, description: "Pagamento a fornitore" },
+            { prima_nota_id: primaNotaResult.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "DEBITI_FORNITORI", chart_account_id: null, dare: importo, avere: 0, description: "Chiusura debito vs fornitori" },
+            { prima_nota_id: primaNotaResult.id, line_order: 2, account_type: "dynamic", dynamic_account_key: paymentAccountKey, chart_account_id: null, dare: 0, avere: importo, description: `Pagamento a fornitore (${metodo})` },
           ];
 
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
@@ -455,6 +460,22 @@ export default function ScadenziarioPage() {
         .update({ importo_residuo: Math.max(0, nuovoResiduo), stato: nuovoStato })
         .eq("id", scadenza.id);
       if (updateError) throw updateError;
+
+      // Update linked invoice financial status
+      if (scadenza.fattura_id) {
+        const isFullyPaid = nuovoResiduo <= 0;
+        const newFinancialStatus = isFullyPaid
+          ? (scadenza.tipo === "credito" ? "incassata" : "pagata")
+          : (scadenza.tipo === "credito" ? "parzialmente_incassata" : "parzialmente_pagata");
+        
+        await supabase
+          .from("invoice_registry")
+          .update({ 
+            financial_status: newFinancialStatus,
+            ...(isFullyPaid ? { payment_date: data, payment_method: metodo } : {}),
+          })
+          .eq("id", scadenza.fattura_id);
+      }
 
       return { success: true };
     },
