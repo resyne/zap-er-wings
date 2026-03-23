@@ -610,40 +610,53 @@ function normalizeItalianPhone(phone: string): string {
 }
 
 // Find lead by phone number - normalizes and searches with Italian phone handling
+// Uses multiple strategies: RPC normalized search, then ilike fallback
 async function findLeadByPhone(supabase: any, phoneNumber: string, direction?: string): Promise<{ id: string; matched_by: string } | null> {
   if (!phoneNumber || phoneNumber.length < 6) return null;
   
   const normalized = normalizeItalianPhone(phoneNumber);
-  
-  // Genera pattern di ricerca - usa segmenti più corti per gestire spazi nel DB
-  const searchPatterns: string[] = [];
-  
-  if (normalized.length >= 6) {
-    // Ultimi 6-8 digit sono sufficientemente unici e funzionano anche con spazi
-    const last6 = normalized.slice(-6);
-    const last7 = normalized.slice(-7);
-    const last8 = normalized.slice(-8);
-    searchPatterns.push(last6);
-    searchPatterns.push(last7);
-    searchPatterns.push(last8);
-    searchPatterns.push(normalized); // Pattern completo come fallback
+  if (normalized.length < 6) return null;
+
+  // Strategy 1: Use RPC for normalized digit matching (most reliable)
+  const rpcPatterns = [
+    normalized.length >= 9 ? normalized.slice(-9) : null,
+    normalized.slice(-8),
+    normalized.slice(-7),
+  ].filter(Boolean) as string[];
+
+  for (const pattern of rpcPatterns) {
+    try {
+      const { data: candidates } = await supabase.rpc(
+        'find_lead_by_normalized_phone',
+        { search_pattern: pattern }
+      );
+      if (candidates && candidates.length > 0) {
+        // Prefer best match: compare last 8 digits
+        const targetLast8 = normalized.slice(-8);
+        const best = candidates.find((c: any) => {
+          const cDigits = (c.phone || '').replace(/\D/g, '');
+          return cDigits.slice(-8) === targetLast8;
+        }) || candidates[0];
+        console.log(`Found lead ${best.id} via RPC pattern: ${pattern}`);
+        return { id: best.id, matched_by: 'phone' };
+      }
+    } catch (e) {
+      console.log(`RPC search failed for pattern ${pattern}, falling back to ilike`);
+    }
   }
-  
-  console.log(`Searching for lead with patterns:`, searchPatterns.slice(0, 4));
-  
-  // Search in leads table - cerca pattern brevi che funzionano anche con spazi
-  for (const pattern of searchPatterns) {
+
+  // Strategy 2: Fallback ilike search (handles edge cases)
+  const ilikePatterns = [normalized, normalized.slice(-8), normalized.slice(-7), normalized.slice(-6)];
+  for (const pattern of ilikePatterns) {
     if (!pattern || pattern.length < 6) continue;
-    
     const { data: lead } = await supabase
       .from('leads')
       .select('id')
       .filter('phone', 'ilike', `%${pattern}%`)
       .limit(1)
       .single();
-    
     if (lead) {
-      console.log(`Found lead ${lead.id} matching phone pattern: ${pattern}`);
+      console.log(`Found lead ${lead.id} via ilike pattern: ${pattern}`);
       return { id: lead.id, matched_by: 'phone' };
     }
   }
