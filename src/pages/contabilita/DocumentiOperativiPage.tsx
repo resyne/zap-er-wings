@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operativi/LinkAccountingDocDialog";
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
 import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
+import { LinkOrderDialog } from "@/components/documenti-operativi/LinkOrderDialog";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
