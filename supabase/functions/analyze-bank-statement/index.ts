@@ -348,7 +348,7 @@ REGOLE: Estrai OGNI riga inclusi bonifici, versamenti assegni, commissioni, adde
         }
       }
       if (textContent.length > 120000) textContent = textContent.substring(0, 120000);
-      userContent = [{ type: "text", text: `Estrai TUTTI i movimenti (sono circa ${rows.length} righe) da:\n\n${textContent}` }];
+      userContent = [{ type: "text", text: `Estrai TUTTI i movimenti da questo estratto conto:\n\n${textContent}` }];
     } else {
       const bytes = new Uint8Array(fileBuffer);
       let bin = "";
