@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import {
   Upload, Search, Check, Link2, Plus, EyeOff, RefreshCw, FileSpreadsheet,
-  ArrowDownCircle, ArrowUpCircle
+  ArrowDownCircle, ArrowUpCircle, Lock, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,8 +38,61 @@ const statusConfig: Record<MovementStatus, { label: string; color: string }> = {
   ignored: { label: "Ignorato", color: "bg-gray-100 text-gray-600" },
 };
 
+const PAGAMENTI_ACCESS_CODE = "zapper2026";
+
+function PagamentiGate({ onUnlock }: { onUnlock: () => void }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code === PAGAMENTI_ACCESS_CODE) {
+      onUnlock();
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <Card className="w-full max-w-sm">
+        <CardContent className="pt-6 space-y-4">
+          <div className="text-center space-y-2">
+            <div className="mx-auto h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Lock className="h-7 w-7 text-destructive" />
+            </div>
+            <h2 className="text-lg font-semibold">Sezione Protetta</h2>
+            <p className="text-sm text-muted-foreground">
+              Inserisci la password per accedere alla sezione Pagamenti
+            </p>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input
+              type="password"
+              placeholder="Password di accesso"
+              value={code}
+              onChange={(e) => { setCode(e.target.value); setError(false); }}
+              className={error ? "border-destructive" : ""}
+              autoFocus
+            />
+            {error && (
+              <p className="text-xs text-destructive">Password errata. Riprova.</p>
+            )}
+            <Button type="submit" className="w-full gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Accedi
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function TesoreriaPage() {
   const [activeTab, setActiveTab] = useState<"incassi" | "pagamenti">("incassi");
+  const [pagamentiUnlocked, setPagamentiUnlocked] = useState(false);
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
@@ -59,6 +112,7 @@ export default function TesoreriaPage() {
           <TabsTrigger value="pagamenti" className="gap-2">
             <ArrowUpCircle className="h-4 w-4" />
             Pagamenti
+            {!pagamentiUnlocked && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
           </TabsTrigger>
         </TabsList>
 
@@ -66,7 +120,11 @@ export default function TesoreriaPage() {
           <ReconciliationPanel direction="inflow" />
         </TabsContent>
         <TabsContent value="pagamenti">
-          <ReconciliationPanel direction="outflow" />
+          {pagamentiUnlocked ? (
+            <ReconciliationPanel direction="outflow" />
+          ) : (
+            <PagamentiGate onUnlock={() => setPagamentiUnlocked(true)} />
+          )}
         </TabsContent>
       </Tabs>
     </div>
