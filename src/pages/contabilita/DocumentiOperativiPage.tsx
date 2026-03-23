@@ -529,6 +529,15 @@ export default function DocumentiOperativiPage() {
           queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
         }}
       />
+
+      <DdtUploadDialog
+        open={ddtUploadOpen}
+        onOpenChange={setDdtUploadOpen}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
+          queryClient.invalidateQueries({ queryKey: ["doc-op-orders"] });
+        }}
+      />
     </div>
   );
 }
