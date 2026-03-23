@@ -331,6 +331,22 @@ export default function ScadenziarioPage() {
         allGroups.push(buildGroup(k, nome, tipo === "credito" ? "Cliente" : "Fornitore", "building", tipo, items));
       });
       allGroups.sort((a, b) => b.scadenzeScadute - a.scadenzeScadute || b.totaleResiduo - a.totaleResiduo);
+    } else if (groupBy === "anno") {
+      // Group by month within the selected year
+      const map = new Map<string, Scadenza[]>();
+      periodFiltered.forEach(s => {
+        const monthKey = format(parseISO(s.data_scadenza), "yyyy-MM");
+        if (!map.has(monthKey)) map.set(monthKey, []);
+        map.get(monthKey)!.push(s);
+      });
+      const sorted = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+      sorted.forEach(([monthKey, items]) => {
+        const d = parseISO(monthKey + "-01");
+        const label = format(d, "MMMM yyyy", { locale: it });
+        const totalResiduo = items.reduce((sum, s) => sum + Number(s.importo_residuo), 0);
+        const sublabel = `${items.length} scadenze · €${totalResiduo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
+        allGroups.push(buildGroup(monthKey, label, sublabel, "day", undefined, items));
+      });
     } else if (groupBy === "mese") {
       // Group by day within the selected month
       const map = new Map<string, Scadenza[]>();
