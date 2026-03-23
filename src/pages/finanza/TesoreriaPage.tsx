@@ -237,8 +237,6 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       // Fetch existing movements to pre-filter duplicates
       const { data: existing } = await supabase
         .from("bank_movements")
-        .select("movement_date, amount, description")
-        .eq("direction", direction);
         .select("movement_date, amount, description, direction");
 
       // Normalize: must match DB function normalize_bank_movement_text exactly
@@ -395,8 +393,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       // Fetch existing movements for deduplication
       const { data: existing } = await supabase
         .from("bank_movements")
-        .select("movement_date, amount, description")
-        .eq("direction", direction);
+        .select("movement_date, amount, description, direction")
 
       const normalizeDesc = (s: string) =>
         (s || "")
