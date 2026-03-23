@@ -12,14 +12,14 @@ function parseDate(raw: any): string | null {
   const s = String(raw).trim();
 
   // DD/MM/YYYY or DD-MM-YYYY
-  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
   if (m) {
     const d = new Date(`${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`);
     if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
   }
 
   // DD/MM/YY or DD-MM-YY
-  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
   if (m) {
     const yy = Number(m[3]);
     const fullYear = yy <= 69 ? 2000 + yy : 1900 + yy;
@@ -37,6 +37,9 @@ function parseDate(raw: any): string | null {
     const d = new Date((num - 25569) * 86400000);
     if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
   }
+
+  // Avoid US parsing ambiguities for slash/dot dates already attempted above
+  if (/^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/.test(s)) return null;
 
   // Try native parse
   const d = new Date(s);
@@ -127,8 +130,32 @@ function rowsFromSheet(sheet: any): Record<string, any>[] {
   const matrix = utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "", blankrows: false }) as any[][];
   const headerRowIndex = detectHeaderRowIndex(matrix);
 
+  const hasMeaningfulHeaders = (keys: string[]) => {
+    const nonEmptyKeys = keys.filter(Boolean);
+    const emptyLike = nonEmptyKeys.filter(k => /^__EMPTY(?:_\d+)?$/.test(k)).length;
+    return nonEmptyKeys.length > 0 && emptyLike < nonEmptyKeys.length;
+  };
+
   if (headerRowIndex >= 0) {
     console.log(`Detected header row at index ${headerRowIndex}`);
+
+    const rangesToTry = [headerRowIndex, headerRowIndex + 1, headerRowIndex + 2]
+      .filter(i => i >= 0 && i < matrix.length);
+
+    for (const range of rangesToTry) {
+      const candidate = utils.sheet_to_json(sheet, {
+        raw: false,
+        defval: "",
+        range,
+      }) as Record<string, any>[];
+
+      const keys = Object.keys(candidate[0] || {}).filter(Boolean);
+      if (candidate.length && hasMeaningfulHeaders(keys)) {
+        if (range !== headerRowIndex) console.log(`Adjusted header row from ${headerRowIndex} to ${range}`);
+        return candidate;
+      }
+    }
+
     return utils.sheet_to_json(sheet, {
       raw: false,
       defval: "",
@@ -231,15 +258,20 @@ function movementKey(m: {
 function extractSpreadsheetMovements(
   fileBuffer: ArrayBuffer,
   direction: "inflow" | "outflow",
-): Array<{
-  data_movimento: string;
-  data_valuta: string | null;
-  descrizione: string;
-  importo: number;
-  tipo: MovementType;
-  riferimento: string | null;
-}> {
+): {
+  movements: Array<{
+    data_movimento: string;
+    data_valuta: string | null;
+    descrizione: string;
+    importo: number;
+    tipo: MovementType;
+    riferimento: string | null;
+  }>;
+  expected_total_movements: number | null;
+} {
   const wb = read(new Uint8Array(fileBuffer), { type: "array" });
+  console.log(`Workbook sheets: ${JSON.stringify(wb.SheetNames)}`);
+
   const allMovements: Array<{
     data_movimento: string;
     data_valuta: string | null;
@@ -249,11 +281,25 @@ function extractSpreadsheetMovements(
     riferimento: string | null;
   }> = [];
 
+  let expectedTotalMovements: number | null = null;
+
   for (const sheetName of wb.SheetNames) {
     const sheet = wb.Sheets[sheetName];
+    console.log(`Sheet "${sheetName}" ref: ${sheet?.["!ref"] || "n/a"}`);
     const rows = rowsFromSheet(sheet);
     console.log(`Sheet "${sheetName}": ${rows.length} rows found`);
     if (!rows.length) continue;
+
+    const expectedLine = rows.find(r => Object.values(r).some(v => String(v || "").toLowerCase().includes("movimenti selezionati")));
+    if (expectedLine) {
+      const values = Object.values(expectedLine).map(v => String(v || "").trim());
+      const numVal = values
+        .map(v => Number(String(v).replace(/[^\d]/g, "")))
+        .find(n => Number.isFinite(n) && n > 0 && n < 10000);
+      if (numVal && (!expectedTotalMovements || numVal > expectedTotalMovements)) {
+        expectedTotalMovements = numVal;
+      }
+    }
 
     const keys = Object.keys(rows[0] || {}).filter(Boolean);
     console.log(`Keys: ${JSON.stringify(keys.slice(0, 20))}`);
@@ -368,12 +414,21 @@ function extractSpreadsheetMovements(
   }
 
   const seen = new Set<string>();
-  return allMovements.filter(m => {
+  const deduped = allMovements.filter(m => {
     const key = movementKey(m);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  if (expectedTotalMovements && deduped.length < expectedTotalMovements) {
+    console.warn(`Potential partial export detected: expected ${expectedTotalMovements} movements from file metadata, parsed ${deduped.length}`);
+  }
+
+  return {
+    movements: deduped,
+    expected_total_movements: expectedTotalMovements,
+  };
 }
 
 serve(async (req) => {
@@ -403,7 +458,8 @@ serve(async (req) => {
     const isSpreadsheet = isExcel || isCsv;
 
     if (isSpreadsheet) {
-      const parsedMovements = extractSpreadsheetMovements(fileBuffer, direction)
+      const parsedSpreadsheet = extractSpreadsheetMovements(fileBuffer, direction);
+      const parsedMovements = parsedSpreadsheet.movements
         .filter(m => m.importo > 0 && m.data_movimento)
         .map((m) => {
           const d = m.tipo === "uscita" ? "outflow" : "inflow";
@@ -418,6 +474,10 @@ serve(async (req) => {
           account_iban: null,
           period: computePeriodFromMovements(parsedMovements),
           total_movements: parsedMovements.length,
+          expected_total_movements: parsedSpreadsheet.expected_total_movements,
+          warning: parsedSpreadsheet.expected_total_movements && parsedMovements.length < parsedSpreadsheet.expected_total_movements
+            ? `Il file indica ${parsedSpreadsheet.expected_total_movements} movimenti ma ne contiene ${parsedMovements.length} leggibili. Verifica export completo (senza paginazione/filtri).`
+            : null,
           movements: parsedMovements,
           direction,
           source: "spreadsheet-parser",
