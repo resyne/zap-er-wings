@@ -431,6 +431,11 @@ export default function DocumentiOperativiPage() {
                                   Dettagli ordine
                                 </DropdownMenuItem>
                               )}
+                              {doc.type === "report" && (
+                                <DropdownMenuItem onClick={() => setSelectedReport(doc)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Dettagli rapporto
+                                </DropdownMenuItem>
                               {doc.type === "ddt" && doc.raw.attachment_url && (
                                 <DropdownMenuItem asChild>
                                   <a href={doc.raw.attachment_url} target="_blank" rel="noopener noreferrer">
