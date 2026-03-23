@@ -191,24 +191,29 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     setIsProcessing(false);
   }, [accounts, costCenters, profitCenters]);
 
-  const startAnalysis = useCallback(() => {
+  const startAnalysis = useCallback(async () => {
     if (bozzaInvoices.length === 0) {
       toast.info('Nessuna fattura in bozza da analizzare');
       return;
     }
 
-    const newItems: InvoiceWithSuggestion[] = bozzaInvoices.map(inv => ({
-      invoice: inv,
-      suggestion: null,
-      editedSuggestion: null,
-      status: 'pending' as const,
-    }));
-    setItems(newItems);
-    itemsRef.current = newItems;
+    const savedItems = await loadSavedSuggestions();
+    setItems(savedItems);
+    itemsRef.current = savedItems;
     setPhase('active');
-    setSelectedIndex(null);
-    analyzeFrom(0);
-  }, [bozzaInvoices, analyzeFrom]);
+
+    // Auto-select first ready item if any
+    const firstReady = savedItems.findIndex(it => it.status === 'ready');
+    setSelectedIndex(firstReady !== -1 ? firstReady : null);
+
+    // Only analyze pending ones
+    const firstPending = savedItems.findIndex(it => it.status === 'pending');
+    if (firstPending !== -1) {
+      analyzeFrom(firstPending);
+    } else {
+      toast.info('Tutte le fatture sono già state analizzate. Puoi revisionarle.');
+    }
+  }, [bozzaInvoices, analyzeFrom, loadSavedSuggestions]);
 
   const resumeAnalysis = useCallback(() => {
     const resumeIdx = itemsRef.current.findIndex(it => ['pending', 'error'].includes(it.status));
