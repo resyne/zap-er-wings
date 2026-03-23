@@ -183,16 +183,15 @@ serve(async (req) => {
 
       if (isCsv) {
         const text = new TextDecoder("utf-8").decode(fileBuffer);
-        // Minimal CSV → rows
         const wb = read(text, { type: "string" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        rows = utils.sheet_to_json(sheet, { raw: false, defval: "" });
+        rows = rowsFromSheet(sheet);
       } else {
         const wb = read(new Uint8Array(fileBuffer), { type: "array" });
-        // Try all sheets, pick one with most data
-        let bestRows: any[] = [];
+        // Try all sheets, pick one with most data rows after header detection
+        let bestRows: Record<string, any>[] = [];
         for (const name of wb.SheetNames) {
-          const r = utils.sheet_to_json(wb.Sheets[name], { raw: false, defval: "" }) as any[];
+          const r = rowsFromSheet(wb.Sheets[name]);
           if (r.length > bestRows.length) bestRows = r;
         }
         rows = bestRows;
