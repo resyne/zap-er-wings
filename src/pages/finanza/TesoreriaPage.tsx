@@ -237,10 +237,9 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       // Fetch existing movements to pre-filter duplicates
       const { data: existing } = await supabase
         .from("bank_movements")
-        .select("movement_date, amount, description")
-        .eq("direction", direction);
+        .select("movement_date, amount, description, direction");
 
-      // Normalize description: strip trailing COD.DISP/CASH/NOTPROVIDED suffixes for robust matching
+      // Normalize: must match DB function normalize_bank_movement_text exactly
       const normalizeDesc = (s: string) =>
         (s || "")
           .toLowerCase()
@@ -249,16 +248,21 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           .replace(/\s+notprovided.*$/i, "")
           .replace(/\s+not\s+provided.*$/i, "")
           .replace(/\s+/g, " ")
+          .replace(/[^a-z0-9 ]/g, "")
           .trim()
-          .substring(0, 70);
+          .substring(0, 90);
 
       const existingSet = new Set(
-        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${normalizeDesc(e.description)}`)
+        (existing || []).map((e: any) => {
+          const dir = e.direction || direction;
+          return `${e.movement_date}|${Number(e.amount).toFixed(2)}|${dir}|${normalizeDesc(e.description)}`;
+        })
       );
 
       let duplicateCount = 0;
       const movementsWithSelection = result.movements.map((m: AiMovement) => {
-        const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${normalizeDesc(m.descrizione)}`;
+        const mDir = m.direction || direction;
+        const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
         const isDuplicate = existingSet.has(key);
         if (isDuplicate) duplicateCount++;
         return {
@@ -389,8 +393,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       // Fetch existing movements for deduplication
       const { data: existing } = await supabase
         .from("bank_movements")
-        .select("movement_date, amount, description")
-        .eq("direction", direction);
+        .select("movement_date, amount, description, direction");
 
       const normalizeDesc = (s: string) =>
         (s || "")
@@ -400,17 +403,22 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           .replace(/\s+notprovided.*$/i, "")
           .replace(/\s+not\s+provided.*$/i, "")
           .replace(/\s+/g, " ")
+          .replace(/[^a-z0-9 ]/g, "")
           .trim()
-          .substring(0, 70);
+          .substring(0, 90);
 
       const existingSet = new Set(
-        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${normalizeDesc(e.description)}`)
+        (existing || []).map((e: any) => {
+          const dir = e.direction || direction;
+          return `${e.movement_date}|${Number(e.amount).toFixed(2)}|${dir}|${normalizeDesc(e.description)}`;
+        })
       );
 
       const batchId = crypto.randomUUID();
       const items = selected
         .filter(m => {
-          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${normalizeDesc(m.descrizione)}`;
+          const mDir = m.direction || direction;
+          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
           return !existingSet.has(key);
         })
         .map(m => ({
