@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import {
   Upload, Search, Check, Link2, Plus, EyeOff, RefreshCw, FileSpreadsheet,
-  ArrowDownCircle, ArrowUpCircle, Lock, ShieldCheck
+  ArrowDownCircle, ArrowUpCircle, Lock, ShieldCheck, BookOpen, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -537,6 +537,39 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     return pn.id;
   };
 
+  // Register prima nota for a matched movement that's missing it
+  const registerPrimaNotaForMovement = async (movementId: string) => {
+    try {
+      const mov = movements.find((m: any) => m.id === movementId);
+      if (!mov) return;
+      const { data: recons } = await supabase
+        .from("bank_reconciliations")
+        .select("id, invoice_id, reconciled_amount, prima_nota_id")
+        .eq("bank_movement_id", movementId);
+      if (!recons || recons.length === 0) {
+        toast.error("Nessuna riconciliazione trovata per questo movimento");
+        return;
+      }
+      let created = 0;
+      for (const rec of recons) {
+        if (!rec.prima_nota_id && rec.invoice_id) {
+          const movDate = mov.movement_date || new Date().toISOString().split("T")[0];
+          await createPrimaNotaForReconciliation(movementId, rec.invoice_id, rec.reconciled_amount, movDate, isInflow);
+          created++;
+        }
+      }
+      if (created > 0) {
+        toast.success(`Prima Nota registrata per ${created} riconciliazione/i`);
+        queryClient.invalidateQueries({ queryKey });
+        queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      } else {
+        toast.info("Prima Nota già presente per tutte le riconciliazioni");
+      }
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    }
+  };
+
   // Confirm match
   const confirmMatch = async (movementId: string) => {
     try {
@@ -950,6 +983,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                     <TableHead className="text-right w-[120px]">Importo</TableHead>
                     <TableHead className="w-[160px]">{isInflow ? "Cliente" : "Fornitore"}</TableHead>
                     <TableHead className="w-[140px]">Match</TableHead>
+                    <TableHead className="w-[100px]">Prima Nota</TableHead>
                     <TableHead className="w-[130px]">Stato</TableHead>
                     <TableHead className="w-[180px] text-right">Azioni</TableHead>
                   </TableRow>
@@ -957,7 +991,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nessun movimento trovato per il filtro selezionato
                       </TableCell>
                     </TableRow>
@@ -997,6 +1031,29 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                               })()}
                             </div>
                           ) : "—"}
+                        </TableCell>
+                        {/* Prima Nota status */}
+                        <TableCell className="text-center">
+                          {recon ? (
+                            recon.prima_nota_id ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700" title="Registrato in Prima Nota">
+                                <BookOpen className="h-3.5 w-3.5" /> ✅
+                              </span>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                                onClick={() => registerPrimaNotaForMovement(mov.id)}
+                                title="Prima Nota mancante — clicca per registrare"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Registra
+                              </Button>
+                            )
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className={cn(
