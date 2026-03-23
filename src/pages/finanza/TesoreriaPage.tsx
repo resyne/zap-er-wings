@@ -336,16 +336,10 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     }
   }, [user, queryClient, direction, queryKey]);
 
-  // Decide which import method to use
+  // Always use AI import for all file types
   const processFile = useCallback((file: File) => {
-    const isSpreadsheet = /\.(csv|xls|xlsx)$/i.test(file.name);
-    // Use AI for PDFs, images, and any non-spreadsheet; use XLSX parser for spreadsheets in inflow
-    if (!isSpreadsheet || direction === "outflow") {
-      processFileAI(file);
-    } else {
-      processFileXLSX(file);
-    }
-  }, [processFileAI, processFileXLSX, direction]);
+    processFileAI(file);
+  }, [processFileAI]);
 
   // Confirm AI import - insert selected movements into DB
   const confirmAiImport = useCallback(async () => {
