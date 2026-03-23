@@ -97,16 +97,19 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     setItems(newItems);
 
     for (let i = 0; i < newItems.length; i++) {
-      if (abortRef.current) break;
+      if (abortRef.current) {
+        // Preserve already-analyzed results, go to review
+        toast.info('Analisi interrotta. Puoi revisionare le fatture già analizzate.');
+        break;
+      }
 
       setItems(prev => prev.map((item, idx) => 
         idx === i ? { ...item, status: 'analyzing' } : item
       ));
 
       try {
-        // Add timeout to prevent hanging
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
         
         const { data, error } = await supabase.functions.invoke('ai-accounting-analysis', {
           body: {
@@ -144,9 +147,9 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
         ));
       }
 
-      // Small delay between requests to avoid rate limiting
+      // Small delay between requests
       if (i < newItems.length - 1 && !abortRef.current) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
 
@@ -183,11 +186,11 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
   const handleClose = () => {
     abortRef.current = true;
+    const approved = items.filter(i => i.status === 'approved').length;
     setPhase('idle');
     setItems([]);
     setCurrentIndex(0);
     onOpenChange(false);
-    const approved = items.filter(i => i.status === 'approved').length;
     if (approved > 0) onComplete();
   };
 
