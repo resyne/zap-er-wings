@@ -293,11 +293,12 @@ export default function ScadenziarioPage() {
         )
       : scadenze;
 
-    // Period filter for mese/giorno modes
+    // Period filter for anno/mese/giorno modes
     const periodFiltered = groupBy === "soggetto"
       ? filtered
       : filtered.filter(s => {
           const d = parseISO(s.data_scadenza);
+          if (groupBy === "anno") return isSameYear(d, selectedPeriod);
           if (groupBy === "mese") return isSameMonth(d, selectedPeriod);
           return isSameDay(d, selectedPeriod);
         });
