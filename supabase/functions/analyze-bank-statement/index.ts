@@ -208,30 +208,34 @@ serve(async (req) => {
       console.log(`Total rows: ${rows.length}`);
 
       // Detect columns
-      const dateCol = findCol(keys, ["data operazione", "data mov", "data movimento", "data contabile", "data", "date", "operazione"]);
-      const valutaCol = findCol(keys, ["data valuta", "valuta"]);
+      let dateCol = findCol(keys, ["data operazione", "data mov", "data movimento", "data contabile", "data", "date", "operazione"]);
+      let valutaCol = findCol(keys, ["data valuta", "valuta"]);
       const descCol = findCol(keys, ["descrizione", "descrizione operazione", "causale", "dettaglio", "motivo", "oggetto", "description"]);
-      const dareCol = findCol(keys, ["dare", "addebiti", "addebito", "uscite", "debit"]);
-      const avereCol = findCol(keys, ["avere", "accrediti", "accredito", "entrate", "credit"]);
-      const importoCol = findCol(keys, ["importo", "amount", "ammontare", "totale", "movimento"]);
+      let dareCol = findCol(keys, ["dare", "addebiti", "addebito", "uscite", "debit"]);
+      let avereCol = findCol(keys, ["avere", "accrediti", "accredito", "entrate", "credit"]);
+      let importoCol = findCol(keys, ["importo", "amount", "ammontare", "totale", "movimento"]);
       const refCol = findCol(keys, ["riferimento", "reference", "cro", "trn", "numero operazione"]);
       const saldoCol = findCol(keys, ["saldo", "saldo contabile", "saldo disponibile", "disponibilità"]);
+
+      // Infer missing key columns (useful when headers are __EMPTY_x)
+      if (!dateCol) dateCol = inferDateCol(keys, rows);
+      if (!valutaCol) valutaCol = dateCol;
+
+      if (!dareCol || !avereCol || !importoCol) {
+        const numericCols = inferAmountCols(keys, rows, [dateCol, valutaCol, descCol, refCol, saldoCol].filter(Boolean) as string[]);
+        if (!importoCol && numericCols.length >= 1) importoCol = numericCols[0];
+        if ((!dareCol || !avereCol) && numericCols.length >= 2) {
+          dareCol = dareCol || numericCols[0];
+          avereCol = avereCol || numericCols[1];
+        }
+      }
 
       // Determine if we have separate dare/avere or single importo
       const hasDareAvere = !!(dareCol && avereCol);
       const hasImporto = !!importoCol;
 
-      if (!hasDareAvere && !hasImporto) {
-        // Fallback: look for any numeric column that's not saldo/date
-        const numericCols = keys.filter(k => {
-          if (k === dateCol || k === valutaCol || k === descCol || k === refCol || k === saldoCol) return false;
-          const sample = rows.slice(0, 5).find(r => r[k] && parseAmount(r[k]) !== 0);
-          return !!sample;
-        });
-        if (numericCols.length === 0) {
-          // Can't parse deterministically - fall through to AI
-          console.log("Cannot detect amount columns, falling back to AI");
-        }
+      if (!dateCol || (!hasDareAvere && !hasImporto)) {
+        console.log("Cannot confidently detect date/amount columns, falling back to AI");
       }
 
       console.log(`Detected cols - date:${dateCol} valuta:${valutaCol} desc:${descCol} dare:${dareCol} avere:${avereCol} importo:${importoCol} ref:${refCol}`);
