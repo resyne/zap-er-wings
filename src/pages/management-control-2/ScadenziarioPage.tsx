@@ -964,8 +964,15 @@ export default function ScadenziarioPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bonifico">Bonifico</SelectItem>
-                  <SelectItem value="contanti">Contanti</SelectItem>
+                  <SelectItem value="banca">Banca</SelectItem>
+                  <SelectItem value="banca_intesa">Banca Intesa</SelectItem>
                   <SelectItem value="carta">Carta</SelectItem>
+                  <SelectItem value="american_express">American Express</SelectItem>
+                  <SelectItem value="carta_aziendale">Carta Aziendale</SelectItem>
+                  <SelectItem value="carta_q8">Carta Q8</SelectItem>
+                  <SelectItem value="contanti">Contanti</SelectItem>
+                  <SelectItem value="cassa">Cassa</SelectItem>
+                  <SelectItem value="anticipo_dipendente">Anticipo Dipendente</SelectItem>
                   <SelectItem value="anticipo_personale">Anticipo Personale</SelectItem>
                   <SelectItem value="non_so">Non specificato</SelectItem>
                 </SelectContent>
