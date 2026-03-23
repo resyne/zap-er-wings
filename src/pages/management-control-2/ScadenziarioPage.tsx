@@ -179,7 +179,26 @@ export default function ScadenziarioPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
-  // ── Period navigation ─────────────────────────────
+  // Invoice preview dialog
+  const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
+  const [previewFatturaId, setPreviewFatturaId] = useState<string | null>(null);
+
+  const { data: previewInvoice, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ["invoice-preview", previewFatturaId],
+    queryFn: async () => {
+      if (!previewFatturaId) return null;
+      const { data, error } = await supabase
+        .from("invoice_registry")
+        .select("*")
+        .eq("id", previewFatturaId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!previewFatturaId && invoicePreviewOpen,
+  });
+
+
   const periodLabel = useMemo(() => {
     if (groupBy === "anno") return format(selectedPeriod, "yyyy");
     if (groupBy === "mese") return format(selectedPeriod, "MMMM yyyy", { locale: it });
@@ -883,7 +902,7 @@ export default function ScadenziarioPage() {
                                         <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                                         <div>
                                           {scadenza.fattura_id ? (
-                                            <button className="font-mono font-medium text-sm text-primary hover:underline" onClick={(e) => { e.stopPropagation(); window.location.href = '/contabilita/registro-contabile'; }}>
+                                            <button className="font-mono font-medium text-sm text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setPreviewFatturaId(scadenza.fattura_id); setInvoicePreviewOpen(true); }}>
                                               {scadenza.invoice_number || "N/D"}
                                             </button>
                                           ) : (
@@ -1118,6 +1137,108 @@ export default function ScadenziarioPage() {
           }
         }}
       />
+
+      {/* Invoice Preview Dialog */}
+      <Dialog open={invoicePreviewOpen} onOpenChange={(open) => { setInvoicePreviewOpen(open); if (!open) setPreviewFatturaId(null); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-primary" />
+              Dettagli Fattura
+            </DialogTitle>
+          </DialogHeader>
+          {isLoadingPreview ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : previewInvoice ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Numero Fattura</p>
+                  <p className="font-mono font-semibold">{previewInvoice.invoice_number}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Data</p>
+                  <p className="text-sm">{previewInvoice.invoice_date ? format(parseISO(previewInvoice.invoice_date), "dd/MM/yyyy") : "-"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Tipo</p>
+                  <Badge variant="outline" className="capitalize">{previewInvoice.invoice_type === "vendita" ? "Vendita" : previewInvoice.invoice_type === "acquisto" ? "Acquisto" : "Nota credito"}</Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Soggetto</p>
+                  <p className="text-sm font-medium">{previewInvoice.subject_name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{previewInvoice.subject_type}</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Imponibile</p>
+                    <p className="font-semibold">{fmtEuro(previewInvoice.imponibile || 0)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">IVA</p>
+                    <p className="font-semibold">{fmtEuro(previewInvoice.iva_amount || 0)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Totale</p>
+                    <p className="font-semibold text-primary">{fmtEuro(previewInvoice.total_amount || 0)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {previewInvoice.due_date && (
+                <div className="border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Scadenza</p>
+                      <p className="text-sm">{format(parseISO(previewInvoice.due_date), "dd/MM/yyyy")}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Stato Pagamento</p>
+                      <Badge variant="outline" className="capitalize">{(previewInvoice.financial_status || "").replace(/_/g, " ")}</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {previewInvoice.vat_regime && (
+                <div className="border-t pt-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Regime IVA</p>
+                    <p className="text-sm capitalize">{(previewInvoice.vat_regime || "").replace(/_/g, " ")}</p>
+                  </div>
+                </div>
+              )}
+
+              {previewInvoice.notes && (
+                <div className="border-t pt-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Note</p>
+                    <p className="text-sm">{previewInvoice.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {previewInvoice.attachment_url && (
+                <div className="border-t pt-4">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={previewInvoice.attachment_url} target="_blank" rel="noopener noreferrer" className="gap-2">
+                      <FileText className="h-4 w-4" />
+                      Visualizza Allegato
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">Fattura non trovata</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
