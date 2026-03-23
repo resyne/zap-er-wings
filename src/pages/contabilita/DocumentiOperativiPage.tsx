@@ -88,6 +88,9 @@ export default function DocumentiOperativiPage() {
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState<UnifiedDoc | null>(null);
+  const [orderLinkDialog, setOrderLinkDialog] = useState<{ open: boolean; docType: "report" | "ddt"; docId: string; docLabel: string }>({
+    open: false, docType: "report", docId: "", docLabel: ""
+  });
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
