@@ -978,10 +978,24 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                         <TableCell className="text-sm">{mov.matched_subject_name || "—"}</TableCell>
                         <TableCell className="text-sm">
                           {recon ? (
-                            <span className="text-xs">
-                              {recon.match_type === "auto" ? "🤖 Auto" : recon.match_type === "suggested" ? "💡 Suggerito" : "🔗 Manuale"}
-                              {recon.match_score && <span className="ml-1 text-muted-foreground">({Math.round(recon.match_score)}%)</span>}
-                            </span>
+                            <div className="space-y-0.5">
+                              <span className="text-xs">
+                                {recon.match_type === "auto" ? "🤖 Auto" : recon.match_type === "suggested" ? "💡 Suggerito" : "🔗 Manuale"}
+                                {recon.match_score && <span className="ml-1 text-muted-foreground">({Math.round(recon.match_score)}%)</span>}
+                              </span>
+                              {(mov.status === "suggested") && (() => {
+                                const linkedInv = getLinkedInvoice(recon);
+                                return linkedInv ? (
+                                  <p className="text-[10px] text-muted-foreground leading-tight truncate max-w-[200px]" title={`${linkedInv.invoice_number} - ${linkedInv.subject_name} - €${linkedInv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`}>
+                                    📄 {linkedInv.invoice_number} — €{linkedInv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                  </p>
+                                ) : recon.notes ? (
+                                  <p className="text-[10px] text-muted-foreground leading-tight truncate max-w-[200px]" title={recon.notes}>
+                                    📄 {recon.notes.replace("Match: ", "")}
+                                  </p>
+                                ) : null;
+                              })()}
+                            </div>
                           ) : "—"}
                         </TableCell>
                         <TableCell>
