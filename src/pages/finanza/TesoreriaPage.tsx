@@ -381,13 +381,13 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         .eq("direction", direction);
 
       const existingSet = new Set(
-        (existing || []).map((e: any) => `${e.movement_date}|${e.amount}|${e.description?.substring(0, 80)}`)
+        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${(e.description || "").substring(0, 80).toLowerCase().trim()}`)
       );
 
       const batchId = crypto.randomUUID();
       const items = selected
         .filter(m => {
-          const key = `${m.data_movimento}|${m.importo}|${m.descrizione?.substring(0, 80)}`;
+          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${(m.descrizione || "").substring(0, 80).toLowerCase().trim()}`;
           return !existingSet.has(key);
         })
         .map(m => ({
