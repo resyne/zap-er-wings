@@ -279,6 +279,30 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
        const movementsWithSelection = result.movements.map((m: AiMovement) => {
          const mDir = m.direction || direction;
          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
+       // Normalize: must match DB function normalize_bank_movement_text exactly
+       const normalizeDesc = (s: string) =>
+         (s || "")
+           .toLowerCase()
+           .replace(/\s+cod\.?\s*disp\.?\s*.*$/i, "")
+           .replace(/\s+cash\s+.*$/i, "")
+           .replace(/\s+notprovided.*$/i, "")
+           .replace(/\s+not\s+provided.*$/i, "")
+           .replace(/\s+/g, " ")
+           .replace(/[^a-z0-9 ]/g, "")
+           .trim()
+           .substring(0, 90);
+
+       const existingSet = new Set(
+         (existing || []).map((e: any) => {
+           const dir = e.direction || direction;
+           return `${e.movement_date}|${Number(e.amount).toFixed(2)}|${dir}|${normalizeDesc(e.description)}`;
+         })
+       );
+
+       let duplicateCount = 0;
+       const movementsWithSelection = result.movements.map((m: AiMovement) => {
+         const mDir = m.direction || direction;
+         const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
         const isDuplicate = existingSet.has(key);
         if (isDuplicate) duplicateCount++;
         return {
