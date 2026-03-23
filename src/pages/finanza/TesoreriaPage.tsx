@@ -534,11 +534,41 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         match_type: "manual",
         reconciled_by: user?.id,
       });
-      await supabase.from("bank_movements").update({ status: "suggested" }).eq("id", selectedMovement.id);
-      toast.success("Fattura collegata");
+      await supabase.from("bank_movements").update({ status: "matched" }).eq("id", selectedMovement.id);
+
+      // Update invoice_registry financial_status and scadenze
+      const { data: inv } = await supabase
+        .from("invoice_registry")
+        .select("total_amount, invoice_type")
+        .eq("id", selectedInvoiceId)
+        .single();
+      if (inv) {
+        const paid = selectedMovement.amount >= inv.total_amount;
+        const newStatus = isInflow
+          ? (paid ? "incassata" : "parzialmente_incassata")
+          : (paid ? "pagata" : "parzialmente_pagata");
+        await supabase.from("invoice_registry")
+          .update({ financial_status: newStatus, payment_date: new Date().toISOString().split("T")[0] })
+          .eq("id", selectedInvoiceId);
+      }
+      // Update scadenze
+      const { data: scadenze } = await supabase
+        .from("scadenze").select("*").eq("fattura_id", selectedInvoiceId);
+      if (scadenze) {
+        for (const s of scadenze) {
+          const newResiduo = Math.max(0, s.importo_residuo - selectedMovement.amount);
+          await supabase.from("scadenze").update({
+            importo_residuo: newResiduo,
+            stato: newResiduo <= 0 ? "chiusa" : "parziale",
+          }).eq("id", s.id);
+        }
+      }
+
+      toast.success("Fattura collegata e registro contabile aggiornato");
       setLinkDialogOpen(false);
       setSelectedInvoiceId("");
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: [`open-invoices-${direction}`] });
     } catch (err: any) { toast.error(err.message); }
   };
 
@@ -1058,6 +1088,27 @@ function RegisterCostForm({ movement, userId, onRegistered, onCancel }: {
     if (!supplierName) { toast.error("Inserire il fornitore"); return; }
     setSaving(true);
     try {
+      // Create invoice_registry entry so it appears in Registro Contabile
+      const netAmount = Number(movement.amount) / 1.22;
+      const vatAmount = Number(movement.amount) - netAmount;
+      const { data: invoiceData } = await supabase.from("invoice_registry").insert({
+        invoice_type: "acquisto",
+        invoice_number: `ACQ-${format(new Date(movement.movement_date), "yyyyMMdd")}-${movement.id.substring(0, 4).toUpperCase()}`,
+        invoice_date: movement.movement_date,
+        subject_name: supplierName,
+        subject_type: "fornitore",
+        imponibile: netAmount,
+        iva_rate: 22,
+        iva_amount: vatAmount,
+        total_amount: Number(movement.amount),
+        vat_regime: "ordinario",
+        financial_status: "pagata",
+        status: "contabilizzata",
+        payment_date: movement.movement_date,
+        notes: `${category ? `Categoria: ${category}. ` : ""}${notes}`.trim(),
+      }).select("id").single();
+
+      // Also create accounting_entries for backward compatibility
       await supabase.from("accounting_entries").insert({
         document_type: "fattura_acquisto",
         document_date: movement.movement_date,
@@ -1072,6 +1123,7 @@ function RegisterCostForm({ movement, userId, onRegistered, onCancel }: {
       });
       await supabase.from("bank_reconciliations").insert({
         bank_movement_id: movement.id,
+        invoice_id: invoiceData?.id || null,
         reconciled_amount: movement.amount,
         match_type: "manual",
         notes: `Costo: ${supplierName} - ${category || "Non categorizzato"}`,
