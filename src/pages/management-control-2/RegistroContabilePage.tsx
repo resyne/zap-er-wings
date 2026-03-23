@@ -2604,14 +2604,31 @@ export default function RegistroContabilePage() {
 
   // Bulk AI classification: apply suggestion to a single invoice
   const handleBulkAIApprove = async (invoiceId: string, suggestion: any) => {
+    // Normalize vat_regime to valid DB values
+    const normalizeVatRegime = (regime: string): string => {
+      const map: Record<string, string> = {
+        'domestica_imponibile': 'domestica_imponibile',
+        'domestica_ridotta_10': 'domestica_imponibile',
+        'domestica_ridotta_4': 'domestica_imponibile',
+        'ue_non_imponibile': 'ue_non_imponibile',
+        'intracomunitaria': 'ue_non_imponibile',
+        'extra_ue': 'extra_ue',
+        'extracomunitaria': 'extra_ue',
+        'reverse_charge': 'reverse_charge',
+        'esente': 'domestica_imponibile',
+        'non_imponibile': 'ue_non_imponibile',
+      };
+      return map[regime] || 'domestica_imponibile';
+    };
+
     const updateData: any = {
-      status: 'registrata', // Mark as classified
+      status: 'registrata',
     };
     if (suggestion.cost_account_id) updateData.cost_account_id = suggestion.cost_account_id;
     if (suggestion.revenue_account_id) updateData.revenue_account_id = suggestion.revenue_account_id;
     if (suggestion.cost_center_id) updateData.cost_center_id = suggestion.cost_center_id;
     if (suggestion.profit_center_id) updateData.profit_center_id = suggestion.profit_center_id;
-    if (suggestion.vat_regime) updateData.vat_regime = suggestion.vat_regime;
+    if (suggestion.vat_regime) updateData.vat_regime = normalizeVatRegime(suggestion.vat_regime);
     if (suggestion.iva_rate !== undefined) updateData.iva_rate = suggestion.iva_rate;
     if (suggestion.financial_status) updateData.financial_status = suggestion.financial_status;
     
