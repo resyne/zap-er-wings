@@ -66,13 +66,28 @@ interface BulkAIClassificationDialogProps {
 }
 
 const VAT_REGIMES = [
-  { value: 'domestica_imponibile', label: 'Ordinario (22%)', rate: 22 },
-  { value: 'domestica_ridotta_10', label: 'Ridotta (10%)', rate: 10 },
-  { value: 'domestica_ridotta_4', label: 'Minima (4%)', rate: 4 },
-  { value: 'ue_non_imponibile', label: 'Intracomunitaria / Non imponibile UE', rate: 0 },
-  { value: 'extra_ue', label: 'Extracomunitaria', rate: 0 },
-  { value: 'reverse_charge', label: 'Reverse Charge', rate: 0 },
+  { value: 'ordinario_22', label: 'Ordinario (22%)', rate: 22, dbRegime: 'domestica_imponibile' },
+  { value: 'ridotta_10', label: 'Ridotta (10%)', rate: 10, dbRegime: 'domestica_imponibile' },
+  { value: 'minima_4', label: 'Minima (4%)', rate: 4, dbRegime: 'domestica_imponibile' },
+  { value: 'ue_non_imponibile', label: 'Non imponibile UE', rate: 0, dbRegime: 'ue_non_imponibile' },
+  { value: 'extra_ue', label: 'Extracomunitaria', rate: 0, dbRegime: 'extra_ue' },
+  { value: 'reverse_charge', label: 'Reverse Charge', rate: 0, dbRegime: 'reverse_charge' },
 ];
+
+// Map any vat_regime + rate to the correct select value
+const getVatRegimeSelectValue = (regime?: string, rate?: number): string => {
+  if (!regime) return '';
+  if (regime === 'domestica_imponibile' || regime === 'ordinario_22' || regime === 'domestica_ridotta_10' || regime === 'domestica_ridotta_4') {
+    if (rate === 4) return 'minima_4';
+    if (rate === 10) return 'ridotta_10';
+    return 'ordinario_22';
+  }
+  if (regime === 'extracomunitaria') return 'extra_ue';
+  if (regime === 'intracomunitaria' || regime === 'non_imponibile') return 'ue_non_imponibile';
+  const found = VAT_REGIMES.find(r => r.value === regime);
+  if (found) return found.value;
+  return regime;
+};
 
 export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProps> = ({
   open,
