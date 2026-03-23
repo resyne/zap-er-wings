@@ -3119,7 +3119,19 @@ export default function RegistroContabilePage() {
         </div>
       </Card>
 
-
+      {/* Bulk AI Classification Button */}
+      {invoices.filter(inv => inv.status === 'bozza').length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Brain className="w-4 h-4" />
+            <span>{invoices.filter(inv => inv.status === 'bozza').length} fatture in bozza da classificare</span>
+          </div>
+          <Button onClick={() => setShowBulkAIDialog(true)} className="gap-2" variant="outline">
+            <Sparkles className="w-4 h-4" />
+            Contabilizza con AI
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <RegistryFiltersBar
