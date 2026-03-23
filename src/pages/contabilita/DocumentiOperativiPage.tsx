@@ -296,10 +296,16 @@ export default function DocumentiOperativiPage() {
           </Button>
         </div>
 
-        <Button variant={showArchived ? "default" : "ghost"} size="sm" className="h-8 text-xs" onClick={() => setShowArchived(!showArchived)}>
-          <Archive className="h-3.5 w-3.5 mr-1.5" />
-          Archiviati
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDdtUploadOpen(true)}>
+            <Upload className="h-3.5 w-3.5" />
+            Importa DDT
+          </Button>
+          <Button variant={showArchived ? "default" : "ghost"} size="sm" className="h-8 text-xs" onClick={() => setShowArchived(!showArchived)}>
+            <Archive className="h-3.5 w-3.5 mr-1.5" />
+            Archiviati
+          </Button>
+        </div>
       </div>
 
       {/* Type filter chips + search */}
