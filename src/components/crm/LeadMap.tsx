@@ -349,7 +349,10 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     });
   };
 
-  const leadsWithLocation = leads.filter(lead => lead.custom_fields?.luogo);
+  const getLeadLocationStatic = (lead: Lead): string | undefined => {
+    return lead.custom_fields?.luogo || (lead as any).city || undefined;
+  };
+  const leadsWithLocation = leads.filter(lead => getLeadLocationStatic(lead));
   const filteredLeadsWithLocation = leadsWithLocation.filter(lead => selectedStatuses.has(lead.status));
 
   return (
