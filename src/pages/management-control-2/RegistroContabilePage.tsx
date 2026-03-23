@@ -3724,30 +3724,21 @@ export default function RegistroContabilePage() {
                       placeholder="100,00"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Aliquota IVA</Label>
-                    <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="22">22%</SelectItem>
-                        <SelectItem value="10">10%</SelectItem>
-                        <SelectItem value="4">4%</SelectItem>
-                        <SelectItem value="0">0% (Esente)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Regime IVA</Label>
-                    <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
-                        <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
-                        <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
-                        <SelectItem value="extra_ue">Extra UE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-xs">Regime IVA</Label>
+                     <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
+                       <SelectTrigger><SelectValue /></SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                         <SelectItem value="ridotta_10">Ridotta (10%)</SelectItem>
+                         <SelectItem value="ridotta_4">Minima (4%)</SelectItem>
+                         <SelectItem value="esente">Esente (0%)</SelectItem>
+                         <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                         <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                         <SelectItem value="extra_ue">Extra UE (0%)</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
                 </div>
 
                 {/* Riepilogo importi */}
