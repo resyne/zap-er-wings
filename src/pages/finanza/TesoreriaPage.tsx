@@ -1040,36 +1040,30 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         </>
       )}
 
-      {/* Link Invoice Dialog */}
+      {/* Link Invoice Dialog - Improved UX */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Collega a {isInflow ? "Fattura Cliente" : "Fattura Fornitore"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Collega a {isInflow ? "Fattura Cliente" : "Fattura Fornitore"}
+            </DialogTitle>
           </DialogHeader>
           {selectedMovement && (
-            <div className="space-y-4">
-              <div className="bg-muted/30 p-3 rounded-lg text-sm">
-                <p><strong>Importo:</strong> €{Number(selectedMovement.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
-                <p className="truncate"><strong>Descrizione:</strong> {selectedMovement.description}</p>
-              </div>
-              <div>
-                <Label>Seleziona Fattura</Label>
-                <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona fattura..." /></SelectTrigger>
-                  <SelectContent>
-                    {openInvoices.map((inv: any) => (
-                      <SelectItem key={inv.id} value={inv.id}>
-                        {inv.invoice_number} — {inv.subject_name} — €{inv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <LinkInvoicePanel
+              movement={selectedMovement}
+              invoices={openInvoices}
+              isInflow={isInflow}
+              onSelect={(invoiceId) => { setSelectedInvoiceId(invoiceId); }}
+              selectedInvoiceId={selectedInvoiceId}
+            />
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Annulla</Button>
-            <Button onClick={linkToInvoice} disabled={!selectedInvoiceId}>Collega</Button>
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => { setLinkDialogOpen(false); setSelectedInvoiceId(""); }}>Annulla</Button>
+            <Button onClick={linkToInvoice} disabled={!selectedInvoiceId} className="gap-1">
+              <Check className="h-4 w-4" />
+              Collega Fattura
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
