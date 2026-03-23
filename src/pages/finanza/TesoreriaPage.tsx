@@ -537,6 +537,39 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     return pn.id;
   };
 
+  // Register prima nota for a matched movement that's missing it
+  const registerPrimaNotaForMovement = async (movementId: string) => {
+    try {
+      const mov = movements.find((m: any) => m.id === movementId);
+      if (!mov) return;
+      const { data: recons } = await supabase
+        .from("bank_reconciliations")
+        .select("id, invoice_id, reconciled_amount, prima_nota_id")
+        .eq("bank_movement_id", movementId);
+      if (!recons || recons.length === 0) {
+        toast.error("Nessuna riconciliazione trovata per questo movimento");
+        return;
+      }
+      let created = 0;
+      for (const rec of recons) {
+        if (!rec.prima_nota_id && rec.invoice_id) {
+          const movDate = mov.movement_date || new Date().toISOString().split("T")[0];
+          await createPrimaNotaForReconciliation(movementId, rec.invoice_id, rec.reconciled_amount, movDate, isInflow);
+          created++;
+        }
+      }
+      if (created > 0) {
+        toast.success(`Prima Nota registrata per ${created} riconciliazione/i`);
+        queryClient.invalidateQueries({ queryKey });
+        queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      } else {
+        toast.info("Prima Nota già presente per tutte le riconciliazioni");
+      }
+    } catch (err: any) {
+      toast.error("Errore: " + err.message);
+    }
+  };
+
   // Confirm match
   const confirmMatch = async (movementId: string) => {
     try {
