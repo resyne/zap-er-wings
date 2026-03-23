@@ -2604,11 +2604,9 @@ export default function RegistroContabilePage() {
 
   // Bulk AI classification: apply suggestion to a single invoice
   const handleBulkAIApprove = async (invoiceId: string, suggestion: any) => {
-    const ivaAmount = suggestion.iva_rate !== undefined 
-      ? (suggestion.imponibile || 0) * (suggestion.iva_rate / 100) 
-      : undefined;
-    
-    const updateData: any = {};
+    const updateData: any = {
+      status: 'registrata', // Mark as classified
+    };
     if (suggestion.cost_account_id) updateData.cost_account_id = suggestion.cost_account_id;
     if (suggestion.revenue_account_id) updateData.revenue_account_id = suggestion.revenue_account_id;
     if (suggestion.cost_center_id) updateData.cost_center_id = suggestion.cost_center_id;
