@@ -141,6 +141,7 @@ interface AiMovement {
   direction: string;
   relevant: boolean;
   selected?: boolean;
+  isDuplicate?: boolean;
 }
 
 function ReconciliationPanel({ direction }: { direction: Direction }) {
@@ -877,8 +878,20 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           <div className="flex items-center justify-between text-sm">
             <p className="text-muted-foreground">
               {aiMovements.filter(m => m.selected).length} di {aiMovements.length} movimenti selezionati
+              {aiMovements.filter(m => m.isDuplicate).length > 0 && (
+                <span className="ml-2 text-amber-600">
+                  ({aiMovements.filter(m => m.isDuplicate).length} già importati)
+                </span>
+              )}
             </p>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAiMovements(prev => prev.map(m => ({ ...m, selected: !m.isDuplicate })))}
+              >
+                Solo nuovi
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -914,7 +927,8 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                     key={idx}
                     className={cn(
                       !m.relevant && "opacity-50",
-                      m.selected && "bg-primary/5"
+                      m.selected && "bg-primary/5",
+                      m.isDuplicate && "opacity-40"
                     )}
                   >
                     <TableCell>
@@ -931,6 +945,9 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {m.data_movimento}
+                      {m.isDuplicate && (
+                        <Badge variant="outline" className="ml-1 text-[10px] text-amber-600 border-amber-300">Già importato</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm max-w-[300px] truncate">
                       {m.descrizione}
