@@ -237,8 +237,9 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
   };
 
   const handleToggleActive = async (center: CostCenter) => {
+    const tableName = (center as any)._source || (center.center_type === "ricavo" ? "profit_centers" : "cost_centers");
     const { error } = await supabase
-      .from("cost_centers")
+      .from(tableName)
       .update({ is_active: !center.is_active })
       .eq("id", center.id);
 
