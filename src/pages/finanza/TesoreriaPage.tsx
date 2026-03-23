@@ -131,6 +131,18 @@ export default function TesoreriaPage() {
   );
 }
 
+interface AiMovement {
+  data_movimento: string;
+  data_valuta?: string;
+  descrizione: string;
+  importo: number;
+  tipo: "entrata" | "uscita";
+  riferimento?: string;
+  direction: string;
+  relevant: boolean;
+  selected?: boolean;
+}
+
 function ReconciliationPanel({ direction }: { direction: Direction }) {
   const isInflow = direction === "inflow";
   const { user } = useAuth();
@@ -145,6 +157,12 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
   const [isImporting, setIsImporting] = useState(false);
   const [isAutoMatching, setIsAutoMatching] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // AI import states
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [aiMovements, setAiMovements] = useState<AiMovement[]>([]);
+  const [aiBankInfo, setAiBankInfo] = useState<{ bank_name?: string; account_iban?: string; period?: string } | null>(null);
 
   const queryKey = [`bank-movements-${direction}`];
 
@@ -182,8 +200,62 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     },
   });
 
-  // --- File import (shared logic) ---
-  const processFile = useCallback(async (file: File) => {
+  // --- AI-powered file import ---
+  const processFileAI = useCallback(async (file: File) => {
+    setIsAnalyzing(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("direction", direction);
+      formData.append("userId", user?.id || "");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-bank-statement`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ error: "Errore sconosciuto" }));
+        throw new Error(errData.error || `Errore ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.movements || result.movements.length === 0) {
+        toast.error("Nessun movimento trovato nel documento");
+        return;
+      }
+
+      // Mark all relevant movements as selected by default
+      const movementsWithSelection = result.movements.map((m: AiMovement) => ({
+        ...m,
+        selected: m.relevant,
+      }));
+
+      setAiMovements(movementsWithSelection);
+      setAiBankInfo({
+        bank_name: result.bank_name,
+        account_iban: result.account_iban,
+        period: result.period,
+      });
+      setAiPreviewOpen(true);
+      toast.success(`AI ha estratto ${result.total_movements} movimenti dal documento`);
+    } catch (err: any) {
+      toast.error("Errore analisi AI: " + err.message);
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [user, direction]);
+
+  // Legacy XLSX import (for inflow or fallback)
+  const processFileXLSX = useCallback(async (file: File) => {
     setIsImporting(true);
     try {
       const data = await file.arrayBuffer();
@@ -193,7 +265,6 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
 
       if (rows.length === 0) { toast.error("Il file non contiene dati"); return; }
 
-      // Auto-detect columns by scanning keys
       const sampleKeys = Object.keys(rows[0] || {});
       const findCol = (patterns: string[]) =>
         sampleKeys.find(k => patterns.some(p => k.toLowerCase().includes(p)));
@@ -205,24 +276,16 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       const refCol = findCol(["riferimento", "reference", "cro", "trn"]);
       const accountCol = findCol(["conto", "account", "corrente"]);
 
-      console.log("Colonne rilevate:", { amountCol, dateCol, descCol, keys: sampleKeys });
-
       if (!amountCol) {
-        toast.error(`Colonna importo non trovata. Colonne nel file: ${sampleKeys.join(", ")}`);
+        toast.error(`Colonna importo non trovata. Colonne: ${sampleKeys.join(", ")}`);
         return;
       }
 
       const batchId = crypto.randomUUID();
       const items = rows.map((row) => {
-        // Try to parse amount from detected column, fallback to scanning all numeric-looking values
         let rawAmount = row[amountCol!] || "0";
-        let amount = parseFloat(
-          String(rawAmount).replace(/[€\s.]/g, "").replace(",", ".")
-        );
-        // If dot is used as thousands separator (e.g. "1.234,56"), handle it
-        if (isNaN(amount)) {
-          amount = parseFloat(String(rawAmount).replace(/[€\s]/g, "").replace(",", "."));
-        }
+        let amount = parseFloat(String(rawAmount).replace(/[€\s.]/g, "").replace(",", "."));
+        if (isNaN(amount)) amount = parseFloat(String(rawAmount).replace(/[€\s]/g, "").replace(",", "."));
         if (isNaN(amount)) return null;
         amount = Math.abs(amount);
         if (amount === 0) return null;
@@ -230,7 +293,6 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         const dateStr = dateCol ? (row[dateCol] || "") : "";
         let movDate: string;
         try {
-          // Handle dd/MM/yyyy format common in Italian banks
           const parts = String(dateStr).split("/");
           let d: Date;
           if (parts.length === 3 && parts[0].length <= 2) {
@@ -274,6 +336,57 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     }
   }, [user, queryClient, direction, queryKey]);
 
+  // Decide which import method to use
+  const processFile = useCallback((file: File) => {
+    const isSpreadsheet = /\.(csv|xls|xlsx)$/i.test(file.name);
+    // Use AI for PDFs, images, and any non-spreadsheet; use XLSX parser for spreadsheets in inflow
+    if (!isSpreadsheet || direction === "outflow") {
+      processFileAI(file);
+    } else {
+      processFileXLSX(file);
+    }
+  }, [processFileAI, processFileXLSX, direction]);
+
+  // Confirm AI import - insert selected movements into DB
+  const confirmAiImport = useCallback(async () => {
+    const selected = aiMovements.filter(m => m.selected);
+    if (selected.length === 0) {
+      toast.error("Seleziona almeno un movimento da importare");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const batchId = crypto.randomUUID();
+      const items = selected.map(m => ({
+        import_batch_id: batchId,
+        movement_date: m.data_movimento,
+        value_date: m.data_valuta || null,
+        description: m.descrizione,
+        amount: m.importo,
+        direction: m.direction || direction,
+        bank_account: aiBankInfo?.account_iban || null,
+        iban: aiBankInfo?.account_iban || null,
+        reference: m.riferimento || null,
+        raw_data: m,
+        status: "unmatched" as const,
+        imported_by: user?.id,
+      }));
+
+      const { error } = await supabase.from("bank_movements").insert(items as any);
+      if (error) throw error;
+
+      toast.success(`${items.length} movimenti importati con successo`);
+      setAiPreviewOpen(false);
+      setAiMovements([]);
+      queryClient.invalidateQueries({ queryKey });
+    } catch (err: any) {
+      toast.error("Errore import: " + err.message);
+    } finally {
+      setIsImporting(false);
+    }
+  }, [aiMovements, aiBankInfo, direction, user, queryClient, queryKey]);
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
@@ -297,10 +410,10 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     e.stopPropagation();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && /\.(csv|xls|xlsx)$/i.test(file.name)) {
+    if (file) {
       processFile(file);
     } else {
-      toast.error("Formato non supportato. Usa CSV, XLS o XLSX.");
+      toast.error("File non valido");
     }
   }, [processFile]);
 
@@ -466,8 +579,25 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           <div className="bg-background border-2 border-dashed border-primary rounded-2xl p-12 shadow-xl text-center">
             <Upload className="h-12 w-12 mx-auto text-primary mb-4" />
             <p className="text-lg font-medium text-foreground">Rilascia il file qui</p>
-            <p className="text-sm text-muted-foreground mt-1">CSV, XLS o XLSX</p>
+            <p className="text-sm text-muted-foreground mt-1">PDF, immagini, CSV, XLS, XLSX</p>
           </div>
+        </div>
+      )}
+
+      {/* Analyzing overlay */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <Card className="w-full max-w-sm">
+            <CardContent className="pt-6 text-center space-y-4">
+              <RefreshCw className="h-10 w-10 mx-auto text-primary animate-spin" />
+              <div>
+                <h3 className="text-lg font-semibold">Analisi AI in corso...</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  L'AI sta leggendo e estraendo i movimenti dal documento
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -477,10 +607,10 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           {isInflow ? "Movimenti in entrata e fatture clienti" : "Movimenti in uscita e fatture fornitori"}
         </p>
         <div className="flex items-center gap-2">
-          <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx" onChange={handleFileUpload} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+          <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,.pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileUpload} className="hidden" />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isImporting || isAnalyzing}>
             <Upload className="h-4 w-4 mr-1" />
-            {isImporting ? "Importando..." : "Import Estratto Conto"}
+            {isAnalyzing ? "Analisi AI..." : isImporting ? "Importando..." : "Import Estratto Conto"}
           </Button>
           <Button onClick={runAutomatch} disabled={isAutoMatching || kpis.unmatched === 0}>
             <RefreshCw className={cn("h-4 w-4 mr-1", isAutoMatching && "animate-spin")} />
@@ -503,9 +633,131 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           <p className="text-sm text-muted-foreground mb-4">
             Trascina qui il file oppure clicca per selezionarlo
           </p>
-          <p className="text-xs text-muted-foreground">Formati supportati: CSV, XLS, XLSX</p>
+          <p className="text-xs text-muted-foreground">
+            Formati supportati: PDF, immagini (JPG/PNG), CSV, XLS, XLSX
+          </p>
+          <p className="text-xs text-primary mt-2">
+            🤖 L'AI analizzerà automaticamente il documento ed estrarrà i movimenti
+          </p>
         </div>
       )}
+
+      {/* AI Preview Dialog */}
+      <Dialog open={aiPreviewOpen} onOpenChange={setAiPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Movimenti estratti dall'AI
+            </DialogTitle>
+          </DialogHeader>
+
+          {aiBankInfo && (aiBankInfo.bank_name || aiBankInfo.account_iban || aiBankInfo.period) && (
+            <div className="bg-muted/40 rounded-lg p-3 text-sm space-y-1">
+              {aiBankInfo.bank_name && <p><strong>Banca:</strong> {aiBankInfo.bank_name}</p>}
+              {aiBankInfo.account_iban && <p><strong>IBAN:</strong> {aiBankInfo.account_iban}</p>}
+              {aiBankInfo.period && <p><strong>Periodo:</strong> {aiBankInfo.period}</p>}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-sm">
+            <p className="text-muted-foreground">
+              {aiMovements.filter(m => m.selected).length} di {aiMovements.length} movimenti selezionati
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAiMovements(prev => prev.map(m => ({ ...m, selected: true })))}
+              >
+                Seleziona tutti
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAiMovements(prev => prev.map(m => ({ ...m, selected: m.relevant })))}
+              >
+                Solo {isInflow ? "entrate" : "uscite"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Descrizione</TableHead>
+                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Rif.</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {aiMovements.map((m, idx) => (
+                  <TableRow
+                    key={idx}
+                    className={cn(
+                      !m.relevant && "opacity-50",
+                      m.selected && "bg-primary/5"
+                    )}
+                  >
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={m.selected || false}
+                        onChange={(e) => {
+                          setAiMovements(prev =>
+                            prev.map((mov, i) => i === idx ? { ...mov, selected: e.target.checked } : mov)
+                          );
+                        }}
+                        className="h-4 w-4 rounded border-input"
+                      />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {m.data_movimento}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[300px] truncate">
+                      {m.descrizione}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      €{m.importo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={m.tipo === "uscita" ? "destructive" : "default"} className="text-xs">
+                        {m.tipo === "uscita" ? "Uscita" : "Entrata"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {m.riferimento || "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="bg-muted/30 rounded-lg p-3 text-sm">
+            <div className="flex justify-between">
+              <span>Totale selezionati:</span>
+              <span className="font-bold">
+                €{aiMovements.filter(m => m.selected).reduce((s, m) => s + m.importo, 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiPreviewOpen(false)}>Annulla</Button>
+            <Button
+              onClick={confirmAiImport}
+              disabled={isImporting || aiMovements.filter(m => m.selected).length === 0}
+            >
+              {isImporting ? "Importando..." : `Importa ${aiMovements.filter(m => m.selected).length} movimenti`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* KPIs */}
       {movements.length > 0 && (
