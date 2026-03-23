@@ -140,7 +140,7 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
       // Delay between requests
       if (i < itemsRef.current.length - 1 && !abortRef.current) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
