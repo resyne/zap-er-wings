@@ -405,45 +405,24 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
           .replace(/\s+notprovided.*$/i, "")
           .replace(/\s+not\s+provided.*$/i, "")
           .replace(/\s+/g, " ")
+          .replace(/[^a-z0-9 ]/g, "")
           .trim()
-          .substring(0, 70);
+          .substring(0, 90);
 
       const existingSet = new Set(
-        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${normalizeDesc(e.description)}`)
+        (existing || []).map((e: any) => {
+          const dir = e.direction || direction;
+          return `${e.movement_date}|${Number(e.amount).toFixed(2)}|${dir}|${normalizeDesc(e.description)}`;
+        })
       );
 
       const batchId = crypto.randomUUID();
       const items = selected
         .filter(m => {
-          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${normalizeDesc(m.descrizione)}`;
+          const mDir = m.direction || direction;
+          const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
           return !existingSet.has(key);
         })
-       const normalizeDesc = (s: string) =>
-         (s || "")
-           .toLowerCase()
-           .replace(/\s+cod\.?\s*disp\.?\s*.*$/i, "")
-           .replace(/\s+cash\s+.*$/i, "")
-           .replace(/\s+notprovided.*$/i, "")
-           .replace(/\s+not\s+provided.*$/i, "")
-           .replace(/\s+/g, " ")
-           .replace(/[^a-z0-9 ]/g, "")
-           .trim()
-           .substring(0, 90);
-
-       const existingSet = new Set(
-         (existing || []).map((e: any) => {
-           const dir = e.direction || direction;
-           return `${e.movement_date}|${Number(e.amount).toFixed(2)}|${dir}|${normalizeDesc(e.description)}`;
-         })
-       );
-
-       const batchId = crypto.randomUUID();
-       const items = selected
-         .filter(m => {
-           const mDir = m.direction || direction;
-           const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${mDir}|${normalizeDesc(m.descrizione)}`;
-           return !existingSet.has(key);
-         })
         .map(m => ({
           import_batch_id: batchId,
           movement_date: m.data_movimento,
