@@ -476,6 +476,13 @@ export default function DocumentiOperativiPage() {
         order={selectedOrder}
         customerName={selectedOrder ? custMap.get(selectedOrder.customer_id || "") || "—" : "—"}
       />
+
+      <ReportDetailSheet
+        open={!!selectedReport}
+        onOpenChange={open => { if (!open) setSelectedReport(null); }}
+        reportId={selectedReport?.id || null}
+        customerName={selectedReport?.customer || "—"}
+      />
     </div>
   );
 }
