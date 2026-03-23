@@ -186,11 +186,11 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
   const handleClose = () => {
     abortRef.current = true;
+    const approved = items.filter(i => i.status === 'approved').length;
     setPhase('idle');
     setItems([]);
     setCurrentIndex(0);
     onOpenChange(false);
-    const approved = items.filter(i => i.status === 'approved').length;
     if (approved > 0) onComplete();
   };
 
