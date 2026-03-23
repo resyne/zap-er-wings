@@ -39,8 +39,13 @@ function parseDate(raw: any): string | null {
 function parseAmount(raw: any): number {
   if (raw == null || raw === "") return 0;
   let s = String(raw).trim();
+  const hasTrailingMinus = s.endsWith("-");
+  const hasParenthesisNegative = /^\(.*\)$/.test(s);
+
   // Remove currency symbols and spaces
-  s = s.replace(/[€$£\s]/g, "");
+  s = s.replace(/[€$£\s()]/g, "");
+  if (hasTrailingMinus) s = s.slice(0, -1);
+
   // Handle Italian format: 1.234,56 → 1234.56
   if (s.includes(",") && s.includes(".")) {
     // If comma comes after last dot: 1.234,56 (Italian)
@@ -60,7 +65,9 @@ function parseAmount(raw: any): number {
     }
   }
   const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  if (isNaN(n)) return 0;
+  const isNegative = hasTrailingMinus || hasParenthesisNegative;
+  return isNegative ? -Math.abs(n) : n;
 }
 
 // Find the best matching column key from a list of patterns
@@ -148,16 +155,203 @@ function inferAmountCols(keys: string[], rows: Record<string, any>[], excluded: 
     .map(x => x.key);
 }
 
+type MovementType = "entrata" | "uscita";
+
+function normalizeMovementDescription(v: any): string {
+  return String(v || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function inferDirectionFromDescription(description: string, fallbackDirection: "inflow" | "outflow"): MovementType {
+  const text = description.toLowerCase();
+
+  const inflowHints = [
+    "bonifico disposto da",
+    "bonifico ricevuto",
+    "accredito",
+    "versamento",
+    "incasso",
+    "assegni vers",
+    "stipendio",
+    "rimborso",
+  ];
+
+  const outflowHints = [
+    "bonifico disposto a",
+    "bonifico istantaneo da voi disposto",
+    "bonifico a favore di",
+    "addebito",
+    "pagamento",
+    "commission",
+    "prelievo",
+    "f24",
+    "giroconto",
+    "rid",
+    "sdd",
+    "mav",
+    "rav",
+  ];
+
+  if (inflowHints.some(h => text.includes(h))) return "entrata";
+  if (outflowHints.some(h => text.includes(h))) return "uscita";
+
+  return fallbackDirection === "inflow" ? "entrata" : "uscita";
+}
+
+function computePeriodFromMovements(movements: Array<{ data_movimento: string }>): string | null {
+  if (!movements.length) return null;
+  const dates = movements
+    .map(m => m.data_movimento)
+    .filter(Boolean)
+    .sort();
+  if (!dates.length) return null;
+  return `${dates[0]} - ${dates[dates.length - 1]}`;
+}
+
+function movementKey(m: {
+  data_movimento: string;
+  importo: number;
+  descrizione: string;
+  tipo: MovementType;
+}): string {
+  const desc = normalizeMovementDescription(m.descrizione).toLowerCase().slice(0, 120);
+  return `${m.data_movimento}|${m.importo.toFixed(2)}|${m.tipo}|${desc}`;
+}
+
+function extractSpreadsheetMovements(
+  fileBuffer: ArrayBuffer,
+  direction: "inflow" | "outflow",
+): Array<{
+  data_movimento: string;
+  data_valuta: string | null;
+  descrizione: string;
+  importo: number;
+  tipo: MovementType;
+  riferimento: string | null;
+}> {
+  const wb = read(new Uint8Array(fileBuffer), { type: "array" });
+  const allMovements: Array<{
+    data_movimento: string;
+    data_valuta: string | null;
+    descrizione: string;
+    importo: number;
+    tipo: MovementType;
+    riferimento: string | null;
+  }> = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    const rows = rowsFromSheet(sheet);
+    if (!rows.length) continue;
+
+    const keys = Object.keys(rows[0] || {}).filter(Boolean);
+    if (!keys.length) continue;
+
+    let dateCol = findCol(keys, ["data movimento", "data operazione", "data contabile", "data", "operazione", "date"]);
+    if (!dateCol) dateCol = inferDateCol(keys, rows);
+
+    const valueDateCol = findCol(keys, ["data valuta", "valuta"]);
+    const descCol = findCol(keys, ["descrizione", "causale", "dettaglio", "narrativa", "oggetto", "motivo"]);
+    const refCol = findCol(keys, ["cro", "trn", "riferimento", "id operazione", "numero operazione"]);
+
+    const debitCol = findCol(keys, ["dare", "addebito", "uscita", "uscite", "debit"]);
+    const creditCol = findCol(keys, ["avere", "accredito", "entrata", "entrate", "credit"]);
+
+    const excluded = [dateCol, valueDateCol, descCol, refCol, debitCol, creditCol].filter(Boolean) as string[];
+    const amountCandidates = inferAmountCols(keys, rows, excluded);
+    const amountCol = findCol(keys, ["importo", "amount", "valore", "saldo"]) || amountCandidates[0];
+
+    for (const row of rows) {
+      const movementDate = parseDate((dateCol && row[dateCol]) || (valueDateCol && row[valueDateCol]));
+      if (!movementDate) continue;
+
+      const valueDate = parseDate(valueDateCol ? row[valueDateCol] : null);
+
+      let description = normalizeMovementDescription(descCol ? row[descCol] : "");
+      if (!description) {
+        const fallbackParts = keys
+          .filter(k => ![dateCol, valueDateCol, debitCol, creditCol, amountCol, refCol].includes(k))
+          .map(k => normalizeMovementDescription(row[k]))
+          .filter(Boolean);
+        description = fallbackParts.slice(0, 3).join(" - ");
+      }
+      if (!description) description = "Movimento bancario";
+
+      const reference = normalizeMovementDescription(refCol ? row[refCol] : "") || null;
+
+      const debit = debitCol ? Math.abs(parseAmount(row[debitCol])) : 0;
+      const credit = creditCol ? Math.abs(parseAmount(row[creditCol])) : 0;
+
+      if (debit > 0 || credit > 0) {
+        if (debit > 0) {
+          allMovements.push({
+            data_movimento: movementDate,
+            data_valuta: valueDate,
+            descrizione: description,
+            importo: debit,
+            tipo: "uscita",
+            riferimento: reference,
+          });
+        }
+        if (credit > 0) {
+          allMovements.push({
+            data_movimento: movementDate,
+            data_valuta: valueDate,
+            descrizione: description,
+            importo: credit,
+            tipo: "entrata",
+            riferimento: reference,
+          });
+        }
+        continue;
+      }
+
+      if (!amountCol) continue;
+      const rawAmount = parseAmount(row[amountCol]);
+      if (!rawAmount) continue;
+
+      let tipo: MovementType;
+      if (rawAmount < 0) {
+        tipo = "uscita";
+      } else {
+        const amountColName = amountCol.toLowerCase();
+        if (amountColName.includes("dare") || amountColName.includes("addeb")) {
+          tipo = "uscita";
+        } else if (amountColName.includes("avere") || amountColName.includes("accredit") || amountColName.includes("entrat")) {
+          tipo = "entrata";
+        } else {
+          tipo = inferDirectionFromDescription(description, direction);
+        }
+      }
+
+      allMovements.push({
+        data_movimento: movementDate,
+        data_valuta: valueDate,
+        descrizione: description,
+        importo: Math.abs(rawAmount),
+        tipo,
+        riferimento: reference,
+      });
+    }
+  }
+
+  const seen = new Set<string>();
+  return allMovements.filter(m => {
+    const key = movementKey(m);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const formData = await req.formData();
     const file = formData.get("file") as File;
-    const direction = formData.get("direction") as string || "outflow";
+    const direction = (formData.get("direction") as string || "outflow") as "inflow" | "outflow";
 
     if (!file) {
       return new Response(JSON.stringify({ error: "File richiesto" }), {
@@ -176,6 +370,34 @@ serve(async (req) => {
     const isExcel = mimeType.includes("spreadsheet") || mimeType.includes("excel") || file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
     const isCsv = mimeType.includes("csv") || file.name.endsWith(".csv");
     const isSpreadsheet = isExcel || isCsv;
+
+    if (isSpreadsheet) {
+      const parsedMovements = extractSpreadsheetMovements(fileBuffer, direction)
+        .filter(m => m.importo > 0 && m.data_movimento)
+        .map((m) => {
+          const d = m.tipo === "uscita" ? "outflow" : "inflow";
+          return { ...m, direction: d, relevant: d === direction };
+        });
+
+      if (parsedMovements.length > 0) {
+        console.log(`Spreadsheet parser extracted ${parsedMovements.length} movements`);
+        return new Response(JSON.stringify({
+          success: true,
+          bank_name: null,
+          account_iban: null,
+          period: computePeriodFromMovements(parsedMovements),
+          total_movements: parsedMovements.length,
+          movements: parsedMovements,
+          direction,
+          source: "spreadsheet-parser",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     // ─── Always use AI for extraction (deterministic parse was unreliable for entrata/uscita) ───
 
