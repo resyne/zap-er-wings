@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { read, utils } from "npm:xlsx@0.18.5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,6 @@ serve(async (req) => {
       });
     }
 
-    // Check file size (max 20MB)
     if (file.size > 20 * 1024 * 1024) {
       return new Response(JSON.stringify({ error: "File troppo grande (max 20MB)" }), {
         status: 400,
@@ -33,16 +33,10 @@ serve(async (req) => {
     }
 
     const fileBuffer = await file.arrayBuffer();
-    const fileBytes = new Uint8Array(fileBuffer);
-    let binary = '';
-    for (let i = 0; i < fileBytes.length; i++) {
-      binary += String.fromCharCode(fileBytes[i]);
-    }
-    const fileBase64 = btoa(binary);
-
-    const isImage = file.type.startsWith("image/");
-    const mimeType = file.type || "application/pdf";
-    const dataUrl = `data:${mimeType};base64,${fileBase64}`;
+    const mimeType = file.type || "";
+    const isExcel = mimeType.includes("spreadsheet") || mimeType.includes("excel") || file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    const isCsv = mimeType.includes("csv") || file.name.endsWith(".csv");
+    const isImage = mimeType.startsWith("image/");
 
     const systemPrompt = `Sei un esperto contabile italiano specializzato nell'analisi di estratti conto bancari.
 
@@ -65,14 +59,78 @@ REGOLE IMPORTANTI:
 - Le date devono essere in formato YYYY-MM-DD
 - Non inventare dati, estrai solo quello che vedi nel documento`;
 
-    const userContent: any[] = [
-      { type: "text", text: "Analizza questo estratto conto bancario ed estrai tutti i movimenti." },
-    ];
+    const toolDef = {
+      type: "function",
+      function: {
+        name: "extract_bank_movements",
+        description: "Extract all bank movements from the statement",
+        parameters: {
+          type: "object",
+          properties: {
+            bank_name: { type: "string", description: "Nome della banca" },
+            account_iban: { type: "string", description: "IBAN del conto" },
+            period: { type: "string", description: "Periodo dell'estratto conto" },
+            movements: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  data_movimento: { type: "string", description: "Data movimento YYYY-MM-DD" },
+                  data_valuta: { type: "string", description: "Data valuta YYYY-MM-DD" },
+                  descrizione: { type: "string", description: "Descrizione/causale" },
+                  importo: { type: "number", description: "Importo in valore assoluto" },
+                  tipo: { type: "string", enum: ["entrata", "uscita"], description: "Tipo movimento" },
+                  riferimento: { type: "string", description: "Riferimento CRO/TRN" },
+                },
+                required: ["data_movimento", "descrizione", "importo", "tipo"],
+                additionalProperties: false,
+              },
+            },
+            total_movements: { type: "number", description: "Numero totale movimenti estratti" },
+          },
+          required: ["movements", "total_movements"],
+          additionalProperties: false,
+        },
+      },
+    };
 
-    if (isImage) {
-      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+    let userContent: any[];
+
+    if (isExcel || isCsv) {
+      // Parse spreadsheet to text
+      let textContent = "";
+      if (isCsv) {
+        const decoder = new TextDecoder("utf-8");
+        textContent = decoder.decode(fileBuffer);
+      } else {
+        const workbook = read(new Uint8Array(fileBuffer), { type: "array" });
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          textContent += `--- Foglio: ${sheetName} ---\n`;
+          textContent += utils.sheet_to_csv(sheet, { FS: "\t" }) + "\n\n";
+        }
+      }
+      // Truncate if too long
+      if (textContent.length > 100000) textContent = textContent.substring(0, 100000);
+      
+      userContent = [
+        { type: "text", text: `Analizza questo estratto conto bancario ed estrai tutti i movimenti. Il contenuto del file "${file.name}" è:\n\n${textContent}` },
+      ];
     } else {
-      userContent.push({ type: "image_url", image_url: { url: dataUrl } });
+      // PDF or image - send as base64 data URL
+      const fileBytes = new Uint8Array(fileBuffer);
+      let binary = '';
+      for (let i = 0; i < fileBytes.length; i++) {
+        binary += String.fromCharCode(fileBytes[i]);
+      }
+      const fileBase64 = btoa(binary);
+      const resolvedMime = mimeType || "application/pdf";
+      const dataUrl = `data:${resolvedMime};base64,${fileBase64}`;
+
+      userContent = [
+        { type: "text", text: "Analizza questo estratto conto bancario ed estrai tutti i movimenti." },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ];
     }
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -87,40 +145,7 @@ REGOLE IMPORTANTI:
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "extract_bank_movements",
-            description: "Extract all bank movements from the statement",
-            parameters: {
-              type: "object",
-              properties: {
-                bank_name: { type: "string", description: "Nome della banca" },
-                account_iban: { type: "string", description: "IBAN del conto" },
-                period: { type: "string", description: "Periodo dell'estratto conto" },
-                movements: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      data_movimento: { type: "string", description: "Data movimento YYYY-MM-DD" },
-                      data_valuta: { type: "string", description: "Data valuta YYYY-MM-DD" },
-                      descrizione: { type: "string", description: "Descrizione/causale" },
-                      importo: { type: "number", description: "Importo in valore assoluto" },
-                      tipo: { type: "string", enum: ["entrata", "uscita"], description: "Tipo movimento" },
-                      riferimento: { type: "string", description: "Riferimento CRO/TRN" },
-                    },
-                    required: ["data_movimento", "descrizione", "importo", "tipo"],
-                    additionalProperties: false,
-                  },
-                },
-                total_movements: { type: "number", description: "Numero totale movimenti estratti" },
-              },
-              required: ["movements", "total_movements"],
-              additionalProperties: false,
-            },
-          },
-        }],
+        tools: [toolDef],
         tool_choice: { type: "function", function: { name: "extract_bank_movements" } },
       }),
     });
@@ -150,9 +175,7 @@ REGOLE IMPORTANTI:
 
     const extracted = JSON.parse(toolCall.function.arguments);
 
-    // Filter movements by direction
     const filteredMovements = extracted.movements.map((m: any) => {
-      const isOutflow = direction === "outflow";
       const movDirection = m.tipo === "uscita" ? "outflow" : "inflow";
       return {
         ...m,
