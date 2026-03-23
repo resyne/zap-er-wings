@@ -275,7 +275,7 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
         readyItems.map(item =>
           supabase
             .from('invoice_registry')
-            .update({ ai_suggestion: item.editedSuggestion })
+            .update({ ai_suggestion: item.editedSuggestion as any })
             .eq('id', item.invoice.id)
         )
       );
