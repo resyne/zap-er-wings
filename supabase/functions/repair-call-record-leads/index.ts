@@ -20,34 +20,49 @@ function normalizeItalianPhone(phone: string): string {
   return normalized;
 }
 
-// Find lead by phone number
+// Find lead by phone number - uses RPC normalized search + ilike fallback
 async function findLeadByPhone(supabase: any, phoneNumber: string): Promise<{ id: string; matched_by: string } | null> {
   if (!phoneNumber || phoneNumber.length < 6) return null;
   
   const normalized = normalizeItalianPhone(phoneNumber);
-  
-  const searchPatterns: string[] = [];
-  
-  if (normalized.length >= 6) {
-    const last6 = normalized.slice(-6);
-    const last7 = normalized.slice(-7);
-    const last8 = normalized.slice(-8);
-    searchPatterns.push(last6);
-    searchPatterns.push(last7);
-    searchPatterns.push(last8);
-    searchPatterns.push(normalized);
+  if (normalized.length < 6) return null;
+
+  // Strategy 1: RPC normalized digit matching (most reliable, handles +39/spaces/formatting)
+  const rpcPatterns = [
+    normalized.length >= 9 ? normalized.slice(-9) : null,
+    normalized.slice(-8),
+    normalized.slice(-7),
+  ].filter(Boolean) as string[];
+
+  for (const pattern of rpcPatterns) {
+    try {
+      const { data: candidates } = await supabase.rpc(
+        'find_lead_by_normalized_phone',
+        { search_pattern: pattern }
+      );
+      if (candidates && candidates.length > 0) {
+        const targetLast8 = normalized.slice(-8);
+        const best = candidates.find((c: any) => {
+          const cDigits = (c.phone || '').replace(/\D/g, '');
+          return cDigits.slice(-8) === targetLast8;
+        }) || candidates[0];
+        return { id: best.id, matched_by: 'phone' };
+      }
+    } catch {
+      // RPC not available, fall through to ilike
+    }
   }
-  
-  for (const pattern of searchPatterns) {
+
+  // Strategy 2: Fallback ilike search
+  const ilikePatterns = [normalized, normalized.slice(-8), normalized.slice(-7), normalized.slice(-6)];
+  for (const pattern of ilikePatterns) {
     if (!pattern || pattern.length < 6) continue;
-    
     const { data: lead } = await supabase
       .from('leads')
       .select('id')
       .filter('phone', 'ilike', `%${pattern}%`)
       .limit(1)
       .single();
-    
     if (lead) {
       return { id: lead.id, matched_by: 'phone' };
     }
