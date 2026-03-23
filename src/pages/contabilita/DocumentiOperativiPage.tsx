@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operativi/LinkAccountingDocDialog";
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
 import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
+import { LinkOrderDialog } from "@/components/documenti-operativi/LinkOrderDialog";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
@@ -87,6 +88,9 @@ export default function DocumentiOperativiPage() {
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [selectedReport, setSelectedReport] = useState<UnifiedDoc | null>(null);
+  const [orderLinkDialog, setOrderLinkDialog] = useState<{ open: boolean; docType: "report" | "ddt"; docId: string; docLabel: string }>({
+    open: false, docType: "report", docId: "", docLabel: ""
+  });
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
@@ -488,6 +492,34 @@ export default function DocumentiOperativiPage() {
         onOpenChange={open => { if (!open) setSelectedReport(null); }}
         reportId={selectedReport?.id || null}
         customerName={selectedReport?.customer || "—"}
+        onLinkInvoice={() => {
+          if (selectedReport) {
+            handleOpenLink(selectedReport);
+            setSelectedReport(null);
+          }
+        }}
+        onLinkOrder={() => {
+          if (selectedReport) {
+            setOrderLinkDialog({
+              open: true,
+              docType: "report",
+              docId: selectedReport.id,
+              docLabel: selectedReport.number,
+            });
+          }
+        }}
+      />
+
+      <LinkOrderDialog
+        open={orderLinkDialog.open}
+        onOpenChange={open => setOrderLinkDialog(prev => ({ ...prev, open }))}
+        docType={orderLinkDialog.docType}
+        docId={orderLinkDialog.docId}
+        docLabel={orderLinkDialog.docLabel}
+        onLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ["doc-op-reports"] });
+          queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
+        }}
       />
     </div>
   );
