@@ -1088,6 +1088,27 @@ function RegisterCostForm({ movement, userId, onRegistered, onCancel }: {
     if (!supplierName) { toast.error("Inserire il fornitore"); return; }
     setSaving(true);
     try {
+      // Create invoice_registry entry so it appears in Registro Contabile
+      const netAmount = Number(movement.amount) / 1.22;
+      const vatAmount = Number(movement.amount) - netAmount;
+      const { data: invoiceData } = await supabase.from("invoice_registry").insert({
+        invoice_type: "acquisto",
+        invoice_number: `ACQ-${format(new Date(movement.movement_date), "yyyyMMdd")}-${movement.id.substring(0, 4).toUpperCase()}`,
+        invoice_date: movement.movement_date,
+        subject_name: supplierName,
+        subject_type: "fornitore",
+        imponibile: netAmount,
+        iva_rate: 22,
+        iva_amount: vatAmount,
+        total_amount: Number(movement.amount),
+        vat_regime: "ordinario",
+        financial_status: "pagata",
+        status: "contabilizzata",
+        payment_date: movement.movement_date,
+        notes: `${category ? `Categoria: ${category}. ` : ""}${notes}`.trim(),
+      }).select("id").single();
+
+      // Also create accounting_entries for backward compatibility
       await supabase.from("accounting_entries").insert({
         document_type: "fattura_acquisto",
         document_date: movement.movement_date,
@@ -1102,6 +1123,7 @@ function RegisterCostForm({ movement, userId, onRegistered, onCancel }: {
       });
       await supabase.from("bank_reconciliations").insert({
         bank_movement_id: movement.id,
+        invoice_id: invoiceData?.id || null,
         reconciled_amount: movement.amount,
         match_type: "manual",
         notes: `Costo: ${supplierName} - ${category || "Non categorizzato"}`,
