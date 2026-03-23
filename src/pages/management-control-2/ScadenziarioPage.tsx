@@ -179,7 +179,26 @@ export default function ScadenziarioPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
-  // ── Period navigation ─────────────────────────────
+  // Invoice preview dialog
+  const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
+  const [previewFatturaId, setPreviewFatturaId] = useState<string | null>(null);
+
+  const { data: previewInvoice, isLoading: isLoadingPreview } = useQuery({
+    queryKey: ["invoice-preview", previewFatturaId],
+    queryFn: async () => {
+      if (!previewFatturaId) return null;
+      const { data, error } = await supabase
+        .from("invoice_registry")
+        .select("*")
+        .eq("id", previewFatturaId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!previewFatturaId && invoicePreviewOpen,
+  });
+
+
   const periodLabel = useMemo(() => {
     if (groupBy === "anno") return format(selectedPeriod, "yyyy");
     if (groupBy === "mese") return format(selectedPeriod, "MMMM yyyy", { locale: it });
