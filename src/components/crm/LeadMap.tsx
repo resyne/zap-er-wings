@@ -215,13 +215,17 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
+    const getLeadLocation = (lead: Lead): string | undefined => {
+      return lead.custom_fields?.luogo || (lead as any).city || undefined;
+    };
+
     const leadsWithLocation = leads.filter(
-      lead => lead.custom_fields?.luogo && selectedStatuses.has(lead.status)
+      lead => getLeadLocation(lead) && selectedStatuses.has(lead.status)
     );
     console.log(`[LeadMap] Processing ${leadsWithLocation.length} leads with location out of ${leads.length} total leads`);
 
     for (const lead of leadsWithLocation) {
-      const location = lead.custom_fields?.luogo;
+      const location = getLeadLocation(lead);
       if (!location) continue;
 
       console.log(`[LeadMap] FULL LEAD DATA:`, {
