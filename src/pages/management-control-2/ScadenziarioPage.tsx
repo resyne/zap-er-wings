@@ -883,7 +883,7 @@ export default function ScadenziarioPage() {
                                         <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                                         <div>
                                           {scadenza.fattura_id ? (
-                                            <button className="font-mono font-medium text-sm text-primary hover:underline" onClick={(e) => { e.stopPropagation(); window.location.href = '/contabilita/registro-contabile'; }}>
+                                            <button className="font-mono font-medium text-sm text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setPreviewFatturaId(scadenza.fattura_id); setInvoicePreviewOpen(true); }}>
                                               {scadenza.invoice_number || "N/D"}
                                             </button>
                                           ) : (
