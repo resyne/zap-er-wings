@@ -327,7 +327,8 @@ export default function RegistroContabilePage() {
     warnings?: string[];
   } | null>(null);
 
-  // Helper: check for duplicate invoice by number (and optionally subject)
+  // Bulk AI classification state
+  const [showBulkAIDialog, setShowBulkAIDialog] = useState(false);
   const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
     if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
     const { data } = await supabase
