@@ -396,6 +396,9 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         .select("movement_date, amount, description, direction")
 
       const normalizeDesc = (s: string) =>
+        .select("movement_date, amount, description, direction");
+
+      const normalizeDesc = (s: string) =>
         (s || "")
           .toLowerCase()
           .replace(/\s+cod\.?\s*disp\.?\s*.*$/i, "")
