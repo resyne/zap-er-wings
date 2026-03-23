@@ -18,6 +18,7 @@ import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operativi/LinkAccountingDocDialog";
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
+import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
@@ -85,6 +86,7 @@ export default function DocumentiOperativiPage() {
     open: false, docType: "order", docId: "", docLabel: "", currentLinkedId: null
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<UnifiedDoc | null>(null);
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
@@ -241,9 +243,9 @@ export default function DocumentiOperativiPage() {
   const handleRowClick = (doc: UnifiedDoc) => {
     if (doc.type === "order") {
       setSelectedOrder(doc.raw);
-    }
-    // For DDT and reports, open link dialog directly
-    if (doc.type === "ddt" || doc.type === "report") {
+    } else if (doc.type === "report") {
+      setSelectedReport(doc);
+    } else if (doc.type === "ddt") {
       handleOpenLink(doc);
     }
   };
@@ -429,6 +431,12 @@ export default function DocumentiOperativiPage() {
                                   Dettagli ordine
                                 </DropdownMenuItem>
                               )}
+                              {doc.type === "report" && (
+                                <DropdownMenuItem onClick={() => setSelectedReport(doc)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Dettagli rapporto
+                                </DropdownMenuItem>
+                              )}
                               {doc.type === "ddt" && doc.raw.attachment_url && (
                                 <DropdownMenuItem asChild>
                                   <a href={doc.raw.attachment_url} target="_blank" rel="noopener noreferrer">
@@ -473,6 +481,13 @@ export default function DocumentiOperativiPage() {
         onOpenChange={open => { if (!open) setSelectedOrder(null); }}
         order={selectedOrder}
         customerName={selectedOrder ? custMap.get(selectedOrder.customer_id || "") || "—" : "—"}
+      />
+
+      <ReportDetailSheet
+        open={!!selectedReport}
+        onOpenChange={open => { if (!open) setSelectedReport(null); }}
+        reportId={selectedReport?.id || null}
+        customerName={selectedReport?.customer || "—"}
       />
     </div>
   );
