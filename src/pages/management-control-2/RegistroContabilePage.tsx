@@ -2448,12 +2448,28 @@ export default function RegistroContabilePage() {
     }
   });
 
+  const getIvaRateFromRegime = (regime: string): number => {
+    switch (regime) {
+      case 'domestica_imponibile': return 22;
+      case 'reverse_charge': return 0;
+      case 'ue_non_imponibile': return 0;
+      case 'extra_ue': return 0;
+      case 'esente': return 0;
+      case 'ridotta_10': return 10;
+      case 'ridotta_4': return 4;
+      default: return 22;
+    }
+  };
+
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
         updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
         updated.financial_status = value === 'acquisto' ? 'da_pagare' : 'da_incassare';
+      }
+      if (field === 'vat_regime') {
+        updated.iva_rate = getIvaRateFromRegime(value as string);
       }
       return updated;
     });
