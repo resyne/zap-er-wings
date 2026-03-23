@@ -480,10 +480,12 @@ export default function ScadenziarioPage() {
       return { success: true };
     },
     onSuccess: () => {
-      toast.success("Movimento registrato con successo");
+      toast.success("Pagamento registrato e Prima Nota aggiornata");
       queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
       queryClient.invalidateQueries({ queryKey: ["scadenza-movimenti"] });
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["registro-contabile"] });
       resetForm();
     },
     onError: (error) => {
