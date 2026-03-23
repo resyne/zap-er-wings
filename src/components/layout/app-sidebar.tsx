@@ -157,12 +157,6 @@ const navigationGroups: NavGroup[] = [
     ]
   },
   {
-    title: "Finanza",
-    items: [
-      { title: "Tesoreria", url: "/finanza/tesoreria", icon: ArrowDownCircle },
-    ]
-  },
-  {
     title: "Controllo di Gestione",
     items: [
       { title: "Dashboard Marginalità", url: "/controllo-gestione/dashboard", icon: BarChart3 },
@@ -177,6 +171,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Prima Nota", url: "/management-control-2/prima-nota", icon: Database },
       { title: "Registro Contabile", url: "/contabilita/registro-contabile", icon: FileText },
       { title: "Documenti Operativi", url: "/contabilita/documenti", icon: ClipboardCheck },
+      { title: "Tesoreria", url: "/contabilita/tesoreria", icon: ArrowDownCircle },
       { title: "Scadenziario", url: "/management-control-2/scadenziario", icon: Clock },
       { title: "Mastrino Contabile", url: "/management-control-2/mastrino", icon: PieChart },
       { title: "Setup Contabile", url: "/management-control-2/setup-contabile", icon: Settings },
