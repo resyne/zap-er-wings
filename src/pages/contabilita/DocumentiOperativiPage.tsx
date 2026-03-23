@@ -86,6 +86,7 @@ export default function DocumentiOperativiPage() {
     open: false, docType: "order", docId: "", docLabel: "", currentLinkedId: null
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<UnifiedDoc | null>(null);
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
