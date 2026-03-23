@@ -219,8 +219,9 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
       return;
     }
 
+    const tableName = (centerToDelete as any)._source || (centerToDelete.center_type === "ricavo" ? "profit_centers" : "cost_centers");
     const { error } = await supabase
-      .from("cost_centers")
+      .from(tableName)
       .delete()
       .eq("id", centerToDelete.id);
 
