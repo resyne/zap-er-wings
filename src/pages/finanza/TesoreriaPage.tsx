@@ -233,10 +233,27 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       }
 
       // Mark all relevant movements as selected by default
-      const movementsWithSelection = result.movements.map((m: AiMovement) => ({
-        ...m,
-        selected: m.relevant,
-      }));
+      // Fetch existing movements to pre-filter duplicates
+      const { data: existing } = await supabase
+        .from("bank_movements")
+        .select("movement_date, amount, description")
+        .eq("direction", direction);
+
+      const existingSet = new Set(
+        (existing || []).map((e: any) => `${e.movement_date}|${Number(e.amount).toFixed(2)}|${(e.description || "").substring(0, 80).toLowerCase().trim()}`)
+      );
+
+      let duplicateCount = 0;
+      const movementsWithSelection = result.movements.map((m: AiMovement) => {
+        const key = `${m.data_movimento}|${Number(m.importo).toFixed(2)}|${(m.descrizione || "").substring(0, 80).toLowerCase().trim()}`;
+        const isDuplicate = existingSet.has(key);
+        if (isDuplicate) duplicateCount++;
+        return {
+          ...m,
+          selected: m.relevant && !isDuplicate,
+          isDuplicate,
+        };
+      });
 
       setAiMovements(movementsWithSelection);
       setAiBankInfo({
@@ -245,7 +262,12 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         period: result.period,
       });
       setAiPreviewOpen(true);
-      toast.success(`AI ha estratto ${result.total_movements} movimenti dal documento`);
+      const newCount = result.total_movements - duplicateCount;
+      if (duplicateCount > 0) {
+        toast.success(`AI ha estratto ${result.total_movements} movimenti (${duplicateCount} già importati, ${newCount} nuovi)`);
+      } else {
+        toast.success(`AI ha estratto ${result.total_movements} movimenti dal documento`);
+      }
     } catch (err: any) {
       toast.error("Errore analisi AI: " + err.message);
     } finally {
