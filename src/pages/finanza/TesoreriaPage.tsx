@@ -1032,6 +1032,29 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                             </div>
                           ) : "—"}
                         </TableCell>
+                        {/* Prima Nota status */}
+                        <TableCell className="text-center">
+                          {recon ? (
+                            recon.prima_nota_id ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-700" title="Registrato in Prima Nota">
+                                <BookOpen className="h-3.5 w-3.5" /> ✅
+                              </span>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 gap-1 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                                onClick={() => registerPrimaNotaForMovement(mov.id)}
+                                title="Prima Nota mancante — clicca per registrare"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Registra
+                              </Button>
+                            )
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <span className={cn(
                             "inline-flex px-2 py-0.5 rounded-full text-xs font-medium",
