@@ -2481,6 +2481,9 @@ export default function RegistroContabilePage() {
       if (field === 'invoice_type') {
         updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
       }
+      if (field === 'vat_regime') {
+        updated.iva_rate = getIvaRateFromRegime(value as string);
+      }
       return updated;
     });
   };
