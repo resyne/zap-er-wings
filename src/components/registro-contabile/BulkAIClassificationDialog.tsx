@@ -67,8 +67,8 @@ interface BulkAIClassificationDialogProps {
 
 const VAT_REGIMES = [
   { value: 'domestica_imponibile', label: 'Ordinario (22%)', rate: 22 },
-  { value: 'domestica_imponibile', label: 'Ridotta (10%)', rate: 10, altValue: 'domestica_ridotta_10' },
-  { value: 'domestica_imponibile', label: 'Minima (4%)', rate: 4, altValue: 'domestica_ridotta_4' },
+  { value: 'domestica_ridotta_10', label: 'Ridotta (10%)', rate: 10 },
+  { value: 'domestica_ridotta_4', label: 'Minima (4%)', rate: 4 },
   { value: 'ue_non_imponibile', label: 'Intracomunitaria / Non imponibile UE', rate: 0 },
   { value: 'extra_ue', label: 'Extracomunitaria', rate: 0 },
   { value: 'reverse_charge', label: 'Reverse Charge', rate: 0 },
