@@ -180,17 +180,23 @@ serve(async (req) => {
     // ─── Always use AI for extraction (deterministic parse was unreliable for entrata/uscita) ───
 
     // ─── AI EXTRACTION for PDF/images or spreadsheet fallback ───
-    const systemPrompt = `Sei un esperto contabile italiano. Analizza l'estratto conto ed estrai TUTTI i movimenti.
+    const systemPrompt = `Sei un esperto contabile italiano. Analizza l'estratto conto bancario ed estrai TUTTI i movimenti senza eccezioni.
 
 Per ogni movimento:
 - data_movimento: YYYY-MM-DD
 - data_valuta: YYYY-MM-DD (se presente)
 - descrizione: causale completa
-- importo: valore assoluto positivo
-- tipo: "entrata" o "uscita"
+- importo: valore assoluto positivo (senza segno)
+- tipo: "entrata" (soldi ricevuti sul conto: bonifici in arrivo, versamenti, accrediti, incassi) o "uscita" (soldi usciti dal conto: bonifici in uscita, addebiti, pagamenti, commissioni, F24)
 - riferimento: CRO/TRN se presente
 
-REGOLE: Estrai OGNI riga inclusi bonifici, versamenti assegni, commissioni, addebiti SDD, POS, prelievi, F24, giroconti, interessi. NON saltare nessuna voce. Importi sempre positivi.`;
+REGOLE IMPORTANTI:
+1. Estrai OGNI singola riga di movimento, inclusi: bonifici, versamenti assegni, commissioni bancarie, addebiti SDD, pagamenti POS, prelievi ATM, F24, giroconti, interessi, competenze, bolli.
+2. NON saltare nessuna voce.
+3. Gli importi devono essere sempre POSITIVI (valore assoluto).
+4. Per determinare entrata/uscita: se nella colonna "Dare" c'è un valore è una USCITA, se nella colonna "Avere" c'è un valore è una ENTRATA. Se c'è una sola colonna importo: importi negativi = uscita, positivi = entrata.
+5. Versamenti assegni, bonifici ricevuti, accrediti stipendio = ENTRATA.
+6. Commissioni, addebiti, bonifici disposti, F24, pagamenti = USCITA.`;
 
     const toolDef = {
       type: "function",
