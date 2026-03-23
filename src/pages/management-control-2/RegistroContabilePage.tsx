@@ -26,6 +26,7 @@ import { useAllOperationalDocuments, OperationalDocument } from "@/hooks/useOper
 import { findSimilarSubjects, SubjectMatch } from "@/lib/fuzzyMatch";
 import { SimilarSubjectDialog, SimilarSubjectAction } from "@/components/shared/SimilarSubjectDialog";
 import { RegistryFiltersBar } from "@/components/registro-contabile/RegistryFiltersBar";
+import { BulkAIClassificationDialog } from "@/components/registro-contabile/BulkAIClassificationDialog";
 import { InvoiceRegistryTable } from "@/components/registro-contabile/InvoiceRegistryTable";
 
 import { 
@@ -326,7 +327,8 @@ export default function RegistroContabilePage() {
     warnings?: string[];
   } | null>(null);
 
-  // Helper: check for duplicate invoice by number (and optionally subject)
+  // Bulk AI classification state
+  const [showBulkAIDialog, setShowBulkAIDialog] = useState(false);
   const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
     if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
     const { data } = await supabase
@@ -2600,6 +2602,39 @@ export default function RegistroContabilePage() {
     setAiSuggestion(null);
   };
 
+  // Bulk AI classification: apply suggestion to a single invoice
+  const handleBulkAIApprove = async (invoiceId: string, suggestion: any) => {
+    const ivaAmount = suggestion.iva_rate !== undefined 
+      ? (suggestion.imponibile || 0) * (suggestion.iva_rate / 100) 
+      : undefined;
+    
+    const updateData: any = {};
+    if (suggestion.cost_account_id) updateData.cost_account_id = suggestion.cost_account_id;
+    if (suggestion.revenue_account_id) updateData.revenue_account_id = suggestion.revenue_account_id;
+    if (suggestion.cost_center_id) updateData.cost_center_id = suggestion.cost_center_id;
+    if (suggestion.profit_center_id) updateData.profit_center_id = suggestion.profit_center_id;
+    if (suggestion.vat_regime) updateData.vat_regime = suggestion.vat_regime;
+    if (suggestion.iva_rate !== undefined) updateData.iva_rate = suggestion.iva_rate;
+    if (suggestion.financial_status) updateData.financial_status = suggestion.financial_status;
+    
+    // Recalculate amounts if iva_rate changed
+    if (suggestion.iva_rate !== undefined) {
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv) {
+        const newIva = inv.imponibile * (suggestion.iva_rate / 100);
+        updateData.iva_amount = Math.round(newIva * 100) / 100;
+        updateData.total_amount = Math.round((inv.imponibile + newIva) * 100) / 100;
+      }
+    }
+
+    const { error } = await supabase
+      .from('invoice_registry')
+      .update(updateData)
+      .eq('id', invoiceId);
+
+    if (error) throw error;
+  };
+
   // Filter by selected period first
   const periodFilteredInvoices = invoices.filter(inv => {
     const date = new Date(inv.invoice_date);
@@ -3084,7 +3119,19 @@ export default function RegistroContabilePage() {
         </div>
       </Card>
 
-
+      {/* Bulk AI Classification Button */}
+      {invoices.filter(inv => inv.status === 'bozza').length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Brain className="w-4 h-4" />
+            <span>{invoices.filter(inv => inv.status === 'bozza').length} fatture in bozza da classificare</span>
+          </div>
+          <Button onClick={() => setShowBulkAIDialog(true)} className="gap-2" variant="outline">
+            <Sparkles className="w-4 h-4" />
+            Contabilizza con AI
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <RegistryFiltersBar
@@ -4133,6 +4180,20 @@ export default function RegistroContabilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk AI Classification Dialog */}
+      <BulkAIClassificationDialog
+        open={showBulkAIDialog}
+        onOpenChange={setShowBulkAIDialog}
+        invoices={invoices as any[]}
+        accounts={accounts}
+        costCenters={costCenters}
+        profitCenters={profitCenters}
+        onApprove={handleBulkAIApprove}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+        }}
+      />
 
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
         <DialogContent>
