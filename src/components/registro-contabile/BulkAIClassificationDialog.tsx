@@ -104,6 +104,10 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
       ));
 
       try {
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
         const { data, error } = await supabase.functions.invoke('ai-accounting-analysis', {
           body: {
             invoice: {
@@ -122,6 +126,8 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
             profitCenters,
           },
         });
+        
+        clearTimeout(timeoutId);
 
         if (error) throw error;
         if (data?.success && data?.suggestion) {
@@ -132,8 +138,9 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
           throw new Error(data?.error || 'Risposta AI non valida');
         }
       } catch (err: any) {
+        console.error(`AI analysis error for invoice ${newItems[i].invoice.invoice_number}:`, err);
         setItems(prev => prev.map((item, idx) =>
-          idx === i ? { ...item, status: 'error', error: err.message } : item
+          idx === i ? { ...item, status: 'error', error: err.message || 'Timeout o errore di rete' } : item
         ));
       }
 
