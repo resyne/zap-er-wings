@@ -2602,6 +2602,39 @@ export default function RegistroContabilePage() {
     setAiSuggestion(null);
   };
 
+  // Bulk AI classification: apply suggestion to a single invoice
+  const handleBulkAIApprove = async (invoiceId: string, suggestion: any) => {
+    const ivaAmount = suggestion.iva_rate !== undefined 
+      ? (suggestion.imponibile || 0) * (suggestion.iva_rate / 100) 
+      : undefined;
+    
+    const updateData: any = {};
+    if (suggestion.cost_account_id) updateData.cost_account_id = suggestion.cost_account_id;
+    if (suggestion.revenue_account_id) updateData.revenue_account_id = suggestion.revenue_account_id;
+    if (suggestion.cost_center_id) updateData.cost_center_id = suggestion.cost_center_id;
+    if (suggestion.profit_center_id) updateData.profit_center_id = suggestion.profit_center_id;
+    if (suggestion.vat_regime) updateData.vat_regime = suggestion.vat_regime;
+    if (suggestion.iva_rate !== undefined) updateData.iva_rate = suggestion.iva_rate;
+    if (suggestion.financial_status) updateData.financial_status = suggestion.financial_status;
+    
+    // Recalculate amounts if iva_rate changed
+    if (suggestion.iva_rate !== undefined) {
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv) {
+        const newIva = inv.imponibile * (suggestion.iva_rate / 100);
+        updateData.iva_amount = Math.round(newIva * 100) / 100;
+        updateData.total_amount = Math.round((inv.imponibile + newIva) * 100) / 100;
+      }
+    }
+
+    const { error } = await supabase
+      .from('invoice_registry')
+      .update(updateData)
+      .eq('id', invoiceId);
+
+    if (error) throw error;
+  };
+
   // Filter by selected period first
   const periodFilteredInvoices = invoices.filter(inv => {
     const date = new Date(inv.invoice_date);
