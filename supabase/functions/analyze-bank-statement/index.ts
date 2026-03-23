@@ -36,34 +36,48 @@ serve(async (req) => {
     const mimeType = file.type || "";
     const isExcel = mimeType.includes("spreadsheet") || mimeType.includes("excel") || file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
     const isCsv = mimeType.includes("csv") || file.name.endsWith(".csv");
-    const isImage = mimeType.startsWith("image/");
 
     const systemPrompt = `Sei un esperto contabile italiano specializzato nell'analisi di estratti conto bancari.
 
-Analizza il documento dell'estratto conto bancario fornito ed estrai TUTTI i movimenti presenti.
+Analizza il documento dell'estratto conto bancario fornito ed estrai TUTTI i movimenti presenti, NESSUNO ESCLUSO.
 
 Per ogni movimento estrai:
 - data_movimento: data del movimento in formato YYYY-MM-DD
 - data_valuta: data valuta in formato YYYY-MM-DD (se presente, altrimenti uguale a data_movimento)
-- descrizione: descrizione/causale del movimento
-- importo: importo in valore assoluto (sempre positivo)
-- tipo: "entrata" o "uscita" basato sul segno del movimento (DARE=uscita, AVERE=entrata, o dedotto dal contesto)
-- riferimento: eventuale riferimento CRO/TRN/numero operazione
+- descrizione: descrizione/causale COMPLETA del movimento (includi tutti i dettagli: beneficiario, causale, riferimenti)
+- importo: importo in valore assoluto (sempre positivo, mai zero)
+- tipo: "entrata" o "uscita" basato sul segno o sulla colonna
+- riferimento: eventuale riferimento CRO/TRN/numero operazione (se presente nella descrizione, estrailo)
 - conto_bancario: IBAN o numero conto se visibile nel documento
 
-REGOLE IMPORTANTI:
-- Estrai OGNI SINGOLO movimento presente nel documento, non saltarne nessuno
-- Gli importi devono essere SEMPRE positivi (il tipo indica se entrata o uscita)
-- Se il formato ha colonne DARE/AVERE separate, DARE = uscita, AVERE = entrata
-- Se c'è una sola colonna importo, i negativi sono uscite, i positivi entrate
-- Le date devono essere in formato YYYY-MM-DD
-- Non inventare dati, estrai solo quello che vedi nel documento`;
+REGOLE CRITICHE:
+1. Estrai OGNI SINGOLA RIGA di movimento, inclusi:
+   - Bonifici (in entrata e uscita)
+   - Versamenti assegni e contanti
+   - Addebiti utenze (bollette, SDD, RID)
+   - Commissioni bancarie, bolli, spese conto
+   - Stipendi e pagamenti stipendi
+   - Prelievi bancomat/ATM
+   - Pagamenti POS/carte
+   - Giroconti
+   - Pagamenti F24/tributi
+   - Interessi attivi e passivi
+   - Qualsiasi altro tipo di operazione bancaria
+2. NON saltare righe che sembrano "irrilevanti" come commissioni, bolli, arrotondamenti
+3. Se una riga ha importo ZERO o è un saldo/totale, IGNORALA
+4. Se il formato ha colonne DARE e AVERE separate: importo in DARE = uscita, importo in AVERE = entrata
+5. Se c'è una sola colonna importo: negativi = uscite, positivi = entrate
+6. Se il segno non è chiaro, usa il contesto della descrizione (es. "versamento" = entrata, "addebito" = uscita, "pagamento" = uscita, "accredito" = entrata, "bonifico a favore" = entrata, "bonifico disposto" = uscita)
+7. Le date devono essere in formato YYYY-MM-DD
+8. NON inventare dati, estrai solo quello che vedi
+9. Se ci sono righe di dettaglio sotto una riga principale (es. beneficiario su riga successiva), uniscile in un'unica voce
+10. Importi: rimuovi punti separatori migliaia e usa il punto come separatore decimale (es. "1.234,56" → 1234.56)`;
 
     const toolDef = {
       type: "function",
       function: {
         name: "extract_bank_movements",
-        description: "Extract all bank movements from the statement",
+        description: "Extract ALL bank movements from the statement without exception",
         parameters: {
           type: "object",
           properties: {
@@ -77,10 +91,10 @@ REGOLE IMPORTANTI:
                 properties: {
                   data_movimento: { type: "string", description: "Data movimento YYYY-MM-DD" },
                   data_valuta: { type: "string", description: "Data valuta YYYY-MM-DD" },
-                  descrizione: { type: "string", description: "Descrizione/causale" },
-                  importo: { type: "number", description: "Importo in valore assoluto" },
+                  descrizione: { type: "string", description: "Descrizione/causale completa" },
+                  importo: { type: "number", description: "Importo in valore assoluto (sempre positivo)" },
                   tipo: { type: "string", enum: ["entrata", "uscita"], description: "Tipo movimento" },
-                  riferimento: { type: "string", description: "Riferimento CRO/TRN" },
+                  riferimento: { type: "string", description: "Riferimento CRO/TRN/numero operazione" },
                 },
                 required: ["data_movimento", "descrizione", "importo", "tipo"],
                 additionalProperties: false,
@@ -97,8 +111,8 @@ REGOLE IMPORTANTI:
     let userContent: any[];
 
     if (isExcel || isCsv) {
-      // Parse spreadsheet to text
       let textContent = "";
+      
       if (isCsv) {
         const decoder = new TextDecoder("utf-8");
         textContent = decoder.decode(fileBuffer);
@@ -106,18 +120,42 @@ REGOLE IMPORTANTI:
         const workbook = read(new Uint8Array(fileBuffer), { type: "array" });
         for (const sheetName of workbook.SheetNames) {
           const sheet = workbook.Sheets[sheetName];
+          // Use pipe separator for cleaner parsing, preserve empty cells
+          const csv = utils.sheet_to_csv(sheet, { FS: "|", blankrows: false });
           textContent += `--- Foglio: ${sheetName} ---\n`;
-          textContent += utils.sheet_to_csv(sheet, { FS: "\t" }) + "\n\n";
+          textContent += csv + "\n\n";
         }
       }
-      // Truncate if too long
-      if (textContent.length > 100000) textContent = textContent.substring(0, 100000);
+
+      // Better truncation - keep header + as many rows as possible
+      if (textContent.length > 120000) {
+        const lines = textContent.split("\n");
+        let result = "";
+        for (const line of lines) {
+          if (result.length + line.length > 120000) break;
+          result += line + "\n";
+        }
+        textContent = result;
+      }
       
       userContent = [
-        { type: "text", text: `Analizza questo estratto conto bancario ed estrai tutti i movimenti. Il contenuto del file "${file.name}" è:\n\n${textContent}` },
+        { type: "text", text: `Analizza questo estratto conto bancario ed estrai TUTTI i movimenti, nessuno escluso.
+
+ATTENZIONE: Il file potrebbe contenere colonne con nomi diversi da quelli standard. Cerca colonne relative a:
+- Date (data operazione, data contabile, data valuta, data mov., ecc.)
+- Descrizioni/Causali (descrizione, causale, dettaglio, operazione, ecc.)
+- Importi (importo, dare, avere, entrate, uscite, accrediti, addebiti, ammontare, ecc.)
+- Saldi (saldo, disponibilità - IGNORA queste righe, non sono movimenti)
+
+Se ci sono colonne DARE e AVERE separate, un importo nella colonna DARE è un'uscita, nella colonna AVERE è un'entrata.
+Se c'è un'unica colonna importo con segni + e -, i positivi sono entrate e i negativi uscite.
+
+Il file "${file.name}" contiene questi dati (colonne separate da |):
+
+${textContent}` },
       ];
     } else {
-      // PDF or image - send as base64 data URL
+      // PDF or image
       const fileBytes = new Uint8Array(fileBuffer);
       let binary = '';
       for (let i = 0; i < fileBytes.length; i++) {
@@ -128,7 +166,7 @@ REGOLE IMPORTANTI:
       const dataUrl = `data:${resolvedMime};base64,${fileBase64}`;
 
       userContent = [
-        { type: "text", text: "Analizza questo estratto conto bancario ed estrai tutti i movimenti." },
+        { type: "text", text: "Analizza questo estratto conto bancario ed estrai TUTTI i movimenti, nessuno escluso. Includi versamenti, commissioni, addebiti, bonifici, assegni, pagamenti POS, prelievi, e qualsiasi altro tipo di operazione." },
         { type: "image_url", image_url: { url: dataUrl } },
       ];
     }
@@ -175,22 +213,28 @@ REGOLE IMPORTANTI:
 
     const extracted = JSON.parse(toolCall.function.arguments);
 
-    const filteredMovements = extracted.movements.map((m: any) => {
-      const movDirection = m.tipo === "uscita" ? "outflow" : "inflow";
-      return {
-        ...m,
-        direction: movDirection,
-        relevant: movDirection === direction,
-      };
-    });
+    // Validate and clean movements
+    const cleanedMovements = (extracted.movements || [])
+      .filter((m: any) => m.importo && m.importo > 0 && m.data_movimento)
+      .map((m: any) => {
+        const movDirection = m.tipo === "uscita" ? "outflow" : "inflow";
+        return {
+          ...m,
+          importo: Math.abs(m.importo),
+          direction: movDirection,
+          relevant: movDirection === direction,
+        };
+      });
+
+    console.log(`Extracted ${cleanedMovements.length} movements from ${file.name} (AI reported ${extracted.total_movements})`);
 
     return new Response(JSON.stringify({
       success: true,
       bank_name: extracted.bank_name || null,
       account_iban: extracted.account_iban || null,
       period: extracted.period || null,
-      total_movements: extracted.total_movements,
-      movements: filteredMovements,
+      total_movements: cleanedMovements.length,
+      movements: cleanedMovements,
       direction,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
