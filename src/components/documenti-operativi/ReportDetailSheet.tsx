@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { Wrench, User, MapPin, Clock, Calendar, Package, FileText, Euro, Loader2 } from "lucide-react";
+import { Wrench, User, Clock, Calendar, Package, FileText, Euro, Loader2, LinkIcon, ShoppingCart } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -13,22 +14,31 @@ interface ReportDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   reportId: string | null;
   customerName: string;
+  onLinkInvoice?: () => void;
+  onLinkOrder?: () => void;
 }
 
-export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }: ReportDetailSheetProps) {
+export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, onLinkInvoice, onLinkOrder }: ReportDetailSheetProps) {
   const [report, setReport] = useState<any>(null);
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [linkedOrder, setLinkedOrder] = useState<any>(null);
 
   useEffect(() => {
     if (!open || !reportId) return;
     setLoading(true);
+    setLinkedOrder(null);
     Promise.all([
       supabase.from("service_reports").select("*").eq("id", reportId).single(),
       supabase.from("service_report_materials").select("*").eq("report_id", reportId),
-    ]).then(([reportRes, matRes]) => {
+    ]).then(async ([reportRes, matRes]) => {
       setReport(reportRes.data);
       setMaterials(matRes.data || []);
+      // Check linked order
+      if (reportRes.data?.sales_order_id) {
+        const { data: order } = await supabase.from("sales_orders").select("id, number").eq("id", reportRes.data.sales_order_id).single();
+        setLinkedOrder(order);
+      }
       setLoading(false);
     });
   }, [open, reportId]);
@@ -46,7 +56,7 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl w-full p-0">
+      <SheetContent className="sm:max-w-xl w-full p-0 flex flex-col">
         <SheetHeader className="px-6 pt-6 pb-4 border-b bg-muted/30">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
@@ -66,7 +76,7 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
           </div>
         </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-120px)]">
+        <ScrollArea className="flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -80,6 +90,15 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
                 <InfoCard icon={Wrench} label="Tipo intervento" value={report.intervention_type || "—"} />
                 <InfoCard icon={User} label="Tecnico" value={report.technician_name || "—"} />
               </div>
+
+              {/* Linked order */}
+              {linkedOrder && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/20 text-sm">
+                  <ShoppingCart className="h-4 w-4 text-blue-600" />
+                  <span className="text-muted-foreground">Ordine collegato:</span>
+                  <span className="font-medium">{linkedOrder.number}</span>
+                </div>
+              )}
 
               {report.description && (
                 <>
@@ -150,7 +169,6 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
                 </>
               )}
 
-              {/* Economico */}
               {(report.amount || report.total_amount) && (
                 <>
                   <Separator />
@@ -179,7 +197,6 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
                 </>
               )}
 
-              {/* Firme */}
               {(report.customer_signature || report.technician_signature) && (
                 <>
                   <Separator />
@@ -209,6 +226,20 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName }
             </div>
           ) : null}
         </ScrollArea>
+
+        {/* Fixed CTA footer */}
+        {report && (
+          <div className="border-t p-4 flex gap-2 bg-background">
+            <Button className="flex-1 gap-2" onClick={onLinkInvoice}>
+              <LinkIcon className="h-4 w-4" />
+              Collega a fattura
+            </Button>
+            <Button variant="outline" className="flex-1 gap-2" onClick={onLinkOrder}>
+              <ShoppingCart className="h-4 w-4" />
+              {linkedOrder ? "Cambia ordine" : "Collega a ordine"}
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
