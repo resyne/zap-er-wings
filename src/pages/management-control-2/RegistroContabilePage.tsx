@@ -59,8 +59,11 @@ import {
   UserPlus,
   ArrowLeftRight,
   Sparkles,
-  Brain
+  Brain,
+  Eye,
+  ExternalLink
 } from "lucide-react";
+import { AttachmentPreview } from "@/components/warehouse/AttachmentPreview";
 
 interface AccountSplitLine {
   id: string;
@@ -5446,6 +5449,46 @@ function InvoiceDetailsDialog({
               </CardHeader>
               <CardContent>
                 <p className="text-sm">{invoice.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Anteprima allegato */}
+          {invoice.attachment_url && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Documento Allegato
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-hidden bg-muted/30">
+                  <div className="aspect-[4/3] max-h-[500px]">
+                    <AttachmentPreview 
+                      url={invoice.attachment_url} 
+                      alt={`Fattura ${invoice.invoice_number}`} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border-t bg-background">
+                    <span className="text-xs text-muted-foreground truncate">
+                      {(() => {
+                        try { return new URL(invoice.attachment_url).pathname.split('/').pop() || 'documento'; } catch { return 'documento'; }
+                      })()}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => window.open(invoice.attachment_url!, '_blank')}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Apri originale
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
