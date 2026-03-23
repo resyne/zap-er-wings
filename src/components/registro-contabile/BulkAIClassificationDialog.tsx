@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Brain, Check, X, Loader2, ChevronRight, Sparkles, AlertCircle, SkipForward, Play, RotateCcw } from "lucide-react";
+import { Brain, Check, X, Loader2, ChevronRight, Sparkles, AlertCircle, SkipForward, Play, RotateCcw, Pencil } from "lucide-react";
 
 interface InvoiceRegistry {
   id: string;
@@ -46,6 +49,7 @@ interface AISuggestion {
 interface InvoiceWithSuggestion {
   invoice: InvoiceRegistry;
   suggestion: AISuggestion | null;
+  editedSuggestion: AISuggestion | null;
   status: 'pending' | 'analyzing' | 'ready' | 'approved' | 'skipped' | 'error';
   error?: string;
 }
@@ -60,6 +64,17 @@ interface BulkAIClassificationDialogProps {
   onApprove: (invoiceId: string, suggestion: AISuggestion) => Promise<void>;
   onComplete: () => void;
 }
+
+const VAT_REGIMES = [
+  { value: 'domestica_imponibile', label: 'Ordinario (22%)', rate: 22 },
+  { value: 'domestica_ridotta_10', label: 'Ridotta (10%)', rate: 10 },
+  { value: 'domestica_ridotta_4', label: 'Minima (4%)', rate: 4 },
+  { value: 'esente', label: 'Esente IVA', rate: 0 },
+  { value: 'non_imponibile', label: 'Non imponibile', rate: 0 },
+  { value: 'reverse_charge', label: 'Reverse Charge', rate: 0 },
+  { value: 'intracomunitaria', label: 'Intracomunitaria', rate: 0 },
+  { value: 'extracomunitaria', label: 'Extracomunitaria', rate: 0 },
+];
 
 export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProps> = ({
   open,
@@ -78,7 +93,6 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
   const abortRef = useRef(false);
   const itemsRef = useRef<InvoiceWithSuggestion[]>([]);
 
-  // Keep ref in sync
   useEffect(() => { itemsRef.current = items; }, [items]);
 
   const bozzaInvoices = invoices.filter(inv => inv.status === 'bozza');
@@ -94,7 +108,6 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
       }
 
       const currentItem = itemsRef.current[i];
-      // Skip already processed items
       if (['ready', 'approved', 'skipped'].includes(currentItem.status)) continue;
 
       setItems(prev => prev.map((item, idx) =>
@@ -124,9 +137,13 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
         if (error) throw error;
         if (data?.success && data?.suggestion) {
           setItems(prev => prev.map((item, idx) =>
-            idx === i ? { ...item, suggestion: data.suggestion, status: 'ready' } : item
+            idx === i ? {
+              ...item,
+              suggestion: data.suggestion,
+              editedSuggestion: { ...data.suggestion },
+              status: 'ready'
+            } : item
           ));
-          // Auto-select first ready item if none selected
           setSelectedIndex(prev => prev === null ? i : prev);
         } else {
           throw new Error(data?.error || 'Risposta AI non valida');
@@ -138,7 +155,6 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
         ));
       }
 
-      // Delay between requests
       if (i < itemsRef.current.length - 1 && !abortRef.current) {
         await new Promise(r => setTimeout(r, 1000));
       }
@@ -156,6 +172,7 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     const newItems: InvoiceWithSuggestion[] = bozzaInvoices.map(inv => ({
       invoice: inv,
       suggestion: null,
+      editedSuggestion: null,
       status: 'pending' as const,
     }));
     setItems(newItems);
@@ -166,7 +183,6 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
   }, [bozzaInvoices, analyzeFrom]);
 
   const resumeAnalysis = useCallback(() => {
-    // Find first pending or error item
     const resumeIdx = itemsRef.current.findIndex(it => ['pending', 'error'].includes(it.status));
     if (resumeIdx === -1) {
       toast.info('Tutte le fatture sono già state analizzate');
@@ -175,21 +191,28 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     analyzeFrom(resumeIdx);
   }, [analyzeFrom]);
 
+  const updateEditedField = (index: number, field: string, value: any) => {
+    setItems(prev => prev.map((it, idx) =>
+      idx === index ? {
+        ...it,
+        editedSuggestion: { ...it.editedSuggestion, [field]: value }
+      } : it
+    ));
+  };
+
   const handleApprove = async (index: number) => {
     const item = items[index];
-    if (!item?.suggestion) return;
+    if (!item?.editedSuggestion) return;
 
     try {
-      await onApprove(item.invoice.id, item.suggestion);
+      await onApprove(item.invoice.id, item.editedSuggestion);
       setItems(prev => prev.map((it, idx) =>
         idx === index ? { ...it, status: 'approved' } : it
       ));
       toast.success(`Fattura ${item.invoice.invoice_number} classificata`);
-      // Auto-advance to next ready
       const nextIdx = items.findIndex((it, idx) => idx > index && it.status === 'ready');
       if (nextIdx !== -1) setSelectedIndex(nextIdx);
       else {
-        // Try from beginning
         const fromStart = items.findIndex((it, idx) => idx !== index && it.status === 'ready');
         if (fromStart !== -1) setSelectedIndex(fromStart);
         else setSelectedIndex(null);
@@ -223,20 +246,11 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
   const readyCount = items.filter(i => i.status === 'ready').length;
   const pendingOrErrorCount = items.filter(i => ['pending', 'error'].includes(i.status)).length;
 
-  const getAccountName = (id?: string) => {
-    if (!id) return '—';
-    const acc = accounts.find(a => a.id === id);
-    return acc ? `${acc.code} - ${acc.name}` : id;
-  };
-
-  const getCenterName = (id?: string, type: 'cost' | 'profit' = 'cost') => {
-    if (!id) return '—';
-    const list = type === 'cost' ? costCenters : profitCenters;
-    const c = list.find(x => x.id === id);
-    return c ? `${c.code} - ${c.name}` : id;
-  };
+  const costAccounts = accounts.filter(a => ['costo', 'expense', 'cost'].includes(a.account_type?.toLowerCase() || ''));
+  const revenueAccounts = accounts.filter(a => ['ricavo', 'revenue', 'income'].includes(a.account_type?.toLowerCase() || ''));
 
   const selectedItem = selectedIndex !== null ? items[selectedIndex] : null;
+  const edited = selectedItem?.editedSuggestion;
 
   const getStatusIcon = (item: InvoiceWithSuggestion) => {
     switch (item.status) {
@@ -268,7 +282,7 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
               <h3 className="text-lg font-semibold">Classificazione automatica con AI</h3>
               <p className="text-sm text-muted-foreground max-w-md">
                 L'AI analizzerà {bozzaInvoices.length} fatture in bozza e suggerirà conto, centro di costo/ricavo e regime IVA.
-                Puoi approvare le fatture man mano che vengono analizzate, senza attendere il completamento.
+                Puoi modificare i suggerimenti prima di approvare.
               </p>
             </div>
             <Button size="lg" onClick={startAnalysis} className="gap-2 mt-2" disabled={bozzaInvoices.length === 0}>
@@ -280,8 +294,8 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
         {phase === 'active' && (
           <div className="flex-1 flex gap-4 min-h-0">
-            {/* Left panel: invoice list */}
-            <div className="w-[320px] flex flex-col gap-3 flex-shrink-0">
+            {/* Left panel */}
+            <div className="w-[300px] flex flex-col gap-3 flex-shrink-0">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground">
@@ -295,12 +309,11 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
                     <Check className="w-3 h-3 text-green-600" /> {approvedCount}
                   </Badge>
                   <Badge variant="outline" className="text-xs gap-1">
-                    <ChevronRight className="w-3 h-3 text-primary" /> {readyCount} da revisionare
+                    <ChevronRight className="w-3 h-3 text-primary" /> {readyCount}
                   </Badge>
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="flex gap-2">
                 {isProcessing ? (
                   <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { abortRef.current = true; }}>
@@ -350,9 +363,9 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
               </ScrollArea>
             </div>
 
-            {/* Right panel: detail/review */}
-            <div className="flex-1 flex flex-col min-w-0">
-              {selectedItem && selectedItem.status === 'ready' ? (
+            {/* Right panel */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+              {selectedItem && selectedItem.status === 'ready' && edited ? (
                 <div className="space-y-4">
                   {/* Invoice header */}
                   <div className="p-4 rounded-lg border bg-muted/30">
@@ -378,12 +391,14 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
                     </div>
                   </div>
 
-                  {/* AI suggestion */}
-                  {selectedItem.suggestion && (
-                    <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Brain className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-semibold text-primary">Suggerimento AI</span>
+                  {/* Editable suggestion */}
+                  <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-primary">Suggerimento AI</span>
+                      <Pencil className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-[11px] text-muted-foreground">Modificabile</span>
+                      {selectedItem.suggestion?.confidence && (
                         <Badge className={cn(
                           "ml-auto text-xs",
                           selectedItem.suggestion.confidence === 'high' ? 'bg-green-500/20 text-green-600 border-green-500/30' :
@@ -393,59 +408,140 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
                           {selectedItem.suggestion.confidence === 'high' ? '🎯 Alta' :
                            selectedItem.suggestion.confidence === 'medium' ? '⚡ Media' : '⚠️ Bassa'}
                         </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        {selectedItem.invoice.invoice_type === 'acquisto' ? (
-                          <>
-                            <div>
-                              <span className="text-muted-foreground text-xs">Conto di Costo</span>
-                              <p className="font-medium">{getAccountName(selectedItem.suggestion.cost_account_id)}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-xs">Centro di Costo</span>
-                              <p className="font-medium">{getCenterName(selectedItem.suggestion.cost_center_id, 'cost')}</p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div>
-                              <span className="text-muted-foreground text-xs">Conto di Ricavo</span>
-                              <p className="font-medium">{getAccountName(selectedItem.suggestion.revenue_account_id)}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground text-xs">Centro di Ricavo</span>
-                              <p className="font-medium">{getCenterName(selectedItem.suggestion.profit_center_id, 'profit')}</p>
-                            </div>
-                          </>
-                        )}
-                        <div>
-                          <span className="text-muted-foreground text-xs">Regime IVA</span>
-                          <p className="font-medium">{selectedItem.suggestion.vat_regime || '—'}</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground text-xs">Aliquota IVA</span>
-                          <p className="font-medium">{selectedItem.suggestion.iva_rate !== undefined ? `${selectedItem.suggestion.iva_rate}%` : '—'}</p>
-                        </div>
-                      </div>
-
-                      {selectedItem.suggestion.reasoning && (
-                        <p className="text-xs text-muted-foreground italic border-t pt-2 mt-2">
-                          💡 {selectedItem.suggestion.reasoning}
-                        </p>
-                      )}
-
-                      {selectedItem.suggestion.warnings && selectedItem.suggestion.warnings.length > 0 && (
-                        <div className="flex flex-col gap-1">
-                          {selectedItem.suggestion.warnings.map((w, i) => (
-                            <p key={i} className="text-xs text-amber-600 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" /> {w}
-                            </p>
-                          ))}
-                        </div>
                       )}
                     </div>
-                  )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {selectedItem.invoice.invoice_type === 'acquisto' ? (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Conto di Costo</Label>
+                            <Select
+                              value={edited.cost_account_id || ''}
+                              onValueChange={(v) => updateEditedField(selectedIndex!, 'cost_account_id', v)}
+                            >
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue placeholder="Seleziona conto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(costAccounts.length > 0 ? costAccounts : accounts).map(a => (
+                                  <SelectItem key={a.id} value={a.id} className="text-xs">
+                                    {a.code} - {a.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Centro di Costo</Label>
+                            <Select
+                              value={edited.cost_center_id || ''}
+                              onValueChange={(v) => updateEditedField(selectedIndex!, 'cost_center_id', v)}
+                            >
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue placeholder="Seleziona centro" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {costCenters.map(c => (
+                                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                                    {c.code} - {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Conto di Ricavo</Label>
+                            <Select
+                              value={edited.revenue_account_id || ''}
+                              onValueChange={(v) => updateEditedField(selectedIndex!, 'revenue_account_id', v)}
+                            >
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue placeholder="Seleziona conto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(revenueAccounts.length > 0 ? revenueAccounts : accounts).map(a => (
+                                  <SelectItem key={a.id} value={a.id} className="text-xs">
+                                    {a.code} - {a.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Centro di Ricavo</Label>
+                            <Select
+                              value={edited.profit_center_id || ''}
+                              onValueChange={(v) => updateEditedField(selectedIndex!, 'profit_center_id', v)}
+                            >
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue placeholder="Seleziona centro" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {profitCenters.map(c => (
+                                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                                    {c.code} - {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      )}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Regime IVA</Label>
+                        <Select
+                          value={edited.vat_regime || ''}
+                          onValueChange={(v) => {
+                            const regime = VAT_REGIMES.find(r => r.value === v);
+                            updateEditedField(selectedIndex!, 'vat_regime', v);
+                            if (regime) updateEditedField(selectedIndex!, 'iva_rate', regime.rate);
+                          }}
+                        >
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="Seleziona regime" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VAT_REGIMES.map(r => (
+                              <SelectItem key={r.value} value={r.value} className="text-xs">
+                                {r.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Aliquota IVA (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="h-9 text-xs"
+                          value={edited.iva_rate ?? ''}
+                          onChange={(e) => updateEditedField(selectedIndex!, 'iva_rate', e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </div>
+                    </div>
+
+                    {selectedItem.suggestion?.reasoning && (
+                      <p className="text-xs text-muted-foreground italic border-t pt-2">
+                        💡 {selectedItem.suggestion.reasoning}
+                      </p>
+                    )}
+
+                    {selectedItem.suggestion?.warnings && selectedItem.suggestion.warnings.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        {selectedItem.suggestion.warnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {w}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex items-center justify-end gap-2 pt-2">
