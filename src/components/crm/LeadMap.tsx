@@ -144,8 +144,15 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       );
 
       map.current.on('load', () => {
+        // Force resize to ensure the map fills its container
+        map.current?.resize();
         addLeadMarkers();
       });
+
+      // Also resize after a short delay to handle layout shifts
+      setTimeout(() => {
+        map.current?.resize();
+      }, 200);
     } catch (error) {
       console.error('Error initializing map:', error);
     }
@@ -342,8 +349,8 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
   const filteredLeadsWithLocation = leadsWithLocation.filter(lead => selectedStatuses.has(lead.status));
 
   return (
-    <div className="relative w-full h-[600px]">
-      <div ref={mapContainer} className="absolute inset-0 rounded-lg overflow-hidden" />
+    <div className="relative w-full" style={{ height: '600px' }}>
+      <div ref={mapContainer} className="absolute inset-0 rounded-lg overflow-hidden" style={{ width: '100%', height: '100%' }} />
       
       {/* Legend and filters */}
       <Card className="absolute top-4 right-4 p-4 shadow-lg bg-background/95 backdrop-blur-sm z-10">
