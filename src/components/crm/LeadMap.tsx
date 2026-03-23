@@ -144,8 +144,15 @@ export const LeadMap: React.FC<LeadMapProps> = ({ leads }) => {
       );
 
       map.current.on('load', () => {
+        // Force resize to ensure the map fills its container
+        map.current?.resize();
         addLeadMarkers();
       });
+
+      // Also resize after a short delay to handle layout shifts
+      setTimeout(() => {
+        map.current?.resize();
+      }, 200);
     } catch (error) {
       console.error('Error initializing map:', error);
     }
