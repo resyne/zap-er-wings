@@ -20,6 +20,7 @@ import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operati
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
 import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
 import { LinkOrderDialog } from "@/components/documenti-operativi/LinkOrderDialog";
+import { DdtUploadDialog } from "@/components/documenti-operativi/DdtUploadDialog";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
