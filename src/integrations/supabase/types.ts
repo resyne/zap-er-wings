@@ -3212,6 +3212,7 @@ export type Database = {
           notes: string | null
           official_document_date: string | null
           pdf_data: string | null
+          sales_order_id: string | null
           shipping_order_id: string | null
           status: string | null
           supplier_id: string | null
@@ -3242,6 +3243,7 @@ export type Database = {
           notes?: string | null
           official_document_date?: string | null
           pdf_data?: string | null
+          sales_order_id?: string | null
           shipping_order_id?: string | null
           status?: string | null
           supplier_id?: string | null
@@ -3272,6 +3274,7 @@ export type Database = {
           notes?: string | null
           official_document_date?: string | null
           pdf_data?: string | null
+          sales_order_id?: string | null
           shipping_order_id?: string | null
           status?: string | null
           supplier_id?: string | null
@@ -3293,6 +3296,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ddts_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
           {
@@ -10576,6 +10586,7 @@ export type Database = {
           payment_status: string
           production_work_order_id: string | null
           report_number: string | null
+          sales_order_id: string | null
           specialized_technician_hours: number | null
           start_time: string | null
           status: string
@@ -10620,6 +10631,7 @@ export type Database = {
           payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
+          sales_order_id?: string | null
           specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
@@ -10664,6 +10676,7 @@ export type Database = {
           payment_status?: string
           production_work_order_id?: string | null
           report_number?: string | null
+          sales_order_id?: string | null
           specialized_technician_hours?: number | null
           start_time?: string | null
           status?: string
@@ -10711,6 +10724,13 @@ export type Database = {
             columns: ["production_work_order_id"]
             isOneToOne: false
             referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reports_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
           {

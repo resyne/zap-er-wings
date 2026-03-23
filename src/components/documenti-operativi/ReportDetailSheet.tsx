@@ -35,8 +35,9 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
       setReport(reportRes.data);
       setMaterials(matRes.data || []);
       // Check linked order
-      if (reportRes.data?.sales_order_id) {
-        const { data: order } = await supabase.from("sales_orders").select("id, number").eq("id", reportRes.data.sales_order_id).single();
+      const reportData = reportRes.data as any;
+      if (reportData?.sales_order_id) {
+        const { data: order } = await supabase.from("sales_orders").select("id, number").eq("id", reportData.sales_order_id).single();
         setLinkedOrder(order);
       }
       setLoading(false);
