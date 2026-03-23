@@ -991,7 +991,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nessun movimento trovato per il filtro selezionato
                       </TableCell>
                     </TableRow>
