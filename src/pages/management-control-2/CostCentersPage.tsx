@@ -405,7 +405,7 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
   return (
     <div className={embedded ? "space-y-6" : "container mx-auto py-6 space-y-6"}>
       {/* Header */}
-      {!embedded && (
+      {!embedded ? (
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -416,6 +416,13 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
             Definisci dove nasce economicamente un costo o un ricavo
           </p>
         </div>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nuovo Centro
+        </Button>
+      </div>
+      ) : (
+      <div className="flex justify-end">
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Nuovo Centro
