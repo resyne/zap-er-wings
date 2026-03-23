@@ -18,6 +18,15 @@ function parseDate(raw: any): string | null {
     if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
   }
 
+  // DD/MM/YY or DD-MM-YY
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if (m) {
+    const yy = Number(m[3]);
+    const fullYear = yy <= 69 ? 2000 + yy : 1900 + yy;
+    const d = new Date(`${fullYear}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+  }
+
   // YYYY-MM-DD
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
@@ -273,11 +282,14 @@ function extractSpreadsheetMovements(
 
     let dateFailCount = 0;
     let amountFailCount = 0;
+    const dateFailExamples: string[] = [];
 
     for (const row of rows) {
-      const movementDate = parseDate((dateCol && row[dateCol]) || (valueDateCol && row[valueDateCol]));
+      const rawDate = (dateCol && row[dateCol]) || (valueDateCol && row[valueDateCol]);
+      const movementDate = parseDate(rawDate);
       if (!movementDate) {
         dateFailCount++;
+        if (dateFailExamples.length < 6) dateFailExamples.push(String(rawDate ?? "<empty>"));
         continue;
       }
 
@@ -352,7 +364,7 @@ function extractSpreadsheetMovements(
         riferimento: reference,
       });
     }
-    console.log(`Sheet "${sheetName}" stats: dateFailCount=${dateFailCount}, amountFailCount=${amountFailCount}, movements so far=${allMovements.length}`);
+    console.log(`Sheet "${sheetName}" stats: dateFailCount=${dateFailCount}, amountFailCount=${amountFailCount}, dateFailExamples=${JSON.stringify(dateFailExamples)}, movements so far=${allMovements.length}`);
   }
 
   const seen = new Set<string>();
