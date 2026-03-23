@@ -59,8 +59,11 @@ import {
   UserPlus,
   ArrowLeftRight,
   Sparkles,
-  Brain
+  Brain,
+  Eye,
+  ExternalLink
 } from "lucide-react";
+import { AttachmentPreview } from "@/components/warehouse/AttachmentPreview";
 
 interface AccountSplitLine {
   id: string;
