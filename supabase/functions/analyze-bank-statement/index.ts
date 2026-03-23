@@ -243,9 +243,11 @@ function extractSpreadsheetMovements(
   for (const sheetName of wb.SheetNames) {
     const sheet = wb.Sheets[sheetName];
     const rows = rowsFromSheet(sheet);
+    console.log(`Sheet "${sheetName}": ${rows.length} rows found`);
     if (!rows.length) continue;
 
     const keys = Object.keys(rows[0] || {}).filter(Boolean);
+    console.log(`Keys: ${JSON.stringify(keys.slice(0, 20))}`);
     if (!keys.length) continue;
 
     let dateCol = findCol(keys, ["data movimento", "data operazione", "data contabile", "data", "operazione", "date"]);
@@ -262,9 +264,22 @@ function extractSpreadsheetMovements(
     const amountCandidates = inferAmountCols(keys, rows, excluded);
     const amountCol = findCol(keys, ["importo", "amount", "valore", "saldo"]) || amountCandidates[0];
 
+    console.log(`Cols detected → date: ${dateCol}, valuta: ${valueDateCol}, desc: ${descCol}, debit: ${debitCol}, credit: ${creditCol}, amount: ${amountCol}, ref: ${refCol}`);
+
+    // Log first 3 rows for debugging
+    for (let i = 0; i < Math.min(3, rows.length); i++) {
+      console.log(`Row ${i}: ${JSON.stringify(rows[i])}`);
+    }
+
+    let dateFailCount = 0;
+    let amountFailCount = 0;
+
     for (const row of rows) {
       const movementDate = parseDate((dateCol && row[dateCol]) || (valueDateCol && row[valueDateCol]));
-      if (!movementDate) continue;
+      if (!movementDate) {
+        dateFailCount++;
+        continue;
+      }
 
       const valueDate = parseDate(valueDateCol ? row[valueDateCol] : null);
 
@@ -309,7 +324,10 @@ function extractSpreadsheetMovements(
 
       if (!amountCol) continue;
       const rawAmount = parseAmount(row[amountCol]);
-      if (!rawAmount) continue;
+      if (!rawAmount) {
+        amountFailCount++;
+        continue;
+      }
 
       let tipo: MovementType;
       if (rawAmount < 0) {
@@ -334,6 +352,7 @@ function extractSpreadsheetMovements(
         riferimento: reference,
       });
     }
+    console.log(`Sheet "${sheetName}" stats: dateFailCount=${dateFailCount}, amountFailCount=${amountFailCount}, movements so far=${allMovements.length}`);
   }
 
   const seen = new Set<string>();
