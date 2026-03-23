@@ -1907,7 +1907,7 @@ export default function RegistroContabilePage() {
       }
     },
     onSuccess: () => {
-      toast.success('Fattura modificata! Prima Nota e documenti collegati aggiornati.');
+      toast.success('Fattura aggiornata con successo!');
       setShowEditDialog(false);
       setSelectedInvoice(null);
       setEditSplitEnabled(false);
