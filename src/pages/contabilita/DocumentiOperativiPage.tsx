@@ -243,9 +243,9 @@ export default function DocumentiOperativiPage() {
   const handleRowClick = (doc: UnifiedDoc) => {
     if (doc.type === "order") {
       setSelectedOrder(doc.raw);
-    }
-    // For DDT and reports, open link dialog directly
-    if (doc.type === "ddt" || doc.type === "report") {
+    } else if (doc.type === "report") {
+      setSelectedReport(doc);
+    } else if (doc.type === "ddt") {
       handleOpenLink(doc);
     }
   };
