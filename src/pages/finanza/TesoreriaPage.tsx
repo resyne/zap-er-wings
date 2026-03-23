@@ -485,6 +485,20 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     movementDate: string,
     isCredit: boolean
   ) => {
+    // Fetch invoice details for subject and description
+    const { data: invoice } = await supabase
+      .from("invoice_registry")
+      .select("subject_name, subject_id, subject_type, invoice_number, notes, invoice_type, imponibile, iva_rate, iva_amount, total_amount")
+      .eq("id", invoiceId)
+      .single();
+
+    const subjectName = invoice?.subject_name || "";
+    const subjectId = invoice?.subject_id || null;
+    const subjectType = invoice?.subject_type || (isCredit ? "cliente" : "fornitore");
+    const invoiceNum = invoice?.invoice_number || "";
+    const descBase = isCredit ? "Incasso" : "Pagamento";
+    const description = `${descBase} ${invoiceNum}${subjectName ? ` - ${subjectName}` : ""}`;
+
     // Create accounting entry
     const { data: ae, error: aeErr } = await supabase.from("accounting_entries").insert({
       document_date: movementDate,
@@ -492,12 +506,18 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       direction: isCredit ? "entrata" : "uscita",
       amount,
       totale: amount,
+      imponibile: invoice?.imponibile || null,
+      iva_aliquota: invoice?.iva_rate || null,
+      iva_amount: invoice?.iva_amount || null,
       status: "registrato",
       financial_status: isCredit ? "incassato" : "pagato",
       payment_method: "bonifico",
       payment_date: movementDate,
       affects_income_statement: false,
-      note: `Riconciliazione bancaria - ${isCredit ? "Incasso" : "Pagamento"}`,
+      economic_subject_id: subjectId,
+      economic_subject_type: subjectType,
+      subject_type: subjectType,
+      note: description,
       attachment_url: "",
     }).select().single();
     if (aeErr) throw aeErr;
@@ -508,7 +528,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       movement_type: "finanziario",
       competence_date: movementDate,
       amount,
-      description: `Riconciliazione bancaria - ${isCredit ? "Incasso" : "Pagamento"}`,
+      description,
       status: "registrato",
       payment_method: "bonifico",
     }).select().single();
@@ -517,12 +537,12 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     // Create double-entry lines
     const lines = isCredit
       ? [
-          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: amount, avere: 0, description: "Incasso da cliente (bonifico)" },
-          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "CREDITI_CLIENTI", chart_account_id: null, dare: 0, avere: amount, description: "Chiusura credito vs clienti" },
+          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: amount, avere: 0, description: `Incasso ${invoiceNum} da ${subjectName || "cliente"} (bonifico)` },
+          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "CREDITI_CLIENTI", chart_account_id: null, dare: 0, avere: amount, description: `Chiusura credito ${subjectName || "cliente"}` },
         ]
       : [
-          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "DEBITI_FORNITORI", chart_account_id: null, dare: amount, avere: 0, description: "Chiusura debito vs fornitori" },
-          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: 0, avere: amount, description: "Pagamento a fornitore (bonifico)" },
+          { prima_nota_id: pn.id, line_order: 1, account_type: "dynamic", dynamic_account_key: "DEBITI_FORNITORI", chart_account_id: null, dare: amount, avere: 0, description: `Chiusura debito ${subjectName || "fornitore"}` },
+          { prima_nota_id: pn.id, line_order: 2, account_type: "dynamic", dynamic_account_key: "BANCA", chart_account_id: null, dare: 0, avere: amount, description: `Pagamento ${invoiceNum} a ${subjectName || "fornitore"} (bonifico)` },
         ];
     
     const { error: lErr } = await supabase.from("prima_nota_lines").insert(lines);
