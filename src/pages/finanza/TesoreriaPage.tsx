@@ -393,9 +393,6 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       // Fetch existing movements for deduplication
       const { data: existing } = await supabase
         .from("bank_movements")
-        .select("movement_date, amount, description, direction")
-
-      const normalizeDesc = (s: string) =>
         .select("movement_date, amount, description, direction");
 
       const normalizeDesc = (s: string) =>
