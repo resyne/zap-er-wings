@@ -1641,7 +1641,7 @@ export default function RegistroContabilePage() {
       if (updateError) throw updateError;
     },
     onSuccess: () => {
-      toast.success('Fattura registrata! Evento contabile, Prima Nota e Scadenza creati.');
+      toast.success('Fattura contabilizzata con successo!');
       setShowRegisterDialog(false);
       setSelectedInvoice(null);
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
@@ -1907,7 +1907,7 @@ export default function RegistroContabilePage() {
       }
     },
     onSuccess: () => {
-      toast.success('Fattura modificata! Prima Nota e documenti collegati aggiornati.');
+      toast.success('Fattura aggiornata con successo!');
       setShowEditDialog(false);
       setSelectedInvoice(null);
       setEditSplitEnabled(false);
