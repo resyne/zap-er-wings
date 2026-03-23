@@ -158,6 +158,12 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
         if (error) throw error;
         if (data?.success && data?.suggestion) {
+          // Save suggestion to DB immediately
+          await supabase
+            .from('invoice_registry')
+            .update({ ai_suggestion: data.suggestion })
+            .eq('id', currentItem.invoice.id);
+
           setItems(prev => prev.map((item, idx) =>
             idx === i ? {
               ...item,
