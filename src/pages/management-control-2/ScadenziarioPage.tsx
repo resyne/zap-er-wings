@@ -219,17 +219,60 @@ export default function ScadenziarioPage() {
     },
   });
 
+  const expandedScadenzaObj = useMemo(() => {
+    if (!expandedScadenza || !scadenze) return null;
+    return scadenze.find((s: any) => s.id === expandedScadenza) || null;
+  }, [expandedScadenza, scadenze]);
+
   const { data: movimenti } = useQuery({
     queryKey: ["scadenza-movimenti", expandedScadenza],
     queryFn: async () => {
       if (!expandedScadenza) return [];
-      const { data, error } = await supabase
+
+      // 1) Get movements from scadenza_movimenti
+      const { data: directMov } = await supabase
         .from("scadenza_movimenti")
         .select("*")
         .eq("scadenza_id", expandedScadenza)
         .order("data_movimento", { ascending: false });
-      if (error) throw error;
-      return data as ScadenzaMovimento[];
+
+      const results: ScadenzaMovimento[] = (directMov || []) as ScadenzaMovimento[];
+      const existingEventIds = new Set(results.map(r => r.evento_finanziario_id).filter(Boolean));
+
+      // 2) Also check bank_reconciliations linked to this scadenza or its fattura
+      const scadObj = expandedScadenzaObj;
+      const orFilters: string[] = [`scadenza_id.eq.${expandedScadenza}`];
+      if (scadObj?.fattura_id) {
+        orFilters.push(`invoice_id.eq.${scadObj.fattura_id}`);
+      }
+
+      const { data: recons } = await supabase
+        .from("bank_reconciliations")
+        .select("id, reconciled_amount, created_at, notes, prima_nota_id, bank_movement_id, bank_movements!inner(movement_date, description)")
+        .or(orFilters.join(","));
+
+      if (recons && recons.length > 0) {
+        for (const r of recons) {
+          // Skip if already represented in scadenza_movimenti via prima_nota_id
+          if (r.prima_nota_id && existingEventIds.has(r.prima_nota_id)) continue;
+          const bm = (r as any).bank_movements;
+          results.push({
+            id: `recon-${r.id}`,
+            scadenza_id: expandedScadenza,
+            evento_finanziario_id: r.prima_nota_id || null,
+            prima_nota_id: r.prima_nota_id || null,
+            importo: r.reconciled_amount,
+            data_movimento: bm?.movement_date || r.created_at,
+            metodo_pagamento: "Bonifico",
+            note: r.notes || bm?.description?.substring(0, 80) || "Riconciliazione bancaria",
+            created_at: r.created_at,
+          });
+        }
+      }
+
+      // Sort by date desc
+      results.sort((a, b) => b.data_movimento.localeCompare(a.data_movimento));
+      return results;
     },
     enabled: !!expandedScadenza,
   });
