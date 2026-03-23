@@ -92,6 +92,7 @@ export default function DocumentiOperativiPage() {
   const [orderLinkDialog, setOrderLinkDialog] = useState<{ open: boolean; docType: "report" | "ddt"; docId: string; docLabel: string }>({
     open: false, docType: "report", docId: "", docLabel: ""
   });
+  const [ddtUploadOpen, setDdtUploadOpen] = useState(false);
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
