@@ -4181,6 +4181,20 @@ export default function RegistroContabilePage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Bulk AI Classification Dialog */}
+      <BulkAIClassificationDialog
+        open={showBulkAIDialog}
+        onOpenChange={setShowBulkAIDialog}
+        invoices={invoices as any[]}
+        accounts={accounts}
+        costCenters={costCenters}
+        profitCenters={profitCenters}
+        onApprove={handleBulkAIApprove}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
+        }}
+      />
+
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
         <DialogContent>
           <DialogHeader>
