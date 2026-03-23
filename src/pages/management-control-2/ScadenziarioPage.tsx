@@ -181,16 +181,17 @@ export default function ScadenziarioPage() {
 
   // ── Period navigation ─────────────────────────────
   const periodLabel = useMemo(() => {
+    if (groupBy === "anno") return format(selectedPeriod, "yyyy");
     if (groupBy === "mese") return format(selectedPeriod, "MMMM yyyy", { locale: it });
     if (groupBy === "giorno") return format(selectedPeriod, "EEEE d MMMM yyyy", { locale: it });
     return "";
   }, [groupBy, selectedPeriod]);
 
   const goBack = () => {
-    setSelectedPeriod(p => groupBy === "mese" ? subMonths(p, 1) : subDays(p, 1));
+    setSelectedPeriod(p => groupBy === "anno" ? subYears(p, 1) : groupBy === "mese" ? subMonths(p, 1) : subDays(p, 1));
   };
   const goForward = () => {
-    setSelectedPeriod(p => groupBy === "mese" ? addMonths(p, 1) : addDays(p, 1));
+    setSelectedPeriod(p => groupBy === "anno" ? addYears(p, 1) : groupBy === "mese" ? addMonths(p, 1) : addDays(p, 1));
   };
   const goToday = () => setSelectedPeriod(new Date());
 
