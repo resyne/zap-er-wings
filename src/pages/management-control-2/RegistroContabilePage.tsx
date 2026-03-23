@@ -2448,12 +2448,28 @@ export default function RegistroContabilePage() {
     }
   });
 
+  const getIvaRateFromRegime = (regime: string): number => {
+    switch (regime) {
+      case 'domestica_imponibile': return 22;
+      case 'reverse_charge': return 0;
+      case 'ue_non_imponibile': return 0;
+      case 'extra_ue': return 0;
+      case 'esente': return 0;
+      case 'ridotta_10': return 10;
+      case 'ridotta_4': return 4;
+      default: return 22;
+    }
+  };
+
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
         updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
         updated.financial_status = value === 'acquisto' ? 'da_pagare' : 'da_incassare';
+      }
+      if (field === 'vat_regime') {
+        updated.iva_rate = getIvaRateFromRegime(value as string);
       }
       return updated;
     });
@@ -2464,6 +2480,9 @@ export default function RegistroContabilePage() {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
         updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
+      }
+      if (field === 'vat_regime') {
+        updated.iva_rate = getIvaRateFromRegime(value as string);
       }
       return updated;
     });
@@ -3705,30 +3724,21 @@ export default function RegistroContabilePage() {
                       placeholder="100,00"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Aliquota IVA</Label>
-                    <Select value={formData.iva_rate.toString()} onValueChange={(v) => handleFormChange('iva_rate', parseFloat(v))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="22">22%</SelectItem>
-                        <SelectItem value="10">10%</SelectItem>
-                        <SelectItem value="4">4%</SelectItem>
-                        <SelectItem value="0">0% (Esente)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Regime IVA</Label>
-                    <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
-                        <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
-                        <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
-                        <SelectItem value="extra_ue">Extra UE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-xs">Regime IVA</Label>
+                     <Select value={formData.vat_regime} onValueChange={(v) => handleFormChange('vat_regime', v)}>
+                       <SelectTrigger><SelectValue /></SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                         <SelectItem value="ridotta_10">Ridotta (10%)</SelectItem>
+                         <SelectItem value="ridotta_4">Minima (4%)</SelectItem>
+                         <SelectItem value="esente">Esente (0%)</SelectItem>
+                         <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
+                         <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
+                         <SelectItem value="extra_ue">Extra UE (0%)</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
                 </div>
 
                 {/* Riepilogo importi */}
@@ -4325,20 +4335,6 @@ export default function RegistroContabilePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Aliquota IVA %</Label>
-              <Select value={editFormData.iva_rate.toString()} onValueChange={(v) => handleEditFormChange('iva_rate', parseFloat(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="22">22%</SelectItem>
-                  <SelectItem value="10">10%</SelectItem>
-                  <SelectItem value="4">4%</SelectItem>
-                  <SelectItem value="0">0% (Esente)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Regime IVA</Label>
               <Select value={editFormData.vat_regime} onValueChange={(v) => handleEditFormChange('vat_regime', v)}>
                 <SelectTrigger>
@@ -4346,9 +4342,12 @@ export default function RegistroContabilePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="domestica_imponibile">Ordinario (22%)</SelectItem>
+                  <SelectItem value="ridotta_10">Ridotta (10%)</SelectItem>
+                  <SelectItem value="ridotta_4">Minima (4%)</SelectItem>
+                  <SelectItem value="esente">Esente (0%)</SelectItem>
                   <SelectItem value="reverse_charge">Reverse Charge (0%)</SelectItem>
                   <SelectItem value="ue_non_imponibile">Intra UE (0%)</SelectItem>
-                  <SelectItem value="extra_ue">Extra UE</SelectItem>
+                  <SelectItem value="extra_ue">Extra UE (0%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
