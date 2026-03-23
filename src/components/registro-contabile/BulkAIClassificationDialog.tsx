@@ -97,6 +97,28 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
   const bozzaInvoices = invoices.filter(inv => inv.status === 'bozza');
 
+  // Load saved AI suggestions from DB when dialog opens
+  const loadSavedSuggestions = useCallback(async () => {
+    const invoicesWithSaved: InvoiceWithSuggestion[] = bozzaInvoices.map(inv => {
+      const saved = (inv as any).ai_suggestion as AISuggestion | null;
+      if (saved && saved.reasoning) {
+        return {
+          invoice: inv,
+          suggestion: saved,
+          editedSuggestion: { ...saved },
+          status: 'ready' as const,
+        };
+      }
+      return {
+        invoice: inv,
+        suggestion: null,
+        editedSuggestion: null,
+        status: 'pending' as const,
+      };
+    });
+    return invoicesWithSaved;
+  }, [bozzaInvoices]);
+
   const analyzeFrom = useCallback(async (startIdx: number) => {
     abortRef.current = false;
     setIsProcessing(true);
