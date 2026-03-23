@@ -456,6 +456,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
             match_type: bestScore >= 70 ? "auto" : "suggested",
             match_score: bestScore,
             reconciled_by: user?.id,
+            notes: `Match: ${bestMatch.invoice_number} - ${bestMatch.subject_name} - €${bestMatch.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`,
           });
           matchCount++;
         }
@@ -469,6 +470,12 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       setIsAutoMatching(false);
     }
   }, [movements, openInvoices, user, queryClient, queryKey]);
+
+  // Helper: find the invoice linked to a reconciliation
+  const getLinkedInvoice = useCallback((recon: any) => {
+    if (!recon?.invoice_id) return null;
+    return openInvoices.find((inv: any) => inv.id === recon.invoice_id) || null;
+  }, [openInvoices]);
 
   // Helper: create prima nota + lines for a reconciliation payment
   const createPrimaNotaForReconciliation = async (
@@ -971,10 +978,24 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
                         <TableCell className="text-sm">{mov.matched_subject_name || "—"}</TableCell>
                         <TableCell className="text-sm">
                           {recon ? (
-                            <span className="text-xs">
-                              {recon.match_type === "auto" ? "🤖 Auto" : recon.match_type === "suggested" ? "💡 Suggerito" : "🔗 Manuale"}
-                              {recon.match_score && <span className="ml-1 text-muted-foreground">({Math.round(recon.match_score)}%)</span>}
-                            </span>
+                            <div className="space-y-0.5">
+                              <span className="text-xs">
+                                {recon.match_type === "auto" ? "🤖 Auto" : recon.match_type === "suggested" ? "💡 Suggerito" : "🔗 Manuale"}
+                                {recon.match_score && <span className="ml-1 text-muted-foreground">({Math.round(recon.match_score)}%)</span>}
+                              </span>
+                              {(mov.status === "suggested") && (() => {
+                                const linkedInv = getLinkedInvoice(recon);
+                                return linkedInv ? (
+                                  <p className="text-[10px] text-muted-foreground leading-tight truncate max-w-[200px]" title={`${linkedInv.invoice_number} - ${linkedInv.subject_name} - €${linkedInv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`}>
+                                    📄 {linkedInv.invoice_number} — €{linkedInv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                                  </p>
+                                ) : recon.notes ? (
+                                  <p className="text-[10px] text-muted-foreground leading-tight truncate max-w-[200px]" title={recon.notes}>
+                                    📄 {recon.notes.replace("Match: ", "")}
+                                  </p>
+                                ) : null;
+                              })()}
+                            </div>
                           ) : "—"}
                         </TableCell>
                         <TableCell>
@@ -1019,36 +1040,30 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         </>
       )}
 
-      {/* Link Invoice Dialog */}
+      {/* Link Invoice Dialog - Improved UX */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Collega a {isInflow ? "Fattura Cliente" : "Fattura Fornitore"}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Collega a {isInflow ? "Fattura Cliente" : "Fattura Fornitore"}
+            </DialogTitle>
           </DialogHeader>
           {selectedMovement && (
-            <div className="space-y-4">
-              <div className="bg-muted/30 p-3 rounded-lg text-sm">
-                <p><strong>Importo:</strong> €{Number(selectedMovement.amount).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</p>
-                <p className="truncate"><strong>Descrizione:</strong> {selectedMovement.description}</p>
-              </div>
-              <div>
-                <Label>Seleziona Fattura</Label>
-                <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
-                  <SelectTrigger><SelectValue placeholder="Seleziona fattura..." /></SelectTrigger>
-                  <SelectContent>
-                    {openInvoices.map((inv: any) => (
-                      <SelectItem key={inv.id} value={inv.id}>
-                        {inv.invoice_number} — {inv.subject_name} — €{inv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <LinkInvoicePanel
+              movement={selectedMovement}
+              invoices={openInvoices}
+              isInflow={isInflow}
+              onSelect={(invoiceId) => { setSelectedInvoiceId(invoiceId); }}
+              selectedInvoiceId={selectedInvoiceId}
+            />
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Annulla</Button>
-            <Button onClick={linkToInvoice} disabled={!selectedInvoiceId}>Collega</Button>
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => { setLinkDialogOpen(false); setSelectedInvoiceId(""); }}>Annulla</Button>
+            <Button onClick={linkToInvoice} disabled={!selectedInvoiceId} className="gap-1">
+              <Check className="h-4 w-4" />
+              Collega Fattura
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1248,6 +1263,142 @@ function RegisterCostForm({ movement, userId, onRegistered, onCancel }: {
         <Button variant="outline" onClick={onCancel}>Annulla</Button>
         <Button onClick={handleRegister} disabled={saving}>{saving ? "Salvataggio..." : "Registra Costo"}</Button>
       </div>
+    </div>
+  );
+}
+
+// --- Link Invoice Panel with search and smart display ---
+function LinkInvoicePanel({ movement, invoices, isInflow, onSelect, selectedInvoiceId }: {
+  movement: any;
+  invoices: any[];
+  isInflow: boolean;
+  onSelect: (id: string) => void;
+  selectedInvoiceId: string;
+}) {
+  const [search, setSearch] = useState("");
+  const movAmount = Number(movement.amount);
+
+  const scored = useMemo(() => {
+    return invoices.map((inv: any) => {
+      const diff = Math.abs(inv.total_amount - movAmount);
+      const exactMatch = diff < 0.01;
+      const closeMatch = diff < movAmount * 0.05;
+      const desc = (movement.description || "").toLowerCase();
+      const nameMatch = inv.subject_name && desc.includes(inv.subject_name.toLowerCase());
+      const invNumMatch = inv.invoice_number && desc.includes(inv.invoice_number.toLowerCase());
+      return { ...inv, exactMatch, closeMatch, nameMatch, invNumMatch, diff };
+    }).sort((a: any, b: any) => {
+      if (a.exactMatch && !b.exactMatch) return -1;
+      if (!a.exactMatch && b.exactMatch) return 1;
+      if (a.nameMatch && !b.nameMatch) return -1;
+      if (!a.nameMatch && b.nameMatch) return 1;
+      return a.diff - b.diff;
+    });
+  }, [invoices, movAmount, movement.description]);
+
+  const filtered = scored.filter((inv: any) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (inv.invoice_number || "").toLowerCase().includes(q) ||
+      (inv.subject_name || "").toLowerCase().includes(q) ||
+      String(inv.total_amount).includes(q);
+  });
+
+  return (
+    <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+      {/* Movement info */}
+      <div className="bg-muted/40 rounded-lg p-3 space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Movimento bancario</span>
+          <span className={cn("text-lg font-bold tabular-nums", isInflow ? "text-emerald-700" : "text-red-600")}>
+            {isInflow ? "+" : "-"}€{movAmount.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {format(new Date(movement.movement_date), "dd/MM/yyyy")} — {movement.description?.substring(0, 120)}
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per numero fattura, soggetto o importo..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Invoice list */}
+      <div className="flex-1 overflow-y-auto border rounded-lg divide-y max-h-[40vh]">
+        {filtered.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">Nessuna fattura trovata</div>
+        ) : filtered.map((inv: any) => {
+          const isSelected = selectedInvoiceId === inv.id;
+          return (
+            <div
+              key={inv.id}
+              className={cn(
+                "p-3 cursor-pointer transition-colors hover:bg-accent/50",
+                isSelected && "bg-primary/10 border-l-2 border-l-primary",
+                inv.exactMatch && !isSelected && "bg-emerald-50/50"
+              )}
+              onClick={() => onSelect(inv.id)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{inv.invoice_number}</span>
+                    {inv.exactMatch && (
+                      <Badge className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0">
+                        💰 Importo esatto
+                      </Badge>
+                    )}
+                    {inv.closeMatch && !inv.exactMatch && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        ≈ Importo simile
+                      </Badge>
+                    )}
+                    {inv.nameMatch && (
+                      <Badge className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0">
+                        👤 Nome trovato
+                      </Badge>
+                    )}
+                    {inv.invNumMatch && (
+                      <Badge className="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0">
+                        🔢 Rif. fattura
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {inv.subject_name} — {inv.invoice_date ? format(new Date(inv.invoice_date), "dd/MM/yyyy") : ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={cn(
+                    "font-mono text-sm font-medium tabular-nums",
+                    inv.exactMatch ? "text-emerald-700" : ""
+                  )}>
+                    €{inv.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                  </p>
+                  {!inv.exactMatch && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Δ €{inv.diff?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {filtered.some((inv: any) => inv.exactMatch || inv.nameMatch) && (
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          💡 Le fatture sono ordinate per corrispondenza con il movimento
+        </p>
+      )}
     </div>
   );
 }
