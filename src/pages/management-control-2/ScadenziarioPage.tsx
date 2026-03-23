@@ -124,7 +124,7 @@ interface ScadenzaMovimento {
   created_at: string;
 }
 
-type GroupByMode = "soggetto" | "mese" | "giorno";
+type GroupByMode = "soggetto" | "anno" | "mese" | "giorno";
 type TipoFilter = "tutti" | "crediti" | "debiti";
 type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa";
 
