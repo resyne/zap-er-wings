@@ -1,0 +1,1 @@
+INSERT INTO profit_centers (code, name, description, account_code, is_active) VALUES ('PC004', 'Ricambi', 'Ricavi dalla vendita di ricambi', '01.04', true);
