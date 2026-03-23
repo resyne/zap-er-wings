@@ -239,6 +239,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
         .from("bank_movements")
         .select("movement_date, amount, description")
         .eq("direction", direction);
+        .select("movement_date, amount, description, direction");
 
       // Normalize: must match DB function normalize_bank_movement_text exactly
       const normalizeDesc = (s: string) =>
