@@ -18,6 +18,7 @@ import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operativi/LinkAccountingDocDialog";
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
+import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
