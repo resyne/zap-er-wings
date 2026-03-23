@@ -436,6 +436,7 @@ export default function DocumentiOperativiPage() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   Dettagli rapporto
                                 </DropdownMenuItem>
+                              )}
                               {doc.type === "ddt" && doc.raw.attachment_url && (
                                 <DropdownMenuItem asChild>
                                   <a href={doc.raw.attachment_url} target="_blank" rel="noopener noreferrer">
