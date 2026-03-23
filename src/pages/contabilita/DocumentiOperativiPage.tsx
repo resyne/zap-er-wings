@@ -492,6 +492,34 @@ export default function DocumentiOperativiPage() {
         onOpenChange={open => { if (!open) setSelectedReport(null); }}
         reportId={selectedReport?.id || null}
         customerName={selectedReport?.customer || "—"}
+        onLinkInvoice={() => {
+          if (selectedReport) {
+            handleOpenLink(selectedReport);
+            setSelectedReport(null);
+          }
+        }}
+        onLinkOrder={() => {
+          if (selectedReport) {
+            setOrderLinkDialog({
+              open: true,
+              docType: "report",
+              docId: selectedReport.id,
+              docLabel: selectedReport.number,
+            });
+          }
+        }}
+      />
+
+      <LinkOrderDialog
+        open={orderLinkDialog.open}
+        onOpenChange={open => setOrderLinkDialog(prev => ({ ...prev, open }))}
+        docType={orderLinkDialog.docType}
+        docId={orderLinkDialog.docId}
+        docLabel={orderLinkDialog.docLabel}
+        onLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ["doc-op-reports"] });
+          queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
+        }}
       />
     </div>
   );
