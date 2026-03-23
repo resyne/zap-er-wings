@@ -555,11 +555,13 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
                       <div className="space-y-1.5">
                         <Label className="text-xs">Regime IVA</Label>
                         <Select
-                          value={edited.vat_regime || ''}
+                          value={getVatRegimeSelectValue(edited.vat_regime, edited.iva_rate)}
                           onValueChange={(v) => {
                             const regime = VAT_REGIMES.find(r => r.value === v);
-                            updateEditedField(selectedIndex!, 'vat_regime', v);
-                            if (regime) updateEditedField(selectedIndex!, 'iva_rate', regime.rate);
+                            if (regime) {
+                              updateEditedField(selectedIndex!, 'vat_regime', regime.dbRegime);
+                              updateEditedField(selectedIndex!, 'iva_rate', regime.rate);
+                            }
                           }}
                         >
                           <SelectTrigger className="h-9 text-xs">
