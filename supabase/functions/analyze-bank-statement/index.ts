@@ -77,6 +77,77 @@ function findCol(keys: string[], patterns: string[]): string | undefined {
   return undefined;
 }
 
+function normalizeText(v: any): string {
+  return String(v || "").toLowerCase().trim();
+}
+
+function detectHeaderRowIndex(matrix: any[][]): number {
+  const dateWords = ["data", "date", "valuta", "operazione", "contabile"];
+  const descWords = ["descrizione", "causale", "dettaglio", "oggetto", "motivo", "narrativa"];
+  const amountWords = ["importo", "dare", "avere", "addebito", "accredito", "entrate", "uscite", "saldo"];
+
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  for (let i = 0; i < Math.min(matrix.length, 40); i++) {
+    const row = (matrix[i] || []).map(normalizeText).filter(Boolean);
+    if (row.length < 2) continue;
+
+    const hasDate = row.some(c => dateWords.some(w => c.includes(w)));
+    const hasDesc = row.some(c => descWords.some(w => c.includes(w)));
+    const amountMatches = row.filter(c => amountWords.some(w => c.includes(w))).length;
+
+    const score = (hasDate ? 2 : 0) + (hasDesc ? 2 : 0) + Math.min(amountMatches, 3);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+
+  return bestScore >= 3 ? bestIndex : -1;
+}
+
+function rowsFromSheet(sheet: any): Record<string, any>[] {
+  const matrix = utils.sheet_to_json(sheet, { header: 1, raw: false, defval: "", blankrows: false }) as any[][];
+  const headerRowIndex = detectHeaderRowIndex(matrix);
+
+  if (headerRowIndex >= 0) {
+    console.log(`Detected header row at index ${headerRowIndex}`);
+    return utils.sheet_to_json(sheet, {
+      raw: false,
+      defval: "",
+      range: headerRowIndex,
+    }) as Record<string, any>[];
+  }
+
+  return utils.sheet_to_json(sheet, { raw: false, defval: "" }) as Record<string, any>[];
+}
+
+function inferDateCol(keys: string[], rows: Record<string, any>[]): string | undefined {
+  let bestKey: string | undefined;
+  let bestCount = 0;
+  for (const k of keys) {
+    const count = rows.slice(0, 200).filter(r => parseDate(r[k])).length;
+    if (count > bestCount) {
+      bestCount = count;
+      bestKey = k;
+    }
+  }
+  return bestCount >= 3 ? bestKey : undefined;
+}
+
+function inferAmountCols(keys: string[], rows: Record<string, any>[], excluded: string[] = []): string[] {
+  return keys
+    .filter(k => !excluded.includes(k))
+    .map(k => ({
+      key: k,
+      count: rows.slice(0, 500).filter(r => parseAmount(r[k]) !== 0).length,
+    }))
+    .filter(x => x.count >= 3)
+    .sort((a, b) => b.count - a.count)
+    .map(x => x.key);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
