@@ -87,16 +87,30 @@ export default function CostCentersPage({ embedded = false }: CostCentersPagePro
 
   const fetchCenters = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("cost_centers")
-      .select("*")
-      .order("name", { ascending: true });
+    // Load both cost_centers and profit_centers
+    const [costRes, profitRes] = await Promise.all([
+      supabase.from("cost_centers").select("*").order("name", { ascending: true }),
+      supabase.from("profit_centers").select("*").order("name", { ascending: true }),
+    ]);
 
-    if (error) {
+    if (costRes.error || profitRes.error) {
       toast.error("Errore nel caricamento dei centri");
-      console.error(error);
+      console.error(costRes.error || profitRes.error);
     } else {
-      setCenters(data || []);
+      const costCenters = (costRes.data || []).map((c: any) => ({
+        ...c,
+        center_type: c.center_type || "costo",
+        _source: "cost_centers" as const,
+      }));
+      const profitCenters = (profitRes.data || []).map((c: any) => ({
+        ...c,
+        center_type: "ricavo",
+        category: c.category || null,
+        parent_id: c.parent_id || null,
+        responsible_id: c.responsible_id || null,
+        _source: "profit_centers" as const,
+      }));
+      setCenters([...costCenters, ...profitCenters]);
     }
     setLoading(false);
   };
