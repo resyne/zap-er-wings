@@ -2603,8 +2603,8 @@ export default function RegistroContabilePage() {
   };
 
   // Bulk AI classification: apply suggestion to a single invoice
+  // Now creates full accounting chain (accounting_entries, prima_nota, scadenze) like manual registration
   const handleBulkAIApprove = async (invoiceId: string, suggestion: any) => {
-    // Normalize vat_regime to valid DB values
     const normalizeVatRegime = (regime: string): string => {
       const map: Record<string, string> = {
         'domestica_imponibile': 'domestica_imponibile',
@@ -2621,33 +2621,205 @@ export default function RegistroContabilePage() {
       return map[regime] || 'domestica_imponibile';
     };
 
-    const updateData: any = {
-      status: 'registrata',
-    };
-    if (suggestion.cost_account_id) updateData.cost_account_id = suggestion.cost_account_id;
-    if (suggestion.revenue_account_id) updateData.revenue_account_id = suggestion.revenue_account_id;
-    if (suggestion.cost_center_id) updateData.cost_center_id = suggestion.cost_center_id;
-    if (suggestion.profit_center_id) updateData.profit_center_id = suggestion.profit_center_id;
-    if (suggestion.vat_regime) updateData.vat_regime = normalizeVatRegime(suggestion.vat_regime);
-    if (suggestion.iva_rate !== undefined) updateData.iva_rate = suggestion.iva_rate;
-    if (suggestion.financial_status) updateData.financial_status = suggestion.financial_status;
-    
+    // Find the invoice
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) throw new Error('Fattura non trovata');
+
+    // Build update data for the invoice fields
+    const updateFields: any = {};
+    if (suggestion.cost_account_id) updateFields.cost_account_id = suggestion.cost_account_id;
+    if (suggestion.revenue_account_id) updateFields.revenue_account_id = suggestion.revenue_account_id;
+    if (suggestion.cost_center_id) updateFields.cost_center_id = suggestion.cost_center_id;
+    if (suggestion.profit_center_id) updateFields.profit_center_id = suggestion.profit_center_id;
+    if (suggestion.vat_regime) updateFields.vat_regime = normalizeVatRegime(suggestion.vat_regime);
+    if (suggestion.iva_rate !== undefined) updateFields.iva_rate = suggestion.iva_rate;
+    if (suggestion.financial_status) updateFields.financial_status = suggestion.financial_status;
+
     // Recalculate amounts if iva_rate changed
+    let effectiveInv = { ...inv };
     if (suggestion.iva_rate !== undefined) {
-      const inv = invoices.find(i => i.id === invoiceId);
-      if (inv) {
-        const newIva = inv.imponibile * (suggestion.iva_rate / 100);
-        updateData.iva_amount = Math.round(newIva * 100) / 100;
-        updateData.total_amount = Math.round((inv.imponibile + newIva) * 100) / 100;
+      const newIva = inv.imponibile * (suggestion.iva_rate / 100);
+      updateFields.iva_amount = Math.round(newIva * 100) / 100;
+      updateFields.total_amount = Math.round((inv.imponibile + newIva) * 100) / 100;
+      effectiveInv.iva_amount = updateFields.iva_amount;
+      effectiveInv.total_amount = updateFields.total_amount;
+      effectiveInv.iva_rate = suggestion.iva_rate;
+    }
+
+    // Apply suggestion fields to effective invoice
+    Object.assign(effectiveInv, updateFields);
+
+    // First update the invoice fields
+    const { error: fieldError } = await supabase
+      .from('invoice_registry')
+      .update(updateFields)
+      .eq('id', invoiceId);
+    if (fieldError) throw fieldError;
+
+    // Now create the full accounting chain (like registerMutation)
+    const { data: user } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    const isAcquisto = effectiveInv.invoice_type === 'acquisto';
+    const eventType = isAcquisto ? 'costo' : 'ricavo';
+    const financialStatus = effectiveInv.financial_status || (isAcquisto ? 'da_pagare' : 'da_incassare');
+    const isPaid = ['pagata', 'incassata'].includes(financialStatus);
+    const paymentMethod = effectiveInv.payment_method || 'bonifico';
+
+    const economicSubjectId = effectiveInv.subject_id && effectiveInv.subject_id.trim() !== '' ? effectiveInv.subject_id : null;
+
+    // 1. Create accounting entry
+    const { data: accountingEntry, error: accountingError } = await supabase
+      .from('accounting_entries')
+      .insert({
+        amount: effectiveInv.total_amount,
+        imponibile: effectiveInv.imponibile,
+        iva_amount: effectiveInv.iva_amount,
+        iva_aliquota: effectiveInv.iva_rate,
+        direction: isAcquisto ? 'uscita' : 'entrata',
+        document_type: 'fattura',
+        document_date: effectiveInv.invoice_date,
+        status: 'classificato',
+        event_type: eventType,
+        financial_status: financialStatus,
+        subject_type: effectiveInv.subject_type,
+        economic_subject_type: effectiveInv.subject_type,
+        economic_subject_id: economicSubjectId,
+        iva_mode: 'DOMESTICA_IMPONIBILE',
+        payment_method: isPaid ? paymentMethod : null,
+        attachment_url: effectiveInv.attachment_url || '',
+        user_id: user?.user?.id,
+        cost_center_id: effectiveInv.cost_center_id && effectiveInv.cost_center_id.trim() !== '' ? effectiveInv.cost_center_id : null,
+        profit_center_id: effectiveInv.profit_center_id && effectiveInv.profit_center_id.trim() !== '' ? effectiveInv.profit_center_id : null,
+        chart_account_id: isAcquisto 
+          ? (effectiveInv.cost_account_id && effectiveInv.cost_account_id.trim() !== '' ? effectiveInv.cost_account_id : null)
+          : (effectiveInv.revenue_account_id && effectiveInv.revenue_account_id.trim() !== '' ? effectiveInv.revenue_account_id : null)
+      })
+      .select()
+      .single();
+    if (accountingError) throw accountingError;
+
+    // 2. Create prima nota
+    const primaNotaAmount = isAcquisto ? -effectiveInv.total_amount : effectiveInv.total_amount;
+    const { data: primaNota, error: primaNotaError } = await supabase
+      .from('prima_nota')
+      .insert({
+        competence_date: effectiveInv.invoice_date,
+        movement_type: 'economico',
+        description: `Fattura ${effectiveInv.invoice_number} - ${effectiveInv.subject_name}`,
+        amount: primaNotaAmount,
+        imponibile: effectiveInv.imponibile,
+        iva_amount: effectiveInv.iva_amount,
+        iva_aliquota: effectiveInv.iva_rate,
+        iva_mode: 'DOMESTICA_IMPONIBILE',
+        payment_method: isPaid ? paymentMethod : null,
+        status: 'registrato',
+        accounting_entry_id: accountingEntry.id,
+        cost_center_id: effectiveInv.cost_center_id && effectiveInv.cost_center_id.trim() !== '' ? effectiveInv.cost_center_id : null,
+        profit_center_id: effectiveInv.profit_center_id && effectiveInv.profit_center_id.trim() !== '' ? effectiveInv.profit_center_id : null,
+        chart_account_id: isAcquisto 
+          ? (effectiveInv.cost_account_id && effectiveInv.cost_account_id.trim() !== '' ? effectiveInv.cost_account_id : null)
+          : (effectiveInv.revenue_account_id && effectiveInv.revenue_account_id.trim() !== '' ? effectiveInv.revenue_account_id : null)
+      })
+      .select()
+      .single();
+    if (primaNotaError) throw primaNotaError;
+
+    // 3. Create prima nota lines (partita doppia)
+    const primaNotaLines: any[] = [];
+    let lineOrder = 1;
+
+    if (isAcquisto) {
+      primaNotaLines.push({
+        prima_nota_id: primaNota.id, line_order: lineOrder++,
+        account_type: 'dynamic', dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'DEBITI_FORNITORI',
+        chart_account_id: null, dare: 0, avere: effectiveInv.total_amount,
+        description: isPaid ? `Pagamento ${paymentMethod}` : 'Debiti vs fornitori',
+      });
+      primaNotaLines.push({
+        prima_nota_id: primaNota.id, line_order: lineOrder++,
+        account_type: 'chart',
+        chart_account_id: effectiveInv.cost_account_id && effectiveInv.cost_account_id.trim() !== '' ? effectiveInv.cost_account_id : null,
+        dynamic_account_key: null, dare: effectiveInv.imponibile, avere: 0, description: 'Costi',
+      });
+      if (effectiveInv.iva_amount > 0) {
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id, line_order: lineOrder++,
+          account_type: 'dynamic', dynamic_account_key: 'IVA_CREDITO',
+          chart_account_id: null, dare: effectiveInv.iva_amount, avere: 0,
+          description: `IVA a credito ${effectiveInv.iva_rate}%`,
+        });
+      }
+    } else {
+      primaNotaLines.push({
+        prima_nota_id: primaNota.id, line_order: lineOrder++,
+        account_type: 'dynamic', dynamic_account_key: isPaid ? paymentMethod.toUpperCase() : 'CREDITI_CLIENTI',
+        chart_account_id: null, dare: effectiveInv.total_amount, avere: 0,
+        description: isPaid ? `Incasso ${paymentMethod}` : 'Crediti vs clienti',
+      });
+      primaNotaLines.push({
+        prima_nota_id: primaNota.id, line_order: lineOrder++,
+        account_type: 'chart',
+        chart_account_id: effectiveInv.revenue_account_id && effectiveInv.revenue_account_id.trim() !== '' ? effectiveInv.revenue_account_id : null,
+        dynamic_account_key: null, dare: 0, avere: effectiveInv.imponibile, description: 'Ricavi',
+      });
+      if (effectiveInv.iva_amount > 0) {
+        primaNotaLines.push({
+          prima_nota_id: primaNota.id, line_order: lineOrder++,
+          account_type: 'dynamic', dynamic_account_key: 'IVA_DEBITO',
+          chart_account_id: null, dare: 0, avere: effectiveInv.iva_amount,
+          description: `IVA a debito ${effectiveInv.iva_rate}%`,
+        });
       }
     }
 
-    const { error } = await supabase
-      .from('invoice_registry')
-      .update(updateData)
-      .eq('id', invoiceId);
+    if (primaNotaLines.length > 0) {
+      const { error: linesError } = await supabase.from('prima_nota_lines').insert(primaNotaLines);
+      if (linesError) throw linesError;
+    }
 
-    if (error) throw error;
+    // 4. Create scadenza if not already paid
+    let scadenzaId: string | null = null;
+    if (financialStatus === 'da_incassare' || financialStatus === 'da_pagare') {
+      const tipo = isAcquisto ? 'debito' : 'credito';
+      const { data: scadenza, error: scadenzaError } = await supabase
+        .from('scadenze')
+        .insert({
+          tipo,
+          soggetto_nome: effectiveInv.subject_name,
+          soggetto_tipo: effectiveInv.subject_type,
+          note: `Fattura ${effectiveInv.invoice_number}`,
+          importo_totale: effectiveInv.total_amount,
+          importo_residuo: effectiveInv.total_amount,
+          data_documento: effectiveInv.invoice_date,
+          data_scadenza: effectiveInv.due_date || effectiveInv.invoice_date,
+          stato: 'aperta',
+          evento_id: accountingEntry.id,
+          prima_nota_id: primaNota.id,
+          fattura_id: effectiveInv.id
+        })
+        .select()
+        .single();
+      if (scadenzaError) throw scadenzaError;
+      scadenzaId = scadenza.id;
+    }
+
+    // 5. Update invoice with accounting references
+    const { error: updateError } = await supabase
+      .from('invoice_registry')
+      .update({
+        status: 'registrata',
+        registered_at: now,
+        registered_by: user?.user?.id,
+        accounting_entry_id: accountingEntry.id,
+        prima_nota_id: primaNota.id,
+        scadenza_id: scadenzaId
+      })
+      .eq('id', invoiceId);
+    if (updateError) throw updateError;
+
+    // Invalidate scadenze queries
+    queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
   };
 
   // Filter by selected period first
