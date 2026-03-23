@@ -264,14 +264,29 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     else setSelectedIndex(null);
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     abortRef.current = true;
     const approved = items.filter(i => i.status === 'approved').length;
+
+    // Save edited suggestions for ready items so they persist
+    const readyItems = items.filter(i => i.status === 'ready' && i.editedSuggestion);
+    if (readyItems.length > 0) {
+      await Promise.all(
+        readyItems.map(item =>
+          supabase
+            .from('invoice_registry')
+            .update({ ai_suggestion: item.editedSuggestion })
+            .eq('id', item.invoice.id)
+        )
+      );
+      toast.info(`${readyItems.length} analisi salvate. Riapri per revisionarle.`);
+    }
+
     setPhase('idle');
     setItems([]);
     setSelectedIndex(null);
     onOpenChange(false);
-    if (approved > 0) onComplete();
+    if (approved > 0 || readyItems.length > 0) onComplete();
   };
 
   const analyzedCount = items.filter(i => ['ready', 'approved', 'skipped', 'error'].includes(i.status)).length;
