@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   Search, ShoppingCart, Truck, Wrench, ChevronLeft, ChevronRight,
   AlertTriangle, FileCheck, MoreHorizontal, Archive, Eye, LinkIcon,
-  Calendar, Filter
+  Calendar, Filter, Upload
 } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, addMonths, subDays, subWeeks, subMonths, isWithinInterval } from "date-fns";
 import { it } from "date-fns/locale";
@@ -20,6 +20,7 @@ import { LinkAccountingDocDialog, DocType } from "@/components/documenti-operati
 import { OrderDetailSheet } from "@/components/documenti-operativi/OrderDetailSheet";
 import { ReportDetailSheet } from "@/components/documenti-operativi/ReportDetailSheet";
 import { LinkOrderDialog } from "@/components/documenti-operativi/LinkOrderDialog";
+import { DdtUploadDialog } from "@/components/documenti-operativi/DdtUploadDialog";
 
 type PeriodMode = "day" | "week" | "month";
 type DocTypeFilter = "all" | "order" | "ddt" | "report";
@@ -91,6 +92,7 @@ export default function DocumentiOperativiPage() {
   const [orderLinkDialog, setOrderLinkDialog] = useState<{ open: boolean; docType: "report" | "ddt"; docId: string; docLabel: string }>({
     open: false, docType: "report", docId: "", docLabel: ""
   });
+  const [ddtUploadOpen, setDdtUploadOpen] = useState(false);
 
   // Fetch orders
   const { data: orders = [], isLoading: loadingOrders } = useQuery({
@@ -294,10 +296,16 @@ export default function DocumentiOperativiPage() {
           </Button>
         </div>
 
-        <Button variant={showArchived ? "default" : "ghost"} size="sm" className="h-8 text-xs" onClick={() => setShowArchived(!showArchived)}>
-          <Archive className="h-3.5 w-3.5 mr-1.5" />
-          Archiviati
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="default" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setDdtUploadOpen(true)}>
+            <Upload className="h-3.5 w-3.5" />
+            Importa DDT
+          </Button>
+          <Button variant={showArchived ? "default" : "ghost"} size="sm" className="h-8 text-xs" onClick={() => setShowArchived(!showArchived)}>
+            <Archive className="h-3.5 w-3.5 mr-1.5" />
+            Archiviati
+          </Button>
+        </div>
       </div>
 
       {/* Type filter chips + search */}
@@ -519,6 +527,15 @@ export default function DocumentiOperativiPage() {
         onLinked={() => {
           queryClient.invalidateQueries({ queryKey: ["doc-op-reports"] });
           queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
+        }}
+      />
+
+      <DdtUploadDialog
+        open={ddtUploadOpen}
+        onOpenChange={setDdtUploadOpen}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["doc-op-ddts"] });
+          queryClient.invalidateQueries({ queryKey: ["doc-op-orders"] });
         }}
       />
     </div>
