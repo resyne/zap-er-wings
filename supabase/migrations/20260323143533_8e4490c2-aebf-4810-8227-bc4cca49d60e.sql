@@ -1,0 +1,1 @@
+DELETE FROM bank_movements WHERE import_batch_id = 'bf510c9a-132e-4372-b393-7a24e24518f6';

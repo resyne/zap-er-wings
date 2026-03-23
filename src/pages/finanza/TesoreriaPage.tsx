@@ -341,7 +341,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
     processFileAI(file);
   }, [processFileAI]);
 
-  // Confirm AI import - insert selected movements into DB
+  // Confirm AI import - insert selected movements into DB (with deduplication)
   const confirmAiImport = useCallback(async () => {
     const selected = aiMovements.filter(m => m.selected);
     if (selected.length === 0) {
@@ -351,26 +351,53 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
 
     setIsImporting(true);
     try {
+      // Fetch existing movements for deduplication
+      const { data: existing } = await supabase
+        .from("bank_movements")
+        .select("movement_date, amount, description")
+        .eq("direction", direction);
+
+      const existingSet = new Set(
+        (existing || []).map((e: any) => `${e.movement_date}|${e.amount}|${e.description?.substring(0, 80)}`)
+      );
+
       const batchId = crypto.randomUUID();
-      const items = selected.map(m => ({
-        import_batch_id: batchId,
-        movement_date: m.data_movimento,
-        value_date: m.data_valuta || null,
-        description: m.descrizione,
-        amount: m.importo,
-        direction: m.direction || direction,
-        bank_account: aiBankInfo?.account_iban || null,
-        iban: aiBankInfo?.account_iban || null,
-        reference: m.riferimento || null,
-        raw_data: m,
-        status: "unmatched" as const,
-        imported_by: user?.id,
-      }));
+      const items = selected
+        .filter(m => {
+          const key = `${m.data_movimento}|${m.importo}|${m.descrizione?.substring(0, 80)}`;
+          return !existingSet.has(key);
+        })
+        .map(m => ({
+          import_batch_id: batchId,
+          movement_date: m.data_movimento,
+          value_date: m.data_valuta || null,
+          description: m.descrizione,
+          amount: m.importo,
+          direction: m.direction || direction,
+          bank_account: aiBankInfo?.account_iban || null,
+          iban: aiBankInfo?.account_iban || null,
+          reference: m.riferimento || null,
+          raw_data: m,
+          status: "unmatched" as const,
+          imported_by: user?.id,
+        }));
+
+      const skipped = selected.length - items.length;
+
+      if (items.length === 0) {
+        toast.info("Tutti i movimenti selezionati sono già presenti, nessun duplicato importato.");
+        setAiPreviewOpen(false);
+        setAiMovements([]);
+        return;
+      }
 
       const { error } = await supabase.from("bank_movements").insert(items as any);
       if (error) throw error;
 
-      toast.success(`${items.length} movimenti importati con successo`);
+      const msg = skipped > 0
+        ? `${items.length} nuovi movimenti importati (${skipped} duplicati saltati)`
+        : `${items.length} movimenti importati con successo`;
+      toast.success(msg);
       setAiPreviewOpen(false);
       setAiMovements([]);
       queryClient.invalidateQueries({ queryKey });
