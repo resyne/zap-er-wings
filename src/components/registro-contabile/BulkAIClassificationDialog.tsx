@@ -97,6 +97,28 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
   const bozzaInvoices = invoices.filter(inv => inv.status === 'bozza');
 
+  // Load saved AI suggestions from DB when dialog opens
+  const loadSavedSuggestions = useCallback(async () => {
+    const invoicesWithSaved: InvoiceWithSuggestion[] = bozzaInvoices.map(inv => {
+      const saved = (inv as any).ai_suggestion as AISuggestion | null;
+      if (saved && saved.reasoning) {
+        return {
+          invoice: inv,
+          suggestion: saved,
+          editedSuggestion: { ...saved },
+          status: 'ready' as const,
+        };
+      }
+      return {
+        invoice: inv,
+        suggestion: null,
+        editedSuggestion: null,
+        status: 'pending' as const,
+      };
+    });
+    return invoicesWithSaved;
+  }, [bozzaInvoices]);
+
   const analyzeFrom = useCallback(async (startIdx: number) => {
     abortRef.current = false;
     setIsProcessing(true);
@@ -136,6 +158,12 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
 
         if (error) throw error;
         if (data?.success && data?.suggestion) {
+          // Save suggestion to DB immediately
+          await supabase
+            .from('invoice_registry')
+            .update({ ai_suggestion: data.suggestion as any })
+            .eq('id', currentItem.invoice.id);
+
           setItems(prev => prev.map((item, idx) =>
             idx === i ? {
               ...item,
@@ -163,24 +191,29 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     setIsProcessing(false);
   }, [accounts, costCenters, profitCenters]);
 
-  const startAnalysis = useCallback(() => {
+  const startAnalysis = useCallback(async () => {
     if (bozzaInvoices.length === 0) {
       toast.info('Nessuna fattura in bozza da analizzare');
       return;
     }
 
-    const newItems: InvoiceWithSuggestion[] = bozzaInvoices.map(inv => ({
-      invoice: inv,
-      suggestion: null,
-      editedSuggestion: null,
-      status: 'pending' as const,
-    }));
-    setItems(newItems);
-    itemsRef.current = newItems;
+    const savedItems = await loadSavedSuggestions();
+    setItems(savedItems);
+    itemsRef.current = savedItems;
     setPhase('active');
-    setSelectedIndex(null);
-    analyzeFrom(0);
-  }, [bozzaInvoices, analyzeFrom]);
+
+    // Auto-select first ready item if any
+    const firstReady = savedItems.findIndex(it => it.status === 'ready');
+    setSelectedIndex(firstReady !== -1 ? firstReady : null);
+
+    // Only analyze pending ones
+    const firstPending = savedItems.findIndex(it => it.status === 'pending');
+    if (firstPending !== -1) {
+      analyzeFrom(firstPending);
+    } else {
+      toast.info('Tutte le fatture sono già state analizzate. Puoi revisionarle.');
+    }
+  }, [bozzaInvoices, analyzeFrom, loadSavedSuggestions]);
 
   const resumeAnalysis = useCallback(() => {
     const resumeIdx = itemsRef.current.findIndex(it => ['pending', 'error'].includes(it.status));
@@ -231,14 +264,29 @@ export const BulkAIClassificationDialog: React.FC<BulkAIClassificationDialogProp
     else setSelectedIndex(null);
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     abortRef.current = true;
     const approved = items.filter(i => i.status === 'approved').length;
+
+    // Save edited suggestions for ready items so they persist
+    const readyItems = items.filter(i => i.status === 'ready' && i.editedSuggestion);
+    if (readyItems.length > 0) {
+      await Promise.all(
+        readyItems.map(item =>
+          supabase
+            .from('invoice_registry')
+            .update({ ai_suggestion: item.editedSuggestion as any })
+            .eq('id', item.invoice.id)
+        )
+      );
+      toast.info(`${readyItems.length} analisi salvate. Riapri per revisionarle.`);
+    }
+
     setPhase('idle');
     setItems([]);
     setSelectedIndex(null);
     onOpenChange(false);
-    if (approved > 0) onComplete();
+    if (approved > 0 || readyItems.length > 0) onComplete();
   };
 
   const analyzedCount = items.filter(i => ['ready', 'approved', 'skipped', 'error'].includes(i.status)).length;

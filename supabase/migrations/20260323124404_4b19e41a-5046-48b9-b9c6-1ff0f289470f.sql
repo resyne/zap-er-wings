@@ -1,0 +1,1 @@
+ALTER TABLE public.invoice_registry ADD COLUMN IF NOT EXISTS ai_suggestion jsonb DEFAULT NULL;

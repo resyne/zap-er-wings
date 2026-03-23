@@ -4894,6 +4894,7 @@ export type Database = {
         Row: {
           account_splits: Json | null
           accounting_entry_id: string | null
+          ai_suggestion: Json | null
           attachment_url: string | null
           contabilizzazione_valida: boolean | null
           cost_account_id: string | null
@@ -4940,6 +4941,7 @@ export type Database = {
         Insert: {
           account_splits?: Json | null
           accounting_entry_id?: string | null
+          ai_suggestion?: Json | null
           attachment_url?: string | null
           contabilizzazione_valida?: boolean | null
           cost_account_id?: string | null
@@ -4986,6 +4988,7 @@ export type Database = {
         Update: {
           account_splits?: Json | null
           accounting_entry_id?: string | null
+          ai_suggestion?: Json | null
           attachment_url?: string | null
           contabilizzazione_valida?: boolean | null
           cost_account_id?: string | null
