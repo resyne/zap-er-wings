@@ -668,7 +668,7 @@ export default function ScadenziarioPage() {
           <div className="flex items-center gap-2">
             {/* GroupBy selector */}
             <div className="flex items-center border rounded-lg bg-background overflow-hidden">
-              {([["soggetto", "Soggetto", Users], ["mese", "Mese", Calendar], ["giorno", "Giorno", CalendarDays]] as const).map(([val, label, Icon]) => (
+              {([["soggetto", "Soggetto", Users], ["anno", "Anno", Calendar], ["mese", "Mese", Calendar], ["giorno", "Giorno", CalendarDays]] as const).map(([val, label, Icon]) => (
                 <Button
                   key={val}
                   variant="ghost"
