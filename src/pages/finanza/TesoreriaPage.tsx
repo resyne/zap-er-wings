@@ -456,6 +456,7 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
             match_type: bestScore >= 70 ? "auto" : "suggested",
             match_score: bestScore,
             reconciled_by: user?.id,
+            notes: `Match: ${bestMatch.invoice_number} - ${bestMatch.subject_name} - €${bestMatch.total_amount?.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`,
           });
           matchCount++;
         }
@@ -469,6 +470,12 @@ function ReconciliationPanel({ direction }: { direction: Direction }) {
       setIsAutoMatching(false);
     }
   }, [movements, openInvoices, user, queryClient, queryKey]);
+
+  // Helper: find the invoice linked to a reconciliation
+  const getLinkedInvoice = useCallback((recon: any) => {
+    if (!recon?.invoice_id) return null;
+    return openInvoices.find((inv: any) => inv.id === recon.invoice_id) || null;
+  }, [openInvoices]);
 
   // Helper: create prima nota + lines for a reconciliation payment
   const createPrimaNotaForReconciliation = async (
