@@ -262,7 +262,7 @@ function InlineDdtUploadZone() {
         direction,
         customer_id: customerId,
         supplier_id: supplierId,
-        counterpart_type: direction === "inbound" ? "supplier" : "customer",
+        counterpart_type: direction === "IN" ? "supplier" : "customer",
         document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
         attachment_url: urlData.publicUrl,
         ddt_data: {
