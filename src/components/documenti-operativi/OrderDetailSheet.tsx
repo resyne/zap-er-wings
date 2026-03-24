@@ -415,6 +415,19 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
           </div>
         </ScrollArea>
       </SheetContent>
+
+      <LinkAccountingDocDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        docType="order"
+        docId={order?.id || ""}
+        docLabel={order?.number || ""}
+        currentLinkedId={order?.accounting_document_id || undefined}
+        onLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ["order-registry-entries", orderId] });
+          queryClient.invalidateQueries({ queryKey: ["order-accounting-doc"] });
+        }}
+      />
     </Sheet>
   );
 }
