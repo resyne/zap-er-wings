@@ -192,7 +192,7 @@ function InlineDdtUploadZone() {
       const excelText = await parseExcelForDdts(file);
       
       // Truncate to avoid token limits
-      const truncated = excelText.length > 15000 ? excelText.slice(0, 15000) + "\n...[troncato]" : excelText;
+      const truncated = excelText.length > 50000 ? excelText.slice(0, 50000) + "\n...[troncato]" : excelText;
 
       const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-ddt", {
         body: { excelText: truncated, direction: "auto" },
