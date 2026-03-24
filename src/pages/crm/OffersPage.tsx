@@ -14,7 +14,7 @@ import { Plus, FileText, Mail, Download, Eye, EyeOff, Upload, X, ExternalLink, S
 import { FileUpload } from "@/components/ui/file-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateCustomerDialog } from "@/components/crm/CreateCustomerDialog";
-import { CreateOrderDialog } from "@/components/dashboard/CreateOrderDialog";
+import { CreateOrderSheet } from "@/components/orders/CreateOrderSheet";
 import { useDocuments, DocumentItem } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
