@@ -261,7 +261,7 @@ function InlineDdtUploadZone() {
         }
 
         const ddtNumber = extracted.ddt_number || `DDT-${Date.now().toString().slice(-6)}`;
-        const { error: insertError } = await supabase.from("ddts").insert({
+        const { error: insertError } = await supabase.from("ddts").upsert({
           ddt_number: ddtNumber,
           direction,
           customer_id: customerId,
@@ -282,7 +282,7 @@ function InlineDdtUploadZone() {
           },
           notes: extracted.notes || null,
           status: "da_verificare",
-        });
+        }, { onConflict: "ddt_number" });
 
         if (!insertError) {
           savedCount++;
