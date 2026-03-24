@@ -298,8 +298,8 @@ export default function RegistroContabilePage() {
   // Stato per mostrare la vista documenti operativi (separato dai filtri)
   const [showOperationalDocs, setShowOperationalDocs] = useState(false);
   
-  // Navigazione per periodo (mese o giorno)
-  type ViewMode = 'month' | 'day';
+  // Navigazione per periodo (anno, mese o giorno)
+  type ViewMode = 'year' | 'month' | 'day';
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedPeriod, setSelectedPeriod] = useState<Date>(new Date());
   
@@ -2825,7 +2825,9 @@ export default function RegistroContabilePage() {
   // Filter by selected period first
   const periodFilteredInvoices = invoices.filter(inv => {
     const date = new Date(inv.invoice_date);
-    if (viewMode === 'month') {
+    if (viewMode === 'year') {
+      return date.getFullYear() === selectedPeriod.getFullYear();
+    } else if (viewMode === 'month') {
       return date.getFullYear() === selectedPeriod.getFullYear() && date.getMonth() === selectedPeriod.getMonth();
     } else {
       return format(date, 'yyyy-MM-dd') === format(selectedPeriod, 'yyyy-MM-dd');

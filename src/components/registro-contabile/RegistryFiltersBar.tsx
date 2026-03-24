@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar, Search, X } from "lucide-react";
 import { format, addMonths, subMonths, addDays, subDays } from "date-fns";
 import { it } from "date-fns/locale";
 
-type ViewMode = "month" | "day";
+type ViewMode = "year" | "month" | "day";
 
 type Props = {
   searchTerm: string;
@@ -38,19 +38,25 @@ export function RegistryFiltersBar({
   const hasActiveFilters =
     !!searchTerm || filterType !== "all" || filterStatus !== "all";
 
-  const periodLabel = viewMode === "month"
+  const periodLabel = viewMode === "year"
+    ? format(selectedPeriod, "yyyy")
+    : viewMode === "month"
     ? format(selectedPeriod, "MMMM yyyy", { locale: it })
     : format(selectedPeriod, "EEEE d MMMM yyyy", { locale: it });
 
   const goBack = () => {
     onSelectedPeriodChange(
-      viewMode === "month" ? subMonths(selectedPeriod, 1) : subDays(selectedPeriod, 1)
+      viewMode === "year"
+        ? new Date(selectedPeriod.getFullYear() - 1, selectedPeriod.getMonth(), 1)
+        : viewMode === "month" ? subMonths(selectedPeriod, 1) : subDays(selectedPeriod, 1)
     );
   };
 
   const goForward = () => {
     onSelectedPeriodChange(
-      viewMode === "month" ? addMonths(selectedPeriod, 1) : addDays(selectedPeriod, 1)
+      viewMode === "year"
+        ? new Date(selectedPeriod.getFullYear() + 1, selectedPeriod.getMonth(), 1)
+        : viewMode === "month" ? addMonths(selectedPeriod, 1) : addDays(selectedPeriod, 1)
     );
   };
 
@@ -72,6 +78,9 @@ export function RegistryFiltersBar({
 
         <div className="flex items-center gap-2">
           <div className="flex items-center border rounded-lg bg-background overflow-hidden">
+            <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "year" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("year")}>
+              Anno
+            </Button>
             <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "month" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("month")}>
               Mese
             </Button>
