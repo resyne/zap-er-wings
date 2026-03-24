@@ -264,13 +264,34 @@ function InlineDdtUploadZone() {
   }, [customers, suppliers]);
 
   const handleFiles = useCallback(async (files: File[]) => {
-    const queue: UploadQueueItem[] = files.map(f => ({ file: f, status: "pending" as const }));
+    // Filter out unsupported formats (Excel, etc.)
+    const supportedFiles: File[] = [];
+    const unsupportedFiles: File[] = [];
+    for (const f of files) {
+      const ext = f.name.toLowerCase();
+      if (ext.endsWith('.xlsx') || ext.endsWith('.xls') || ext.endsWith('.csv') ||
+          f.type.includes('spreadsheet') || f.type.includes('excel')) {
+        unsupportedFiles.push(f);
+      } else {
+        supportedFiles.push(f);
+      }
+    }
+
+    if (unsupportedFiles.length > 0) {
+      toast.error(`File non supportati: ${unsupportedFiles.map(f => f.name).join(', ')}. Usa PDF o immagini per i DDT.`);
+    }
+
+    if (supportedFiles.length === 0) {
+      return;
+    }
+
+    const queue: UploadQueueItem[] = supportedFiles.map(f => ({ file: f, status: "pending" as const }));
     setUploadQueue(queue);
     setShowQueue(true);
     setIsProcessing(true);
 
-    for (let i = 0; i < files.length; i++) {
-      await processSingleFile(files[i], i);
+    for (let i = 0; i < supportedFiles.length; i++) {
+      await processSingleFile(supportedFiles[i], i);
     }
 
     setIsProcessing(false);
@@ -279,12 +300,12 @@ function InlineDdtUploadZone() {
     queryClient.invalidateQueries({ queryKey: ["doc-op-reports"] });
     queryClient.invalidateQueries({ queryKey: ["customers-lookup"] });
     queryClient.invalidateQueries({ queryKey: ["suppliers-lookup"] });
-    toast.success(`Elaborazione completata per ${files.length} DDT`);
+    const doneFiles = supportedFiles.length;
+    toast.success(`Elaborazione completata per ${doneFiles} DDT`);
   }, [processSingleFile, queryClient]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
-    accept: { "image/*": [], "application/pdf": [] },
     disabled: isProcessing,
     multiple: true,
   });
