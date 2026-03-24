@@ -1,12 +1,17 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardCheck, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ClipboardCheck, AlertTriangle, XCircle, Loader2, Upload, Sparkles, CheckCircle2, AlertCircle, FileText, Truck, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { useDropzone } from "react-dropzone";
+import { findSimilarSubjects } from "@/lib/fuzzyMatch";
+import { cn } from "@/lib/utils";
 
 const DocumentiOperativiPage = lazy(() => import("./DocumentiOperativiPage"));
 
