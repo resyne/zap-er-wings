@@ -202,86 +202,97 @@ function InlineDdtUploadZone() {
         throw new Error(aiResult?.error || "Analisi AI fallita");
       }
 
-      const extracted = aiResult.data;
-      updateStatus("saving");
+      // Multi-DDT: extract array
+      const ddtList: any[] = aiResult.data?.ddts || [aiResult.data];
+      updateStatus("saving", { ddtNumber: `${ddtList.length} DDT trovati` });
 
-      // Reuse same matching logic
-      let customerId: string | null = null;
-      let supplierId: string | null = null;
-      let direction = extracted.ddt_tipo === "fornitore" ? "IN" : "OUT";
+      let savedCount = 0;
+      const savedNumbers: string[] = [];
 
-      if (direction === "OUT" && extracted.destinatario_name) {
-        const matches = findSimilarSubjects(
-          extracted.destinatario_name,
-          customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
-          0.6
-        );
-        if (extracted.destinatario_vat) {
-          const vatMatch = customers.find(c => c.tax_id && c.tax_id === extracted.destinatario_vat);
-          if (vatMatch) customerId = vatMatch.id;
+      for (const extracted of ddtList) {
+        let customerId: string | null = null;
+        let supplierId: string | null = null;
+        let direction = extracted.ddt_tipo === "fornitore" ? "IN" : "OUT";
+
+        if (direction === "OUT" && extracted.destinatario_name) {
+          const matches = findSimilarSubjects(
+            extracted.destinatario_name,
+            customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
+            0.6
+          );
+          if (extracted.destinatario_vat) {
+            const vatMatch = customers.find(c => c.tax_id && c.tax_id === extracted.destinatario_vat);
+            if (vatMatch) customerId = vatMatch.id;
+          }
+          if (!customerId && matches.length > 0) customerId = matches[0].id;
+          if (!customerId) {
+            const { data: newCust } = await supabase.from("customers").insert({
+              name: extracted.destinatario_name,
+              company_name: extracted.destinatario_name,
+              code: `AUTO-${Date.now().toString().slice(-6)}`,
+              tax_id: extracted.destinatario_vat || null,
+              address: extracted.destinatario_address || null,
+              incomplete_registry: true,
+            }).select("id").single();
+            if (newCust) customerId = newCust.id;
+          }
+        } else if (direction === "IN" && extracted.intestazione_name) {
+          const matches = findSimilarSubjects(
+            extracted.intestazione_name,
+            suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
+            0.6
+          );
+          if (extracted.intestazione_vat) {
+            const vatMatch = suppliers.find(s => s.tax_id && s.tax_id === extracted.intestazione_vat);
+            if (vatMatch) supplierId = vatMatch.id;
+          }
+          if (!supplierId && matches.length > 0) supplierId = matches[0].id;
+          if (!supplierId) {
+            const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+            const { data: newSup } = await supabase.from("suppliers").insert({
+              name: extracted.intestazione_name,
+              code: `AUTO-${Date.now().toString().slice(-6)}`,
+              access_code: accessCode,
+              tax_id: extracted.intestazione_vat || null,
+              address: extracted.intestazione_address || null,
+            }).select("id").single();
+            if (newSup) supplierId = newSup.id;
+          }
         }
-        if (!customerId && matches.length > 0) customerId = matches[0].id;
-        if (!customerId) {
-          const { data: newCust } = await supabase.from("customers").insert({
-            name: extracted.destinatario_name,
-            company_name: extracted.destinatario_name,
-            code: `AUTO-${Date.now().toString().slice(-6)}`,
-            tax_id: extracted.destinatario_vat || null,
-            address: extracted.destinatario_address || null,
-            incomplete_registry: true,
-          }).select("id").single();
-          if (newCust) customerId = newCust.id;
-        }
-      } else if (direction === "IN" && extracted.intestazione_name) {
-        const matches = findSimilarSubjects(
-          extracted.intestazione_name,
-          suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
-          0.6
-        );
-        if (extracted.intestazione_vat) {
-          const vatMatch = suppliers.find(s => s.tax_id && s.tax_id === extracted.intestazione_vat);
-          if (vatMatch) supplierId = vatMatch.id;
-        }
-        if (!supplierId && matches.length > 0) supplierId = matches[0].id;
-        if (!supplierId) {
-          const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-          const { data: newSup } = await supabase.from("suppliers").insert({
-            name: extracted.intestazione_name,
-            code: `AUTO-${Date.now().toString().slice(-6)}`,
-            access_code: accessCode,
-            tax_id: extracted.intestazione_vat || null,
-            address: extracted.intestazione_address || null,
-          }).select("id").single();
-          if (newSup) supplierId = newSup.id;
+
+        const ddtNumber = extracted.ddt_number || `DDT-${Date.now().toString().slice(-6)}`;
+        const { error: insertError } = await supabase.from("ddts").insert({
+          ddt_number: ddtNumber,
+          direction,
+          customer_id: customerId,
+          supplier_id: supplierId,
+          counterpart_type: direction === "IN" ? "supplier" : "customer",
+          document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
+          attachment_url: urlData.publicUrl,
+          ddt_data: {
+            destinatario: extracted.destinatario_name,
+            destinatario_address: extracted.destinatario_address,
+            destinatario_vat: extracted.destinatario_vat,
+            intestazione: extracted.intestazione_name,
+            intestazione_address: extracted.intestazione_address,
+            intestazione_vat: extracted.intestazione_vat,
+            destinazione: extracted.destinazione_address,
+            data: extracted.ddt_date,
+            items: extracted.items || [],
+          },
+          notes: extracted.notes || null,
+          status: "da_verificare",
+        });
+
+        if (!insertError) {
+          savedCount++;
+          savedNumbers.push(ddtNumber);
+        } else {
+          console.error("Errore salvataggio DDT:", ddtNumber, insertError.message);
         }
       }
 
-      const ddtNumber = extracted.ddt_number || `DDT-${Date.now().toString().slice(-6)}`;
-      const { error: insertError } = await supabase.from("ddts").insert({
-        ddt_number: ddtNumber,
-        direction,
-        customer_id: customerId,
-        supplier_id: supplierId,
-        counterpart_type: direction === "IN" ? "supplier" : "customer",
-        document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
-        attachment_url: urlData.publicUrl,
-        ddt_data: {
-          destinatario: extracted.destinatario_name,
-          destinatario_address: extracted.destinatario_address,
-          destinatario_vat: extracted.destinatario_vat,
-          intestazione: extracted.intestazione_name,
-          intestazione_address: extracted.intestazione_address,
-          intestazione_vat: extracted.intestazione_vat,
-          destinazione: extracted.destinazione_address,
-          data: extracted.ddt_date,
-          items: extracted.items || [],
-        },
-        notes: extracted.notes || null,
-        status: "da_verificare",
-      });
-
-      if (insertError) throw new Error("Salvataggio fallito: " + insertError.message);
-      updateStatus("done", { ddtNumber });
+      updateStatus("done", { ddtNumber: savedNumbers.length === 1 ? savedNumbers[0] : `${savedCount}/${ddtList.length} DDT salvati` });
     } catch (err: any) {
       updateStatus("error", { error: err.message });
     }
