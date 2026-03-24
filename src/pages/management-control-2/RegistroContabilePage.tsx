@@ -2825,7 +2825,9 @@ export default function RegistroContabilePage() {
   // Filter by selected period first
   const periodFilteredInvoices = invoices.filter(inv => {
     const date = new Date(inv.invoice_date);
-    if (viewMode === 'month') {
+    if (viewMode === 'year') {
+      return date.getFullYear() === selectedPeriod.getFullYear();
+    } else if (viewMode === 'month') {
       return date.getFullYear() === selectedPeriod.getFullYear() && date.getMonth() === selectedPeriod.getMonth();
     } else {
       return format(date, 'yyyy-MM-dd') === format(selectedPeriod, 'yyyy-MM-dd');

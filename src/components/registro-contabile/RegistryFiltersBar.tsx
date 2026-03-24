@@ -78,6 +78,9 @@ export function RegistryFiltersBar({
 
         <div className="flex items-center gap-2">
           <div className="flex items-center border rounded-lg bg-background overflow-hidden">
+            <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "year" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("year")}>
+              Anno
+            </Button>
             <Button variant="ghost" size="sm" className={`h-8 rounded-none text-xs px-3 ${viewMode === "month" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`} onClick={() => onViewModeChange("month")}>
               Mese
             </Button>
