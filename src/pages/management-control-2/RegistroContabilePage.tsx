@@ -599,9 +599,9 @@ export default function RegistroContabilePage() {
 
         const { data: user } = await supabase.auth.getUser();
 
-        // Check for duplicate invoice
+        // Check for duplicate invoice (same number AND same type)
         const invoiceNum = extracted.invoice_number || `DOC-${Date.now()}`;
-        const existingDuplicate = await checkDuplicateInvoice(invoiceNum);
+        const existingDuplicate = await checkDuplicateInvoice(invoiceNum, invoiceType);
         if (existingDuplicate) {
           const action = await askDuplicateAction(files[i].name, invoiceNum, existingDuplicate);
           if (action === 'skip') {
