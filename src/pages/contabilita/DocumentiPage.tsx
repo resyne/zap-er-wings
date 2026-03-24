@@ -306,7 +306,6 @@ function InlineDdtUploadZone() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
-    accept: { "image/*": [], "application/pdf": [] },
     disabled: isProcessing,
     multiple: true,
   });
