@@ -306,9 +306,15 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
             <Separator />
 
             {/* Documenti Contabili */}
-            <SectionTitle icon={Receipt} title="Documenti contabili" count={allRegistryDocs.length} />
+            <div className="flex items-center justify-between">
+              <SectionTitle icon={Receipt} title="Documenti contabili" count={allRegistryDocs.length} />
+              <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => setShowLinkDialog(true)}>
+                <Link2 className="h-3.5 w-3.5" />
+                Collega Fattura
+              </Button>
+            </div>
             {allRegistryDocs.length === 0 ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-muted-foreground/30">
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-muted-foreground/30 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setShowLinkDialog(true)}>
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 <p className="text-sm text-muted-foreground">Nessun documento contabile collegato</p>
               </div>
