@@ -3034,7 +3034,7 @@ export default function OffersPage() {
                     <Copy className="w-4 h-4 mr-2" />
                     Duplica
                   </Button>
-                  {selectedOffer.status !== 'ordine_creato' && (
+                  {!(selectedOffer as any).status?.includes('ordine') && (
                     <Button
                       variant="default"
                       onClick={() => {
