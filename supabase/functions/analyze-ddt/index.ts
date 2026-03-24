@@ -112,10 +112,7 @@ Se un campo non è leggibile, usa null.`;
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
-            content: [
-              { type: 'text', text: 'Analizza questo DDT ed estrai i dati strutturati.' },
-              { type: 'image_url', image_url: { url: dataUrl } }
-            ]
+            content: userContent
           }
         ],
         tools: [
