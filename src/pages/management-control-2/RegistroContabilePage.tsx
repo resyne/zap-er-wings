@@ -329,12 +329,14 @@ export default function RegistroContabilePage() {
 
   // Bulk AI classification state
   const [showBulkAIDialog, setShowBulkAIDialog] = useState(false);
-  const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
+  const checkDuplicateInvoice = async (invoiceNumber: string, invoiceType?: string): Promise<InvoiceRegistry | null> => {
     if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
-    const { data } = await supabase
+    let query = supabase
       .from('invoice_registry')
       .select('*')
       .eq('invoice_number', invoiceNumber);
+    if (invoiceType) query = query.eq('invoice_type', invoiceType);
+    const { data } = await query;
     const valid = data?.find((inv: any) => inv.contabilizzazione_valida !== false);
     return (valid as InvoiceRegistry) || null;
   };
@@ -597,9 +599,9 @@ export default function RegistroContabilePage() {
 
         const { data: user } = await supabase.auth.getUser();
 
-        // Check for duplicate invoice
+        // Check for duplicate invoice (same number AND same type)
         const invoiceNum = extracted.invoice_number || `DOC-${Date.now()}`;
-        const existingDuplicate = await checkDuplicateInvoice(invoiceNum);
+        const existingDuplicate = await checkDuplicateInvoice(invoiceNum, invoiceType);
         if (existingDuplicate) {
           const action = await askDuplicateAction(files[i].name, invoiceNum, existingDuplicate);
           if (action === 'skip') {
@@ -1206,12 +1208,14 @@ export default function RegistroContabilePage() {
   const checkDuplicateAndSave = async () => {
     if (!formData.invoice_number) return;
     
-    // Cerca fatture con lo stesso numero (escludendo quelle stornate senza nuova contabilizzazione)
-    const { data: existingInvoices } = await supabase
+    // Cerca fatture con lo stesso numero E stesso tipo (escludendo quelle stornate senza nuova contabilizzazione)
+    let dupQuery = supabase
       .from('invoice_registry')
       .select('*')
       .eq('invoice_number', formData.invoice_number)
       .neq('status', 'bozza');
+    if (formData.invoice_type) dupQuery = dupQuery.eq('invoice_type', formData.invoice_type);
+    const { data: existingInvoices } = await dupQuery;
     
     const validExisting = existingInvoices?.find(inv => 
       inv.contabilizzazione_valida !== false
