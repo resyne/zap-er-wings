@@ -56,7 +56,27 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
+    const isMultiDdt = !!excelText;
+    
+    const systemPrompt = isMultiDdt 
+      ? `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
+Il file Excel/CSV può contenere MOLTI DDT diversi. Devi estrarre TUTTI i DDT presenti.
+
+Per OGNI DDT trovato, estrai:
+1) INTESTAZIONE (azienda che EMETTE il DDT): intestazione_name, intestazione_address, intestazione_vat
+2) DESTINATARIO (a chi è destinata la merce): destinatario_name, destinatario_address, destinatario_vat
+3) DESTINAZIONE: destinazione_address
+4) DATI DDT: ddt_number, ddt_date (YYYY-MM-DD)
+5) ARTICOLI: items (description, quantity, unit)
+6) notes: causale trasporto / note
+
+REGOLA: "CLIMATEL di Elefante Pasquale" è la NOSTRA azienda.
+- Se DESTINATARIO è CLIMATEL → ddt_tipo = "fornitore" (inbound): fornitore = INTESTAZIONE
+- Altrimenti → ddt_tipo = "cliente" (outbound): cliente = DESTINATARIO
+
+IMPORTANTE: Ogni riga con un numero DDT diverso è un DDT separato. Restituisci TUTTI i DDT trovati come array.
+Se un campo non è leggibile, usa null.`
+      : `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
 Analizza il documento DDT ed estrai le seguenti informazioni DISTINTE:
 
 1) INTESTAZIONE (in alto: azienda che EMETTE il DDT)
