@@ -298,8 +298,8 @@ export default function RegistroContabilePage() {
   // Stato per mostrare la vista documenti operativi (separato dai filtri)
   const [showOperationalDocs, setShowOperationalDocs] = useState(false);
   
-  // Navigazione per periodo (mese o giorno)
-  type ViewMode = 'month' | 'day';
+  // Navigazione per periodo (anno, mese o giorno)
+  type ViewMode = 'year' | 'month' | 'day';
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [selectedPeriod, setSelectedPeriod] = useState<Date>(new Date());
   
