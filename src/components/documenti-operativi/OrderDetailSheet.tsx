@@ -62,7 +62,9 @@ const phaseIcons: Record<string, typeof Package> = {
 };
 
 export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Props) {
+  const queryClient = useQueryClient();
   const orderId = order?.id;
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   // Fetch commesse
   const { data: commesse = [] } = useQuery({
