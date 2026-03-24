@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar, Search, X } from "lucide-react";
 import { format, addMonths, subMonths, addDays, subDays } from "date-fns";
 import { it } from "date-fns/locale";
 
-type ViewMode = "month" | "day";
+type ViewMode = "year" | "month" | "day";
 
 type Props = {
   searchTerm: string;
