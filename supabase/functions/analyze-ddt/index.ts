@@ -103,13 +103,11 @@ Se un campo non è leggibile, usa null.`;
     let userContent: any;
 
     if (excelText) {
-      // Excel/CSV: send as text
       console.log('Analyzing DDT from Excel text, length:', excelText.length);
       userContent = [
-        { type: 'text', text: `Analizza questi dati estratti da un file Excel/CSV di un DDT ed estrai i dati strutturati:\n\n${excelText}` }
+        { type: 'text', text: `Analizza questi dati estratti da un file Excel/CSV ed estrai TUTTI i DDT presenti come array. Ogni riga con numero DDT diverso è un DDT separato:\n\n${excelText}` }
       ];
     } else {
-      // Image/PDF: download and convert to base64
       console.log('Analyzing DDT document:', imageUrl);
       const { base64, mimeType } = await fetchFileAsBase64(imageUrl);
       const dataUrl = `data:${mimeType};base64,${base64}`;
