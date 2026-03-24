@@ -329,12 +329,14 @@ export default function RegistroContabilePage() {
 
   // Bulk AI classification state
   const [showBulkAIDialog, setShowBulkAIDialog] = useState(false);
-  const checkDuplicateInvoice = async (invoiceNumber: string): Promise<InvoiceRegistry | null> => {
+  const checkDuplicateInvoice = async (invoiceNumber: string, invoiceType?: string): Promise<InvoiceRegistry | null> => {
     if (!invoiceNumber || invoiceNumber.startsWith('DOC-')) return null;
-    const { data } = await supabase
+    let query = supabase
       .from('invoice_registry')
       .select('*')
       .eq('invoice_number', invoiceNumber);
+    if (invoiceType) query = query.eq('invoice_type', invoiceType);
+    const { data } = await query;
     const valid = data?.find((inv: any) => inv.contabilizzazione_valida !== false);
     return (valid as InvoiceRegistry) || null;
   };
