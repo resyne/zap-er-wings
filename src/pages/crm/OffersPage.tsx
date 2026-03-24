@@ -3034,16 +3034,15 @@ export default function OffersPage() {
                     <Copy className="w-4 h-4 mr-2" />
                     Duplica
                   </Button>
-                  {!selectedOffer.approved && (
+                  {!(selectedOffer as any).status?.includes('ordine') && (
                     <Button
                       variant="default"
                       onClick={() => {
-                        handleApproveOffer(selectedOffer.id);
-                        setIsDetailsDialogOpen(false);
+                        handleCreateOrderFromOffer(selectedOffer);
                       }}
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Approva
+                      Accettata
                     </Button>
                   )}
                   {selectedOffer.archived ? (
