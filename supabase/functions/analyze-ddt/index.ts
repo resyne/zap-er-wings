@@ -118,6 +118,58 @@ Se un campo non è leggibile, usa null.`;
       ];
     }
 
+    const ddtItemSchema = {
+      type: 'object',
+      properties: {
+        ddt_tipo: { type: 'string', enum: ['fornitore', 'cliente'] },
+        intestazione_name: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        intestazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        intestazione_vat: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        destinatario_name: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        destinatario_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        destinatario_vat: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        destinazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        ddt_number: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        ddt_date: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              description: { type: 'string' },
+              quantity: { type: 'number' },
+              unit: { anyOf: [{ type: 'string' }, { type: 'null' }] }
+            },
+            required: ['description', 'quantity']
+          }
+        },
+        notes: { anyOf: [{ type: 'string' }, { type: 'null' }] }
+      },
+      required: ['items']
+    };
+
+    const toolDef = isMultiDdt ? {
+      type: 'function',
+      function: {
+        name: 'extract_ddt_data',
+        description: 'Estrae TUTTI i DDT trovati nel file Excel come array',
+        parameters: {
+          type: 'object',
+          properties: {
+            ddts: { type: 'array', items: ddtItemSchema }
+          },
+          required: ['ddts']
+        }
+      }
+    } : {
+      type: 'function',
+      function: {
+        name: 'extract_ddt_data',
+        description: 'Estrae i dati strutturati dal DDT',
+        parameters: ddtItemSchema
+      }
+    };
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -128,49 +180,9 @@ Se un campo non è leggibile, usa null.`;
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: userContent
-          }
+          { role: 'user', content: userContent }
         ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'extract_ddt_data',
-              description: 'Estrae i dati strutturati dal DDT',
-              parameters: {
-                type: 'object',
-                properties: {
-                  ddt_tipo: { type: 'string', enum: ['fornitore', 'cliente'] },
-                  intestazione_name: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  intestazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  intestazione_vat: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  destinatario_name: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  destinatario_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  destinatario_vat: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  destinazione_address: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  ddt_number: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  ddt_date: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                  items: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        description: { type: 'string' },
-                        quantity: { type: 'number' },
-                        unit: { anyOf: [{ type: 'string' }, { type: 'null' }] }
-                      },
-                      required: ['description', 'quantity']
-                    }
-                  },
-                  notes: { anyOf: [{ type: 'string' }, { type: 'null' }] }
-                },
-                required: ['items']
-              }
-            }
-          }
-        ],
+        tools: [toolDef],
         tool_choice: { type: 'function', function: { name: 'extract_ddt_data' } }
       }),
     });
@@ -205,7 +217,7 @@ Se un campo non è leggibile, usa null.`;
         try {
           const parsed = JSON.parse(content);
           return new Response(
-            JSON.stringify({ success: true, data: parsed }),
+            JSON.stringify({ success: true, data: isMultiDdt ? { ddts: Array.isArray(parsed) ? parsed : [parsed] } : parsed }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         } catch { /* fall through */ }
@@ -218,6 +230,11 @@ Se un campo non è leggibile, usa null.`;
 
     const extractedData = JSON.parse(toolCall.function.arguments);
     console.log('Extracted DDT data:', JSON.stringify(extractedData));
+
+    // For multi-DDT, ensure we always return { ddts: [...] }
+    if (isMultiDdt && !extractedData.ddts) {
+      extractedData.ddts = [extractedData];
+    }
 
     return new Response(
       JSON.stringify({ success: true, data: extractedData }),
