@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,8 +12,9 @@ import { it } from "date-fns/locale";
 import {
   ShoppingCart, Package, FileText, Receipt, Clock, User,
   Building2, AlertTriangle, FileCheck, ArrowUpRight, Wrench,
-  Truck, Calendar, CheckCircle2, CircleDot, BookOpen
+  Truck, Calendar, CheckCircle2, CircleDot, BookOpen, Link2
 } from "lucide-react";
+import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
 
 interface Props {
   open: boolean;
