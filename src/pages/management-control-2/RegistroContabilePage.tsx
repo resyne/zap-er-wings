@@ -1208,12 +1208,14 @@ export default function RegistroContabilePage() {
   const checkDuplicateAndSave = async () => {
     if (!formData.invoice_number) return;
     
-    // Cerca fatture con lo stesso numero (escludendo quelle stornate senza nuova contabilizzazione)
-    const { data: existingInvoices } = await supabase
+    // Cerca fatture con lo stesso numero E stesso tipo (escludendo quelle stornate senza nuova contabilizzazione)
+    let dupQuery = supabase
       .from('invoice_registry')
       .select('*')
       .eq('invoice_number', formData.invoice_number)
       .neq('status', 'bozza');
+    if (formData.invoice_type) dupQuery = dupQuery.eq('invoice_type', formData.invoice_type);
+    const { data: existingInvoices } = await dupQuery;
     
     const validExisting = existingInvoices?.find(inv => 
       inv.contabilizzazione_valida !== false
