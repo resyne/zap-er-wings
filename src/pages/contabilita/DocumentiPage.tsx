@@ -340,7 +340,7 @@ function InlineDdtUploadZone() {
           }).select("id").single();
           if (newCust) customerId = newCust.id;
         }
-      } else if (direction === "inbound" && extracted.intestazione_name) {
+      } else if (direction === "IN" && extracted.intestazione_name) {
         const matches = findSimilarSubjects(
           extracted.intestazione_name,
           suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
