@@ -39,11 +39,11 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, direction } = await req.json();
+    const { imageUrl, excelText, direction } = await req.json();
     
-    if (!imageUrl) {
+    if (!imageUrl && !excelText) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Image URL is required' }),
+        JSON.stringify({ success: false, error: 'Image URL or Excel text is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -55,13 +55,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Analyzing DDT document:', imageUrl);
-
-    // Download file and convert to base64
-    const { base64, mimeType } = await fetchFileAsBase64(imageUrl);
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-    console.log('File converted to base64, mimeType:', mimeType, 'size:', base64.length);
 
     const systemPrompt = `Sei un assistente specializzato nell'analisi di Documenti di Trasporto (DDT) italiani.
 Analizza il documento DDT ed estrai le seguenti informazioni DISTINTE:
@@ -86,6 +79,26 @@ REGOLA: "CLIMATEL di Elefante Pasquale" è la NOSTRA azienda.
 - Altrimenti → DDT cliente (outbound): cliente = DESTINATARIO
 
 Se un campo non è leggibile, usa null.`;
+
+    let userContent: any;
+
+    if (excelText) {
+      // Excel/CSV: send as text
+      console.log('Analyzing DDT from Excel text, length:', excelText.length);
+      userContent = [
+        { type: 'text', text: `Analizza questi dati estratti da un file Excel/CSV di un DDT ed estrai i dati strutturati:\n\n${excelText}` }
+      ];
+    } else {
+      // Image/PDF: download and convert to base64
+      console.log('Analyzing DDT document:', imageUrl);
+      const { base64, mimeType } = await fetchFileAsBase64(imageUrl);
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+      console.log('File converted to base64, mimeType:', mimeType, 'size:', base64.length);
+      userContent = [
+        { type: 'text', text: 'Analizza questo DDT ed estrai i dati strutturati.' },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ];
+    }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
