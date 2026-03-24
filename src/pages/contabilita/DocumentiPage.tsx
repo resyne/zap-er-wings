@@ -318,7 +318,7 @@ function InlineDdtUploadZone() {
       let supplierId: string | null = null;
       let direction = extracted.ddt_tipo === "fornitore" ? "IN" : "OUT";
 
-      if (direction === "outbound" && extracted.destinatario_name) {
+      if (direction === "OUT" && extracted.destinatario_name) {
         const matches = findSimilarSubjects(
           extracted.destinatario_name,
           customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
