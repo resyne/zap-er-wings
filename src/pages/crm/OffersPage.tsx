@@ -2480,8 +2480,8 @@ export default function OffersPage() {
       )}
       </div>
 
-      {/* Dialog Crea Ordine */}
-      <CreateOrderDialog
+      {/* Sheet Crea Ordine (stile Z-APP) */}
+      <CreateOrderSheet
         open={isCreateOrderDialogOpen}
         onOpenChange={setIsCreateOrderDialogOpen}
         onSuccess={handleOrderCreated}
