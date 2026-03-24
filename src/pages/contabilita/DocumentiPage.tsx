@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useDropzone } from "react-dropzone";
 import { findSimilarSubjects } from "@/lib/fuzzyMatch";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 const DocumentiOperativiPage = lazy(() => import("./DocumentiOperativiPage"));
 
