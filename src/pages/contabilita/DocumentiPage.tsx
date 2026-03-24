@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useDropzone } from "react-dropzone";
 import { findSimilarSubjects } from "@/lib/fuzzyMatch";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 const DocumentiOperativiPage = lazy(() => import("./DocumentiOperativiPage"));
 
@@ -155,6 +156,137 @@ function InlineDdtUploadZone() {
     },
   });
 
+  const isExcelFile = (file: File) => {
+    const ext = file.name.toLowerCase();
+    return ext.endsWith('.xlsx') || ext.endsWith('.xls') || ext.endsWith('.csv') ||
+      file.type.includes('spreadsheet') || file.type.includes('excel');
+  };
+
+  const parseExcelForDdts = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    let allText = "";
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      const csv = XLSX.utils.sheet_to_csv(sheet, { FS: " | ", RS: "\n" });
+      allText += `--- Foglio: ${sheetName} ---\n${csv}\n\n`;
+    }
+    return allText;
+  };
+
+  const processExcelFile = useCallback(async (file: File, index: number) => {
+    const updateStatus = (status: UploadQueueItem["status"], extra?: Partial<UploadQueueItem>) => {
+      setUploadQueue(prev => prev.map((item, i) => i === index ? { ...item, status, ...extra } : item));
+    };
+
+    try {
+      updateStatus("uploading");
+      const fileName = `ddt_${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("document-attachments")
+        .upload(fileName, file);
+      if (uploadError) throw new Error("Upload fallito: " + uploadError.message);
+      const { data: urlData } = supabase.storage.from("document-attachments").getPublicUrl(fileName);
+
+      updateStatus("analyzing");
+      const excelText = await parseExcelForDdts(file);
+      
+      // Truncate to avoid token limits
+      const truncated = excelText.length > 15000 ? excelText.slice(0, 15000) + "\n...[troncato]" : excelText;
+
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-ddt", {
+        body: { excelText: truncated, direction: "auto" },
+      });
+
+      if (aiError || !aiResult?.success) {
+        throw new Error(aiResult?.error || "Analisi AI fallita");
+      }
+
+      const extracted = aiResult.data;
+      updateStatus("saving");
+
+      // Reuse same matching logic
+      let customerId: string | null = null;
+      let supplierId: string | null = null;
+      let direction = extracted.ddt_tipo === "fornitore" ? "inbound" : "outbound";
+
+      if (direction === "outbound" && extracted.destinatario_name) {
+        const matches = findSimilarSubjects(
+          extracted.destinatario_name,
+          customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
+          0.6
+        );
+        if (extracted.destinatario_vat) {
+          const vatMatch = customers.find(c => c.tax_id && c.tax_id === extracted.destinatario_vat);
+          if (vatMatch) customerId = vatMatch.id;
+        }
+        if (!customerId && matches.length > 0) customerId = matches[0].id;
+        if (!customerId) {
+          const { data: newCust } = await supabase.from("customers").insert({
+            name: extracted.destinatario_name,
+            company_name: extracted.destinatario_name,
+            code: `AUTO-${Date.now().toString().slice(-6)}`,
+            tax_id: extracted.destinatario_vat || null,
+            address: extracted.destinatario_address || null,
+            incomplete_registry: true,
+          }).select("id").single();
+          if (newCust) customerId = newCust.id;
+        }
+      } else if (direction === "inbound" && extracted.intestazione_name) {
+        const matches = findSimilarSubjects(
+          extracted.intestazione_name,
+          suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
+          0.6
+        );
+        if (extracted.intestazione_vat) {
+          const vatMatch = suppliers.find(s => s.tax_id && s.tax_id === extracted.intestazione_vat);
+          if (vatMatch) supplierId = vatMatch.id;
+        }
+        if (!supplierId && matches.length > 0) supplierId = matches[0].id;
+        if (!supplierId) {
+          const accessCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+          const { data: newSup } = await supabase.from("suppliers").insert({
+            name: extracted.intestazione_name,
+            code: `AUTO-${Date.now().toString().slice(-6)}`,
+            access_code: accessCode,
+            tax_id: extracted.intestazione_vat || null,
+            address: extracted.intestazione_address || null,
+          }).select("id").single();
+          if (newSup) supplierId = newSup.id;
+        }
+      }
+
+      const ddtNumber = extracted.ddt_number || `DDT-${Date.now().toString().slice(-6)}`;
+      const { error: insertError } = await supabase.from("ddts").insert({
+        ddt_number: ddtNumber,
+        direction,
+        customer_id: customerId,
+        supplier_id: supplierId,
+        counterpart_type: direction === "inbound" ? "supplier" : "customer",
+        document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
+        attachment_url: urlData.publicUrl,
+        ddt_data: {
+          destinatario: extracted.destinatario_name,
+          destinatario_address: extracted.destinatario_address,
+          destinatario_vat: extracted.destinatario_vat,
+          intestazione: extracted.intestazione_name,
+          intestazione_address: extracted.intestazione_address,
+          intestazione_vat: extracted.intestazione_vat,
+          destinazione: extracted.destinazione_address,
+          data: extracted.ddt_date,
+          items: extracted.items || [],
+        },
+        notes: extracted.notes || null,
+        status: "received",
+      });
+
+      if (insertError) throw new Error("Salvataggio fallito: " + insertError.message);
+      updateStatus("done", { ddtNumber });
+    } catch (err: any) {
+      updateStatus("error", { error: err.message });
+    }
+  }, [customers, suppliers]);
+
   const processSingleFile = useCallback(async (file: File, index: number) => {
     const updateStatus = (status: UploadQueueItem["status"], extra?: Partial<UploadQueueItem>) => {
       setUploadQueue(prev => prev.map((item, i) => i === index ? { ...item, status, ...extra } : item));
@@ -264,34 +396,20 @@ function InlineDdtUploadZone() {
   }, [customers, suppliers]);
 
   const handleFiles = useCallback(async (files: File[]) => {
-    // Filter out unsupported formats (Excel, etc.)
-    const supportedFiles: File[] = [];
-    const unsupportedFiles: File[] = [];
-    for (const f of files) {
-      const ext = f.name.toLowerCase();
-      if (ext.endsWith('.xlsx') || ext.endsWith('.xls') || ext.endsWith('.csv') ||
-          f.type.includes('spreadsheet') || f.type.includes('excel')) {
-        unsupportedFiles.push(f);
-      } else {
-        supportedFiles.push(f);
-      }
-    }
+    const allFiles = Array.from(files);
+    if (allFiles.length === 0) return;
 
-    if (unsupportedFiles.length > 0) {
-      toast.error(`File non supportati: ${unsupportedFiles.map(f => f.name).join(', ')}. Usa PDF o immagini per i DDT.`);
-    }
-
-    if (supportedFiles.length === 0) {
-      return;
-    }
-
-    const queue: UploadQueueItem[] = supportedFiles.map(f => ({ file: f, status: "pending" as const }));
+    const queue: UploadQueueItem[] = allFiles.map(f => ({ file: f, status: "pending" as const }));
     setUploadQueue(queue);
     setShowQueue(true);
     setIsProcessing(true);
 
-    for (let i = 0; i < supportedFiles.length; i++) {
-      await processSingleFile(supportedFiles[i], i);
+    for (let i = 0; i < allFiles.length; i++) {
+      if (isExcelFile(allFiles[i])) {
+        await processExcelFile(allFiles[i], i);
+      } else {
+        await processSingleFile(allFiles[i], i);
+      }
     }
 
     setIsProcessing(false);
@@ -300,9 +418,9 @@ function InlineDdtUploadZone() {
     queryClient.invalidateQueries({ queryKey: ["doc-op-reports"] });
     queryClient.invalidateQueries({ queryKey: ["customers-lookup"] });
     queryClient.invalidateQueries({ queryKey: ["suppliers-lookup"] });
-    const doneFiles = supportedFiles.length;
-    toast.success(`Elaborazione completata per ${doneFiles} DDT`);
-  }, [processSingleFile, queryClient]);
+    const doneCount = queue.length;
+    toast.success(`Elaborazione completata per ${doneCount} DDT`);
+  }, [processSingleFile, processExcelFile, queryClient]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: handleFiles,
