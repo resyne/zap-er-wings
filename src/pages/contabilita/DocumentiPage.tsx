@@ -208,9 +208,9 @@ function InlineDdtUploadZone() {
       // Reuse same matching logic
       let customerId: string | null = null;
       let supplierId: string | null = null;
-      let direction = extracted.ddt_tipo === "fornitore" ? "inbound" : "outbound";
+      let direction = extracted.ddt_tipo === "fornitore" ? "IN" : "OUT";
 
-      if (direction === "outbound" && extracted.destinatario_name) {
+      if (direction === "OUT" && extracted.destinatario_name) {
         const matches = findSimilarSubjects(
           extracted.destinatario_name,
           customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
@@ -232,7 +232,7 @@ function InlineDdtUploadZone() {
           }).select("id").single();
           if (newCust) customerId = newCust.id;
         }
-      } else if (direction === "inbound" && extracted.intestazione_name) {
+      } else if (direction === "IN" && extracted.intestazione_name) {
         const matches = findSimilarSubjects(
           extracted.intestazione_name,
           suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
@@ -262,7 +262,7 @@ function InlineDdtUploadZone() {
         direction,
         customer_id: customerId,
         supplier_id: supplierId,
-        counterpart_type: direction === "inbound" ? "supplier" : "customer",
+        counterpart_type: direction === "IN" ? "supplier" : "customer",
         document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
         attachment_url: urlData.publicUrl,
         ddt_data: {
@@ -316,9 +316,9 @@ function InlineDdtUploadZone() {
 
       let customerId: string | null = null;
       let supplierId: string | null = null;
-      let direction = extracted.ddt_tipo === "fornitore" ? "inbound" : "outbound";
+      let direction = extracted.ddt_tipo === "fornitore" ? "IN" : "OUT";
 
-      if (direction === "outbound" && extracted.destinatario_name) {
+      if (direction === "OUT" && extracted.destinatario_name) {
         const matches = findSimilarSubjects(
           extracted.destinatario_name,
           customers.map(c => ({ id: c.id, name: c.company_name || c.name, code: c.code, tax_id: c.tax_id })),
@@ -340,7 +340,7 @@ function InlineDdtUploadZone() {
           }).select("id").single();
           if (newCust) customerId = newCust.id;
         }
-      } else if (direction === "inbound" && extracted.intestazione_name) {
+      } else if (direction === "IN" && extracted.intestazione_name) {
         const matches = findSimilarSubjects(
           extracted.intestazione_name,
           suppliers.map(s => ({ id: s.id, name: s.name, code: s.code, tax_id: s.tax_id })),
@@ -370,7 +370,7 @@ function InlineDdtUploadZone() {
         direction,
         customer_id: customerId,
         supplier_id: supplierId,
-        counterpart_type: direction === "inbound" ? "supplier" : "customer",
+        counterpart_type: direction === "IN" ? "supplier" : "customer",
         document_date: extracted.ddt_date || new Date().toISOString().split("T")[0],
         attachment_url: urlData.publicUrl,
         ddt_data: {
