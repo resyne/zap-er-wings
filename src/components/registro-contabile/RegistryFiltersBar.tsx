@@ -38,19 +38,25 @@ export function RegistryFiltersBar({
   const hasActiveFilters =
     !!searchTerm || filterType !== "all" || filterStatus !== "all";
 
-  const periodLabel = viewMode === "month"
+  const periodLabel = viewMode === "year"
+    ? format(selectedPeriod, "yyyy")
+    : viewMode === "month"
     ? format(selectedPeriod, "MMMM yyyy", { locale: it })
     : format(selectedPeriod, "EEEE d MMMM yyyy", { locale: it });
 
   const goBack = () => {
     onSelectedPeriodChange(
-      viewMode === "month" ? subMonths(selectedPeriod, 1) : subDays(selectedPeriod, 1)
+      viewMode === "year"
+        ? new Date(selectedPeriod.getFullYear() - 1, selectedPeriod.getMonth(), 1)
+        : viewMode === "month" ? subMonths(selectedPeriod, 1) : subDays(selectedPeriod, 1)
     );
   };
 
   const goForward = () => {
     onSelectedPeriodChange(
-      viewMode === "month" ? addMonths(selectedPeriod, 1) : addDays(selectedPeriod, 1)
+      viewMode === "year"
+        ? new Date(selectedPeriod.getFullYear() + 1, selectedPeriod.getMonth(), 1)
+        : viewMode === "month" ? addMonths(selectedPeriod, 1) : addDays(selectedPeriod, 1)
     );
   };
 
