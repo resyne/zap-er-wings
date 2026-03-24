@@ -277,7 +277,7 @@ function InlineDdtUploadZone() {
           items: extracted.items || [],
         },
         notes: extracted.notes || null,
-        status: "received",
+        status: "da_verificare",
       });
 
       if (insertError) throw new Error("Salvataggio fallito: " + insertError.message);
@@ -385,7 +385,7 @@ function InlineDdtUploadZone() {
           items: extracted.items || [],
         },
         notes: extracted.notes || null,
-        status: "received",
+        status: "da_verificare",
       });
 
       if (insertError) throw new Error("Salvataggio fallito: " + insertError.message);
