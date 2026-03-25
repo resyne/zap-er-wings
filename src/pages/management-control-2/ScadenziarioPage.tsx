@@ -595,7 +595,34 @@ export default function ScadenziarioPage() {
     },
   });
 
-  const resetForm = () => {
+  // Mutation to confirm check collection (incassa assegno)
+  const incassaAssegnoMutation = useMutation({
+    mutationFn: async (scadenza: Scadenza) => {
+      const { error } = await supabase
+        .from("scadenze")
+        .update({ stato: "chiusa" })
+        .eq("id", scadenza.id);
+      if (error) throw error;
+
+      // Update linked invoice financial status
+      if (scadenza.fattura_id) {
+        const newFinancialStatus = scadenza.tipo === "credito" ? "incassata" : "pagata";
+        await supabase
+          .from("invoice_registry")
+          .update({ financial_status: newFinancialStatus })
+          .eq("id", scadenza.fattura_id);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Assegno incassato, scadenza chiusa");
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenza-movimenti"] });
+    },
+    onError: (error) => {
+      toast.error(`Errore: ${error.message}`);
+    },
+  });
+
     setRegistraDialogOpen(false);
     setSelectedScadenza(null);
     setImportoRegistrazione("");
