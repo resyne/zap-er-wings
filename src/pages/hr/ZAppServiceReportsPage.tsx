@@ -46,6 +46,7 @@ interface ServiceReport {
   invoice_number?: string;
   payment_status?: string;
   archived?: boolean;
+  defined_amount?: number;
   kilometers?: number;
   technicians_count?: number;
   head_technician_hours?: number;
@@ -98,7 +99,7 @@ export default function ZAppServiceReportsPage() {
           status, customer_id, technician_id, created_at, description,
           materials_used, notes, start_time, end_time, amount, vat_rate,
           total_amount, customer_signature, technician_signature, invoiced,
-          invoice_number, payment_status, archived, kilometers,
+          invoice_number, payment_status, archived, kilometers, defined_amount,
           technicians_count, head_technician_hours, specialized_technician_hours,
           customers (id, name, company_name, email, phone, address, city),
           technicians (id, first_name, last_name, employee_code)
@@ -318,10 +319,21 @@ export default function ZAppServiceReportsPage() {
                     )}
                   </div>
 
-                  {report.total_amount ? (
-                    <span className="text-sm font-bold text-foreground">
-                      €{report.total_amount.toFixed(2)}
-                    </span>
+                  {(report.defined_amount || report.total_amount) ? (
+                    <div className="text-right">
+                      {report.defined_amount != null ? (
+                        <span className="text-sm font-bold text-foreground">
+                          €{report.defined_amount.toFixed(2)}
+                        </span>
+                      ) : report.total_amount ? (
+                        <span className="text-sm font-bold text-muted-foreground">
+                          €{report.total_amount.toFixed(2)}
+                        </span>
+                      ) : null}
+                      {report.defined_amount != null && report.total_amount != null && (
+                        <p className="text-[10px] text-muted-foreground line-through">€{report.total_amount.toFixed(2)}</p>
+                      )}
+                    </div>
                   ) : null}
                 </div>
 
