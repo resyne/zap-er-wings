@@ -122,6 +122,8 @@ interface ScadenzaMovimento {
   metodo_pagamento: string | null;
   note: string | null;
   created_at: string;
+  check_due_date?: string | null;
+  check_number?: string | null;
 }
 
 type GroupByMode = "soggetto" | "anno" | "mese" | "giorno";
@@ -177,6 +179,8 @@ export default function ScadenziarioPage() {
   const [noteRegistrazione, setNoteRegistrazione] = useState("");
   const [paymentFiles, setPaymentFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [checkDueDate, setCheckDueDate] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
   // Invoice preview dialog
@@ -438,6 +442,8 @@ export default function ScadenziarioPage() {
       metodo,
       note,
       files,
+      checkDueDate: checkDueDateParam,
+      checkNumber: checkNumberParam,
     }: {
       scadenza: Scadenza;
       importo: number;
@@ -445,6 +451,8 @@ export default function ScadenziarioPage() {
       metodo: string;
       note: string;
       files: File[];
+      checkDueDate?: string;
+      checkNumber?: string;
     }) => {
       const uploadedFiles: { path: string; name: string; size: number; type: string }[] = [];
 
@@ -523,7 +531,7 @@ export default function ScadenziarioPage() {
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
       if (righeError) throw righeError;
 
-      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert({
+      const movimentoPayload: Record<string, unknown> = {
         scadenza_id: scadenza.id,
         evento_finanziario_id: eventoData.id,
         prima_nota_id: primaNotaResult.id,
@@ -532,7 +540,12 @@ export default function ScadenziarioPage() {
         metodo_pagamento: metodo,
         note: note + (uploadedFiles.length > 0 ? `\n\nAllegati: ${uploadedFiles.map(f => f.name).join(', ')}` : ''),
         attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
-      });
+      };
+      if (metodo === "assegno" && checkDueDateParam) {
+        movimentoPayload.check_due_date = checkDueDateParam;
+        movimentoPayload.check_number = checkNumberParam || null;
+      }
+      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert(movimentoPayload as any);
       if (movimentoError) throw movimentoError;
 
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
@@ -584,6 +597,8 @@ export default function ScadenziarioPage() {
     setMetodoRegistrazione("bonifico");
     setNoteRegistrazione("");
     setPaymentFiles([]);
+    setCheckDueDate("");
+    setCheckNumber("");
   };
 
   const openRegistraDialog = (scadenza: Scadenza) => {
@@ -614,6 +629,7 @@ export default function ScadenziarioPage() {
     const importo = parseFloat(importoRegistrazione);
     if (isNaN(importo) || importo <= 0) { toast.error("Inserisci un importo valido"); return; }
     if (importo > selectedScadenza.importo_residuo) { toast.error("L'importo non può superare il residuo"); return; }
+    if (metodoRegistrazione === "assegno" && !checkDueDate) { toast.error("Inserisci la data di scadenza dell'assegno"); return; }
     registraMutation.mutate({
       scadenza: selectedScadenza,
       importo,
@@ -621,6 +637,8 @@ export default function ScadenziarioPage() {
       metodo: metodoRegistrazione,
       note: noteRegistrazione,
       files: paymentFiles,
+      checkDueDate: metodoRegistrazione === "assegno" ? checkDueDate : undefined,
+      checkNumber: metodoRegistrazione === "assegno" ? checkNumber : undefined,
     });
   };
 
@@ -948,10 +966,13 @@ export default function ScadenziarioPage() {
                                           {movimenti && movimenti.length > 0 ? (
                                             <div className="space-y-1.5">
                                               {movimenti.map((mov) => (
-                                                <div key={mov.id} className="flex items-center justify-between p-2.5 bg-background rounded-md border text-sm">
+                                                <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "bg-background")}>
                                                   <div className="flex items-center gap-2.5">
-                                                    <div className={cn("p-1.5 rounded-full", scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                      <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                    <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100 dark:bg-amber-900/30" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                      {mov.metodo_pagamento === "assegno" 
+                                                        ? <Receipt className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+                                                        : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                      }
                                                     </div>
                                                     <div>
                                                       <span className="font-medium">{fmtEuro(mov.importo)}</span>
@@ -959,6 +980,15 @@ export default function ScadenziarioPage() {
                                                         {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
                                                         {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
                                                       </span>
+                                                      {mov.metodo_pagamento === "assegno" && mov.check_due_date && (
+                                                        <div className="flex items-center gap-1 mt-0.5">
+                                                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700 text-[10px] gap-1">
+                                                            <Clock className="h-2.5 w-2.5" />
+                                                            Assegno scade: {format(parseISO(mov.check_due_date), "dd/MM/yyyy")}
+                                                            {mov.check_number && ` (N. ${mov.check_number})`}
+                                                          </Badge>
+                                                        </div>
+                                                      )}
                                                     </div>
                                                   </div>
                                                   {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
@@ -1049,6 +1079,7 @@ export default function ScadenziarioPage() {
                   <SelectItem value="bonifico">Bonifico</SelectItem>
                   <SelectItem value="banca">Banca</SelectItem>
                   <SelectItem value="banca_intesa">Banca Intesa</SelectItem>
+                  <SelectItem value="assegno">Assegno</SelectItem>
                   <SelectItem value="carta">Carta</SelectItem>
                   <SelectItem value="american_express">American Express</SelectItem>
                   <SelectItem value="carta_aziendale">Carta Aziendale</SelectItem>
@@ -1061,6 +1092,23 @@ export default function ScadenziarioPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {metodoRegistrazione === "assegno" && (
+              <div className="space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <Receipt className="h-3.5 w-3.5" />
+                  Dettagli Assegno
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="checkNumber">Numero Assegno</Label>
+                  <Input id="checkNumber" value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} placeholder="N. assegno" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="checkDueDate">Data Scadenza Assegno *</Label>
+                  <Input id="checkDueDate" type="date" value={checkDueDate} onChange={(e) => setCheckDueDate(e.target.value)} />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="note">Note (opzionale)</Label>
