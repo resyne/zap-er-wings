@@ -61,6 +61,7 @@ const phaseIcons: Record<string, typeof Package> = {
   spedizione: Truck,
   installazione: Wrench,
   manutenzione: Wrench,
+  intervento: Wrench,
 };
 
 export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Props) {
