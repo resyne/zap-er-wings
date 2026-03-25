@@ -522,16 +522,19 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
             {/* Footer actions */}
             <div className="flex items-center justify-between pt-1">
-              {currentLinkedId ? (
-                <Button variant="ghost" onClick={handleUnlink} disabled={saving} className="text-destructive hover:text-destructive gap-1.5 h-8 text-xs px-2">
-                  <Unlink className="h-3 w-3" />
-                  Scollega Attuale
-                </Button>
-              ) : (
+              <div className="flex items-center gap-2">
+                {existingLinks.length > 0 && (
+                  <Button variant="ghost" onClick={handleUnlink} disabled={saving} className="text-destructive hover:text-destructive gap-1.5 h-8 text-xs px-2">
+                    <Unlink className="h-3 w-3" />
+                    Scollega Tutte ({existingLinks.length})
+                  </Button>
+                )}
                 <span className="text-xs text-muted-foreground">
-                  {filteredInvoices.length} fatture disponibili
+                  {existingLinks.length > 0 
+                    ? `${existingLinks.length} fatture collegate` 
+                    : `${filteredInvoices.length} fatture disponibili`}
                 </span>
-              )}
+              </div>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => onOpenChange(false)} size="sm" className="h-8 text-xs">Annulla</Button>
                 <Button onClick={handleLink} disabled={saving || !selectedId} className="gap-1.5 h-8 text-xs" size="sm">
