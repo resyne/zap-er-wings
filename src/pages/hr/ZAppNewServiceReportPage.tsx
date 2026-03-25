@@ -131,7 +131,8 @@ export default function ZAppNewServiceReportPage() {
     amount: '',
     vat_rate: '22',
     total_amount: '',
-    kilometers: '0'
+    kilometers: '0',
+    defined_amount: ''
   });
   const [customerSignature, setCustomerSignature] = useState('');
   const [technicianSignature, setTechnicianSignature] = useState('');
@@ -513,8 +514,9 @@ export default function ZAppNewServiceReportPage() {
         head_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => { const tc = technicians.find(x => x.id === t.technicianId); return tc && tc.first_name.toLowerCase() === 'pasquale'; }).length,
         specialized_technician_hours: calculateHoursFromTime(formData.start_time, formData.end_time) * techniciansList.filter(t => { const tc = technicians.find(x => x.id === t.technicianId); return !tc || tc.first_name.toLowerCase() !== 'pasquale'; }).length,
         is_warranty: isWarranty,
-        is_maintenance_contract: isMaintenanceContract
-      };
+        is_maintenance_contract: isMaintenanceContract,
+        defined_amount: formData.defined_amount ? parseFloat(formData.defined_amount) : null
+      } as any;
 
       const { data, error } = await supabase.from('service_reports').insert(reportPayload).select().single();
       if (error) throw error;
@@ -1283,68 +1285,96 @@ export default function ZAppNewServiceReportPage() {
                   <p className="text-xs text-muted-foreground">Nessun importo verrà generato per questo intervento. Gli importi sono già inclusi nella commessa di riferimento.</p>
                 </div>
               ) : (
-                <>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Importo (€)</Label>
-                      <Input type="number" step="0.01" className="h-11 rounded-xl text-base" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" inputMode="decimal" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">IVA (%)</Label>
-                      <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
-                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0%</SelectItem>
-                          <SelectItem value="4">4%</SelectItem>
-                          <SelectItem value="10">10%</SelectItem>
-                          <SelectItem value="22">22%</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground">Totale (€)</Label>
-                      <div className="h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center">
-                        <span className="text-base font-bold text-blue-700">€{formData.total_amount || '0.00'}</span>
+                <div className="space-y-4">
+                  {/* Importo Stimato (auto-calcolato) */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Importo Stimato (calcolato)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Netto (€)</Label>
+                        <Input type="number" step="0.01" className="h-11 rounded-xl text-base" value={formData.amount} onChange={(e) => handleInputChange('amount', e.target.value)} placeholder="0.00" inputMode="decimal" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">IVA (%)</Label>
+                        <Select value={formData.vat_rate} onValueChange={(v) => handleInputChange('vat_rate', v)}>
+                          <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0%</SelectItem>
+                            <SelectItem value="4">4%</SelectItem>
+                            <SelectItem value="10">10%</SelectItem>
+                            <SelectItem value="22">22%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Totale (€)</Label>
+                        <div className="h-11 rounded-xl bg-muted/50 border border-border flex items-center justify-center">
+                          <span className="text-base font-bold text-muted-foreground">€{formData.total_amount || '0.00'}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {(calculatedHours > 0 || parseFloat(formData.kilometers) > 0) && (
-                    <div className="bg-muted/50 rounded-xl p-3 space-y-1 text-xs text-muted-foreground">
-                      {techniciansList.filter(t => t.type === 'head').length > 0 && (
-                        <div className="flex justify-between">
-                          <span>Capi Tecnici ({techniciansList.filter(t => t.type === 'head').length}x {calculatedHours}h)</span>
-                          <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'head').length * pricingSettings.head_technician_hourly_rate).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {techniciansList.filter(t => t.type === 'specialized').length > 0 && (
-                        <div className="flex justify-between">
-                          <span>Specializzati ({techniciansList.filter(t => t.type === 'specialized').length}x {calculatedHours}h)</span>
-                          <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'specialized').length * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {parseFloat(formData.kilometers) > 0 && (
-                        <>
+                    {(calculatedHours > 0 || parseFloat(formData.kilometers) > 0) && (
+                      <div className="bg-muted/50 rounded-xl p-3 space-y-1 text-xs text-muted-foreground">
+                        {techniciansList.filter(t => t.type === 'head').length > 0 && (
                           <div className="flex justify-between">
-                            <span>Km ({formData.kilometers} km × €{KM_RATE.toFixed(2)})</span>
-                            <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * KM_RATE).toFixed(2)}</span>
+                            <span>Capi Tecnici ({techniciansList.filter(t => t.type === 'head').length}x {calculatedHours}h)</span>
+                            <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'head').length * pricingSettings.head_technician_hourly_rate).toFixed(2)}</span>
                           </div>
-                          {!isLocalArea(parseFloat(formData.kilometers)) && (
+                        )}
+                        {techniciansList.filter(t => t.type === 'specialized').length > 0 && (
+                          <div className="flex justify-between">
+                            <span>Specializzati ({techniciansList.filter(t => t.type === 'specialized').length}x {calculatedHours}h)</span>
+                            <span className="font-medium text-foreground">€{(calculatedHours * techniciansList.filter(t => t.type === 'specialized').length * pricingSettings.specialized_technician_hourly_rate).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {parseFloat(formData.kilometers) > 0 && (
+                          <>
                             <div className="flex justify-between">
-                              <span>Costo chiamata (oltre {LOCAL_AREA_ONE_WAY_KM} km)</span>
-                              <span className="font-medium text-foreground">€{CALLOUT_FEE.toFixed(2)}</span>
+                              <span>Km ({formData.kilometers} km × €{KM_RATE.toFixed(2)})</span>
+                              <span className="font-medium text-foreground">€{(parseFloat(formData.kilometers) * KM_RATE).toFixed(2)}</span>
                             </div>
-                          )}
-                        </>
-                      )}
-                      {materialsTotalNetto > 0 && (
-                        <div className="flex justify-between">
-                          <span>Materiali (netto)</span>
-                          <span className="font-medium text-foreground">€{materialsTotalNetto.toFixed(2)}</span>
-                        </div>
-                      )}
+                            {!isLocalArea(parseFloat(formData.kilometers)) && (
+                              <div className="flex justify-between">
+                                <span>Costo chiamata (oltre {LOCAL_AREA_ONE_WAY_KM} km)</span>
+                                <span className="font-medium text-foreground">€{CALLOUT_FEE.toFixed(2)}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {materialsTotalNetto > 0 && (
+                          <div className="flex justify-between">
+                            <span>Materiali (netto)</span>
+                            <span className="font-medium text-foreground">€{materialsTotalNetto.toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-border" />
+
+                  {/* Importo Definito (effettivo) */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Importo Definito (effettivo)</p>
+                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground font-medium">€</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="h-11 rounded-xl text-base font-semibold flex-1"
+                          value={formData.defined_amount}
+                          onChange={(e) => handleInputChange('defined_amount', e.target.value)}
+                          placeholder="Inserisci importo effettivo..."
+                          inputMode="decimal"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        Importo concordato con il cliente. Se non inserito ora, può essere aggiunto successivamente in fase di revisione.
+                      </p>
                     </div>
-                  )}
-                </>
+                  </div>
+                </div>
               )}
             </MobileSection>
           </>
