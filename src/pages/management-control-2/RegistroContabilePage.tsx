@@ -3148,9 +3148,15 @@ export default function RegistroContabilePage() {
               <LinkIcon className="w-3.5 h-3.5 mr-1" />Scadenza
             </Button>
           )}
-          {invoice.stornato && invoice.motivo_storno && (
-            <span className="text-xs text-muted-foreground ml-1">Storno: {invoice.motivo_storno}</span>
-          )}
+           {invoice.stornato && invoice.motivo_storno && (
+             <span className="text-xs text-muted-foreground ml-1">Storno: {invoice.motivo_storno}</span>
+           )}
+           {invoice.status !== 'rettificato' && (
+             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+               onClick={() => { if (confirm('Eliminare questa fattura e tutti i dati collegati (prima nota, scadenze)?')) deleteInvoiceMutation.mutate(invoice); }}>
+               <Trash2 className="w-3.5 h-3.5" />
+             </Button>
+           )}
         </div>
       </TableCell>
     </>
