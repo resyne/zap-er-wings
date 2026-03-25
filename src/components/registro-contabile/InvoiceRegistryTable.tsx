@@ -343,17 +343,18 @@ function InvoiceRow({
             )}
 
             {invoice.status === "bozza" && (
-              <>
-                <DropdownMenuItem onClick={() => onRegister(invoice)}>
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Contabilizza
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(invoice)}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Elimina
-                </DropdownMenuItem>
-              </>
-            )}
+               <DropdownMenuItem onClick={() => onRegister(invoice)}>
+                 <FileCheck className="h-4 w-4 mr-2" />
+                 Contabilizza
+               </DropdownMenuItem>
+             )}
+
+             {invoice.status !== "rettificato" && (
+               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(invoice)}>
+                 <Trash2 className="h-4 w-4 mr-2" />
+                 Elimina
+               </DropdownMenuItem>
+             )}
 
             {invoice.status === "da_riclassificare" && (
               <DropdownMenuItem onClick={() => onRegenerate(invoice)} disabled={isRegenerating}>

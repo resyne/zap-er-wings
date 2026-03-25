@@ -1928,14 +1928,11 @@ export default function RegistroContabilePage() {
 
 
   // Mutation per eliminare dal registro contabile
-  // IMPORTANTE: Solo per elementi NON contabilizzati (bozza)
-  // Per elementi contabilizzati, usare storno dalla Prima Nota
-  const deleteInvoiceMutation = useMutation({
-    mutationFn: async (invoice: InvoiceRegistry) => {
-      // BLOCCO: Non eliminare se già contabilizzato (ha prima_nota)
-      if (invoice.prima_nota_id && invoice.status === 'registrata') {
-        throw new Error('Evento già contabilizzato. Per annullarlo, usare la funzione Storno dalla Prima Nota.');
-      }
+   const deleteInvoiceMutation = useMutation({
+     mutationFn: async (invoice: InvoiceRegistry) => {
+       if (invoice.status === 'rettificato') {
+         throw new Error('Evento rettificato/bloccato. Non è possibile eliminarlo.');
+       }
       
       // Elimina nell'ordine corretto rispettando le foreign keys
       
@@ -3686,9 +3683,9 @@ export default function RegistroContabilePage() {
           }}
           onEdit={(invoice) => openEditDialog(invoice as any)}
           onRegister={(invoice) => openEditDialog(invoice as any)}
-          onDelete={(invoice) => {
-            if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
-          }}
+           onDelete={(invoice) => {
+             if (confirm('Eliminare questa fattura e tutti i dati collegati (prima nota, scadenze)?')) deleteInvoiceMutation.mutate(invoice as any);
+           }}
           onRegenerate={(invoice) => {
             if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
           }}
