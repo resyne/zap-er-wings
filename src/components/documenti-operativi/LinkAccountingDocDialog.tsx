@@ -49,7 +49,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     queryFn: async () => {
       let q = supabase
         .from("invoice_registry")
-        .select("id, invoice_number, invoice_date, invoice_type, subject_name, total_amount, status, financial_status, imponibile, iva_rate, source_document_id")
+        .select("id, invoice_number, invoice_date, invoice_type, subject_name, total_amount, status, financial_status, imponibile, iva_rate")
         .order("invoice_date", { ascending: false })
         .limit(200);
       if (search) {
@@ -60,6 +60,23 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     },
     enabled: open,
   });
+
+  // Fetch existing links for THIS document
+  const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
+  const { data: existingLinks = [] } = useQuery({
+    queryKey: ["invoice-document-links", docId, sourceType],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("invoice_document_links")
+        .select("id, invoice_id, document_id, document_type")
+        .eq("document_id", docId)
+        .eq("document_type", sourceType);
+      return data || [];
+    },
+    enabled: open && !!docId,
+  });
+
+  const alreadyLinkedInvoiceIds = new Set(existingLinks.map(l => l.invoice_id));
 
   // Filtered invoices
   const filteredInvoices = useMemo(() => {
@@ -99,7 +116,6 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
       setUploadStatus("saving");
       const extracted = aiResult?.data || aiResult || {};
-      const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
 
       const { data: newInvoice, error: insertError } = await supabase.from("invoice_registry").insert({
         invoice_number: extracted.invoice_number || `FV-${Date.now().toString().slice(-6)}`,
@@ -119,8 +135,15 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
       if (insertError) throw new Error("Salvataggio fattura fallito: " + insertError.message);
 
-      // Link the operational document (without accounting_document_id which has wrong FK)
+      // Link via bridge table + update operational document flags
       if (newInvoice) {
+        // Insert bridge table link
+        await supabase.from("invoice_document_links").insert({
+          invoice_id: newInvoice.id,
+          document_id: docId,
+          document_type: sourceType,
+        });
+
         if (docType === "order") {
           await supabase.from("sales_orders").update({
             invoiced: true,
@@ -140,6 +163,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
       }
 
       setUploadStatus("done");
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-registry-for-link"] });
       toast.success("Fattura caricata e collegata con successo");
       setTimeout(() => { onLinked(); onOpenChange(false); }, 800);
@@ -150,7 +174,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     } finally {
       setUploading(false);
     }
-  }, [docType, docId, queryClient, onLinked, onOpenChange]);
+  }, [docType, docId, sourceType, queryClient, onLinked, onOpenChange]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { "application/pdf": [".pdf"], "image/*": [".png", ".jpg", ".jpeg"] },
@@ -159,14 +183,23 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     disabled: uploading,
   });
 
-  // Link handler — FIXED: don't set accounting_document_id (FK references accounting_documents, not invoice_registry)
+  // Link handler — uses bridge table for many-to-many
   const handleLink = async () => {
     if (!selectedId) return;
     setSaving(true);
     try {
       const selectedInv = invoices.find(i => i.id === selectedId);
 
-      // Update operational document (only invoiced + invoice_number, NOT accounting_document_id)
+      // Insert into bridge table (upsert to avoid duplicates)
+      const { error: linkError } = await supabase.from("invoice_document_links").upsert({
+        invoice_id: selectedId,
+        document_id: docId,
+        document_type: sourceType,
+      }, { onConflict: "invoice_id,document_id,document_type" });
+
+      if (linkError) throw linkError;
+
+      // Update operational document flags for backward compatibility
       if (docType === "order") {
         await supabase.from("sales_orders").update({
           invoiced: true,
@@ -184,15 +217,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
         }).eq("id", docId);
       }
 
-      // Link invoice_registry to the source document
-      const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
-      const { error: linkError } = await supabase.from("invoice_registry").update({
+      // Also keep source_document_id on invoice_registry for legacy compat
+      await supabase.from("invoice_registry").update({
         source_document_id: docId,
         source_document_type: sourceType,
       }).eq("id", selectedId);
 
-      if (linkError) throw linkError;
-
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       toast.success("Fattura collegata con successo");
       onLinked();
       onOpenChange(false);
@@ -227,6 +258,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
   const handleUnlink = async () => {
     setSaving(true);
     try {
+      // Remove all links for this document from bridge table
+      await supabase.from("invoice_document_links")
+        .delete()
+        .eq("document_id", docId)
+        .eq("document_type", sourceType);
+
+      // Reset operational document flags
       if (docType === "order") {
         await supabase.from("sales_orders").update({ invoiced: false, invoice_number: null }).eq("id", docId);
       } else if (docType === "ddt") {
@@ -234,9 +272,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
       } else if (docType === "report") {
         await supabase.from("service_reports").update({ invoiced: false, invoice_number: null }).eq("id", docId);
       }
+
+      // Also clean up legacy source_document_id references
       if (currentLinkedId) {
         await supabase.from("invoice_registry").update({ source_document_id: null, source_document_type: null }).eq("id", currentLinkedId);
       }
+
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       toast.success("Collegamento rimosso");
       setSelectedId(null);
       onLinked();
@@ -403,17 +445,17 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
                 <div className="divide-y divide-border/40">
                   {filteredInvoices.map(inv => {
                     const isSelected = selectedId === inv.id;
-                    const isAlreadyLinked = inv.source_document_id && inv.source_document_id !== docId;
+                    const isAlreadyLinkedToThis = alreadyLinkedInvoiceIds.has(inv.id);
                     return (
                       <button
                         key={inv.id}
-                        onClick={() => !isAlreadyLinked && setSelectedId(isSelected ? null : inv.id)}
-                        disabled={!!isAlreadyLinked}
+                        onClick={() => !isAlreadyLinkedToThis && setSelectedId(isSelected ? null : inv.id)}
+                        disabled={isAlreadyLinkedToThis}
                         className={cn(
                           "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-all",
                           isSelected && "bg-primary/5 ring-1 ring-inset ring-primary/20",
-                          !isSelected && !isAlreadyLinked && "hover:bg-muted/40",
-                          isAlreadyLinked && "opacity-40 cursor-not-allowed"
+                          !isSelected && !isAlreadyLinkedToThis && "hover:bg-muted/40",
+                          isAlreadyLinkedToThis && "opacity-40 cursor-not-allowed"
                         )}
                       >
                         {/* Selection indicator */}
@@ -447,12 +489,12 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
                               <Calendar className="h-2.5 w-2.5" />
                               {format(new Date(inv.invoice_date), "dd MMM yyyy", { locale: it })}
                             </span>
-                            {isAlreadyLinked && (
+                            {isAlreadyLinkedToThis && (
                               <>
                                 <span>•</span>
-                                <span className="text-amber-600 flex items-center gap-0.5">
+                                <span className="text-emerald-600 flex items-center gap-0.5">
                                   <LinkIcon className="h-2.5 w-2.5" />
-                                  Già collegata
+                                  Già collegata a questo doc.
                                 </span>
                               </>
                             )}
@@ -480,16 +522,19 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
             {/* Footer actions */}
             <div className="flex items-center justify-between pt-1">
-              {currentLinkedId ? (
-                <Button variant="ghost" onClick={handleUnlink} disabled={saving} className="text-destructive hover:text-destructive gap-1.5 h-8 text-xs px-2">
-                  <Unlink className="h-3 w-3" />
-                  Scollega Attuale
-                </Button>
-              ) : (
+              <div className="flex items-center gap-2">
+                {existingLinks.length > 0 && (
+                  <Button variant="ghost" onClick={handleUnlink} disabled={saving} className="text-destructive hover:text-destructive gap-1.5 h-8 text-xs px-2">
+                    <Unlink className="h-3 w-3" />
+                    Scollega Tutte ({existingLinks.length})
+                  </Button>
+                )}
                 <span className="text-xs text-muted-foreground">
-                  {filteredInvoices.length} fatture disponibili
+                  {existingLinks.length > 0 
+                    ? `${existingLinks.length} fatture collegate` 
+                    : `${filteredInvoices.length} fatture disponibili`}
                 </span>
-              )}
+              </div>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => onOpenChange(false)} size="sm" className="h-8 text-xs">Annulla</Button>
                 <Button onClick={handleLink} disabled={saving || !selectedId} className="gap-1.5 h-8 text-xs" size="sm">
