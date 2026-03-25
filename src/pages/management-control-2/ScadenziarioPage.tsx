@@ -662,6 +662,7 @@ export default function ScadenziarioPage() {
       case "aperta": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Aperta</Badge>;
       case "parziale": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px]">Parziale</Badge>;
       case "chiusa": case "saldata": return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">Chiusa</Badge>;
+      case "assegno_in_cassa": return <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] gap-0.5"><Receipt className="h-2.5 w-2.5" />Assegno in cassa</Badge>;
       case "stornata": return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">Stornata</Badge>;
       default: return <Badge variant="outline" className="text-[10px]">{stato}</Badge>;
     }
@@ -787,13 +788,14 @@ export default function ScadenziarioPage() {
               />
             </div>
             <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as StatoFilter)}>
-              <SelectTrigger className="w-28 h-9 bg-background">
+              <SelectTrigger className="w-36 h-9 bg-background">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="tutti">Tutti</SelectItem>
                 <SelectItem value="aperta">Aperte</SelectItem>
                 <SelectItem value="parziale">Parziali</SelectItem>
+                <SelectItem value="assegno_in_cassa">Assegno in cassa</SelectItem>
                 <SelectItem value="chiusa">Chiuse</SelectItem>
               </SelectContent>
             </Select>
