@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Wrench, User, Clock, Calendar, Package, FileText, Euro, Loader2, LinkIcon, ShoppingCart } from "lucide-react";
+import { Wrench, User, Clock, Calendar, Package, FileText, Euro, Loader2, LinkIcon, ShoppingCart, StickyNote, Save } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -23,6 +25,9 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [linkedOrder, setLinkedOrder] = useState<any>(null);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesChanged, setNotesChanged] = useState(false);
 
   useEffect(() => {
     if (!open || !reportId) return;
@@ -34,6 +39,8 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
     ]).then(async ([reportRes, matRes]) => {
       setReport(reportRes.data);
       setMaterials(matRes.data || []);
+      setNotes((reportRes.data as any)?.notes || "");
+      setNotesChanged(false);
       // Check linked order
       const reportData = reportRes.data as any;
       if (reportData?.sales_order_id) {
@@ -43,6 +50,19 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
       setLoading(false);
     });
   }, [open, reportId]);
+
+  const handleSaveNotes = async () => {
+    if (!reportId) return;
+    setSavingNotes(true);
+    const { error } = await supabase.from("service_reports").update({ notes }).eq("id", reportId);
+    setSavingNotes(false);
+    if (error) {
+      toast.error("Errore nel salvataggio delle note");
+    } else {
+      toast.success("Note salvate");
+      setNotesChanged(false);
+    }
+  };
 
   if (!open) return null;
 
