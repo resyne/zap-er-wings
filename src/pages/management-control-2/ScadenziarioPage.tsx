@@ -182,6 +182,10 @@ export default function ScadenziarioPage() {
   const [checkDueDate, setCheckDueDate] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
+  const [quickPayOpen, setQuickPayOpen] = useState(false);
+  const [quickPayTipo, setQuickPayTipo] = useState<"credito" | "debito">("credito");
+  const [quickPaySearch, setQuickPaySearch] = useState("");
+  const [quickPaySelectedScadenza, setQuickPaySelectedScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
