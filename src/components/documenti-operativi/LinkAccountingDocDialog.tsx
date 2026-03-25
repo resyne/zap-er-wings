@@ -176,14 +176,23 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     disabled: uploading,
   });
 
-  // Link handler — FIXED: don't set accounting_document_id (FK references accounting_documents, not invoice_registry)
+  // Link handler — uses bridge table for many-to-many
   const handleLink = async () => {
     if (!selectedId) return;
     setSaving(true);
     try {
       const selectedInv = invoices.find(i => i.id === selectedId);
 
-      // Update operational document (only invoiced + invoice_number, NOT accounting_document_id)
+      // Insert into bridge table (upsert to avoid duplicates)
+      const { error: linkError } = await supabase.from("invoice_document_links").upsert({
+        invoice_id: selectedId,
+        document_id: docId,
+        document_type: sourceType,
+      }, { onConflict: "invoice_id,document_id,document_type" });
+
+      if (linkError) throw linkError;
+
+      // Update operational document flags for backward compatibility
       if (docType === "order") {
         await supabase.from("sales_orders").update({
           invoiced: true,
@@ -201,15 +210,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
         }).eq("id", docId);
       }
 
-      // Link invoice_registry to the source document
-      const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
-      const { error: linkError } = await supabase.from("invoice_registry").update({
+      // Also keep source_document_id on invoice_registry for legacy compat
+      await supabase.from("invoice_registry").update({
         source_document_id: docId,
         source_document_type: sourceType,
       }).eq("id", selectedId);
 
-      if (linkError) throw linkError;
-
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       toast.success("Fattura collegata con successo");
       onLinked();
       onOpenChange(false);
