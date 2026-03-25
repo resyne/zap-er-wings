@@ -84,6 +84,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────
 interface Scadenza {
