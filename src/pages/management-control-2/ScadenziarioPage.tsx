@@ -623,6 +623,7 @@ export default function ScadenziarioPage() {
     },
   });
 
+  const resetForm = () => {
     setRegistraDialogOpen(false);
     setSelectedScadenza(null);
     setImportoRegistrazione("");
