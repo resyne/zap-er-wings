@@ -440,6 +440,8 @@ export default function ScadenziarioPage() {
       metodo,
       note,
       files,
+      checkDueDate: checkDueDateParam,
+      checkNumber: checkNumberParam,
     }: {
       scadenza: Scadenza;
       importo: number;
@@ -447,6 +449,8 @@ export default function ScadenziarioPage() {
       metodo: string;
       note: string;
       files: File[];
+      checkDueDate?: string;
+      checkNumber?: string;
     }) => {
       const uploadedFiles: { path: string; name: string; size: number; type: string }[] = [];
 
