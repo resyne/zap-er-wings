@@ -174,7 +174,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     } finally {
       setUploading(false);
     }
-  }, [docType, docId, queryClient, onLinked, onOpenChange]);
+  }, [docType, docId, sourceType, queryClient, onLinked, onOpenChange]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { "application/pdf": [".pdf"], "image/*": [".png", ".jpg", ".jpeg"] },
