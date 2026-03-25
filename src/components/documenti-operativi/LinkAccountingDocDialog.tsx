@@ -420,17 +420,17 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
                 <div className="divide-y divide-border/40">
                   {filteredInvoices.map(inv => {
                     const isSelected = selectedId === inv.id;
-                    const isAlreadyLinked = inv.source_document_id && inv.source_document_id !== docId;
+                    const isAlreadyLinkedToThis = alreadyLinkedInvoiceIds.has(inv.id);
                     return (
                       <button
                         key={inv.id}
-                        onClick={() => !isAlreadyLinked && setSelectedId(isSelected ? null : inv.id)}
-                        disabled={!!isAlreadyLinked}
+                        onClick={() => !isAlreadyLinkedToThis && setSelectedId(isSelected ? null : inv.id)}
+                        disabled={isAlreadyLinkedToThis}
                         className={cn(
                           "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-all",
                           isSelected && "bg-primary/5 ring-1 ring-inset ring-primary/20",
-                          !isSelected && !isAlreadyLinked && "hover:bg-muted/40",
-                          isAlreadyLinked && "opacity-40 cursor-not-allowed"
+                          !isSelected && !isAlreadyLinkedToThis && "hover:bg-muted/40",
+                          isAlreadyLinkedToThis && "opacity-40 cursor-not-allowed"
                         )}
                       >
                         {/* Selection indicator */}
