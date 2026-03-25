@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import {
   ShoppingCart, Package, FileText, Receipt, Clock, User,
   Building2, AlertTriangle, FileCheck, ArrowUpRight, Wrench,
-  Truck, Calendar, CheckCircle2, CircleDot, BookOpen, Link2
+  Truck, Calendar, CheckCircle2, CircleDot, BookOpen, Link2, StickyNote, Save, Loader2
 } from "lucide-react";
 import { LinkAccountingDocDialog } from "./LinkAccountingDocDialog";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -65,6 +67,40 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
   const queryClient = useQueryClient();
   const orderId = order?.id;
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesChanged, setNotesChanged] = useState(false);
+
+  // Fetch order notes
+  const { data: orderNotes } = useQuery({
+    queryKey: ["order-notes", orderId],
+    queryFn: async () => {
+      const { data } = await supabase.from("sales_orders").select("notes").eq("id", orderId!).single();
+      return data?.notes || "";
+    },
+    enabled: !!orderId && open,
+  });
+
+  useEffect(() => {
+    if (orderNotes !== undefined) {
+      setNotes(orderNotes);
+      setNotesChanged(false);
+    }
+  }, [orderNotes]);
+
+  const handleSaveNotes = async () => {
+    if (!orderId) return;
+    setSavingNotes(true);
+    const { error } = await supabase.from("sales_orders").update({ notes }).eq("id", orderId);
+    setSavingNotes(false);
+    if (error) {
+      toast.error("Errore nel salvataggio delle note");
+    } else {
+      toast.success("Note salvate");
+      setNotesChanged(false);
+      queryClient.invalidateQueries({ queryKey: ["order-notes", orderId] });
+    }
+  };
 
   // Fetch commesse
   const { data: commesse = [] } = useQuery({
@@ -375,6 +411,24 @@ export function OrderDetailSheet({ open, onOpenChange, order, customerName }: Pr
                 </div>
               </>
             )}
+
+            {/* Note */}
+            <Separator />
+            <SectionTitle icon={StickyNote} title="Note" />
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Aggiungi note su questo ordine..."
+                value={notes}
+                onChange={(e) => { setNotes(e.target.value); setNotesChanged(true); }}
+                className="min-h-[80px] resize-none text-sm"
+              />
+              {notesChanged && (
+                <Button size="sm" className="gap-1.5" onClick={handleSaveNotes} disabled={savingNotes}>
+                  {savingNotes ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Salva note
+                </Button>
+              )}
+            </div>
 
             {/* Cronologia */}
             {logs.length > 0 && (
