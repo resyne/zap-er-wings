@@ -935,7 +935,8 @@ export default function ScadenziarioPage() {
                                     key={scadenza.id}
                                     className={cn(
                                       isClosedScadenza(scadenza) && "opacity-50",
-                                      giorni < 0 && !isClosedScadenza(scadenza) && "bg-orange-50/50"
+                                      isAssegnoInCassa(scadenza) && "bg-indigo-50/50 dark:bg-indigo-950/20",
+                                      giorni < 0 && !isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && "bg-orange-50/50"
                                     )}
                                   >
                                     <TableCell className="pl-12">
@@ -977,17 +978,28 @@ export default function ScadenziarioPage() {
                                     <TableCell className="text-right text-sm">
                                       {fmtEuro(Number(scadenza.importo_totale))}
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-semibold text-sm", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
+                                    <TableCell className={cn("text-right font-semibold text-sm", 
+                                      isAssegnoInCassa(scadenza) ? "text-indigo-700" : scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700"
+                                    )}>
                                       {fmtEuro(Number(scadenza.importo_residuo))}
                                     </TableCell>
                                     <TableCell>{getStatoBadge(scadenza.stato)}</TableCell>
                                     <TableCell>
-                                      {!isClosedScadenza(scadenza) && (
-                                        <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
-                                          <CreditCard className="h-3 w-3" />
-                                          {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
-                                        </Button>
-                                      )}
+                                      <div className="flex items-center gap-1">
+                                        {isAssegnoInCassa(scadenza) && (
+                                          <Button size="sm" variant="outline" onClick={() => incassaAssegnoMutation.mutate(scadenza)} disabled={incassaAssegnoMutation.isPending}
+                                            className="gap-1 h-7 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-50">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Incassa
+                                          </Button>
+                                        )}
+                                        {!isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && (
+                                          <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
+                                            <CreditCard className="h-3 w-3" />
+                                            {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
+                                          </Button>
+                                        )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
 
