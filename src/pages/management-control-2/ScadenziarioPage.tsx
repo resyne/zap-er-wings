@@ -334,7 +334,7 @@ export default function ScadenziarioPage() {
         totaleResiduo += Number(s.importo_residuo);
       if (s.stato === "aperta" || s.stato === "parziale" || s.stato === "assegno_in_cassa") {
           scadenzeAperte++;
-          if (getGiorniScadenza(s.data_scadenza) < 0) scadenzeScadute++;
+          if (s.stato !== "assegno_in_cassa" && getGiorniScadenza(s.data_scadenza) < 0) scadenzeScadute++;
         }
       });
       return { key, label, sublabel, icon, tipo, scadenze: items, totaleImporto, totaleResiduo, scadenzeAperte, scadenzeScadute };
@@ -420,18 +420,21 @@ export default function ScadenziarioPage() {
     const items = groups.flatMap(g => g.scadenze);
     return items.reduce(
       (acc, s) => {
-        if (!isClosedScadenza(s)) {
+        if (isAssegnoInCassa(s)) {
+          if (s.tipo === "credito") acc.effettiCredito += Number(s.importo_totale);
+          else acc.effettiDebito += Number(s.importo_totale);
+        } else if (!isClosedScadenza(s)) {
           if (s.tipo === "credito") acc.crediti += Number(s.importo_residuo);
           else acc.debiti += Number(s.importo_residuo);
         }
         return acc;
       },
-      { crediti: 0, debiti: 0 }
+      { crediti: 0, debiti: 0, effettiCredito: 0, effettiDebito: 0 }
     );
   }, [groups]);
 
   const scaduteCount = useMemo(() => {
-    return groups.flatMap(g => g.scadenze).filter(s => !isClosedScadenza(s) && getGiorniScadenza(s.data_scadenza) < 0).length;
+    return groups.flatMap(g => g.scadenze).filter(s => !isClosedScadenza(s) && !isAssegnoInCassa(s) && getGiorniScadenza(s.data_scadenza) < 0).length;
   }, [groups]);
 
   // ── Mutations ─────────────────────────────────────
@@ -697,7 +700,7 @@ export default function ScadenziarioPage() {
   };
 
   const getGiorniBadge = (giorni: number, stato: string) => {
-    if (stato === "chiusa" || stato === "saldata") return null;
+    if (stato === "chiusa" || stato === "saldata" || stato === "assegno_in_cassa") return null;
     if (giorni < 0) return <Badge variant="destructive" className="gap-0.5 text-[10px]"><AlertTriangle className="h-2.5 w-2.5" />-{Math.abs(giorni)}gg</Badge>;
     if (giorni <= 7) return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-0.5 text-[10px]"><Clock className="h-2.5 w-2.5" />{giorni}gg</Badge>;
     return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">{giorni}gg</Badge>;
@@ -797,6 +800,20 @@ export default function ScadenziarioPage() {
                 {fmtEuro(totali.crediti - totali.debiti)}
               </span>
             </div>
+            {totali.effettiCredito > 0 && (
+              <div className="flex items-center gap-1.5 border-l pl-4">
+                <Receipt className="h-4 w-4 text-indigo-600" />
+                <span className="text-xs text-muted-foreground">Effetti a credito</span>
+                <span className="text-sm font-bold text-indigo-700">{fmtEuro(totali.effettiCredito)}</span>
+              </div>
+            )}
+            {totali.effettiDebito > 0 && (
+              <div className="flex items-center gap-1.5 border-l pl-4">
+                <Receipt className="h-4 w-4 text-purple-600" />
+                <span className="text-xs text-muted-foreground">Effetti a debito</span>
+                <span className="text-sm font-bold text-purple-700">{fmtEuro(totali.effettiDebito)}</span>
+              </div>
+            )}
             {scaduteCount > 0 && (
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
