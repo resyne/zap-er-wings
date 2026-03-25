@@ -131,7 +131,8 @@ export default function ZAppNewServiceReportPage() {
     amount: '',
     vat_rate: '22',
     total_amount: '',
-    kilometers: '0'
+    kilometers: '0',
+    defined_amount: ''
   });
   const [customerSignature, setCustomerSignature] = useState('');
   const [technicianSignature, setTechnicianSignature] = useState('');
