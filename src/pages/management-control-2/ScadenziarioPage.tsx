@@ -332,7 +332,7 @@ export default function ScadenziarioPage() {
       items.forEach(s => {
         totaleImporto += Number(s.importo_totale);
         totaleResiduo += Number(s.importo_residuo);
-        if (s.stato === "aperta" || s.stato === "parziale") {
+      if (s.stato === "aperta" || s.stato === "parziale" || s.stato === "assegno_in_cassa") {
           scadenzeAperte++;
           if (getGiorniScadenza(s.data_scadenza) < 0) scadenzeScadute++;
         }
