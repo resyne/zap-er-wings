@@ -529,7 +529,7 @@ export default function ScadenziarioPage() {
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
       if (righeError) throw righeError;
 
-      const movimentoPayload: any = {
+      const movimentoPayload: Record<string, unknown> = {
         scadenza_id: scadenza.id,
         evento_finanziario_id: eventoData.id,
         prima_nota_id: primaNotaResult.id,
@@ -539,11 +539,11 @@ export default function ScadenziarioPage() {
         note: note + (uploadedFiles.length > 0 ? `\n\nAllegati: ${uploadedFiles.map(f => f.name).join(', ')}` : ''),
         attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
       };
-      if (metodo === "assegno") {
-        movimentoPayload.check_due_date = (files as any).__checkDueDate || null;
-        movimentoPayload.check_number = (files as any).__checkNumber || null;
+      if (metodo === "assegno" && checkDueDateParam) {
+        movimentoPayload.check_due_date = checkDueDateParam;
+        movimentoPayload.check_number = checkNumberParam || null;
       }
-      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert(movimentoPayload);
+      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert(movimentoPayload as any);
       if (movimentoError) throw movimentoError;
 
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
@@ -627,6 +627,7 @@ export default function ScadenziarioPage() {
     const importo = parseFloat(importoRegistrazione);
     if (isNaN(importo) || importo <= 0) { toast.error("Inserisci un importo valido"); return; }
     if (importo > selectedScadenza.importo_residuo) { toast.error("L'importo non può superare il residuo"); return; }
+    if (metodoRegistrazione === "assegno" && !checkDueDate) { toast.error("Inserisci la data di scadenza dell'assegno"); return; }
     registraMutation.mutate({
       scadenza: selectedScadenza,
       importo,
@@ -634,6 +635,8 @@ export default function ScadenziarioPage() {
       metodo: metodoRegistrazione,
       note: noteRegistrazione,
       files: paymentFiles,
+      checkDueDate: metodoRegistrazione === "assegno" ? checkDueDate : undefined,
+      checkNumber: metodoRegistrazione === "assegno" ? checkNumber : undefined,
     });
   };
 
