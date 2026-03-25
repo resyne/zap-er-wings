@@ -550,7 +550,12 @@ export default function ScadenziarioPage() {
       if (movimentoError) throw movimentoError;
 
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
-      const nuovoStato = nuovoResiduo <= 0 ? "chiusa" : nuovoResiduo < Number(scadenza.importo_totale) ? "parziale" : "aperta";
+      const hasAssegno = metodo === "assegno";
+      const nuovoStato = nuovoResiduo <= 0
+        ? (hasAssegno ? "assegno_in_cassa" : "chiusa")
+        : nuovoResiduo < Number(scadenza.importo_totale)
+          ? "parziale"
+          : "aperta";
 
       const { error: updateError } = await supabase
         .from("scadenze")
