@@ -99,7 +99,7 @@ interface Scadenza {
   data_scadenza: string;
   importo_totale: number;
   importo_residuo: number;
-  stato: "aperta" | "parziale" | "chiusa" | "saldata" | "stornata";
+  stato: "aperta" | "parziale" | "chiusa" | "saldata" | "stornata" | "assegno_in_cassa";
   iva_mode: string | null;
   conto_economico: string | null;
   centro_id: string | null;
@@ -128,7 +128,7 @@ interface ScadenzaMovimento {
 
 type GroupByMode = "soggetto" | "anno" | "mese" | "giorno";
 type TipoFilter = "tutti" | "crediti" | "debiti";
-type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa";
+type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa" | "assegno_in_cassa";
 
 interface GroupData {
   key: string;
@@ -149,6 +149,7 @@ const getGiorniScadenza = (dataScadenza: string) => {
 };
 
 const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
+const isAssegnoInCassa = (s: Scadenza) => s.stato === "assegno_in_cassa";
 
 const fmtEuro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
 
