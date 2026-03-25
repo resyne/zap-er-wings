@@ -177,6 +177,8 @@ export default function ScadenziarioPage() {
   const [noteRegistrazione, setNoteRegistrazione] = useState("");
   const [paymentFiles, setPaymentFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [checkDueDate, setCheckDueDate] = useState("");
+  const [checkNumber, setCheckNumber] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
 
   // Invoice preview dialog
