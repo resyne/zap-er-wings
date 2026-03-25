@@ -136,8 +136,15 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
       if (insertError) throw new Error("Salvataggio fattura fallito: " + insertError.message);
 
-      // Link the operational document (without accounting_document_id which has wrong FK)
+      // Link via bridge table + update operational document flags
       if (newInvoice) {
+        // Insert bridge table link
+        await supabase.from("invoice_document_links").insert({
+          invoice_id: newInvoice.id,
+          document_id: docId,
+          document_type: sourceType,
+        });
+
         if (docType === "order") {
           await supabase.from("sales_orders").update({
             invoiced: true,
@@ -157,6 +164,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
       }
 
       setUploadStatus("done");
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-registry-for-link"] });
       toast.success("Fattura caricata e collegata con successo");
       setTimeout(() => { onLinked(); onOpenChange(false); }, 800);
@@ -251,6 +259,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
   const handleUnlink = async () => {
     setSaving(true);
     try {
+      // Remove all links for this document from bridge table
+      await supabase.from("invoice_document_links")
+        .delete()
+        .eq("document_id", docId)
+        .eq("document_type", sourceType);
+
+      // Reset operational document flags
       if (docType === "order") {
         await supabase.from("sales_orders").update({ invoiced: false, invoice_number: null }).eq("id", docId);
       } else if (docType === "ddt") {
@@ -258,9 +273,13 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
       } else if (docType === "report") {
         await supabase.from("service_reports").update({ invoiced: false, invoice_number: null }).eq("id", docId);
       }
+
+      // Also clean up legacy source_document_id references
       if (currentLinkedId) {
         await supabase.from("invoice_registry").update({ source_document_id: null, source_document_type: null }).eq("id", currentLinkedId);
       }
+
+      queryClient.invalidateQueries({ queryKey: ["invoice-document-links"] });
       toast.success("Collegamento rimosso");
       setSelectedId(null);
       onLinked();
