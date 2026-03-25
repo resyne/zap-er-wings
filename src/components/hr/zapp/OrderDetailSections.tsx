@@ -83,6 +83,7 @@ const phaseIcons: Record<string, any> = {
   installazione: Wrench,
   manutenzione: Wrench,
   riparazione: Wrench,
+  intervento: Wrench,
 };
 
 export function OrderDetailSections({ orderId, customerId }: OrderDetailSectionsProps) {
