@@ -800,6 +800,14 @@ export default function ScadenziarioPage() {
               <Link2 className="h-3.5 w-3.5" />
               Riconcilia
             </Button>
+            <Button size="sm" onClick={() => { setQuickPayTipo("credito"); setQuickPaySearch(""); setQuickPaySelectedScadenza(null); setQuickPayOpen(true); }} className="gap-1.5 h-9 bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Plus className="h-3.5 w-3.5" />
+              Incasso
+            </Button>
+            <Button size="sm" onClick={() => { setQuickPayTipo("debito"); setQuickPaySearch(""); setQuickPaySelectedScadenza(null); setQuickPayOpen(true); }} className="gap-1.5 h-9 bg-red-600 hover:bg-red-700 text-white">
+              <Plus className="h-3.5 w-3.5" />
+              Pagamento
+            </Button>
           </div>
         </div>
       </div>
