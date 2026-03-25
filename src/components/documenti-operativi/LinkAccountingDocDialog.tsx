@@ -116,7 +116,6 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
 
       setUploadStatus("saving");
       const extracted = aiResult?.data || aiResult || {};
-      const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
 
       const { data: newInvoice, error: insertError } = await supabase.from("invoice_registry").insert({
         invoice_number: extracted.invoice_number || `FV-${Date.now().toString().slice(-6)}`,
