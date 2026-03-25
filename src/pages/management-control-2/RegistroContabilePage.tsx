@@ -1928,14 +1928,11 @@ export default function RegistroContabilePage() {
 
 
   // Mutation per eliminare dal registro contabile
-  // IMPORTANTE: Solo per elementi NON contabilizzati (bozza)
-  // Per elementi contabilizzati, usare storno dalla Prima Nota
-  const deleteInvoiceMutation = useMutation({
-    mutationFn: async (invoice: InvoiceRegistry) => {
-      // BLOCCO: Non eliminare se già contabilizzato (ha prima_nota)
-      if (invoice.prima_nota_id && invoice.status === 'registrata') {
-        throw new Error('Evento già contabilizzato. Per annullarlo, usare la funzione Storno dalla Prima Nota.');
-      }
+   const deleteInvoiceMutation = useMutation({
+     mutationFn: async (invoice: InvoiceRegistry) => {
+       if (invoice.status === 'rettificato') {
+         throw new Error('Evento rettificato/bloccato. Non è possibile eliminarlo.');
+       }
       
       // Elimina nell'ordine corretto rispettando le foreign keys
       
@@ -3151,9 +3148,15 @@ export default function RegistroContabilePage() {
               <LinkIcon className="w-3.5 h-3.5 mr-1" />Scadenza
             </Button>
           )}
-          {invoice.stornato && invoice.motivo_storno && (
-            <span className="text-xs text-muted-foreground ml-1">Storno: {invoice.motivo_storno}</span>
-          )}
+           {invoice.stornato && invoice.motivo_storno && (
+             <span className="text-xs text-muted-foreground ml-1">Storno: {invoice.motivo_storno}</span>
+           )}
+           {invoice.status !== 'rettificato' && (
+             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+               onClick={() => { if (confirm('Eliminare questa fattura e tutti i dati collegati (prima nota, scadenze)?')) deleteInvoiceMutation.mutate(invoice); }}>
+               <Trash2 className="w-3.5 h-3.5" />
+             </Button>
+           )}
         </div>
       </TableCell>
     </>
@@ -3686,9 +3689,9 @@ export default function RegistroContabilePage() {
           }}
           onEdit={(invoice) => openEditDialog(invoice as any)}
           onRegister={(invoice) => openEditDialog(invoice as any)}
-          onDelete={(invoice) => {
-            if (confirm('Eliminare questa bozza?')) deleteInvoiceMutation.mutate(invoice as any);
-          }}
+           onDelete={(invoice) => {
+             if (confirm('Eliminare questa fattura e tutti i dati collegati (prima nota, scadenze)?')) deleteInvoiceMutation.mutate(invoice as any);
+           }}
           onRegenerate={(invoice) => {
             if (confirm('Rigenerare la Prima Nota?')) regeneratePrimaNotaMutation.mutate(invoice as any);
           }}
