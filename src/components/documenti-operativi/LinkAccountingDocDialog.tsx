@@ -464,12 +464,12 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
                               <Calendar className="h-2.5 w-2.5" />
                               {format(new Date(inv.invoice_date), "dd MMM yyyy", { locale: it })}
                             </span>
-                            {isAlreadyLinked && (
+                            {isAlreadyLinkedToThis && (
                               <>
                                 <span>•</span>
-                                <span className="text-amber-600 flex items-center gap-0.5">
+                                <span className="text-emerald-600 flex items-center gap-0.5">
                                   <LinkIcon className="h-2.5 w-2.5" />
-                                  Già collegata
+                                  Già collegata a questo doc.
                                 </span>
                               </>
                             )}
