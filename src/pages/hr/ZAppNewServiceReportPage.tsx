@@ -1351,7 +1351,7 @@ export default function ZAppNewServiceReportPage() {
                     )}
                   </div>
 
-                  <Separator />
+                  <div className="border-t border-border" />
 
                   {/* Importo Definito (effettivo) */}
                   <div className="space-y-2">
