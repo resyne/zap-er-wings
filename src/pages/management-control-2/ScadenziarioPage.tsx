@@ -525,7 +525,7 @@ export default function ScadenziarioPage() {
       const { error: righeError } = await supabase.from("prima_nota_lines").insert(righe);
       if (righeError) throw righeError;
 
-      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert({
+      const movimentoPayload: any = {
         scadenza_id: scadenza.id,
         evento_finanziario_id: eventoData.id,
         prima_nota_id: primaNotaResult.id,
@@ -534,7 +534,12 @@ export default function ScadenziarioPage() {
         metodo_pagamento: metodo,
         note: note + (uploadedFiles.length > 0 ? `\n\nAllegati: ${uploadedFiles.map(f => f.name).join(', ')}` : ''),
         attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
-      });
+      };
+      if (metodo === "assegno") {
+        movimentoPayload.check_due_date = (files as any).__checkDueDate || null;
+        movimentoPayload.check_number = (files as any).__checkNumber || null;
+      }
+      const { error: movimentoError } = await supabase.from("scadenza_movimenti").insert(movimentoPayload);
       if (movimentoError) throw movimentoError;
 
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
@@ -586,6 +591,8 @@ export default function ScadenziarioPage() {
     setMetodoRegistrazione("bonifico");
     setNoteRegistrazione("");
     setPaymentFiles([]);
+    setCheckDueDate("");
+    setCheckNumber("");
   };
 
   const openRegistraDialog = (scadenza: Scadenza) => {
