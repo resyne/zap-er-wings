@@ -10567,6 +10567,7 @@ export type Database = {
           customer_id: string | null
           customer_invoice_id: string | null
           customer_signature: string | null
+          defined_amount: number | null
           description: string | null
           end_time: string | null
           head_technician_hours: number | null
@@ -10612,6 +10613,7 @@ export type Database = {
           customer_id?: string | null
           customer_invoice_id?: string | null
           customer_signature?: string | null
+          defined_amount?: number | null
           description?: string | null
           end_time?: string | null
           head_technician_hours?: number | null
@@ -10657,6 +10659,7 @@ export type Database = {
           customer_id?: string | null
           customer_invoice_id?: string | null
           customer_signature?: string | null
+          defined_amount?: number | null
           description?: string | null
           end_time?: string | null
           head_technician_hours?: number | null

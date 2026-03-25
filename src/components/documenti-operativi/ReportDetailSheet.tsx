@@ -28,6 +28,9 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesChanged, setNotesChanged] = useState(false);
+  const [definedAmount, setDefinedAmount] = useState<string>("");
+  const [savingAmount, setSavingAmount] = useState(false);
+  const [amountChanged, setAmountChanged] = useState(false);
 
   useEffect(() => {
     if (!open || !reportId) return;
@@ -40,7 +43,9 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
       setReport(reportRes.data);
       setMaterials(matRes.data || []);
       setNotes((reportRes.data as any)?.notes || "");
+      setDefinedAmount((reportRes.data as any)?.defined_amount != null ? String((reportRes.data as any).defined_amount) : "");
       setNotesChanged(false);
+      setAmountChanged(false);
       // Check linked order
       const reportData = reportRes.data as any;
       if (reportData?.sales_order_id) {
@@ -65,6 +70,20 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
   };
 
   if (!open) return null;
+
+  const handleSaveDefinedAmount = async () => {
+    if (!reportId) return;
+    setSavingAmount(true);
+    const val = definedAmount ? parseFloat(definedAmount) : null;
+    const { error } = await supabase.from("service_reports").update({ defined_amount: val } as any).eq("id", reportId);
+    setSavingAmount(false);
+    if (error) {
+      toast.error("Errore nel salvataggio dell'importo");
+    } else {
+      toast.success("Importo definito salvato");
+      setAmountChanged(false);
+    }
+  };
 
   const matNetto = materials.reduce((s, m) => s + m.quantity * m.unit_price, 0);
   const matIva = materials.reduce((s, m) => s + m.quantity * m.unit_price * m.vat_rate / 100, 0);
@@ -199,33 +218,53 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
                 </div>
               </Section>
 
-              {(report.amount || report.total_amount) && (
-                <>
-                  <Separator />
-                  <Section title="Dettagli economici" icon={Euro}>
-                    <div className="space-y-2 text-sm">
-                      {report.amount != null && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Importo netto</span>
-                          <span className="font-medium">€{Number(report.amount).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {report.vat_rate != null && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">IVA</span>
-                          <span>{Number(report.vat_rate).toFixed(0)}%</span>
-                        </div>
-                      )}
-                      {report.total_amount != null && (
-                        <div className="flex justify-between pt-2 border-t font-semibold text-primary">
-                          <span>Totale</span>
+              <Separator />
+              <Section title="Dettagli economici" icon={Euro}>
+                <div className="space-y-3 text-sm">
+                  {report.total_amount != null && (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Importo stimato (calcolato)</p>
+                      <div className="space-y-1">
+                        {report.amount != null && (
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Netto</span>
+                            <span>€{Number(report.amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {report.vat_rate != null && (
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>IVA {Number(report.vat_rate).toFixed(0)}%</span>
+                            <span>€{(Number(report.amount || 0) * Number(report.vat_rate) / 100).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-semibold pt-1 border-t border-border/50">
+                          <span>Totale stimato</span>
                           <span>€{Number(report.total_amount).toFixed(2)}</span>
                         </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Importo definito (effettivo)</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">€</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Inserisci importo..."
+                        value={definedAmount}
+                        onChange={(e) => { setDefinedAmount(e.target.value); setAmountChanged(true); }}
+                        className="flex-1 h-8 rounded-md border border-input bg-background px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      {amountChanged && (
+                        <Button size="sm" variant="default" className="h-8 gap-1 px-2.5" onClick={handleSaveDefinedAmount} disabled={savingAmount}>
+                          {savingAmount ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        </Button>
                       )}
                     </div>
-                  </Section>
-                </>
-              )}
+                  </div>
+                </div>
+              </Section>
 
               {(report.customer_signature || report.technician_signature) && (
                 <>

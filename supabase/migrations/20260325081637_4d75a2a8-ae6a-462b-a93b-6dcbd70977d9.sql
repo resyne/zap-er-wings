@@ -1,0 +1,1 @@
+ALTER TABLE service_reports ADD COLUMN defined_amount numeric DEFAULT NULL;
