@@ -122,6 +122,8 @@ interface ScadenzaMovimento {
   metodo_pagamento: string | null;
   note: string | null;
   created_at: string;
+  check_due_date?: string | null;
+  check_number?: string | null;
 }
 
 type GroupByMode = "soggetto" | "anno" | "mese" | "giorno";
@@ -964,10 +966,13 @@ export default function ScadenziarioPage() {
                                           {movimenti && movimenti.length > 0 ? (
                                             <div className="space-y-1.5">
                                               {movimenti.map((mov) => (
-                                                <div key={mov.id} className="flex items-center justify-between p-2.5 bg-background rounded-md border text-sm">
+                                                <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "bg-background")}>
                                                   <div className="flex items-center gap-2.5">
-                                                    <div className={cn("p-1.5 rounded-full", scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                      <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                    <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100 dark:bg-amber-900/30" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                      {mov.metodo_pagamento === "assegno" 
+                                                        ? <Receipt className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+                                                        : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                      }
                                                     </div>
                                                     <div>
                                                       <span className="font-medium">{fmtEuro(mov.importo)}</span>
@@ -975,6 +980,15 @@ export default function ScadenziarioPage() {
                                                         {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
                                                         {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
                                                       </span>
+                                                      {mov.metodo_pagamento === "assegno" && mov.check_due_date && (
+                                                        <div className="flex items-center gap-1 mt-0.5">
+                                                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700 text-[10px] gap-1">
+                                                            <Clock className="h-2.5 w-2.5" />
+                                                            Assegno scade: {format(parseISO(mov.check_due_date), "dd/MM/yyyy")}
+                                                            {mov.check_number && ` (N. ${mov.check_number})`}
+                                                          </Badge>
+                                                        </div>
+                                                      )}
                                                     </div>
                                                   </div>
                                                   {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
