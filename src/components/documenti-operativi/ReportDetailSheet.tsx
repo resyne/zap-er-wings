@@ -181,14 +181,23 @@ export function ReportDetailSheet({ open, onOpenChange, reportId, customerName, 
                 </>
               )}
 
-              {report.notes && (
-                <>
-                  <Separator />
-                  <Section title="Note" icon={FileText}>
-                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">{report.notes}</p>
-                  </Section>
-                </>
-              )}
+              <Separator />
+              <Section title="Note" icon={StickyNote}>
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Aggiungi note su questo rapporto..."
+                    value={notes}
+                    onChange={(e) => { setNotes(e.target.value); setNotesChanged(true); }}
+                    className="min-h-[80px] resize-none text-sm"
+                  />
+                  {notesChanged && (
+                    <Button size="sm" className="gap-1.5" onClick={handleSaveNotes} disabled={savingNotes}>
+                      {savingNotes ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Salva note
+                    </Button>
+                  )}
+                </div>
+              </Section>
 
               {(report.amount || report.total_amount) && (
                 <>
