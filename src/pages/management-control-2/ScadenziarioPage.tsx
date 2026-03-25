@@ -99,7 +99,7 @@ interface Scadenza {
   data_scadenza: string;
   importo_totale: number;
   importo_residuo: number;
-  stato: "aperta" | "parziale" | "chiusa" | "saldata" | "stornata";
+  stato: "aperta" | "parziale" | "chiusa" | "saldata" | "stornata" | "assegno_in_cassa";
   iva_mode: string | null;
   conto_economico: string | null;
   centro_id: string | null;
@@ -128,7 +128,7 @@ interface ScadenzaMovimento {
 
 type GroupByMode = "soggetto" | "anno" | "mese" | "giorno";
 type TipoFilter = "tutti" | "crediti" | "debiti";
-type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa";
+type StatoFilter = "tutti" | "aperta" | "parziale" | "chiusa" | "assegno_in_cassa";
 
 interface GroupData {
   key: string;
@@ -149,6 +149,7 @@ const getGiorniScadenza = (dataScadenza: string) => {
 };
 
 const isClosedScadenza = (s: Scadenza) => s.stato === "chiusa" || s.stato === "saldata";
+const isAssegnoInCassa = (s: Scadenza) => s.stato === "assegno_in_cassa";
 
 const fmtEuro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
 
@@ -549,7 +550,12 @@ export default function ScadenziarioPage() {
       if (movimentoError) throw movimentoError;
 
       const nuovoResiduo = Number(scadenza.importo_residuo) - importo;
-      const nuovoStato = nuovoResiduo <= 0 ? "chiusa" : nuovoResiduo < Number(scadenza.importo_totale) ? "parziale" : "aperta";
+      const hasAssegno = metodo === "assegno";
+      const nuovoStato = nuovoResiduo <= 0
+        ? (hasAssegno ? "assegno_in_cassa" : "chiusa")
+        : nuovoResiduo < Number(scadenza.importo_totale)
+          ? "parziale"
+          : "aperta";
 
       const { error: updateError } = await supabase
         .from("scadenze")
@@ -586,6 +592,34 @@ export default function ScadenziarioPage() {
     },
     onError: (error) => {
       toast.error(`Errore durante la registrazione: ${error.message}`);
+    },
+  });
+
+  // Mutation to confirm check collection (incassa assegno)
+  const incassaAssegnoMutation = useMutation({
+    mutationFn: async (scadenza: Scadenza) => {
+      const { error } = await supabase
+        .from("scadenze")
+        .update({ stato: "chiusa" })
+        .eq("id", scadenza.id);
+      if (error) throw error;
+
+      // Update linked invoice financial status
+      if (scadenza.fattura_id) {
+        const newFinancialStatus = scadenza.tipo === "credito" ? "incassata" : "pagata";
+        await supabase
+          .from("invoice_registry")
+          .update({ financial_status: newFinancialStatus })
+          .eq("id", scadenza.fattura_id);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Assegno incassato, scadenza chiusa");
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenza-movimenti"] });
+    },
+    onError: (error) => {
+      toast.error(`Errore: ${error.message}`);
     },
   });
 
@@ -656,6 +690,7 @@ export default function ScadenziarioPage() {
       case "aperta": return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Aperta</Badge>;
       case "parziale": return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px]">Parziale</Badge>;
       case "chiusa": case "saldata": return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">Chiusa</Badge>;
+      case "assegno_in_cassa": return <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] gap-0.5"><Receipt className="h-2.5 w-2.5" />Assegno in cassa</Badge>;
       case "stornata": return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 text-[10px]">Stornata</Badge>;
       default: return <Badge variant="outline" className="text-[10px]">{stato}</Badge>;
     }
@@ -781,13 +816,14 @@ export default function ScadenziarioPage() {
               />
             </div>
             <Select value={statoFilter} onValueChange={(v) => setStatoFilter(v as StatoFilter)}>
-              <SelectTrigger className="w-28 h-9 bg-background">
+              <SelectTrigger className="w-36 h-9 bg-background">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="tutti">Tutti</SelectItem>
                 <SelectItem value="aperta">Aperte</SelectItem>
                 <SelectItem value="parziale">Parziali</SelectItem>
+                <SelectItem value="assegno_in_cassa">Assegno in cassa</SelectItem>
                 <SelectItem value="chiusa">Chiuse</SelectItem>
               </SelectContent>
             </Select>
@@ -899,7 +935,8 @@ export default function ScadenziarioPage() {
                                     key={scadenza.id}
                                     className={cn(
                                       isClosedScadenza(scadenza) && "opacity-50",
-                                      giorni < 0 && !isClosedScadenza(scadenza) && "bg-orange-50/50"
+                                      isAssegnoInCassa(scadenza) && "bg-indigo-50/50 dark:bg-indigo-950/20",
+                                      giorni < 0 && !isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && "bg-orange-50/50"
                                     )}
                                   >
                                     <TableCell className="pl-12">
@@ -941,17 +978,28 @@ export default function ScadenziarioPage() {
                                     <TableCell className="text-right text-sm">
                                       {fmtEuro(Number(scadenza.importo_totale))}
                                     </TableCell>
-                                    <TableCell className={cn("text-right font-semibold text-sm", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")}>
+                                    <TableCell className={cn("text-right font-semibold text-sm", 
+                                      isAssegnoInCassa(scadenza) ? "text-indigo-700" : scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700"
+                                    )}>
                                       {fmtEuro(Number(scadenza.importo_residuo))}
                                     </TableCell>
                                     <TableCell>{getStatoBadge(scadenza.stato)}</TableCell>
                                     <TableCell>
-                                      {!isClosedScadenza(scadenza) && (
-                                        <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
-                                          <CreditCard className="h-3 w-3" />
-                                          {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
-                                        </Button>
-                                      )}
+                                      <div className="flex items-center gap-1">
+                                        {isAssegnoInCassa(scadenza) && (
+                                          <Button size="sm" variant="outline" onClick={() => incassaAssegnoMutation.mutate(scadenza)} disabled={incassaAssegnoMutation.isPending}
+                                            className="gap-1 h-7 text-xs border-indigo-300 text-indigo-700 hover:bg-indigo-50">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Incassa
+                                          </Button>
+                                        )}
+                                        {!isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && (
+                                          <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
+                                            <CreditCard className="h-3 w-3" />
+                                            {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
+                                          </Button>
+                                        )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
 
