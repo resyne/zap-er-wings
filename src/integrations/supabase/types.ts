@@ -4837,6 +4837,44 @@ export type Database = {
           },
         ]
       }
+      invoice_document_links: {
+        Row: {
+          document_id: string
+          document_type: string
+          id: string
+          invoice_id: string
+          linked_at: string
+          linked_by: string | null
+          notes: string | null
+        }
+        Insert: {
+          document_id: string
+          document_type: string
+          id?: string
+          invoice_id: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+        }
+        Update: {
+          document_id?: string
+          document_type?: string
+          id?: string
+          invoice_id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_document_links_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_email_log: {
         Row: {
           ai_raw_data: Json | null
