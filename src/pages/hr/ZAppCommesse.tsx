@@ -86,6 +86,7 @@ const phaseConfig: Record<string, { label: string; icon: any; color: string; lig
   installazione: { label: "Installazione", icon: MapPin, color: "bg-blue-500", lightBg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
   manutenzione: { label: "Manutenzione", icon: Wrench, color: "bg-teal-500", lightBg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
   riparazione: { label: "Riparazione", icon: Settings, color: "bg-red-500", lightBg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  intervento: { label: "Intervento", icon: Wrench, color: "bg-teal-500", lightBg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
 };
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -150,6 +151,12 @@ const statusFlowByPhase: Record<string, Array<{ value: string; label: string }>>
   riparazione: [
     { value: "da_programmare", label: "Da programmare" },
     { value: "in_lavorazione", label: "In corso" },
+    { value: "completata", label: "Completata" },
+  ],
+  intervento: [
+    { value: "da_fare", label: "Da fare" },
+    { value: "in_lavorazione", label: "In corso" },
+    { value: "standby", label: "Standby" },
     { value: "completata", label: "Completata" },
   ],
 };
