@@ -1065,6 +1065,7 @@ export default function ScadenziarioPage() {
                   <SelectItem value="bonifico">Bonifico</SelectItem>
                   <SelectItem value="banca">Banca</SelectItem>
                   <SelectItem value="banca_intesa">Banca Intesa</SelectItem>
+                  <SelectItem value="assegno">Assegno</SelectItem>
                   <SelectItem value="carta">Carta</SelectItem>
                   <SelectItem value="american_express">American Express</SelectItem>
                   <SelectItem value="carta_aziendale">Carta Aziendale</SelectItem>
@@ -1077,6 +1078,23 @@ export default function ScadenziarioPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {metodoRegistrazione === "assegno" && (
+              <div className="space-y-3 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <Receipt className="h-3.5 w-3.5" />
+                  Dettagli Assegno
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="checkNumber">Numero Assegno</Label>
+                  <Input id="checkNumber" value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} placeholder="N. assegno" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="checkDueDate">Data Scadenza Assegno *</Label>
+                  <Input id="checkDueDate" type="date" value={checkDueDate} onChange={(e) => setCheckDueDate(e.target.value)} />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="note">Note (opzionale)</Label>
