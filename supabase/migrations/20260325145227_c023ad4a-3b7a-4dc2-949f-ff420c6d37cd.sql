@@ -1,0 +1,2 @@
+-- Fix existing scadenze that were closed with assegno payments
+UPDATE public.scadenze SET stato = 'assegno_in_cassa' WHERE stato = 'chiusa' AND id IN (SELECT DISTINCT s.id FROM scadenze s INNER JOIN scadenza_movimenti sm ON sm.scadenza_id = s.id WHERE sm.metodo_pagamento = 'assegno' AND s.stato = 'chiusa');
