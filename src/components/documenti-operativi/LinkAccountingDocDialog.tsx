@@ -49,7 +49,7 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     queryFn: async () => {
       let q = supabase
         .from("invoice_registry")
-        .select("id, invoice_number, invoice_date, invoice_type, subject_name, total_amount, status, financial_status, imponibile, iva_rate, source_document_id")
+        .select("id, invoice_number, invoice_date, invoice_type, subject_name, total_amount, status, financial_status, imponibile, iva_rate")
         .order("invoice_date", { ascending: false })
         .limit(200);
       if (search) {
@@ -60,6 +60,23 @@ export function LinkAccountingDocDialog({ open, onOpenChange, docType, docId, do
     },
     enabled: open,
   });
+
+  // Fetch existing links for THIS document
+  const sourceType = docType === "order" ? "sales_order" : docType === "ddt" ? "ddt" : "service_report";
+  const { data: existingLinks = [] } = useQuery({
+    queryKey: ["invoice-document-links", docId, sourceType],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("invoice_document_links")
+        .select("id, invoice_id, document_id, document_type")
+        .eq("document_id", docId)
+        .eq("document_type", sourceType);
+      return data || [];
+    },
+    enabled: open && !!docId,
+  });
+
+  const alreadyLinkedInvoiceIds = new Set(existingLinks.map(l => l.invoice_id));
 
   // Filtered invoices
   const filteredInvoices = useMemo(() => {
