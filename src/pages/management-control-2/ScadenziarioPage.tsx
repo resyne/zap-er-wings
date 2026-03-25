@@ -1300,6 +1300,94 @@ export default function ScadenziarioPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Quick Pay Dialog ────────────────────────── */}
+      <Dialog open={quickPayOpen} onOpenChange={setQuickPayOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {quickPayTipo === "credito" ? (
+                <><ArrowUpCircle className="h-5 w-5 text-emerald-600" /> Registra Incasso</>
+              ) : (
+                <><ArrowDownCircle className="h-5 w-5 text-red-600" /> Registra Pagamento</>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {!quickPaySelectedScadenza ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-muted-foreground">
+                Seleziona la scadenza da {quickPayTipo === "credito" ? "incassare" : "pagare"}:
+              </p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca per soggetto o n. fattura…"
+                  value={quickPaySearch}
+                  onChange={(e) => setQuickPaySearch(e.target.value)}
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+              <div className="border rounded-lg max-h-[350px] overflow-y-auto divide-y">
+                {(scadenze || [])
+                  .filter(s => s.tipo === quickPayTipo && !isClosedScadenza(s))
+                  .filter(s => {
+                    if (!quickPaySearch) return true;
+                    const q = quickPaySearch.toLowerCase();
+                    return (s.soggetto_nome?.toLowerCase().includes(q) || s.invoice_number?.toLowerCase().includes(q));
+                  })
+                  .slice(0, 50)
+                  .map(s => {
+                    const giorni = getGiorniScadenza(s.data_scadenza);
+                    return (
+                      <button
+                        key={s.id}
+                        className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left"
+                        onClick={() => {
+                          setQuickPaySelectedScadenza(s);
+                          setQuickPayOpen(false);
+                          openRegistraDialog(s);
+                        }}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{s.soggetto_nome || "N/D"}</span>
+                            {s.invoice_number && (
+                              <span className="text-xs font-mono text-muted-foreground">{s.invoice_number}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-muted-foreground">
+                              Scad. {format(parseISO(s.data_scadenza), "dd/MM/yyyy")}
+                            </span>
+                            {getGiorniBadge(giorni, s.stato)}
+                            {getStatoBadge(s.stato)}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className={cn("font-bold text-sm", quickPayTipo === "credito" ? "text-emerald-700" : "text-red-700")}>
+                            {fmtEuro(Number(s.importo_residuo))}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">di {fmtEuro(Number(s.importo_totale))}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                {(scadenze || []).filter(s => s.tipo === quickPayTipo && !isClosedScadenza(s)).filter(s => {
+                  if (!quickPaySearch) return true;
+                  const q = quickPaySearch.toLowerCase();
+                  return (s.soggetto_nome?.toLowerCase().includes(q) || s.invoice_number?.toLowerCase().includes(q));
+                }).length === 0 && (
+                  <div className="py-8 text-center text-muted-foreground text-sm">
+                    Nessuna scadenza {quickPayTipo === "credito" ? "da incassare" : "da pagare"} trovata
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
