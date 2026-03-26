@@ -1553,7 +1553,7 @@ export default function RegistroContabilePage() {
       // Creazione scadenze (singola o multiple)
       let scadenzaIds: string[] = [];
       if (invoice.financial_status === 'da_incassare' || invoice.financial_status === 'da_pagare') {
-        const tipo = invoice.invoice_type === 'acquisto' ? 'debito' : 'credito';
+        const tipo = (invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto') ? 'debito' : 'credito';
         
         // Se ci sono scadenze multiple, crea una per ciascuna
         if (scadenze.length > 0) {
@@ -3928,9 +3928,9 @@ export default function RegistroContabilePage() {
               {/* ═══════════════════════════════════════════════ */}
               <div className="space-y-1.5 pb-4 border-b">
                 <Label className="text-xs">
-                  {formData.invoice_type === 'acquisto' ? 'Conto di Costo' : 'Conto di Ricavo'} *
+                  {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? 'Conto di Costo' : 'Conto di Ricavo'} *
                 </Label>
-                {formData.invoice_type === 'acquisto' ? (
+                {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? (
                   <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="Seleziona conto..." /></SelectTrigger>
                     <SelectContent>
@@ -4030,7 +4030,7 @@ export default function RegistroContabilePage() {
               <div className="space-y-3 pb-4 border-b">
                 <Label className="text-sm font-semibold text-muted-foreground">Controllo di gestione</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {formData.invoice_type === 'acquisto' ? (
+                  {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? (
                     <div className="space-y-1.5 col-span-2">
                       <Label className="text-xs">Centro di Costo</Label>
                       <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
@@ -4434,7 +4434,7 @@ export default function RegistroContabilePage() {
                       {(selectedInvoice.financial_status === 'da_incassare' || selectedInvoice.financial_status === 'da_pagare') && (
                         <li>Scadenza nello Scadenziario</li>
                       )}
-                      <li>{selectedInvoice.invoice_type === 'acquisto' ? 'Debito' : 'Credito'}</li>
+                      <li>{(selectedInvoice.invoice_type === 'acquisto' || selectedInvoice.invoice_type === 'ricevuta_acquisto') ? 'Debito' : 'Credito'}</li>
                     </ul>
                   </div>
                 </div>
@@ -4738,7 +4738,7 @@ export default function RegistroContabilePage() {
             )}
             
             {/* Cost center and account for purchases */}
-            {editFormData.invoice_type === 'acquisto' && (
+            {(editFormData.invoice_type === 'acquisto' || editFormData.invoice_type === 'ricevuta_acquisto') && (
               <>
                 <div className="space-y-2">
                   <Label>Centro di Costo</Label>
@@ -5514,7 +5514,7 @@ function InvoiceDetailsDialog({
 
   if (!invoice) return null;
 
-  const isCost = invoice.invoice_type === 'acquisto';
+  const isCost = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
   const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
 
   return (
