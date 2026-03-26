@@ -44,6 +44,8 @@ interface Technician {
   first_name: string;
   last_name: string;
   employee_code: string;
+  phone: string | null;
+  mobile: string | null;
 }
 
 interface WorkOrder {
@@ -289,7 +291,7 @@ export default function ZAppNewServiceReportPage() {
           .select('id, name, email, phone, company_name, address, city, province, postal_code, country, tax_id, pec, sdi_code, shipping_address')
           .order('company_name', { ascending: true, nullsFirst: false }).order('name'),
         supabase.from('technicians')
-          .select('id, first_name, last_name, employee_code')
+          .select('id, first_name, last_name, employee_code, phone, mobile')
           .eq('active', true).order('first_name'),
         supabase.from('commesse')
           .select('id, number, title, description, customer_id, type, customers(name, company_name)')
@@ -539,6 +541,7 @@ export default function ZAppNewServiceReportPage() {
           report_number: data.report_number,
           customer_name: selectedCustomer?.name || selectedCustomer?.company_name || "",
           technician_name: selectedTechnician ? `${selectedTechnician.first_name} ${selectedTechnician.last_name}` : "",
+          technician_phone: selectedTechnician?.mobile || selectedTechnician?.phone || null,
           intervention_date: formData.intervention_date,
           notes: formData.notes || null,
         },
