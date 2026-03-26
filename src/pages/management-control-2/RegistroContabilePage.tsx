@@ -1332,7 +1332,7 @@ export default function RegistroContabilePage() {
       const now = new Date().toISOString();
 
       // Determina se è un costo o un ricavo
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const eventType = isAcquisto ? 'costo' : 'ricavo';
       const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
       const paymentMethod = invoice.payment_method || 'bonifico';
@@ -1726,7 +1726,7 @@ export default function RegistroContabilePage() {
       // CASCATA: aggiorna documenti collegati per fatture registrate
       // ========================================================
       if (invoice.prima_nota_id || invoice.accounting_entry_id || invoice.scadenza_id) {
-        const isAcquisto = updates.invoice_type === 'acquisto';
+        const isAcquisto = updates.invoice_type === 'acquisto' || updates.invoice_type === 'ricevuta_acquisto';
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
         const paymentMethod = updates.payment_method || 'bonifico';
         const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
@@ -2039,7 +2039,7 @@ export default function RegistroContabilePage() {
       const newResiduo = Math.max(0, scadenza.importo_residuo - paymentAmount);
       const isFullyPaid = newResiduo < 0.01;
       
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const payMethodKey = payment.payment_method?.toUpperCase() || 'BANCA';
       
       // 1. Crea movimento di Prima Nota per il pagamento
@@ -2203,7 +2203,7 @@ export default function RegistroContabilePage() {
       const now = new Date().toISOString();
       
       // Determina parametri
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
       const paymentMethod = invoice.payment_method || 'bonifico';
       const eventType = isAcquisto ? 'costo' : 'ricavo';
@@ -2660,7 +2660,7 @@ export default function RegistroContabilePage() {
     // Now create the full accounting chain (like registerMutation)
     const { data: user } = await supabase.auth.getUser();
     const now = new Date().toISOString();
-    const isAcquisto = effectiveInv.invoice_type === 'acquisto';
+    const isAcquisto = effectiveInv.invoice_type === 'acquisto' || effectiveInv.invoice_type === 'ricevuta_acquisto';
     const eventType = isAcquisto ? 'costo' : 'ricavo';
     const financialStatus = effectiveInv.financial_status || (isAcquisto ? 'da_pagare' : 'da_incassare');
     const isPaid = ['pagata', 'incassata'].includes(financialStatus);
