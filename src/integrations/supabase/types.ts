@@ -10329,9 +10329,11 @@ export type Database = {
           soggetto_id: string | null
           soggetto_nome: string | null
           soggetto_tipo: string | null
+          solleciti_count: number | null
           stato: string
           termini_pagamento: number | null
           tipo: string
+          ultimo_sollecito_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -10351,9 +10353,11 @@ export type Database = {
           soggetto_id?: string | null
           soggetto_nome?: string | null
           soggetto_tipo?: string | null
+          solleciti_count?: number | null
           stato?: string
           termini_pagamento?: number | null
           tipo: string
+          ultimo_sollecito_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -10373,9 +10377,11 @@ export type Database = {
           soggetto_id?: string | null
           soggetto_nome?: string | null
           soggetto_tipo?: string | null
+          solleciti_count?: number | null
           stato?: string
           termini_pagamento?: number | null
           tipo?: string
+          ultimo_sollecito_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -11362,6 +11368,84 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      solleciti: {
+        Row: {
+          canale: string
+          created_at: string | null
+          email_sent: boolean | null
+          fattura_id: string | null
+          id: string
+          importo_residuo: number
+          inviato_at: string | null
+          inviato_da: string | null
+          invoice_number: string | null
+          livello: number
+          messaggio: string | null
+          note: string | null
+          scadenza_id: string
+          soggetto_email: string | null
+          soggetto_nome: string | null
+          soggetto_telefono: string | null
+          stato: string
+          whatsapp_sent: boolean | null
+        }
+        Insert: {
+          canale?: string
+          created_at?: string | null
+          email_sent?: boolean | null
+          fattura_id?: string | null
+          id?: string
+          importo_residuo?: number
+          inviato_at?: string | null
+          inviato_da?: string | null
+          invoice_number?: string | null
+          livello?: number
+          messaggio?: string | null
+          note?: string | null
+          scadenza_id: string
+          soggetto_email?: string | null
+          soggetto_nome?: string | null
+          soggetto_telefono?: string | null
+          stato?: string
+          whatsapp_sent?: boolean | null
+        }
+        Update: {
+          canale?: string
+          created_at?: string | null
+          email_sent?: boolean | null
+          fattura_id?: string | null
+          id?: string
+          importo_residuo?: number
+          inviato_at?: string | null
+          inviato_da?: string | null
+          invoice_number?: string | null
+          livello?: number
+          messaggio?: string | null
+          note?: string | null
+          scadenza_id?: string
+          soggetto_email?: string | null
+          soggetto_nome?: string | null
+          soggetto_telefono?: string | null
+          stato?: string
+          whatsapp_sent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solleciti_fattura_id_fkey"
+            columns: ["fattura_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solleciti_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       standard_costs: {
         Row: {
