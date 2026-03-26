@@ -76,6 +76,7 @@ import {
   Search,
   Upload,
   X,
+  Trash2,
   File,
   Image as ImageIcon,
   Link2,
