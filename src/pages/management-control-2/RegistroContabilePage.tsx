@@ -1935,44 +1935,28 @@ export default function RegistroContabilePage() {
        }
       
       // Elimina nell'ordine corretto rispettando le foreign keys
-      
-      // 1. Elimina invoice_registry (riferisce prima_nota)
+
+      // 1. Elimina scadenze collegate
+      if (invoice.scadenza_id) {
+        await supabase.from('scadenze').delete().eq('id', invoice.scadenza_id);
+      }
+      await supabase.from('scadenze').delete().eq('fattura_id', invoice.id);
+
+      // 2. Elimina invoice_registry (riferisce prima_nota)
       const { error: registryError } = await supabase
-        .from('invoice_registry')
-        .delete()
-        .eq('id', invoice.id);
+        .from('invoice_registry').delete().eq('id', invoice.id);
       if (registryError) throw registryError;
 
-      // 2. Elimina prima_nota se esiste (solo per bozze)
+      // 3. Elimina prima_nota_lines e prima_nota
       if (invoice.prima_nota_id) {
-        const { error: primaNotaError } = await supabase
-          .from('prima_nota')
-          .delete()
-          .eq('id', invoice.prima_nota_id);
-        if (primaNotaError) throw primaNotaError;
+        await supabase.from('prima_nota_lines').delete().eq('prima_nota_id', invoice.prima_nota_id);
+        await supabase.from('prima_nota').delete().eq('id', invoice.prima_nota_id);
       }
 
-      // 3. Elimina accounting_entry se esiste
+      // 4. Elimina accounting_entry
       if (invoice.accounting_entry_id) {
-        const { error: entryError } = await supabase
-          .from('accounting_entries')
-          .delete()
-          .eq('id', invoice.accounting_entry_id);
-        if (entryError) throw entryError;
+        await supabase.from('accounting_entries').delete().eq('id', invoice.accounting_entry_id);
       }
-
-      // 4. Elimina scadenza se esiste (per id diretto o per fattura_id)
-      if (invoice.scadenza_id) {
-        await supabase
-          .from('scadenze')
-          .delete()
-          .eq('id', invoice.scadenza_id);
-      }
-      // Elimina anche eventuali scadenze collegate tramite fattura_id
-      await supabase
-        .from('scadenze')
-        .delete()
-        .eq('fattura_id', invoice.id);
     },
     onSuccess: () => {
       toast.success('Elemento eliminato dal registro contabile');
