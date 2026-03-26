@@ -3811,24 +3811,29 @@ export default function RegistroContabilePage() {
                         updated.subject_type = 'fornitore';
                         updated.financial_status = 'da_pagare';
                         updated.iva_rate = 22;
+                        updated.vat_regime = 'domestica_imponibile';
                       } else if (v === 'fattura_vendita') {
                         updated.invoice_type = 'vendita';
                         updated.subject_type = 'cliente';
                         updated.financial_status = 'da_incassare';
                         updated.iva_rate = 22;
+                        updated.vat_regime = 'domestica_imponibile';
                       } else if (v === 'nota_credito') {
                         updated.invoice_type = 'nota_credito';
                         updated.iva_rate = 22;
+                        updated.vat_regime = 'domestica_imponibile';
                       } else if (v === 'ricevuta_acquisto') {
                         updated.invoice_type = 'ricevuta_acquisto';
                         updated.subject_type = 'fornitore';
                         updated.financial_status = 'da_pagare';
                         updated.iva_rate = 0;
+                        updated.vat_regime = 'esente';
                       } else if (v === 'ricevuta_vendita') {
                         updated.invoice_type = 'ricevuta_vendita';
                         updated.subject_type = 'cliente';
                         updated.financial_status = 'da_incassare';
                         updated.iva_rate = 0;
+                        updated.vat_regime = 'esente';
                       }
                       return updated;
                     });
