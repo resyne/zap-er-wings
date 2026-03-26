@@ -646,8 +646,26 @@ export default function ScadenziarioPage() {
     setCheckDueDate("");
     setCheckNumber("");
   };
+  // Delete scadenza mutation
+  const deleteScadenzaMutation = useMutation({
+    mutationFn: async (scadenzaId: string) => {
+      // Delete related solleciti first
+      await supabase.from("solleciti").delete().eq("scadenza_id", scadenzaId);
+      // Delete related movimenti
+      await supabase.from("scadenza_movimenti").delete().eq("scadenza_id", scadenzaId);
+      // Delete the scadenza
+      const { error } = await supabase.from("scadenze").delete().eq("id", scadenzaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Scadenza eliminata");
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
+    },
+    onError: (error) => toast.error(`Errore: ${error.message}`),
+  });
 
-  const openRegistraDialog = (scadenza: Scadenza) => {
+
     setSelectedScadenza(scadenza);
     setImportoRegistrazione(scadenza.importo_residuo.toString());
     setPaymentFiles([]);
