@@ -9,6 +9,7 @@ const SMTP_HOST = 'mail.abbattitorizapper.it';
 const SMTP_PORT = 587;
 const SMTP_USER = 'amministrazione@abbattitorizapper.it';
 const FROM_EMAIL = 'amministrazione@abbattitorizapper.it';
+const CC_EMAILS = ['info@abbattitorizapper.it', 'elefimpianti@gmail.com'];
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -141,6 +142,11 @@ const handler = async (req: Request): Promise<Response> => {
         // RCPT TO
         await secWrite(`RCPT TO:<${recipient_email}>\r\n`);
         await secRead();
+        // CC recipients
+        for (const cc of CC_EMAILS) {
+          await secWrite(`RCPT TO:<${cc}>\r\n`);
+          await secRead();
+        }
 
         // DATA
         await secWrite(`DATA\r\n`);
@@ -153,6 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
         const emailData = [
           `From: "Abbattitori Zapper S.r.l." <${FROM_EMAIL}>`,
           `To: ${recipient_email}`,
+          `Cc: ${CC_EMAILS.join(', ')}`,
           `Subject: ${subject}`,
           `Date: ${emailDate}`,
           `Message-ID: ${msgId}`,
@@ -199,11 +206,16 @@ const handler = async (req: Request): Promise<Response> => {
         await read();
         await write(`RCPT TO:<${recipient_email}>\r\n`);
         await read();
+        for (const cc of CC_EMAILS) {
+          await write(`RCPT TO:<${cc}>\r\n`);
+          await read();
+        }
+        await read();
         await write(`DATA\r\n`);
         await read();
 
         const emailDate = new Date().toUTCString();
-        const emailContent = `From: "Abbattitori Zapper S.r.l." <${FROM_EMAIL}>\r\nTo: ${recipient_email}\r\nSubject: ${subject}\r\nDate: ${emailDate}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${htmlBody}\r\n.\r\n`;
+        const emailContent = `From: "Abbattitori Zapper S.r.l." <${FROM_EMAIL}>\r\nTo: ${recipient_email}\r\nCc: ${CC_EMAILS.join(', ')}\r\nSubject: ${subject}\r\nDate: ${emailDate}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${htmlBody}\r\n.\r\n`;
         await write(emailContent);
         await read();
 
