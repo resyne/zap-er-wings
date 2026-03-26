@@ -137,7 +137,7 @@ interface InvoiceRegistry {
 type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
 type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
 type SubjectType = 'cliente' | 'fornitore';
-type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
+type VatRegime = 'domestica_imponibile' | 'ridotta_10' | 'ridotta_4' | 'esente' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'parzialmente_incassata' | 'parzialmente_pagata' | 'incassata' | 'pagata';
 
 // Stati obbligatori del registro contabile
