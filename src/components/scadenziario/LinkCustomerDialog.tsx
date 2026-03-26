@@ -83,19 +83,26 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
 
   const matches = useMemo(() => {
     if (!searchTerm.trim() || customers.length === 0) return [];
+    const searchLower = searchTerm.toLowerCase().trim();
     const normalizedSearch = normalizeCompanyName(searchTerm);
     return customers
       .map(c => {
-        const nameToCompare = c.company_name || c.name;
-        const normalizedName = normalizeCompanyName(nameToCompare);
+        const displayName = c.company_name || c.name;
+        // Check both name and company_name for includes match
+        const nameMatch = c.name?.toLowerCase().includes(searchLower);
+        const companyMatch = c.company_name?.toLowerCase().includes(searchLower);
+        const taxMatch = c.tax_id?.toLowerCase().includes(searchLower);
+        const directMatch = nameMatch || companyMatch || taxMatch;
+
+        const normalizedName = normalizeCompanyName(displayName);
         const sim = stringSimilarity(normalizedSearch, normalizedName);
-        const nameContains = nameToCompare.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          searchTerm.toLowerCase().includes(nameToCompare.toLowerCase());
-        return { ...c, similarity: nameContains ? Math.max(sim, 0.7) : sim } as CustomerMatch;
+        const finalSim = directMatch ? Math.max(sim, 0.75) : sim;
+
+        return { ...c, similarity: finalSim } as CustomerMatch;
       })
-      .filter(m => m.similarity >= 0.4)
+      .filter(m => m.similarity >= 0.3)
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 8);
+      .slice(0, 10);
   }, [searchTerm, customers]);
 
   const linkToCustomer = async (customerId: string) => {
