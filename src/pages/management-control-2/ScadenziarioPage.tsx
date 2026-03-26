@@ -1026,11 +1026,11 @@ export default function ScadenziarioPage() {
                                                 className="gap-1 h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50">
                                                 <AlertTriangle className="h-3 w-3" />
                                                 Sollecito
-                                                {(scadenza as any).solleciti_count > 0 && (
+                                                {scadenza.solleciti_count && scadenza.solleciti_count > 0 ? (
                                                   <Badge variant="outline" className="ml-0.5 h-4 px-1 text-[9px] bg-amber-100 border-amber-300">
-                                                    {(scadenza as any).solleciti_count}
+                                                    {scadenza.solleciti_count}
                                                   </Badge>
-                                                )}
+                                                ) : null}
                                               </Button>
                                             )}
                                           </>
