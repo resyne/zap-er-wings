@@ -132,7 +132,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
       if (!scadenza?.soggetto_id) return null;
       const { data } = await supabase
         .from("customers")
-        .select("email, phone")
+        .select("email, phone, contact_name, contact_email, contact_phone")
         .eq("id", scadenza.soggetto_id)
         .single();
       return data;
@@ -160,8 +160,8 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
           livello: nextLivello,
           canale,
           soggetto_nome: scadenza.soggetto_nome,
-          soggetto_email: customerInfo?.email || null,
-          soggetto_telefono: customerInfo?.phone || customerInfo?.phone || null,
+          soggetto_email: (customerInfo as any)?.contact_email || customerInfo?.email || null,
+          soggetto_telefono: (customerInfo as any)?.contact_phone || customerInfo?.phone || null,
           importo_residuo: scadenza.importo_residuo,
           invoice_number: scadenza.invoice_number || null,
           messaggio,
@@ -182,11 +182,12 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
         .eq("id", scadenza.id);
 
       // Try to send email if applicable
-      if ((canale === "email" || canale === "entrambi") && customerInfo?.email) {
+      const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
+      if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
         try {
           await supabase.functions.invoke("send-sollecito-email", {
             body: {
-              recipient_email: customerInfo.email,
+              recipient_email: sollecitoEmail,
               subject: `Sollecito pagamento fattura ${scadenza.invoice_number || ""}`,
               message: messaggio,
               livello: nextLivello,
@@ -199,11 +200,12 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
       }
 
       // Try WhatsApp if applicable
-      if ((canale === "whatsapp" || canale === "entrambi") && (customerInfo?.phone || customerInfo?.phone)) {
+      const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone;
+      if ((canale === "whatsapp" || canale === "entrambi") && sollecitoPhone) {
         try {
           await supabase.functions.invoke("send-whatsapp-sollecito", {
             body: {
-              phone: customerInfo.phone || customerInfo?.phone,
+              phone: sollecitoPhone,
               message: messaggio,
               livello: nextLivello,
               soggetto_nome: scadenza.soggetto_nome,
@@ -265,14 +267,19 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
               </div>
               {customerInfo && (
                 <div className="border-t pt-2 space-y-1">
-                  {customerInfo.email && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Mail className="h-3 w-3" /> {customerInfo.email}
+                  {(customerInfo as any)?.contact_name && (
+                    <div className="text-xs font-medium text-foreground">
+                      Referente: {(customerInfo as any).contact_name}
                     </div>
                   )}
-                  {(customerInfo.phone || customerInfo?.phone) && (
+                  {((customerInfo as any)?.contact_email || customerInfo.email) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MessageSquare className="h-3 w-3" /> {customerInfo.phone || customerInfo?.phone}
+                      <Mail className="h-3 w-3" /> {(customerInfo as any)?.contact_email || customerInfo.email}
+                    </div>
+                  )}
+                  {((customerInfo as any)?.contact_phone || customerInfo.phone) && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <MessageSquare className="h-3 w-3" /> {(customerInfo as any)?.contact_phone || customerInfo.phone}
                     </div>
                   )}
                 </div>

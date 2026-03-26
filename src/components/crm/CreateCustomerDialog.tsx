@@ -22,6 +22,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
     name: "",
     company_name: "",
     referent_name: "",
+    contact_email: "",
+    contact_phone: "",
     email: "",
     phone: "",
     tax_id: "",
@@ -72,8 +74,11 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
           city: formData.city || null,
           country: formData.country || null,
           active: formData.active,
-          incomplete_registry: formData.incomplete_registry
-        })
+          incomplete_registry: formData.incomplete_registry,
+          contact_name: formData.referent_name || null,
+          contact_email: (formData as any).contact_email || null,
+          contact_phone: (formData as any).contact_phone || null,
+        } as any)
         .select()
         .single();
 
@@ -90,6 +95,8 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
         name: "",
         company_name: "",
         referent_name: "",
+        contact_email: "",
+        contact_phone: "",
         email: "",
         phone: "",
         tax_id: "",
@@ -225,30 +232,55 @@ export function CreateCustomerDialog({ open, onOpenChange, onCustomerCreated }: 
             <Label htmlFor="same_billing">Stesso indirizzo di fatturazione</Label>
           </div>
 
-          {/* Referente e contatti */}
-          <div className="space-y-2">
-            <Label htmlFor="referent_name">Nome Referente</Label>
-            <Input
-              id="referent_name"
-              value={formData.referent_name}
-              onChange={(e) => handleInputChange('referent_name', e.target.value)}
-              placeholder="Nome e cognome referente"
-            />
+          {/* Referente */}
+          <div className="border-t pt-4 mt-2">
+            <h4 className="text-sm font-semibold mb-3">Referente</h4>
+            <div className="space-y-2">
+              <Label htmlFor="referent_name">Nome Referente</Label>
+              <Input
+                id="referent_name"
+                value={formData.referent_name}
+                onChange={(e) => handleInputChange('referent_name', e.target.value)}
+                placeholder="Nome e cognome referente"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div className="space-y-2">
+                <Label htmlFor="contact_email">Email Referente</Label>
+                <Input
+                  id="contact_email"
+                  type="email"
+                  value={formData.contact_email}
+                  onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                  placeholder="referente@cliente.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Telefono Referente</Label>
+                <Input
+                  id="contact_phone"
+                  value={formData.contact_phone}
+                  onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                  placeholder="+39 xxx xxx xxxx"
+                />
+              </div>
+            </div>
           </div>
 
+          {/* Contatti aziendali */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email Azienda</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="email@cliente.com"
+                placeholder="info@azienda.com"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefono</Label>
+              <Label htmlFor="phone">Telefono Azienda</Label>
               <Input
                 id="phone"
                 value={formData.phone}
