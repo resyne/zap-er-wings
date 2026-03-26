@@ -35,7 +35,7 @@ export type InvoiceRegistry = {
   id: string;
   invoice_number: string;
   invoice_date: string;
-  invoice_type: "vendita" | "acquisto" | "nota_credito";
+  invoice_type: "vendita" | "acquisto" | "nota_credito" | "ricevuta_acquisto" | "ricevuta_vendita";
   subject_type: "cliente" | "fornitore";
   subject_name: string;
   imponibile: number;
@@ -379,11 +379,13 @@ function InvoiceRow({
 function typeBadge(type: InvoiceRegistry["invoice_type"]) {
   if (type === "nota_credito") return <Badge variant="secondary" className="text-xs">Nota credito</Badge>;
   if (type === "nota_debito" as any) return <Badge variant="secondary" className="text-xs">Nota debito</Badge>;
+  if (type === "ricevuta_acquisto") return <Badge className="text-xs bg-purple-500/10 text-purple-600 border-purple-500/30">Ric. Acquisto</Badge>;
+  if (type === "ricevuta_vendita") return <Badge className="text-xs bg-teal-500/10 text-teal-600 border-teal-500/30">Ric. Vendita</Badge>;
   return <Badge variant="outline" className="text-xs">{type === "vendita" ? "Vendita" : "Acquisto"}</Badge>;
 }
 
 function paymentStatusBadge(status: string, invoiceType: string, dueDate?: string | null) {
-  const isVendita = invoiceType === "vendita" || invoiceType === "nota_credito";
+  const isVendita = invoiceType === "vendita" || invoiceType === "nota_credito" || invoiceType === "ricevuta_vendita";
 
   // Normalize: if status doesn't match invoice type, correct the display
   const isPending = ["da_incassare", "da_pagare"].includes(status);

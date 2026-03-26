@@ -34,7 +34,7 @@ interface AccountSplitManagerProps {
   enabled: boolean;
   onEnabledChange: (enabled: boolean) => void;
   totalAmount: number;
-  invoiceType: 'vendita' | 'acquisto' | 'nota_credito';
+  invoiceType: 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
   accounts: Account[];
   costCenters: Center[];
   profitCenters: Center[];
