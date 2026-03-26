@@ -30,7 +30,10 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
     city: "",
     country: "",
     tax_id: "",
-    active: true
+    active: true,
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
   });
   const { toast } = useToast();
 
@@ -50,7 +53,10 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
         city: customer.city || "",
         country: customer.country || "",
         tax_id: customer.tax_id || "",
-        active: customer.active !== false
+        active: customer.active !== false,
+        contact_name: customer.contact_name || "",
+        contact_email: customer.contact_email || "",
+        contact_phone: customer.contact_phone || "",
       });
     }
   }, [customer]);
@@ -87,8 +93,11 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
           country: formData.country || null,
           tax_id: formData.tax_id || null,
           active: formData.active,
+          contact_name: formData.contact_name || null,
+          contact_email: formData.contact_email || null,
+          contact_phone: formData.contact_phone || null,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', customer.id);
 
       if (error) throw error;
@@ -151,19 +160,55 @@ export function EditCustomerDialog({ open, onOpenChange, customer, onCustomerUpd
             />
           </div>
           
+          {/* Referente */}
+          <div className="border-t pt-4 mt-2">
+            <h4 className="text-sm font-semibold mb-3">Referente</h4>
+            <div className="space-y-2">
+              <Label htmlFor="contact_name">Nome Referente</Label>
+              <Input
+                id="contact_name"
+                value={formData.contact_name}
+                onChange={(e) => handleInputChange('contact_name', e.target.value)}
+                placeholder="Nome e cognome referente"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div className="space-y-2">
+                <Label htmlFor="contact_email">Email Referente</Label>
+                <Input
+                  id="contact_email"
+                  type="email"
+                  value={formData.contact_email}
+                  onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                  placeholder="referente@cliente.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Telefono Referente</Label>
+                <Input
+                  id="contact_phone"
+                  value={formData.contact_phone}
+                  onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                  placeholder="+39 xxx xxx xxxx"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Contatti aziendali */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email Azienda</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="email@cliente.com"
+                placeholder="info@azienda.com"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefono</Label>
+              <Label htmlFor="phone">Telefono Azienda</Label>
               <Input
                 id="phone"
                 value={formData.phone}
