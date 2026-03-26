@@ -3295,8 +3295,24 @@ export default function RegistroContabilePage() {
                 </div>
               </div>
               
-              {/* CTA Button */}
-              <div className="flex-shrink-0">
+              {/* CTA Buttons */}
+              <div className="flex-shrink-0 flex items-center gap-2">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="gap-2 shadow-sm"
+                  onClick={() => {
+                    setFormData(initialFormData);
+                    setUploadedFile(null);
+                    setSplitEnabled(false);
+                    setSplitLines([]);
+                    setScadenzeLines([]);
+                    setShowCreateDialog(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Inserimento manuale
+                </Button>
                 <label>
                   <Button size="lg" asChild className="gap-2 shadow-md cursor-pointer">
                     <div>
