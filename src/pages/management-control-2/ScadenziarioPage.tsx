@@ -111,6 +111,8 @@ interface Scadenza {
   invoice_date?: string;
   invoice_type?: string;
   financial_status?: string;
+  solleciti_count?: number;
+  ultimo_sollecito_at?: string;
 }
 
 interface ScadenzaMovimento {
