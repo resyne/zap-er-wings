@@ -132,7 +132,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
       if (!scadenza?.soggetto_id) return null;
       const { data } = await supabase
         .from("customers")
-        .select("email, phone, mobile")
+        .select("email, phone")
         .eq("id", scadenza.soggetto_id)
         .single();
       return data;
