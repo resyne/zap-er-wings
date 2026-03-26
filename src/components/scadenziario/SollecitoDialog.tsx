@@ -231,6 +231,8 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
 
   const fmtEuro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
   const livelloInfo = LIVELLO_LABELS[nextLivello];
+  const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email || null;
+  const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone || null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,24 +267,55 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                 <span className="text-sm text-muted-foreground">Residuo da incassare</span>
                 <span className="font-bold text-lg text-red-600">{fmtEuro(Number(scadenza.importo_residuo))}</span>
               </div>
-              {customerInfo && (
-                <div className="border-t pt-2 space-y-1">
+            </CardContent>
+          </Card>
+
+          {/* Destinatario sollecito */}
+          <Card className={!sollecitoEmail && !sollecitoPhone ? "border-amber-300 bg-amber-50/50" : "bg-muted/30"}>
+            <CardContent className="py-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Send className="h-3 w-3" /> Destinatario sollecito
+              </p>
+              {customerInfo ? (
+                <div className="space-y-1.5">
                   {(customerInfo as any)?.contact_name && (
-                    <div className="text-xs font-medium text-foreground">
-                      Referente: {(customerInfo as any).contact_name}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground text-xs w-16">Referente:</span>
+                      <span className="font-medium">{(customerInfo as any).contact_name}</span>
                     </div>
                   )}
-                  {((customerInfo as any)?.contact_email || customerInfo.email) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Mail className="h-3 w-3" /> {(customerInfo as any)?.contact_email || customerInfo.email}
-                    </div>
-                  )}
-                  {((customerInfo as any)?.contact_phone || customerInfo.phone) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MessageSquare className="h-3 w-3" /> {(customerInfo as any)?.contact_phone || customerInfo.phone}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground w-12">Email:</span>
+                    {sollecitoEmail ? (
+                      <span className="font-medium text-sm">{sollecitoEmail}</span>
+                    ) : (
+                      <span className="text-amber-600 text-xs italic">Non configurata</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground w-12">Tel:</span>
+                    {sollecitoPhone ? (
+                      <span className="font-medium text-sm">{sollecitoPhone}</span>
+                    ) : (
+                      <span className="text-amber-600 text-xs italic">Non configurato</span>
+                    )}
+                  </div>
+                  {(!sollecitoEmail || !sollecitoPhone) && (
+                    <div className="flex items-start gap-2 mt-1 pt-1.5 border-t border-amber-200 text-amber-700 text-[11px]">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>Aggiorna l'anagrafica clienti con {!sollecitoEmail && "email"}{!sollecitoEmail && !sollecitoPhone && " e "}{!sollecitoPhone && "telefono"} del referente per abilitare tutti i canali di invio.</span>
                     </div>
                   )}
                 </div>
+              ) : !scadenza.soggetto_id ? (
+                <div className="flex items-center gap-2 text-amber-600 text-xs">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Soggetto non collegato ad anagrafica clienti — collega prima di inviare un sollecito.
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">Caricamento contatti...</div>
               )}
             </CardContent>
           </Card>

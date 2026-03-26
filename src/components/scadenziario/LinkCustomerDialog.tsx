@@ -286,12 +286,20 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
                     </>
                   )}
 
-                  {!linkedCustomer.contact_name && !linkedCustomer.contact_email && !linkedCustomer.contact_phone && (
+                  {(!linkedCustomer.contact_email || !linkedCustomer.contact_phone) && (
                     <>
                       <Separator className="my-2" />
-                      <div className="flex items-center gap-2 text-amber-600 text-xs">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Nessun referente configurato — necessario per i solleciti
+                      <div className="rounded-md bg-amber-50 border border-amber-200 p-2.5 space-y-1">
+                        <div className="flex items-center gap-2 text-amber-700 text-xs font-medium">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Dati mancanti per i solleciti
+                        </div>
+                        <ul className="text-[11px] text-amber-600 pl-5 list-disc space-y-0.5">
+                          {!linkedCustomer.contact_email && !linkedCustomer.email && <li>Email mancante — impossibile inviare solleciti via email</li>}
+                          {!linkedCustomer.contact_phone && !linkedCustomer.phone && <li>Telefono mancante — impossibile inviare solleciti via WhatsApp</li>}
+                          {!linkedCustomer.contact_name && <li>Nome referente non impostato</li>}
+                        </ul>
+                        <p className="text-[10px] text-amber-500 mt-1">Aggiorna l'anagrafica clienti per abilitare i solleciti.</p>
                       </div>
                     </>
                   )}
