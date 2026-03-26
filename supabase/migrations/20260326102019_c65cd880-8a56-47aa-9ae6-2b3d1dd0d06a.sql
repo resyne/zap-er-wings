@@ -1,0 +1,2 @@
+ALTER TABLE invoice_registry DROP CONSTRAINT invoice_registry_invoice_type_check;
+ALTER TABLE invoice_registry ADD CONSTRAINT invoice_registry_invoice_type_check CHECK (invoice_type = ANY (ARRAY['vendita'::text, 'acquisto'::text, 'nota_credito'::text, 'ricevuta_acquisto'::text, 'ricevuta_vendita'::text]));
