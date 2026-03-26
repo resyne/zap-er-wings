@@ -156,6 +156,53 @@ serve(async (req) => {
       }
     }
 
+    // Also notify the technician who created the report (confirmation)
+    if (technician_phone && waAccount) {
+      const alreadyNotified = waRules.some(r => r.recipient_phone === technician_phone);
+      if (!alreadyNotified) {
+        try {
+          const templateParams = [
+            technician_name || "Tecnico",
+            sanitize(`Rapporto ${report_number || "N/D"} - ${sanitize(customer_name, 50)}`),
+            "Rapporto di Intervento",
+            dateFormatted,
+            sanitize(customer_name) || "N/D",
+          ];
+
+          const waResponse = await fetch(
+            `${supabaseUrl}/functions/v1/whatsapp-send`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                account_id: waAccount.id,
+                to: technician_phone,
+                type: "template",
+                template_name: "nuova_commessa_notifica",
+                template_language: "it",
+                template_params: templateParams,
+              }),
+            }
+          );
+
+          const waResult = await waResponse.json();
+          if (waResult.success) {
+            console.log(`WhatsApp confirmation sent to technician ${technician_name} (${technician_phone})`);
+            results.push({ name: `${technician_name} (tecnico)`, success: true });
+          } else {
+            console.error(`WhatsApp failed for technician:`, waResult.error);
+            results.push({ name: `${technician_name} (tecnico)`, success: false, error: waResult.error });
+          }
+        } catch (err) {
+          console.error(`Error sending to technician:`, err);
+          results.push({ name: `${technician_name} (tecnico)`, success: false, error: err.message });
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
