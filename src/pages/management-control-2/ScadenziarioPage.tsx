@@ -1090,6 +1090,16 @@ export default function ScadenziarioPage() {
                                             )}
                                           </>
                                         )}
+                                        <Button size="sm" variant="ghost" onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (confirm("Sei sicuro di voler eliminare questa scadenza?")) {
+                                            deleteScadenzaMutation.mutate(scadenza.id);
+                                          }
+                                        }}
+                                          className="gap-1 h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                          disabled={deleteScadenzaMutation.isPending}>
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
                                       </div>
                                     </TableCell>
                                   </TableRow>
