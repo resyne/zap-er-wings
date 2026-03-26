@@ -184,6 +184,8 @@ export default function ScadenziarioPage() {
   const [checkDueDate, setCheckDueDate] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
+  const [sollecitoOpen, setSollecitoOpen] = useState(false);
+  const [sollecitoScadenza, setSollecitoScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
