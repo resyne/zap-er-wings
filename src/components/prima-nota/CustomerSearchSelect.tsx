@@ -43,12 +43,22 @@ export function CustomerSearchSelect({ selectedCustomerId, onSelect, label = "So
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers-for-select"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("customers")
-        .select("id, name, company_name, email, phone, tax_id, code, city, incomplete_registry")
-        .eq("active", true)
-        .order("name");
-      return (data || []) as Customer[];
+      const PAGE_SIZE = 1000;
+      let allData: Customer[] = [];
+      let from = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from("customers")
+          .select("id, name, company_name, email, phone, tax_id, code, city, incomplete_registry")
+          .eq("active", true)
+          .order("name")
+          .range(from, from + PAGE_SIZE - 1);
+        allData = allData.concat((data || []) as Customer[]);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+      return allData;
     },
   });
 

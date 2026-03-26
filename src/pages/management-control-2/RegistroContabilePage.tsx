@@ -846,16 +846,26 @@ export default function RegistroContabilePage() {
     role: e.position
   }));
 
-  // Fetch customers
+  // Fetch ALL customers (batch to overcome Supabase 1000-row limit)
   const { data: customers = [] } = useQuery({
     queryKey: ['customers-list'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, name, company_name, email, tax_id')
-        .order('name');
-      if (error) throw error;
-      return data;
+      const PAGE_SIZE = 1000;
+      let allData: any[] = [];
+      let from = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id, name, company_name, email, tax_id')
+          .order('name')
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        allData = allData.concat(data || []);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+      return allData;
     }
   });
 
