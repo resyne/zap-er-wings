@@ -86,7 +86,7 @@ interface InvoiceRegistry {
   id: string;
   invoice_number: string;
   invoice_date: string;
-  invoice_type: 'vendita' | 'acquisto' | 'nota_credito';
+  invoice_type: 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
   event_type?: EventType | null;
   subject_type: 'cliente' | 'fornitore';
   subject_id: string | null;
@@ -134,8 +134,8 @@ interface InvoiceRegistry {
 }
 
 // Tipi evento del registro contabile
-type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
-type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
+type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
+type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'parzialmente_incassata' | 'parzialmente_pagata' | 'incassata' | 'pagata';
@@ -227,7 +227,7 @@ const initialFormData: FormData = {
 
 // Helper per determinare se un tipo evento è una fattura (documento fiscale)
 const isFiscalDocument = (eventType: EventType): boolean => {
-  return ['fattura_acquisto', 'fattura_vendita', 'nota_credito'].includes(eventType);
+  return ['fattura_acquisto', 'fattura_vendita', 'nota_credito', 'ricevuta_acquisto', 'ricevuta_vendita'].includes(eventType);
 };
 
 // Helper per determinare se genera contabilità
@@ -1257,7 +1257,7 @@ export default function RegistroContabilePage() {
 
       // Validazione: se c'è split, ogni riga deve avere conto e centro
       if (splitsToSave && splitsToSave.length > 0) {
-        const isAcquisto = data.invoice_type === 'acquisto';
+        const isAcquisto = data.invoice_type === 'acquisto' || data.invoice_type === 'ricevuta_acquisto';
         for (let i = 0; i < splitsToSave.length; i++) {
           const split = splitsToSave[i];
           if (!split.account_id || split.account_id.trim() === '') {
@@ -1332,7 +1332,7 @@ export default function RegistroContabilePage() {
       const now = new Date().toISOString();
 
       // Determina se è un costo o un ricavo
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const eventType = isAcquisto ? 'costo' : 'ricavo';
       const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
       const paymentMethod = invoice.payment_method || 'bonifico';
@@ -1553,7 +1553,7 @@ export default function RegistroContabilePage() {
       // Creazione scadenze (singola o multiple)
       let scadenzaIds: string[] = [];
       if (invoice.financial_status === 'da_incassare' || invoice.financial_status === 'da_pagare') {
-        const tipo = invoice.invoice_type === 'acquisto' ? 'debito' : 'credito';
+        const tipo = (invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto') ? 'debito' : 'credito';
         
         // Se ci sono scadenze multiple, crea una per ciascuna
         if (scadenze.length > 0) {
@@ -1607,7 +1607,7 @@ export default function RegistroContabilePage() {
       }
       const scadenzaId = scadenzaIds[0] || null;
 
-      if (invoice.invoice_type === 'vendita' || invoice.invoice_type === 'nota_credito') {
+      if (invoice.invoice_type === 'vendita' || invoice.invoice_type === 'nota_credito' || invoice.invoice_type === 'ricevuta_vendita') {
         await supabase.from('customer_invoices').insert({
           invoice_number: invoice.invoice_number,
           customer_name: invoice.subject_name,
@@ -1726,7 +1726,7 @@ export default function RegistroContabilePage() {
       // CASCATA: aggiorna documenti collegati per fatture registrate
       // ========================================================
       if (invoice.prima_nota_id || invoice.accounting_entry_id || invoice.scadenza_id) {
-        const isAcquisto = updates.invoice_type === 'acquisto';
+        const isAcquisto = updates.invoice_type === 'acquisto' || updates.invoice_type === 'ricevuta_acquisto';
         const isPaid = ['pagata', 'incassata'].includes(updates.financial_status);
         const paymentMethod = updates.payment_method || 'bonifico';
         const primaNotaAmount = isAcquisto ? -totalAmount : totalAmount;
@@ -2039,7 +2039,7 @@ export default function RegistroContabilePage() {
       const newResiduo = Math.max(0, scadenza.importo_residuo - paymentAmount);
       const isFullyPaid = newResiduo < 0.01;
       
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const payMethodKey = payment.payment_method?.toUpperCase() || 'BANCA';
       
       // 1. Crea movimento di Prima Nota per il pagamento
@@ -2203,7 +2203,7 @@ export default function RegistroContabilePage() {
       const now = new Date().toISOString();
       
       // Determina parametri
-      const isAcquisto = invoice.invoice_type === 'acquisto';
+      const isAcquisto = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
       const isPaid = ['pagata', 'incassata'].includes(invoice.financial_status);
       const paymentMethod = invoice.payment_method || 'bonifico';
       const eventType = isAcquisto ? 'costo' : 'ricavo';
@@ -2468,8 +2468,8 @@ export default function RegistroContabilePage() {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
-        updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
-        updated.financial_status = value === 'acquisto' ? 'da_pagare' : 'da_incassare';
+        updated.subject_type = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'fornitore' : 'cliente';
+        updated.financial_status = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'da_pagare' : 'da_incassare';
       }
       if (field === 'vat_regime') {
         updated.iva_rate = getIvaRateFromRegime(value as string);
@@ -2482,7 +2482,7 @@ export default function RegistroContabilePage() {
     setEditFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
-        updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
+        updated.subject_type = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'fornitore' : 'cliente';
       }
       if (field === 'vat_regime') {
         updated.iva_rate = getIvaRateFromRegime(value as string);
@@ -2496,7 +2496,10 @@ export default function RegistroContabilePage() {
     // Determina event_type dalla fattura
     const eventType: EventType = invoice.event_type || 
       (invoice.invoice_type === 'vendita' ? 'fattura_vendita' : 
-       invoice.invoice_type === 'nota_credito' ? 'nota_credito' : 'fattura_acquisto');
+       invoice.invoice_type === 'nota_credito' ? 'nota_credito' : 
+       invoice.invoice_type === 'ricevuta_acquisto' ? 'ricevuta_acquisto' :
+       invoice.invoice_type === 'ricevuta_vendita' ? 'ricevuta_vendita' :
+       'fattura_acquisto');
     
     setEditFormData({
       event_type: eventType,
@@ -2660,7 +2663,7 @@ export default function RegistroContabilePage() {
     // Now create the full accounting chain (like registerMutation)
     const { data: user } = await supabase.auth.getUser();
     const now = new Date().toISOString();
-    const isAcquisto = effectiveInv.invoice_type === 'acquisto';
+    const isAcquisto = effectiveInv.invoice_type === 'acquisto' || effectiveInv.invoice_type === 'ricevuta_acquisto';
     const eventType = isAcquisto ? 'costo' : 'ricavo';
     const financialStatus = effectiveInv.financial_status || (isAcquisto ? 'da_pagare' : 'da_incassare');
     const isPaid = ['pagata', 'incassata'].includes(financialStatus);
@@ -3020,6 +3023,10 @@ export default function RegistroContabilePage() {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><ArrowDownLeft className="w-3 h-3 mr-1" />Acquisto</Badge>;
       case 'nota_credito':
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><Receipt className="w-3 h-3 mr-1" />Nota Credito</Badge>;
+      case 'ricevuta_acquisto':
+        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30"><ArrowDownLeft className="w-3 h-3 mr-1" />Ric. Acquisto</Badge>;
+      case 'ricevuta_vendita':
+        return <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30"><ArrowUpRight className="w-3 h-3 mr-1" />Ric. Vendita</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -3140,7 +3147,7 @@ export default function RegistroContabilePage() {
           {invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
             <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => openPaymentDialog(invoice)}>
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-              {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
+              {(invoice.invoice_type === 'vendita' || invoice.invoice_type === 'ricevuta_vendita') ? 'Incassa' : 'Paga'}
             </Button>
           )}
           {invoice.scadenza_id && (
@@ -3774,6 +3781,16 @@ export default function RegistroContabilePage() {
                       } else if (v === 'nota_credito') {
                         updated.invoice_type = 'nota_credito';
                         updated.iva_rate = 22;
+                      } else if (v === 'ricevuta_acquisto') {
+                        updated.invoice_type = 'ricevuta_acquisto';
+                        updated.subject_type = 'fornitore';
+                        updated.financial_status = 'da_pagare';
+                        updated.iva_rate = 0;
+                      } else if (v === 'ricevuta_vendita') {
+                        updated.invoice_type = 'ricevuta_vendita';
+                        updated.subject_type = 'cliente';
+                        updated.financial_status = 'da_incassare';
+                        updated.iva_rate = 0;
                       }
                       return updated;
                     });
@@ -3789,6 +3806,8 @@ export default function RegistroContabilePage() {
                     <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
                     <SelectItem value="nota_credito">📋 Nota di Credito / Debito</SelectItem>
+                    <SelectItem value="ricevuta_acquisto">🧾 Ricevuta di Acquisto</SelectItem>
+                    <SelectItem value="ricevuta_vendita">🧾 Ricevuta di Vendita</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3909,9 +3928,9 @@ export default function RegistroContabilePage() {
               {/* ═══════════════════════════════════════════════ */}
               <div className="space-y-1.5 pb-4 border-b">
                 <Label className="text-xs">
-                  {formData.invoice_type === 'acquisto' ? 'Conto di Costo' : 'Conto di Ricavo'} *
+                  {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? 'Conto di Costo' : 'Conto di Ricavo'} *
                 </Label>
-                {formData.invoice_type === 'acquisto' ? (
+                {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? (
                   <Select value={formData.cost_account_id} onValueChange={(v) => handleFormChange('cost_account_id', v === "__none__" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="Seleziona conto..." /></SelectTrigger>
                     <SelectContent>
@@ -4011,7 +4030,7 @@ export default function RegistroContabilePage() {
               <div className="space-y-3 pb-4 border-b">
                 <Label className="text-sm font-semibold text-muted-foreground">Controllo di gestione</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {formData.invoice_type === 'acquisto' ? (
+                  {(formData.invoice_type === 'acquisto' || formData.invoice_type === 'ricevuta_acquisto') ? (
                     <div className="space-y-1.5 col-span-2">
                       <Label className="text-xs">Centro di Costo</Label>
                       <Select value={formData.cost_center_id} onValueChange={(v) => handleFormChange('cost_center_id', v === "__none__" ? "" : v)}>
@@ -4415,7 +4434,7 @@ export default function RegistroContabilePage() {
                       {(selectedInvoice.financial_status === 'da_incassare' || selectedInvoice.financial_status === 'da_pagare') && (
                         <li>Scadenza nello Scadenziario</li>
                       )}
-                      <li>{selectedInvoice.invoice_type === 'acquisto' ? 'Debito' : 'Credito'}</li>
+                      <li>{(selectedInvoice.invoice_type === 'acquisto' || selectedInvoice.invoice_type === 'ricevuta_acquisto') ? 'Debito' : 'Credito'}</li>
                     </ul>
                   </div>
                 </div>
@@ -4524,11 +4543,13 @@ export default function RegistroContabilePage() {
                   <SelectItem value="vendita">Vendita (Cliente)</SelectItem>
                   <SelectItem value="acquisto">Acquisto (Fornitore)</SelectItem>
                   <SelectItem value="nota_credito">Nota Credito</SelectItem>
+                  <SelectItem value="ricevuta_acquisto">Ricevuta Acquisto</SelectItem>
+                  <SelectItem value="ricevuta_vendita">Ricevuta Vendita</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{editFormData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+              <Label>{(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'Cliente' : 'Fornitore'} *</Label>
               <Popover open={editSubjectSearchOpen} onOpenChange={setEditSubjectSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -4537,14 +4558,14 @@ export default function RegistroContabilePage() {
                     aria-expanded={editSubjectSearchOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {editFormData.subject_name || `Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                    {editFormData.subject_name || `Cerca ${(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'cliente' : 'fornitore'}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[400px] p-0" align="start">
                   <Command>
                     <CommandInput 
-                      placeholder={`Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                      placeholder={`Cerca ${(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'cliente' : 'fornitore'}...`}
                       value={editSubjectSearch}
                       onValueChange={setEditSubjectSearch}
                     />
@@ -4717,7 +4738,7 @@ export default function RegistroContabilePage() {
             )}
             
             {/* Cost center and account for purchases */}
-            {editFormData.invoice_type === 'acquisto' && (
+            {(editFormData.invoice_type === 'acquisto' || editFormData.invoice_type === 'ricevuta_acquisto') && (
               <>
                 <div className="space-y-2">
                   <Label>Centro di Costo</Label>
@@ -4751,7 +4772,7 @@ export default function RegistroContabilePage() {
             )}
             
             {/* Profit center and revenue account for sales */}
-            {(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'nota_credito') && (
+            {(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'nota_credito' || editFormData.invoice_type === 'ricevuta_vendita') && (
               <>
                 <div className="space-y-2">
                   <Label>Centro di Ricavo</Label>
@@ -5084,6 +5105,8 @@ export default function RegistroContabilePage() {
                     <SelectItem value="fattura_acquisto">Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">Fattura di Vendita</SelectItem>
                     <SelectItem value="nota_credito">Nota di Credito/Debito</SelectItem>
+                    <SelectItem value="ricevuta_acquisto">Ricevuta di Acquisto</SelectItem>
+                    <SelectItem value="ricevuta_vendita">Ricevuta di Vendita</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -5261,7 +5284,7 @@ export default function RegistroContabilePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
-              {selectedInvoice?.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
+              {(selectedInvoice?.invoice_type === 'vendita' || selectedInvoice?.invoice_type === 'ricevuta_vendita') ? 'Registra Incasso' : 'Registra Pagamento'}
             </DialogTitle>
           </DialogHeader>
           {selectedInvoice && (
@@ -5287,7 +5310,7 @@ export default function RegistroContabilePage() {
                     </div>
                   )}
                   <div className="flex justify-between border-t pt-2">
-                    <span className="text-muted-foreground font-semibold">Residuo da {selectedInvoice.invoice_type === 'vendita' ? 'incassare' : 'pagare'}:</span>
+                    <span className="text-muted-foreground font-semibold">Residuo da {(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incassare' : 'pagare'}:</span>
                     <span className="font-bold text-primary">€{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </CardContent>
@@ -5331,7 +5354,7 @@ export default function RegistroContabilePage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Data {selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'} *</Label>
+                  <Label>Data {(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incasso' : 'pagamento'} *</Label>
                   <Input
                     type="date"
                     value={paymentData.payment_date}
@@ -5367,7 +5390,7 @@ export default function RegistroContabilePage() {
               <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                 <p className="text-muted-foreground">Verrà creato automaticamente:</p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                  <li>Movimento di Prima Nota ({selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'})</li>
+                  <li>Movimento di Prima Nota ({(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incasso' : 'pagamento'})</li>
                   <li>Scrittura partita doppia</li>
                   <li>Movimento sullo scadenziario</li>
                   {!paymentData.is_partial && <li>Chiusura scadenza</li>}
@@ -5491,7 +5514,7 @@ function InvoiceDetailsDialog({
 
   if (!invoice) return null;
 
-  const isCost = invoice.invoice_type === 'acquisto';
+  const isCost = invoice.invoice_type === 'acquisto' || invoice.invoice_type === 'ricevuta_acquisto';
   const accountSplits = Array.isArray(invoice.account_splits) ? invoice.account_splits : [];
 
   return (

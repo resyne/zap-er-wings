@@ -74,6 +74,8 @@ export function RegistryFiltersBar({
           <QuickFilterButton active={filterType === "vendita"} onClick={() => onFilterTypeChange("vendita")}>Fatture Vendita</QuickFilterButton>
           <QuickFilterButton active={filterType === "nota_credito"} onClick={() => onFilterTypeChange("nota_credito")}>Note di Credito</QuickFilterButton>
           <QuickFilterButton active={filterType === "nota_debito"} onClick={() => onFilterTypeChange("nota_debito")}>Note di Debito</QuickFilterButton>
+          <QuickFilterButton active={filterType === "ricevuta_acquisto"} onClick={() => onFilterTypeChange("ricevuta_acquisto")}>Ric. Acquisto</QuickFilterButton>
+          <QuickFilterButton active={filterType === "ricevuta_vendita"} onClick={() => onFilterTypeChange("ricevuta_vendita")}>Ric. Vendita</QuickFilterButton>
         </div>
 
         <div className="flex items-center gap-2">
@@ -126,6 +128,8 @@ export function RegistryFiltersBar({
               <SelectItem value="acquisto">Fatture Acquisto</SelectItem>
               <SelectItem value="nota_credito">Note di Credito</SelectItem>
               <SelectItem value="nota_debito">Note di Debito</SelectItem>
+              <SelectItem value="ricevuta_acquisto">Ricevute Acquisto</SelectItem>
+              <SelectItem value="ricevuta_vendita">Ricevute Vendita</SelectItem>
             </SelectContent>
           </Select>
 
@@ -207,6 +211,8 @@ function labelType(v: string) {
     acquisto: "Fatture Acquisto",
     nota_credito: "Note di Credito",
     nota_debito: "Note di Debito",
+    ricevuta_acquisto: "Ricevute Acquisto",
+    ricevuta_vendita: "Ricevute Vendita",
     all: "Tutti",
   };
   return map[v] || v;
