@@ -1369,6 +1369,13 @@ export default function ScadenziarioPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Sollecito Dialog */}
+      <SollecitoDialog
+        open={sollecitoOpen}
+        onOpenChange={setSollecitoOpen}
+        scadenza={sollecitoScadenza}
+      />
     </div>
   );
 }
