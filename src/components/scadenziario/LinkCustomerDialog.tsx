@@ -104,7 +104,7 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
     const normalizedSearch = normalizeCompanyName(normalizedSearchTerm);
     return searchableCustomers
       .map(c => {
-        const displayName = c.company_name || c.name;
+        const displayName = c.company_name || c.name || "";
         const nameMatch = c.name?.toLowerCase().includes(searchLower);
         const companyMatch = c.company_name?.toLowerCase().includes(searchLower);
         const taxMatch = c.tax_id?.toLowerCase().includes(searchLower);
