@@ -1238,7 +1238,11 @@ export default function RegistroContabilePage() {
 
   // Funzione per controllare fatture duplicate prima di salvare
   const checkDuplicateAndSave = async () => {
-    if (!formData.invoice_number) return;
+    if (!formData.invoice_number) {
+      // No invoice number, skip duplicate check and save directly
+      createMutation.mutate({ ...formData, accountSplits: splitEnabled ? splitLines : undefined });
+      return;
+    }
     
     // Cerca fatture con lo stesso numero E stesso tipo (escludendo quelle stornate senza nuova contabilizzazione)
     let dupQuery = supabase
@@ -3871,7 +3875,7 @@ export default function RegistroContabilePage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Numero Documento *</Label>
+                    <Label className="text-xs">Numero Documento</Label>
                     <Input
                       value={formData.invoice_number}
                       onChange={(e) => handleFormChange('invoice_number', e.target.value)}
