@@ -2468,8 +2468,8 @@ export default function RegistroContabilePage() {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
-        updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
-        updated.financial_status = value === 'acquisto' ? 'da_pagare' : 'da_incassare';
+        updated.subject_type = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'fornitore' : 'cliente';
+        updated.financial_status = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'da_pagare' : 'da_incassare';
       }
       if (field === 'vat_regime') {
         updated.iva_rate = getIvaRateFromRegime(value as string);
@@ -2482,7 +2482,7 @@ export default function RegistroContabilePage() {
     setEditFormData(prev => {
       const updated = { ...prev, [field]: value };
       if (field === 'invoice_type') {
-        updated.subject_type = value === 'acquisto' ? 'fornitore' : 'cliente';
+        updated.subject_type = (value === 'acquisto' || value === 'ricevuta_acquisto') ? 'fornitore' : 'cliente';
       }
       if (field === 'vat_regime') {
         updated.iva_rate = getIvaRateFromRegime(value as string);
@@ -2496,7 +2496,10 @@ export default function RegistroContabilePage() {
     // Determina event_type dalla fattura
     const eventType: EventType = invoice.event_type || 
       (invoice.invoice_type === 'vendita' ? 'fattura_vendita' : 
-       invoice.invoice_type === 'nota_credito' ? 'nota_credito' : 'fattura_acquisto');
+       invoice.invoice_type === 'nota_credito' ? 'nota_credito' : 
+       invoice.invoice_type === 'ricevuta_acquisto' ? 'ricevuta_acquisto' :
+       invoice.invoice_type === 'ricevuta_vendita' ? 'ricevuta_vendita' :
+       'fattura_acquisto');
     
     setEditFormData({
       event_type: eventType,
