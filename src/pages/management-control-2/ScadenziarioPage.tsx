@@ -1122,46 +1122,96 @@ export default function ScadenziarioPage() {
                                   {isScadenzaExpanded && (
                                     <TableRow key={`${scadenza.id}-expanded`}>
                                       <TableCell colSpan={groupBy !== "soggetto" ? 9 : 8} className="bg-muted/30 p-4 pl-14">
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                             <History className="h-3.5 w-3.5" />
-                                            Storico Movimenti
+                                            Cronologia
                                           </div>
-                                          {movimenti && movimenti.length > 0 ? (
-                                            <div className="space-y-1.5">
-                                              {movimenti.map((mov) => (
-                                                <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "bg-background")}>
-                                                  <div className="flex items-center gap-2.5">
-                                                    <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100 dark:bg-amber-900/30" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                      {mov.metodo_pagamento === "assegno" 
-                                                        ? <Receipt className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
-                                                        : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
-                                                      }
-                                                    </div>
-                                                    <div>
-                                                      <span className="font-medium">{fmtEuro(mov.importo)}</span>
-                                                      <span className="text-muted-foreground ml-2 text-xs">
-                                                        {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
-                                                        {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
-                                                      </span>
-                                                      {mov.metodo_pagamento === "assegno" && mov.check_due_date && (
-                                                        <div className="flex items-center gap-1 mt-0.5">
-                                                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700 text-[10px] gap-1">
-                                                            <Clock className="h-2.5 w-2.5" />
-                                                            Assegno scade: {format(parseISO(mov.check_due_date), "dd/MM/yyyy")}
-                                                            {mov.check_number && ` (N. ${mov.check_number})`}
-                                                          </Badge>
+
+                                          {/* Build unified timeline */}
+                                          {(() => {
+                                            const timeline: { date: string; type: "payment" | "sollecito"; data: any }[] = [];
+                                            
+                                            if (movimenti) {
+                                              movimenti.forEach(mov => timeline.push({ date: mov.data_movimento || mov.created_at, type: "payment", data: mov }));
+                                            }
+                                            if (expandedSolleciti) {
+                                              expandedSolleciti.forEach(s => timeline.push({ date: s.created_at, type: "sollecito", data: s }));
+                                            }
+                                            
+                                            timeline.sort((a, b) => b.date.localeCompare(a.date));
+
+                                            if (timeline.length === 0) {
+                                              return <p className="text-sm text-muted-foreground py-1">Nessun movimento registrato</p>;
+                                            }
+
+                                            return (
+                                              <div className="space-y-1.5">
+                                                {timeline.map((item, idx) => {
+                                                  if (item.type === "payment") {
+                                                    const mov = item.data;
+                                                    return (
+                                                      <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 border-amber-200" : "bg-background")}>
+                                                        <div className="flex items-center gap-2.5">
+                                                          <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                            {mov.metodo_pagamento === "assegno"
+                                                              ? <Receipt className="h-3.5 w-3.5 text-amber-700" />
+                                                              : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
+                                                            }
+                                                          </div>
+                                                          <div>
+                                                            <span className="font-medium">{fmtEuro(mov.importo)}</span>
+                                                            <span className="text-muted-foreground ml-2 text-xs">
+                                                              {format(parseISO(mov.data_movimento), "dd/MM/yyyy", { locale: it })}
+                                                              {mov.metodo_pagamento && ` · ${mov.metodo_pagamento}`}
+                                                            </span>
+                                                            {mov.metodo_pagamento === "assegno" && mov.check_due_date && (
+                                                              <div className="flex items-center gap-1 mt-0.5">
+                                                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] gap-1">
+                                                                  <Clock className="h-2.5 w-2.5" />
+                                                                  Assegno scade: {format(parseISO(mov.check_due_date), "dd/MM/yyyy")}
+                                                                  {mov.check_number && ` (N. ${mov.check_number})`}
+                                                                </Badge>
+                                                              </div>
+                                                            )}
+                                                          </div>
                                                         </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                  {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <p className="text-sm text-muted-foreground py-1">Nessun movimento registrato</p>
-                                          )}
+                                                        {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
+                                                      </div>
+                                                    );
+                                                  } else {
+                                                    const s = item.data;
+                                                    const livelloLabels: Record<number, { label: string; color: string }> = {
+                                                      1: { label: "1° Sollecito", color: "bg-blue-100 text-blue-800 border-blue-300" },
+                                                      2: { label: "2° Sollecito", color: "bg-amber-100 text-amber-800 border-amber-300" },
+                                                      3: { label: "3° Sollecito", color: "bg-red-100 text-red-800 border-red-300" },
+                                                    };
+                                                    const info = livelloLabels[s.livello] || { label: `Sollecito ${s.livello}`, color: "" };
+                                                    return (
+                                                      <div key={s.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background text-sm">
+                                                        <div className="flex items-center gap-2.5">
+                                                          <div className="p-1.5 rounded-full bg-amber-50">
+                                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                                          </div>
+                                                          <div>
+                                                            <Badge variant="outline" className={cn(info.color, "text-[10px]")}>{info.label}</Badge>
+                                                            <span className="text-muted-foreground ml-2 text-xs">
+                                                              {format(parseISO(s.created_at), "dd/MM/yyyy HH:mm", { locale: it })}
+                                                            </span>
+                                                          </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                          {s.email_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><Mail className="h-2.5 w-2.5" />Email</Badge>}
+                                                          {s.whatsapp_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><MessageSquare className="h-2.5 w-2.5" />WA</Badge>}
+                                                          {s.soggetto_email && <span className="text-[10px] text-muted-foreground">{s.soggetto_email}</span>}
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  }
+                                                })}
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       </TableCell>
                                     </TableRow>
