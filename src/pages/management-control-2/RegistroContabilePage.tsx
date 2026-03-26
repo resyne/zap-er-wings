@@ -1961,14 +1961,18 @@ export default function RegistroContabilePage() {
         if (entryError) throw entryError;
       }
 
-      // 4. Elimina scadenza se esiste
+      // 4. Elimina scadenza se esiste (per id diretto o per fattura_id)
       if (invoice.scadenza_id) {
-        const { error: scadenzaError } = await supabase
+        await supabase
           .from('scadenze')
           .delete()
           .eq('id', invoice.scadenza_id);
-        if (scadenzaError) throw scadenzaError;
       }
+      // Elimina anche eventuali scadenze collegate tramite fattura_id
+      await supabase
+        .from('scadenze')
+        .delete()
+        .eq('fattura_id', invoice.id);
     },
     onSuccess: () => {
       toast.success('Elemento eliminato dal registro contabile');
