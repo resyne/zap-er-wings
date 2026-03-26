@@ -83,6 +83,8 @@ import {
   Calendar,
   Users,
   CalendarDays,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
