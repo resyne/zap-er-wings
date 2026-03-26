@@ -18,7 +18,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { report_number, customer_name, technician_name, technician_phone, intervention_date, notes } = await req.json();
 
-    console.log("Notifying about new service report:", { report_number, customer_name, technician_name, intervention_date });
+    console.log("Notifying about new service report:", { report_number, customer_name, technician_name, technician_phone, intervention_date });
 
     // Get notification rules for nuovo_rapporto_intervento event
     const { data: rules, error: rulesError } = await supabase
