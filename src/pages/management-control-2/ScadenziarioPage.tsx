@@ -314,6 +314,21 @@ export default function ScadenziarioPage() {
     enabled: !!expandedScadenza,
   });
 
+  // Load solleciti for expanded scadenza cronologia
+  const { data: expandedSolleciti = [] } = useQuery({
+    queryKey: ["scadenza-solleciti-log", expandedScadenza],
+    queryFn: async () => {
+      if (!expandedScadenza) return [];
+      const { data } = await supabase
+        .from("solleciti")
+        .select("id, livello, canale, stato, created_at, soggetto_email, soggetto_telefono, email_sent, whatsapp_sent")
+        .eq("scadenza_id", expandedScadenza)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!expandedScadenza,
+  });
+
   // ── Grouping logic ────────────────────────────────
   const { groups, closedCount } = useMemo(() => {
     if (!scadenze) return { groups: [] as GroupData[], closedCount: 0 };
