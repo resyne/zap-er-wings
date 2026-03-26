@@ -1002,42 +1002,58 @@ export default function RegistroContabilePage() {
     });
     setShowOperationalInvoiceDialog(true);
   };
+  const normalizeSearchText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
   const getSubjects = (invoiceType: InvoiceType) => {
     const isCustomerFlow = invoiceType === 'vendita' || invoiceType === 'ricevuta_vendita';
 
     if (isCustomerFlow) {
-      return customers.map(c => ({
-        id: c.id,
-        name: c.company_name || c.name,
-        secondary: c.name !== (c.company_name || c.name) ? c.name : c.tax_id,
-        type: 'cliente' as SubjectType
-      }));
+      return customers.map(c => {
+        const displayName = c.company_name || c.name;
+        const secondary = c.name !== displayName ? c.name : c.tax_id;
+
+        return {
+          id: c.id,
+          name: displayName,
+          secondary,
+          type: 'cliente' as SubjectType,
+          searchText: normalizeSearchText([
+            displayName,
+            c.name,
+            c.company_name,
+            c.tax_id,
+            c.email,
+          ].filter(Boolean).join(' ')),
+        };
+      });
     }
 
     return suppliers.map(s => ({
       id: s.id,
       name: s.name,
       secondary: s.tax_id,
-      type: 'fornitore' as SubjectType
+      type: 'fornitore' as SubjectType,
+      searchText: normalizeSearchText([
+        s.name,
+        s.tax_id,
+        s.email,
+      ].filter(Boolean).join(' ')),
     }));
   };
-
-  const normalizeSearchText = (value: string) =>
-    value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
 
   // Filtered subjects for search
   const filteredSubjects = useMemo(() => {
     const subjects = getSubjects(formData.invoice_type);
     if (!subjectSearch.trim()) return subjects;
     const searchNormalized = normalizeSearchText(subjectSearch);
-    return subjects.filter(s =>
-      normalizeSearchText(s.name).includes(searchNormalized) ||
-      (s.secondary && normalizeSearchText(s.secondary).includes(searchNormalized))
-    );
+    return subjects.filter(s => s.searchText.includes(searchNormalized));
   }, [customers, suppliers, formData.invoice_type, subjectSearch]);
 
   // Filtered edit subjects
@@ -1045,10 +1061,7 @@ export default function RegistroContabilePage() {
     const subjects = getSubjects(editFormData.invoice_type);
     if (!editSubjectSearch.trim()) return subjects;
     const searchNormalized = normalizeSearchText(editSubjectSearch);
-    return subjects.filter(s =>
-      normalizeSearchText(s.name).includes(searchNormalized) ||
-      (s.secondary && normalizeSearchText(s.secondary).includes(searchNormalized))
-    );
+    return subjects.filter(s => s.searchText.includes(searchNormalized));
   }, [customers, suppliers, editFormData.invoice_type, editSubjectSearch]);
 
   // Filtro conti per costi: cogs, opex, depreciation, extraordinary (escludi headers)
@@ -3889,7 +3902,7 @@ export default function RegistroContabilePage() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
+                    <Command shouldFilter={false}>
                       <CommandInput 
                         placeholder={`Cerca ${formData.subject_type}...`}
                         value={subjectSearch}
@@ -4588,7 +4601,7 @@ export default function RegistroContabilePage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
+                  <Command shouldFilter={false}>
                     <CommandInput 
                       placeholder={`Cerca ${(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'cliente' : 'fornitore'}...`}
                       value={editSubjectSearch}
