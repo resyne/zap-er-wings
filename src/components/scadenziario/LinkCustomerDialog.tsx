@@ -50,24 +50,41 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
     pec: "", sdi_code: "", contact_name: "", contact_email: "", contact_phone: "",
   });
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["all-customers-for-link"],
+  const normalizedSearchTerm = searchTerm.trim();
+
+  const { data: linkedCustomer = null } = useQuery({
+    queryKey: ["linked-customer-for-scadenza", scadenza?.soggetto_id],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!scadenza?.soggetto_id) return null;
+      const { data, error } = await supabase
+        .from("customers")
+        .select("id, name, company_name, tax_id, email, phone, address, city, pec, sdi_code, contact_name, contact_email, contact_phone")
+        .eq("id", scadenza.soggetto_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!scadenza?.soggetto_id,
+  });
+
+  const { data: searchableCustomers = [] } = useQuery({
+    queryKey: ["customers-search-for-link", normalizedSearchTerm],
+    queryFn: async () => {
+      if (normalizedSearchTerm.length < 2) return [];
+      const likeTerm = `%${normalizedSearchTerm.replace(/[%_]/g, "")}%`;
+      const { data, error } = await supabase
         .from("customers")
         .select("id, name, company_name, tax_id, email, phone, address, city, pec, sdi_code, contact_name, contact_email, contact_phone")
         .eq("active", true)
-        .order("name");
+        .or(`name.ilike.${likeTerm},company_name.ilike.${likeTerm},tax_id.ilike.${likeTerm}`)
+        .limit(50);
+      if (error) throw error;
       return data || [];
     },
-    enabled: open,
+    enabled: open && mode === "search" && normalizedSearchTerm.length >= 2,
   });
 
   const isAlreadyLinked = !!scadenza?.soggetto_id;
-  const linkedCustomer = useMemo(() => {
-    if (!scadenza?.soggetto_id) return null;
-    return customers.find(c => c.id === scadenza.soggetto_id) || null;
-  }, [scadenza?.soggetto_id, customers]);
 
   useEffect(() => {
     if (open && scadenza) {
@@ -82,13 +99,12 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
   }, [open, scadenza?.soggetto_nome, scadenza?.soggetto_id]);
 
   const matches = useMemo(() => {
-    if (!searchTerm.trim() || customers.length === 0) return [];
-    const searchLower = searchTerm.toLowerCase().trim();
-    const normalizedSearch = normalizeCompanyName(searchTerm);
-    return customers
+    if (!normalizedSearchTerm || searchableCustomers.length === 0) return [];
+    const searchLower = normalizedSearchTerm.toLowerCase();
+    const normalizedSearch = normalizeCompanyName(normalizedSearchTerm);
+    return searchableCustomers
       .map(c => {
         const displayName = c.company_name || c.name;
-        // Check both name and company_name for includes match
         const nameMatch = c.name?.toLowerCase().includes(searchLower);
         const companyMatch = c.company_name?.toLowerCase().includes(searchLower);
         const taxMatch = c.tax_id?.toLowerCase().includes(searchLower);
@@ -96,14 +112,14 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
 
         const normalizedName = normalizeCompanyName(displayName);
         const sim = stringSimilarity(normalizedSearch, normalizedName);
-        const finalSim = directMatch ? Math.max(sim, 0.75) : sim;
+        const finalSim = directMatch ? Math.max(sim, 0.85) : sim;
 
         return { ...c, similarity: finalSim } as CustomerMatch;
       })
-      .filter(m => m.similarity >= 0.3)
+      .filter(m => m.similarity >= 0.25)
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 10);
-  }, [searchTerm, customers]);
+      .slice(0, 15);
+  }, [normalizedSearchTerm, searchableCustomers]);
 
   const linkToCustomer = async (customerId: string) => {
     if (!scadenza) return;
