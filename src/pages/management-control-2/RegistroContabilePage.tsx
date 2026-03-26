@@ -1978,6 +1978,8 @@ export default function RegistroContabilePage() {
       toast.success('Elemento eliminato dal registro contabile');
       queryClient.invalidateQueries({ queryKey: ['invoice-registry'] });
       queryClient.invalidateQueries({ queryKey: ['accounting-events'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-dettagliate'] });
+      queryClient.invalidateQueries({ queryKey: ['scadenze-stats'] });
     },
     onError: (error) => {
       toast.error('Errore: ' + error.message);
