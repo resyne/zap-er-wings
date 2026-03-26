@@ -4543,6 +4543,8 @@ export default function RegistroContabilePage() {
                   <SelectItem value="vendita">Vendita (Cliente)</SelectItem>
                   <SelectItem value="acquisto">Acquisto (Fornitore)</SelectItem>
                   <SelectItem value="nota_credito">Nota Credito</SelectItem>
+                  <SelectItem value="ricevuta_acquisto">Ricevuta Acquisto</SelectItem>
+                  <SelectItem value="ricevuta_vendita">Ricevuta Vendita</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -5103,6 +5105,8 @@ export default function RegistroContabilePage() {
                     <SelectItem value="fattura_acquisto">Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">Fattura di Vendita</SelectItem>
                     <SelectItem value="nota_credito">Nota di Credito/Debito</SelectItem>
+                    <SelectItem value="ricevuta_acquisto">Ricevuta di Acquisto</SelectItem>
+                    <SelectItem value="ricevuta_vendita">Ricevuta di Vendita</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
