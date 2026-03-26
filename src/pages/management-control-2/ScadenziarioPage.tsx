@@ -665,7 +665,7 @@ export default function ScadenziarioPage() {
     onError: (error) => toast.error(`Errore: ${error.message}`),
   });
 
-
+  const openRegistraDialog = (scadenza: Scadenza) => {
     setSelectedScadenza(scadenza);
     setImportoRegistrazione(scadenza.importo_residuo.toString());
     setPaymentFiles([]);
