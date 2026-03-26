@@ -84,6 +84,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
 
 // ── Types ──────────────────────────────────────────
 interface Scadenza {
@@ -110,6 +111,8 @@ interface Scadenza {
   invoice_date?: string;
   invoice_type?: string;
   financial_status?: string;
+  solleciti_count?: number;
+  ultimo_sollecito_at?: string;
 }
 
 interface ScadenzaMovimento {
@@ -183,6 +186,8 @@ export default function ScadenziarioPage() {
   const [checkDueDate, setCheckDueDate] = useState("");
   const [checkNumber, setCheckNumber] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
+  const [sollecitoOpen, setSollecitoOpen] = useState(false);
+  const [sollecitoScadenza, setSollecitoScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
@@ -1011,10 +1016,24 @@ export default function ScadenziarioPage() {
                                           </Button>
                                         )}
                                         {!isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && (
-                                          <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
-                                            <CreditCard className="h-3 w-3" />
-                                            {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
-                                          </Button>
+                                          <>
+                                            <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
+                                              <CreditCard className="h-3 w-3" />
+                                              {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
+                                            </Button>
+                                            {scadenza.tipo === "credito" && (
+                                              <Button size="sm" variant="outline" onClick={() => { setSollecitoScadenza(scadenza); setSollecitoOpen(true); }}
+                                                className="gap-1 h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                Sollecito
+                                                {scadenza.solleciti_count && scadenza.solleciti_count > 0 ? (
+                                                  <Badge variant="outline" className="ml-0.5 h-4 px-1 text-[9px] bg-amber-100 border-amber-300">
+                                                    {scadenza.solleciti_count}
+                                                  </Badge>
+                                                ) : null}
+                                              </Button>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     </TableCell>
@@ -1352,6 +1371,13 @@ export default function ScadenziarioPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Sollecito Dialog */}
+      <SollecitoDialog
+        open={sollecitoOpen}
+        onOpenChange={setSollecitoOpen}
+        scadenza={sollecitoScadenza}
+      />
     </div>
   );
 }
