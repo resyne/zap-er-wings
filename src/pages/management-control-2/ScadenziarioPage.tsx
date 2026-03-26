@@ -85,6 +85,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
+import { LinkCustomerDialog } from "@/components/scadenziario/LinkCustomerDialog";
 
 // ── Types ──────────────────────────────────────────
 interface Scadenza {
@@ -188,6 +189,8 @@ export default function ScadenziarioPage() {
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
   const [sollecitoOpen, setSollecitoOpen] = useState(false);
   const [sollecitoScadenza, setSollecitoScadenza] = useState<Scadenza | null>(null);
+  const [linkCustomerOpen, setLinkCustomerOpen] = useState(false);
+  const [linkCustomerScadenza, setLinkCustomerScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
@@ -970,7 +973,17 @@ export default function ScadenziarioPage() {
                                       <TableCell>
                                         <div className="flex items-center gap-1.5">
                                           <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", scadenza.tipo === "credito" ? "bg-emerald-500" : "bg-red-500")} />
-                                          <span className="text-sm font-medium truncate max-w-[150px]">{scadenza.soggetto_nome || "N/D"}</span>
+                                          <button
+                                            className="text-sm font-medium truncate max-w-[150px] hover:underline text-left flex items-center gap-1"
+                                            onClick={(e) => { e.stopPropagation(); setLinkCustomerScadenza(scadenza); setLinkCustomerOpen(true); }}
+                                          >
+                                            {scadenza.soggetto_nome || "N/D"}
+                                            {scadenza.soggetto_id ? (
+                                              <CheckCircle className="h-3 w-3 text-emerald-500 shrink-0" />
+                                            ) : (
+                                              <Link2 className="h-3 w-3 text-amber-500 shrink-0" />
+                                            )}
+                                          </button>
                                         </div>
                                       </TableCell>
                                     )}
@@ -1377,6 +1390,13 @@ export default function ScadenziarioPage() {
         open={sollecitoOpen}
         onOpenChange={setSollecitoOpen}
         scadenza={sollecitoScadenza}
+      />
+
+      {/* Link Customer Dialog */}
+      <LinkCustomerDialog
+        open={linkCustomerOpen}
+        onOpenChange={setLinkCustomerOpen}
+        scadenza={linkCustomerScadenza}
       />
     </div>
   );
