@@ -1003,31 +1003,40 @@ export default function RegistroContabilePage() {
     setShowOperationalInvoiceDialog(true);
   };
   const getSubjects = (invoiceType: InvoiceType) => {
-    if (invoiceType === 'vendita') {
-      return customers.map(c => ({ 
-        id: c.id, 
-        name: c.company_name || c.name, 
+    const isCustomerFlow = invoiceType === 'vendita' || invoiceType === 'ricevuta_vendita';
+
+    if (isCustomerFlow) {
+      return customers.map(c => ({
+        id: c.id,
+        name: c.company_name || c.name,
         secondary: c.name !== (c.company_name || c.name) ? c.name : c.tax_id,
         type: 'cliente' as SubjectType
       }));
-    } else {
-      return suppliers.map(s => ({ 
-        id: s.id, 
-        name: s.name, 
-        secondary: s.tax_id,
-        type: 'fornitore' as SubjectType
-      }));
     }
+
+    return suppliers.map(s => ({
+      id: s.id,
+      name: s.name,
+      secondary: s.tax_id,
+      type: 'fornitore' as SubjectType
+    }));
   };
+
+  const normalizeSearchText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
 
   // Filtered subjects for search
   const filteredSubjects = useMemo(() => {
     const subjects = getSubjects(formData.invoice_type);
     if (!subjectSearch.trim()) return subjects;
-    const searchLower = subjectSearch.toLowerCase();
-    return subjects.filter(s => 
-      s.name.toLowerCase().includes(searchLower) || 
-      (s.secondary && s.secondary.toLowerCase().includes(searchLower))
+    const searchNormalized = normalizeSearchText(subjectSearch);
+    return subjects.filter(s =>
+      normalizeSearchText(s.name).includes(searchNormalized) ||
+      (s.secondary && normalizeSearchText(s.secondary).includes(searchNormalized))
     );
   }, [customers, suppliers, formData.invoice_type, subjectSearch]);
 
@@ -1035,10 +1044,10 @@ export default function RegistroContabilePage() {
   const filteredEditSubjects = useMemo(() => {
     const subjects = getSubjects(editFormData.invoice_type);
     if (!editSubjectSearch.trim()) return subjects;
-    const searchLower = editSubjectSearch.toLowerCase();
-    return subjects.filter(s => 
-      s.name.toLowerCase().includes(searchLower) || 
-      (s.secondary && s.secondary.toLowerCase().includes(searchLower))
+    const searchNormalized = normalizeSearchText(editSubjectSearch);
+    return subjects.filter(s =>
+      normalizeSearchText(s.name).includes(searchNormalized) ||
+      (s.secondary && normalizeSearchText(s.secondary).includes(searchNormalized))
     );
   }, [customers, suppliers, editFormData.invoice_type, editSubjectSearch]);
 
