@@ -231,6 +231,8 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
 
   const fmtEuro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2 })}`;
   const livelloInfo = LIVELLO_LABELS[nextLivello];
+  const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email || null;
+  const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone || null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
