@@ -161,7 +161,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
           canale,
           soggetto_nome: scadenza.soggetto_nome,
           soggetto_email: customerInfo?.email || null,
-          soggetto_telefono: customerInfo?.phone || customerInfo?.mobile || null,
+          soggetto_telefono: customerInfo?.phone || customerInfo?.phone || null,
           importo_residuo: scadenza.importo_residuo,
           invoice_number: scadenza.invoice_number || null,
           messaggio,
@@ -199,11 +199,11 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
       }
 
       // Try WhatsApp if applicable
-      if ((canale === "whatsapp" || canale === "entrambi") && (customerInfo?.phone || customerInfo?.mobile)) {
+      if ((canale === "whatsapp" || canale === "entrambi") && (customerInfo?.phone || customerInfo?.phone)) {
         try {
           await supabase.functions.invoke("send-whatsapp-sollecito", {
             body: {
-              phone: customerInfo.phone || customerInfo.mobile,
+              phone: customerInfo.phone || customerInfo?.phone,
               message: messaggio,
               livello: nextLivello,
               soggetto_nome: scadenza.soggetto_nome,
@@ -270,9 +270,9 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                       <Mail className="h-3 w-3" /> {customerInfo.email}
                     </div>
                   )}
-                  {(customerInfo.phone || customerInfo.mobile) && (
+                  {(customerInfo.phone || customerInfo?.phone) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MessageSquare className="h-3 w-3" /> {customerInfo.phone || customerInfo.mobile}
+                      <MessageSquare className="h-3 w-3" /> {customerInfo.phone || customerInfo?.phone}
                     </div>
                   )}
                 </div>
