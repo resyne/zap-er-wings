@@ -903,6 +903,29 @@ export default function ScadenziarioPage() {
                             {group.sublabel && (
                               <span className="text-xs text-muted-foreground">{group.sublabel}</span>
                             )}
+                            {groupBy === "soggetto" && group.scadenze.length > 0 && (
+                              <button
+                                className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md border hover:bg-muted transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const s = group.scadenze[0];
+                                  setLinkCustomerScadenza(s);
+                                  setLinkCustomerOpen(true);
+                                }}
+                              >
+                                {group.scadenze[0].soggetto_id ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                    <span className="text-emerald-700">Collegato</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Link2 className="h-3 w-3 text-amber-500" />
+                                    <span className="text-amber-700">Collega anagrafica</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                             {group.scadenzeScadute > 0 && (
                               <Badge variant="destructive" className="gap-0.5 text-[10px] px-1.5 py-0">
                                 <AlertTriangle className="h-2.5 w-2.5" />
