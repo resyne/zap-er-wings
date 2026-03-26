@@ -1607,7 +1607,7 @@ export default function RegistroContabilePage() {
       }
       const scadenzaId = scadenzaIds[0] || null;
 
-      if (invoice.invoice_type === 'vendita' || invoice.invoice_type === 'nota_credito') {
+      if (invoice.invoice_type === 'vendita' || invoice.invoice_type === 'nota_credito' || invoice.invoice_type === 'ricevuta_vendita') {
         await supabase.from('customer_invoices').insert({
           invoice_number: invoice.invoice_number,
           customer_name: invoice.subject_name,
@@ -3147,7 +3147,7 @@ export default function RegistroContabilePage() {
           {invoice.scadenza_id && ['da_incassare', 'da_pagare', 'parzialmente_incassata', 'parzialmente_pagata'].includes(invoice.financial_status) && (
             <Button size="sm" variant="outline" className="border-green-500 text-green-600 hover:bg-green-50" onClick={() => openPaymentDialog(invoice)}>
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-              {invoice.invoice_type === 'vendita' ? 'Incassa' : 'Paga'}
+              {(invoice.invoice_type === 'vendita' || invoice.invoice_type === 'ricevuta_vendita') ? 'Incassa' : 'Paga'}
             </Button>
           )}
           {invoice.scadenza_id && (
@@ -4549,7 +4549,7 @@ export default function RegistroContabilePage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{editFormData.invoice_type === 'vendita' ? 'Cliente' : 'Fornitore'} *</Label>
+              <Label>{(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'Cliente' : 'Fornitore'} *</Label>
               <Popover open={editSubjectSearchOpen} onOpenChange={setEditSubjectSearchOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -4558,14 +4558,14 @@ export default function RegistroContabilePage() {
                     aria-expanded={editSubjectSearchOpen}
                     className="w-full justify-between font-normal"
                   >
-                    {editFormData.subject_name || `Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                    {editFormData.subject_name || `Cerca ${(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'cliente' : 'fornitore'}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[400px] p-0" align="start">
                   <Command>
                     <CommandInput 
-                      placeholder={`Cerca ${editFormData.invoice_type === 'vendita' ? 'cliente' : 'fornitore'}...`}
+                      placeholder={`Cerca ${(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'ricevuta_vendita') ? 'cliente' : 'fornitore'}...`}
                       value={editSubjectSearch}
                       onValueChange={setEditSubjectSearch}
                     />
@@ -4772,7 +4772,7 @@ export default function RegistroContabilePage() {
             )}
             
             {/* Profit center and revenue account for sales */}
-            {(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'nota_credito') && (
+            {(editFormData.invoice_type === 'vendita' || editFormData.invoice_type === 'nota_credito' || editFormData.invoice_type === 'ricevuta_vendita') && (
               <>
                 <div className="space-y-2">
                   <Label>Centro di Ricavo</Label>
@@ -5284,7 +5284,7 @@ export default function RegistroContabilePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
-              {selectedInvoice?.invoice_type === 'vendita' ? 'Registra Incasso' : 'Registra Pagamento'}
+              {(selectedInvoice?.invoice_type === 'vendita' || selectedInvoice?.invoice_type === 'ricevuta_vendita') ? 'Registra Incasso' : 'Registra Pagamento'}
             </DialogTitle>
           </DialogHeader>
           {selectedInvoice && (
@@ -5310,7 +5310,7 @@ export default function RegistroContabilePage() {
                     </div>
                   )}
                   <div className="flex justify-between border-t pt-2">
-                    <span className="text-muted-foreground font-semibold">Residuo da {selectedInvoice.invoice_type === 'vendita' ? 'incassare' : 'pagare'}:</span>
+                    <span className="text-muted-foreground font-semibold">Residuo da {(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incassare' : 'pagare'}:</span>
                     <span className="font-bold text-primary">€{(scadenzaResiduo ?? selectedInvoice.total_amount).toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </CardContent>
@@ -5354,7 +5354,7 @@ export default function RegistroContabilePage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Data {selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'} *</Label>
+                  <Label>Data {(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incasso' : 'pagamento'} *</Label>
                   <Input
                     type="date"
                     value={paymentData.payment_date}
@@ -5390,7 +5390,7 @@ export default function RegistroContabilePage() {
               <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                 <p className="text-muted-foreground">Verrà creato automaticamente:</p>
                 <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                  <li>Movimento di Prima Nota ({selectedInvoice.invoice_type === 'vendita' ? 'incasso' : 'pagamento'})</li>
+                  <li>Movimento di Prima Nota ({(selectedInvoice.invoice_type === 'vendita' || selectedInvoice.invoice_type === 'ricevuta_vendita') ? 'incasso' : 'pagamento'})</li>
                   <li>Scrittura partita doppia</li>
                   <li>Movimento sullo scadenziario</li>
                   {!paymentData.is_partial && <li>Chiusura scadenza</li>}
