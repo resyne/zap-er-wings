@@ -86,7 +86,7 @@ interface InvoiceRegistry {
   id: string;
   invoice_number: string;
   invoice_date: string;
-  invoice_type: 'vendita' | 'acquisto' | 'nota_credito';
+  invoice_type: 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
   event_type?: EventType | null;
   subject_type: 'cliente' | 'fornitore';
   subject_id: string | null;
@@ -134,8 +134,8 @@ interface InvoiceRegistry {
 }
 
 // Tipi evento del registro contabile
-type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito';
-type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito';
+type EventType = 'fattura_acquisto' | 'fattura_vendita' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
+type InvoiceType = 'vendita' | 'acquisto' | 'nota_credito' | 'ricevuta_acquisto' | 'ricevuta_vendita';
 type SubjectType = 'cliente' | 'fornitore';
 type VatRegime = 'domestica_imponibile' | 'ue_non_imponibile' | 'extra_ue' | 'reverse_charge';
 type FinancialStatus = 'da_incassare' | 'da_pagare' | 'parzialmente_incassata' | 'parzialmente_pagata' | 'incassata' | 'pagata';
@@ -227,7 +227,7 @@ const initialFormData: FormData = {
 
 // Helper per determinare se un tipo evento è una fattura (documento fiscale)
 const isFiscalDocument = (eventType: EventType): boolean => {
-  return ['fattura_acquisto', 'fattura_vendita', 'nota_credito'].includes(eventType);
+  return ['fattura_acquisto', 'fattura_vendita', 'nota_credito', 'ricevuta_acquisto', 'ricevuta_vendita'].includes(eventType);
 };
 
 // Helper per determinare se genera contabilità
@@ -1257,7 +1257,7 @@ export default function RegistroContabilePage() {
 
       // Validazione: se c'è split, ogni riga deve avere conto e centro
       if (splitsToSave && splitsToSave.length > 0) {
-        const isAcquisto = data.invoice_type === 'acquisto';
+        const isAcquisto = data.invoice_type === 'acquisto' || data.invoice_type === 'ricevuta_acquisto';
         for (let i = 0; i < splitsToSave.length; i++) {
           const split = splitsToSave[i];
           if (!split.account_id || split.account_id.trim() === '') {
@@ -3020,6 +3020,10 @@ export default function RegistroContabilePage() {
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><ArrowDownLeft className="w-3 h-3 mr-1" />Acquisto</Badge>;
       case 'nota_credito':
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><Receipt className="w-3 h-3 mr-1" />Nota Credito</Badge>;
+      case 'ricevuta_acquisto':
+        return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30"><ArrowDownLeft className="w-3 h-3 mr-1" />Ric. Acquisto</Badge>;
+      case 'ricevuta_vendita':
+        return <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30"><ArrowUpRight className="w-3 h-3 mr-1" />Ric. Vendita</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -3774,6 +3778,16 @@ export default function RegistroContabilePage() {
                       } else if (v === 'nota_credito') {
                         updated.invoice_type = 'nota_credito';
                         updated.iva_rate = 22;
+                      } else if (v === 'ricevuta_acquisto') {
+                        updated.invoice_type = 'ricevuta_acquisto';
+                        updated.subject_type = 'fornitore';
+                        updated.financial_status = 'da_pagare';
+                        updated.iva_rate = 0;
+                      } else if (v === 'ricevuta_vendita') {
+                        updated.invoice_type = 'ricevuta_vendita';
+                        updated.subject_type = 'cliente';
+                        updated.financial_status = 'da_incassare';
+                        updated.iva_rate = 0;
                       }
                       return updated;
                     });
@@ -3789,6 +3803,8 @@ export default function RegistroContabilePage() {
                     <SelectItem value="fattura_acquisto">📥 Fattura di Acquisto</SelectItem>
                     <SelectItem value="fattura_vendita">📤 Fattura di Vendita</SelectItem>
                     <SelectItem value="nota_credito">📋 Nota di Credito / Debito</SelectItem>
+                    <SelectItem value="ricevuta_acquisto">🧾 Ricevuta di Acquisto</SelectItem>
+                    <SelectItem value="ricevuta_vendita">🧾 Ricevuta di Vendita</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
