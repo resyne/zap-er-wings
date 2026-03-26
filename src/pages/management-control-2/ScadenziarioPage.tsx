@@ -1332,7 +1332,7 @@ export default function ScadenziarioPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Tipo</p>
-                  <Badge variant="outline" className="capitalize">{previewInvoice.invoice_type === "vendita" ? "Vendita" : previewInvoice.invoice_type === "acquisto" ? "Acquisto" : "Nota credito"}</Badge>
+                  <Badge variant="outline" className="capitalize">{previewInvoice.invoice_type === "vendita" ? "Vendita" : previewInvoice.invoice_type === "acquisto" ? "Acquisto" : previewInvoice.invoice_type === "ricevuta_acquisto" ? "Ric. Acquisto" : previewInvoice.invoice_type === "ricevuta_vendita" ? "Ric. Vendita" : "Nota credito"}</Badge>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Soggetto</p>
