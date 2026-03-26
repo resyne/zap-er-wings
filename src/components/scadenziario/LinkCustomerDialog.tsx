@@ -140,7 +140,8 @@ export function LinkCustomerDialog({ open, onOpenChange, scadenza }: LinkCustome
       }
 
       queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
-      queryClient.invalidateQueries({ queryKey: ["all-customers-for-link"] });
+      queryClient.invalidateQueries({ queryKey: ["customers-search-for-link"] });
+      queryClient.invalidateQueries({ queryKey: ["linked-customer-for-scadenza"] });
       toast.success("Soggetto collegato all'anagrafica clienti");
       onOpenChange(false);
     } catch (e: any) {
