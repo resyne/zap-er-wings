@@ -1014,10 +1014,24 @@ export default function ScadenziarioPage() {
                                           </Button>
                                         )}
                                         {!isClosedScadenza(scadenza) && !isAssegnoInCassa(scadenza) && (
-                                          <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
-                                            <CreditCard className="h-3 w-3" />
-                                            {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
-                                          </Button>
+                                          <>
+                                            <Button size="sm" variant="outline" onClick={() => openRegistraDialog(scadenza)} className="gap-1 h-7 text-xs">
+                                              <CreditCard className="h-3 w-3" />
+                                              {scadenza.tipo === "credito" ? "Incassa" : "Paga"}
+                                            </Button>
+                                            {scadenza.tipo === "credito" && (
+                                              <Button size="sm" variant="outline" onClick={() => { setSollecitoScadenza(scadenza); setSollecitoOpen(true); }}
+                                                className="gap-1 h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-50">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                Sollecito
+                                                {(scadenza as any).solleciti_count > 0 && (
+                                                  <Badge variant="outline" className="ml-0.5 h-4 px-1 text-[9px] bg-amber-100 border-amber-300">
+                                                    {(scadenza as any).solleciti_count}
+                                                  </Badge>
+                                                )}
+                                              </Button>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     </TableCell>
