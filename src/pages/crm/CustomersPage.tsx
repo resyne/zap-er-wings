@@ -26,6 +26,17 @@ export default function CustomersPage() {
 
   useEffect(() => {
     loadCustomers();
+
+    const channel = supabase
+      .channel('customers-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
+        loadCustomers();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadCustomers = async () => {
