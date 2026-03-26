@@ -76,6 +76,7 @@ import {
   Search,
   Upload,
   X,
+  Trash2,
   File,
   Image as ImageIcon,
   Link2,
@@ -645,8 +646,26 @@ export default function ScadenziarioPage() {
     setCheckDueDate("");
     setCheckNumber("");
   };
+  // Delete scadenza mutation
+  const deleteScadenzaMutation = useMutation({
+    mutationFn: async (scadenzaId: string) => {
+      // Delete related solleciti first
+      await supabase.from("solleciti").delete().eq("scadenza_id", scadenzaId);
+      // Delete related movimenti
+      await supabase.from("scadenza_movimenti").delete().eq("scadenza_id", scadenzaId);
+      // Delete the scadenza
+      const { error } = await supabase.from("scadenze").delete().eq("id", scadenzaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Scadenza eliminata");
+      queryClient.invalidateQueries({ queryKey: ["scadenze-dettagliate"] });
+      queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
+    },
+    onError: (error) => toast.error(`Errore: ${error.message}`),
+  });
 
-  const openRegistraDialog = (scadenza: Scadenza) => {
+
     setSelectedScadenza(scadenza);
     setImportoRegistrazione(scadenza.importo_residuo.toString());
     setPaymentFiles([]);
@@ -1071,6 +1090,16 @@ export default function ScadenziarioPage() {
                                             )}
                                           </>
                                         )}
+                                        <Button size="sm" variant="ghost" onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (confirm("Sei sicuro di voler eliminare questa scadenza?")) {
+                                            deleteScadenzaMutation.mutate(scadenza.id);
+                                          }
+                                        }}
+                                          className="gap-1 h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                          disabled={deleteScadenzaMutation.isPending}>
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
                                       </div>
                                     </TableCell>
                                   </TableRow>
