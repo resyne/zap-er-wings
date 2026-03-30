@@ -689,7 +689,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
     
     // For inbound messages, show with translation
     if (msg.direction === 'inbound' && msg.content) {
-      return <TranslatedMessageBubbleInline messageId={msg.id} originalText={msg.content} />;
+      return <TranslatedMessageBubbleInline messageId={msg.id} originalText={msg.content} savedTranslation={(msg as any).translation_it} savedSourceLanguage={(msg as any).source_language} />;
     }
     
     return <p className="text-sm whitespace-pre-wrap">{msg.content || ""}</p>;
