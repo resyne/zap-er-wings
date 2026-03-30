@@ -101,6 +101,10 @@ export default function ScrapingPage() {
   const [emailGenProgress, setEmailGenProgress] = useState({ processed: 0, total: 0, running: false });
   const emailGenPausedRef = useRef(false);
   const [emailGenPaused, setEmailGenPaused] = useState(false);
+  const [recoveringEmails, setRecoveringEmails] = useState(false);
+  const [recoverProgress, setRecoverProgress] = useState({ processed: 0, total: 0, found: 0, running: false });
+  const recoverPausedRef = useRef(false);
+  const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
   // Email template & sending state
