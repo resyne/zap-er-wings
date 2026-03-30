@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
 import { WarehouseCategorySettings } from "@/components/warehouse/WarehouseCategorySettings";
+import { ProductCategorySettings } from "@/components/warehouse/ProductCategorySettings";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { format } from "date-fns";
