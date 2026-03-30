@@ -36,6 +36,8 @@ interface Material {
   supplier_id?: string;
   suppliers?: { name: string } | null;
   last_inventory_date?: string | null;
+  warehouse_category_id?: string | null;
+  warehouse_subcategory_id?: string | null;
 }
 
 interface Supplier {
@@ -249,7 +251,7 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, last_inventory_date, suppliers(name)")
+        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, last_inventory_date, warehouse_category_id, warehouse_subcategory_id, suppliers(name)")
         .eq("active", true)
         .order("name");
       if (error) throw error;
