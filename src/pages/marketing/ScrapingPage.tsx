@@ -991,6 +991,69 @@ export default function ScrapingPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Email Preview Dialog */}
+      <Dialog open={!!previewEmail} onOpenChange={(open) => !open && setPreviewEmail(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Anteprima Email</DialogTitle>
+          </DialogHeader>
+          {previewEmail && (() => {
+            const previewHtml = htmlTemplate
+              .replace(/\{\{subject\}\}/g, previewEmail.generated_email_subject || '')
+              .replace(/\{\{body\}\}/g, (previewEmail.generated_email_body || '').replace(/\n/g, '<br>'))
+              .replace(/\{\{recipient_name\}\}/g, previewEmail.recipient_name || '')
+              .replace(/\{\{recipient_company\}\}/g, previewEmail.recipient_company || '')
+              .replace(/\{\{sender_name\}\}/g, emailSenderName || '')
+              .replace(/\{\{city\}\}/g, previewEmail.city || '')
+              .replace(/\{\{url\}\}/g, previewEmail.url || '');
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Destinatario</Label>
+                    <p className="font-medium">{previewEmail.contact_email || '⚠️ Nessuna email'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Oggetto</Label>
+                    <p className="font-medium">{previewEmail.generated_email_subject}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Da</Label>
+                    <p className="font-medium">{emailSenderName} &lt;{emailSenderEmail}&gt;</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Reply-To</Label>
+                    <p className="font-medium">{replyToEmail || emailSenderEmail}</p>
+                  </div>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <iframe
+                    srcDoc={previewHtml}
+                    className="w-full border-0"
+                    style={{ height: 400 }}
+                    title="Email Preview"
+                    sandbox=""
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setPreviewEmail(null)}>Annulla</Button>
+                  <Button
+                    onClick={() => {
+                      sendSelectedEmails([previewEmail.id]);
+                      setPreviewEmail(null);
+                    }}
+                    disabled={sendingEmails || !previewEmail.contact_email}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Conferma Invio
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
