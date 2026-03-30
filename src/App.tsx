@@ -304,6 +304,7 @@ const App = () => (
                 <Route path="marketing/content-creation" element={<LazyPage><ContentCreationPage /></LazyPage>} />
                 <Route path="marketing/brandkit" element={<LazyPage><BrandkitPage /></LazyPage>} />
                 <Route path="marketing/competitor-analysis" element={<LazyPage><CompetitorAnalysisPage /></LazyPage>} />
+                <Route path="marketing/scraping" element={<LazyPage><ScrapingPage /></LazyPage>} />
                 <Route path="marketing/brandkit/:brandId" element={<LazyPage><BrandAssetManager /></LazyPage>} />
                 <Route path="integrations" element={<LazyPage><IntegrationsPage /></LazyPage>} />
                 <Route path="becca" element={<LazyPage><BeccaPage /></LazyPage>} />
