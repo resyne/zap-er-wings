@@ -549,8 +549,11 @@ export default function ZAppMagazzino() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-white" />
+              <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-card" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setProductSettingsOpen(true)}>
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex gap-2">
@@ -562,7 +565,7 @@ export default function ZAppMagazzino() {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">{filteredProducts.length} prodotti finiti</p>
+          <p className="text-xs text-muted-foreground">{filteredProducts.length} prodotti finiti · {productCategories.length} categorie</p>
 
           {loadingProducts ? (
             <div className="flex items-center justify-center py-12">
@@ -570,45 +573,84 @@ export default function ZAppMagazzino() {
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">Nessun prodotto trovato</div>
-          ) : (
+          ) : !hasProductCategories ? (
+            // Flat list when no categories exist
             <div className="space-y-2">
-              {filteredProducts.map((p) => {
-                const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
-                const isOut = p.current_stock <= 0;
+              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Categorized products */}
+              {Object.entries(groupedProducts.groups).map(([catName, catData]) => {
+                const allProducts = [...catData.uncategorized, ...Object.values(catData.subcategories).flatMap(s => s.products)];
+                const isCatOpen = expandedProductCats.has(catName);
+
                 return (
-                  <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-border">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-red-50" : isLow ? "bg-amber-50" : "bg-blue-50"}`}>
-                        <Box className={`h-4 w-4 ${isOut ? "text-red-500" : isLow ? "text-amber-500" : "text-blue-500"}`} />
+                  <Collapsible key={catName} open={isCatOpen} onOpenChange={() => {
+                    setExpandedProductCats(prev => {
+                      const n = new Set(prev);
+                      n.has(catName) ? n.delete(catName) : n.add(catName);
+                      return n;
+                    });
+                  }}>
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center gap-2 bg-card rounded-xl px-3 py-3 shadow-sm border border-border hover:bg-muted/50 transition-colors">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Box className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="font-bold text-sm">{catName}</p>
+                          <p className="text-[11px] text-muted-foreground">{allProducts.length} prodotti</p>
+                        </div>
+                        {isCatOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-2 mt-2 ml-2 border-l-2 border-border pl-2">
+                        {/* Subcategories */}
+                        {Object.entries(catData.subcategories).map(([subName, subData]) => {
+                          const subKey = `${catName}__${subName}`;
+                          const isSubOpen = expandedProductSubs.has(subKey);
+
+                          return (
+                            <Collapsible key={subKey} open={isSubOpen} onOpenChange={() => {
+                              setExpandedProductSubs(prev => {
+                                const n = new Set(prev);
+                                n.has(subKey) ? n.delete(subKey) : n.add(subKey);
+                                return n;
+                              });
+                            }}>
+                              <CollapsibleTrigger asChild>
+                                <button className="w-full flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 border border-border hover:bg-muted/50 transition-colors">
+                                  <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="font-semibold text-[13px] flex-1 text-left">{subName}</span>
+                                  <span className="text-[11px] text-muted-foreground mr-1">{subData.products.length}</span>
+                                  {isSubOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                </button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
+                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        })}
+                        {/* Uncategorized within category */}
+                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[13px] truncate">{p.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{p.code}</p>
-                        {p.warehouse_location && (
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <MapPin className="h-2.5 w-2.5" /> {p.warehouse_location}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-[13px]">{p.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{p.unit_of_measure || "pz"}</span></p>
-                        {isOut ? (
-                          <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>
-                        ) : isLow ? (
-                          <Badge variant="destructive" className="text-[10px] px-1.5">Sotto scorta</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 text-green-700 border-green-300">OK</Badge>
-                        )}
-                        {(p.sale_price || 0) > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-0.5">
-                            <Euro className="h-2.5 w-2.5" /> {Number(p.sale_price).toLocaleString("it-IT")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
+
+              {/* Uncategorized products */}
+              {groupedProducts.uncategorized.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground px-1">Senza categoria ({groupedProducts.uncategorized.length})</p>
+                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
