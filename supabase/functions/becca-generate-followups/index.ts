@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Vesuviano WhatsApp account ID
+const VESUVIANO_ACCOUNT_ID = "9d24956a-d020-485e-9c5b-8cce3e224508";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,29 +25,22 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const minInactiveDays = body.min_inactive_days || 3;
 
-    // Get Vesuviano account(s) - filter by name containing 'vesuviano'
-    const { data: accounts } = await supabase
-      .from("wasender_accounts")
-      .select("id, phone_number, session_id")
-      .eq("is_active", true);
-
-    // Also check whatsapp_accounts for Vesuviano
-    const { data: waAccounts } = await supabase
-      .from("whatsapp_accounts")
-      .select("id, verified_name, display_phone_number")
-      .eq("is_active", true)
-      .ilike("verified_name", "%vesuviano%");
-
-    // Get all WaSender conversations where last message is inbound and older than minInactiveDays
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - minInactiveDays);
 
-    const { data: conversations } = await supabase
-      .from("wasender_conversations")
+    // Get Vesuviano conversations from whatsapp_conversations that are inactive
+    const { data: conversations, error: convError } = await supabase
+      .from("whatsapp_conversations")
       .select("id, account_id, customer_phone, customer_name, lead_id, last_message_at, unread_count")
+      .eq("account_id", VESUVIANO_ACCOUNT_ID)
       .lt("last_message_at", cutoffDate.toISOString())
       .order("last_message_at", { ascending: true })
-      .limit(50);
+      .limit(200);
+
+    if (convError) {
+      console.error("Error fetching conversations:", convError);
+      throw new Error("Failed to fetch conversations");
+    }
 
     if (!conversations || conversations.length === 0) {
       return new Response(
@@ -53,46 +49,61 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Found ${conversations.length} inactive Vesuviano conversations`);
+
+    // Filter out Becca authorized users (internal conversations)
+    const { data: beccaUsers } = await supabase
+      .from("becca_authorized_users")
+      .select("phone_number")
+      .eq("is_active", true);
+
+    const beccaPhones = (beccaUsers || []).map(u => u.phone_number.replace(/\D/g, "").slice(-9));
+
+    const externalConversations = conversations.filter(c => {
+      const normalized = c.customer_phone.replace(/\D/g, "").slice(-9);
+      return !beccaPhones.some(bp => bp === normalized);
+    });
+
+    console.log(`After filtering internal users: ${externalConversations.length} conversations`);
+
     // Filter out conversations that already have a pending/approved followup
-    const conversationIds = conversations.map(c => c.id);
+    const conversationIds = externalConversations.map(c => c.id);
     const { data: existingFollowups } = await supabase
       .from("becca_followup_queue")
       .select("conversation_id, followup_number")
       .in("conversation_id", conversationIds)
-      .in("status", ["pending", "approved"]);
+      .in("status", ["pending", "approved", "edited"]);
 
-    const existingMap = new Map<string, number>();
+    const existingSet = new Set((existingFollowups || []).map(f => f.conversation_id));
+    const existingMaxFollowup = new Map<string, number>();
     (existingFollowups || []).forEach(f => {
-      const current = existingMap.get(f.conversation_id) || 0;
-      existingMap.set(f.conversation_id, Math.max(current, f.followup_number));
+      const current = existingMaxFollowup.get(f.conversation_id) || 0;
+      existingMaxFollowup.set(f.conversation_id, Math.max(current, f.followup_number));
     });
 
     let generated = 0;
 
-    for (const conv of conversations) {
+    for (const conv of externalConversations) {
       // Skip if already has a pending followup
-      if (existingMap.has(conv.id)) continue;
+      if (existingSet.has(conv.id)) continue;
 
-      // Get last N messages for context
+      // Get last 15 messages from whatsapp_messages
       const { data: messages } = await supabase
-        .from("wasender_messages")
-        .select("direction, content, message_type, created_at")
+        .from("whatsapp_messages")
+        .select("direction, content, message_type, created_at, template_name")
         .eq("conversation_id", conv.id)
         .order("created_at", { ascending: false })
         .limit(15);
 
       if (!messages || messages.length === 0) continue;
 
-      // Check if last message was from customer (inbound) - we want to follow up on unanswered messages
       const lastMsg = messages[0];
-      
-      // Calculate days inactive
       const lastMsgDate = new Date(lastMsg.created_at);
       const daysInactive = Math.floor((Date.now() - lastMsgDate.getTime()) / (1000 * 60 * 60 * 24));
 
       if (daysInactive < minInactiveDays) continue;
 
-      // Get previous followup count for this conversation
+      // Get previous followup count
       const { data: prevFollowups } = await supabase
         .from("becca_followup_queue")
         .select("followup_number")
@@ -102,7 +113,7 @@ serve(async (req) => {
 
       const nextFollowupNumber = (prevFollowups?.[0]?.followup_number || 0) + 1;
 
-      // Get lead info if available
+      // Get lead info
       let leadInfo = "";
       if (conv.lead_id) {
         const { data: lead } = await supabase
@@ -125,10 +136,10 @@ serve(async (req) => {
       // Build conversation history
       const historyText = (messages || []).reverse().map(m => {
         const dir = m.direction === "inbound" ? "CLIENTE" : "NOI";
-        return `[${dir}] ${m.content || `[${m.message_type}]`}`;
+        const content = m.template_name ? `[Template: ${m.template_name}]` : (m.content || `[${m.message_type}]`);
+        return `[${dir}] ${content}`;
       }).join("\n");
 
-      // Generate follow-up message using AI
       const prompt = `Sei un venditore esperto di forni professionali per Vesuviano Forni.
 Analizza questa conversazione WhatsApp con un potenziale cliente e genera un messaggio di follow-up naturale e coinvolgente per capire se è ancora interessato.
 ${leadInfo}
@@ -155,7 +166,7 @@ Rispondi con un JSON:
 
       let aiResponse: any = null;
 
-      // Try Lovable AI first, then Gemini as fallback
+      // Try Lovable AI first
       if (lovableApiKey) {
         try {
           const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -239,29 +250,11 @@ Rispondi con un JSON:
         continue;
       }
 
-      // Find the whatsapp_account_id - try to match WaSender account to WhatsApp account
-      let whatsappAccountId = waAccounts?.[0]?.id;
-      if (!whatsappAccountId) {
-        // Use the first available WA account
-        const { data: anyAccount } = await supabase
-          .from("whatsapp_accounts")
-          .select("id")
-          .eq("is_active", true)
-          .limit(1)
-          .single();
-        whatsappAccountId = anyAccount?.id;
-      }
-
-      if (!whatsappAccountId) {
-        console.error("No WhatsApp account found");
-        continue;
-      }
-
       // Insert into followup queue
       const { error: insertError } = await supabase
         .from("becca_followup_queue")
         .insert({
-          account_id: whatsappAccountId,
+          account_id: VESUVIANO_ACCOUNT_ID,
           conversation_id: conv.id,
           customer_phone: conv.customer_phone,
           customer_name: conv.customer_name,
@@ -280,11 +273,7 @@ Rispondi con un JSON:
       }
     }
 
-    // Send WhatsApp notification to admin about pending followups
-    if (generated > 0) {
-      // Notify via the Becca channel
-      console.log(`Generated ${generated} follow-up proposals`);
-    }
+    console.log(`Generated ${generated} follow-up proposals for Vesuviano`);
 
     return new Response(
       JSON.stringify({ success: true, generated }),
