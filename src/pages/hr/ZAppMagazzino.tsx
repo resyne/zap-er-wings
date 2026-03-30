@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro, Layers, Droplets, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +53,29 @@ interface StockMovement {
   created_at: string;
 }
 
+function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Material) => React.ReactNode }) {
+  return (
+    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
+      <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-destructive/10" : "bg-green-50"}`}>
+        <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-destructive" : "text-green-500"}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-[13px] truncate">{m.name}</p>
+        <p className="text-[11px] text-muted-foreground">{m.code}</p>
+        {m.last_inventory_date && (
+          <p className="text-[10px] text-primary">
+            Inventario: {format(new Date(m.last_inventory_date), "dd/MM/yy", { locale: it })}
+          </p>
+        )}
+      </div>
+      <div className="text-right flex-shrink-0">
+        <p className="font-bold text-[13px]">{m.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{m.unit}</span></p>
+        {getStockBadge(m)}
+      </div>
+    </div>
+  );
+}
+
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -64,7 +87,8 @@ export default function ZAppMagazzino() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
-  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
   const [productCaricoOpen, setProductCaricoOpen] = useState(false);
   const [productScaricoOpen, setProductScaricoOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
@@ -156,6 +180,13 @@ export default function ZAppMagazzino() {
     );
   }, [products, productSearch]);
 
+  // Category mapping based on supplier ID
+  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
+    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
+    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
+    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
+  };
+
   // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
     return materials.filter((m) => {
@@ -170,40 +201,54 @@ export default function ZAppMagazzino() {
     });
   }, [materials, searchTerm, stockFilter, enabledSupplierIds]);
 
-  // Group by supplier
-  const groupedBySupplier = useMemo(() => {
-    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+  // Group by category → subcategory
+  const groupedByCategory = useMemo(() => {
+    const categories: Record<string, {
+      subcategories: Record<string, { supplierName: string; materials: Material[] }>;
+    }> = {};
+
     for (const m of filteredMaterials) {
-      const key = m.supplier_id || "__no_supplier__";
-      const supplierName = m.suppliers?.name || "Senza fornitore";
-      if (!groups[key]) groups[key] = { supplierName, materials: [] };
-      groups[key].materials.push(m);
+      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+      const catName = mapping?.category || "Altro";
+      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+
+      if (!categories[catName]) {
+        categories[catName] = { subcategories: {} };
+      }
+      if (!categories[catName].subcategories[subName]) {
+        categories[catName].subcategories[subName] = { supplierName: m.suppliers?.name || "", materials: [] };
+      }
+      categories[catName].subcategories[subName].materials.push(m);
     }
-    return Object.entries(groups).sort(([keyA, a], [keyB, b]) => {
-      if (keyA === "__no_supplier__") return 1;
-      if (keyB === "__no_supplier__") return -1;
-      return a.supplierName.localeCompare(b.supplierName);
+
+    const order = ["Materiale di assemblaggio", "Materiale di consumo"];
+    return Object.entries(categories).sort(([a], [b]) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
     });
   }, [filteredMaterials]);
 
   const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 
-  const toggleSupplierExpand = (key: string) => {
-    setExpandedSuppliers((prev) => {
-      if (prev.has("__all__")) {
-        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
-        allKeys.delete(key);
-        return allKeys;
-      }
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
       return next;
     });
   };
 
-  const isAllExpanded = expandedSuppliers.has("__all__");
-  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
+  const toggleSub = (key: string) => {
+    setExpandedSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const getStockBadge = (m: Material) => {
     if (m.current_stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>;
@@ -306,7 +351,7 @@ export default function ZAppMagazzino() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            {filteredMaterials.length} articoli in {groupedBySupplier.length} fornitori
+            {filteredMaterials.length} articoli in {groupedByCategory.length} categorie
             {enabledCount === 0 && " · Attiva almeno un fornitore dalle impostazioni ⚙️"}
           </p>
 
@@ -320,54 +365,80 @@ export default function ZAppMagazzino() {
               <p className="text-muted-foreground text-sm">Nessun fornitore attivato</p>
               <Button variant="outline" onClick={() => setSettingsOpen(true)}>Configura fornitori</Button>
             </div>
-          ) : groupedBySupplier.length === 0 ? (
+          ) : groupedByCategory.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">Nessun materiale trovato</div>
           ) : (
-            <div className="space-y-3">
-              {groupedBySupplier.map(([key, group]) => {
-                const groupLowStock = group.materials.filter((m) => m.current_stock <= m.minimum_stock).length;
+            <div className="space-y-4">
+              {groupedByCategory.map(([catName, catData]) => {
+                const allCatMaterials = Object.values(catData.subcategories).flatMap(s => s.materials);
+                const catLowStock = allCatMaterials.filter(m => m.current_stock <= m.minimum_stock).length;
+                const isCatOpen = expandedCategories.has(catName);
+                const catIcon = catName === "Materiale di assemblaggio" ? <Wrench className="h-4 w-4 text-blue-700" /> : <Droplets className="h-4 w-4 text-emerald-700" />;
+                const catBg = catName === "Materiale di assemblaggio" ? "bg-blue-100" : "bg-emerald-100";
+
                 return (
-                  <Collapsible key={key} open={isExpanded(key)} onOpenChange={() => toggleSupplierExpand(key)}>
-                    <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 shadow-sm border border-border hover:bg-muted/50 transition-colors">
-                        <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-                          <Building2 className="h-4 w-4 text-amber-700" />
-                        </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <p className="font-semibold text-sm truncate">{group.supplierName}</p>
-                          <p className="text-[11px] text-muted-foreground">{group.materials.length} articoli</p>
-                        </div>
-                        {groupLowStock > 0 && (
-                          <Badge variant="destructive" className="text-[10px] px-1.5 mr-1">{groupLowStock} ⚠</Badge>
-                        )}
-                        {isExpanded(key) ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-amber-200 pl-2">
-                        {group.materials.map((m) => (
-                          <div key={m.id} className="bg-white rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
-                            <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-red-50" : "bg-green-50"}`}>
-                              <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-red-500" : "text-green-500"}`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-[13px] truncate">{m.name}</p>
-                              <p className="text-[11px] text-muted-foreground">{m.code}</p>
-                              {m.last_inventory_date && (
-                                <p className="text-[10px] text-blue-500">
-                                  Inventario: {format(new Date(m.last_inventory_date), "dd/MM/yy", { locale: it })}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-bold text-[13px]">{m.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{m.unit}</span></p>
-                              {getStockBadge(m)}
-                            </div>
+                  <div key={catName}>
+                    <Collapsible open={isCatOpen} onOpenChange={() => toggleCategory(catName)}>
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center gap-2 bg-card rounded-xl px-3 py-3 shadow-sm border border-border hover:bg-muted/50 transition-colors">
+                          <div className={`h-9 w-9 rounded-lg ${catBg} flex items-center justify-center flex-shrink-0`}>
+                            {catIcon}
                           </div>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="font-bold text-sm">{catName}</p>
+                            <p className="text-[11px] text-muted-foreground">{allCatMaterials.length} articoli · {Object.keys(catData.subcategories).length} sottocategorie</p>
+                          </div>
+                          {catLowStock > 0 && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 mr-1">{catLowStock} ⚠</Badge>
+                          )}
+                          {isCatOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="space-y-2 mt-2 ml-2 border-l-2 border-border pl-2">
+                          {Object.entries(catData.subcategories).map(([subName, subData]) => {
+                            const subKey = `${catName}__${subName}`;
+                            const isSubOpen = expandedSubs.has(subKey);
+                            const subLowStock = subData.materials.filter(m => m.current_stock <= m.minimum_stock).length;
+
+                            // If there's only one subcategory with empty name, show materials directly
+                            const showSubHeader = Object.keys(catData.subcategories).length > 1 || subName !== "";
+
+                            if (!showSubHeader) {
+                              return (
+                                <div key={subKey} className="space-y-1.5">
+                                  {subData.materials.map((m) => (
+                                    <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                  ))}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <Collapsible key={subKey} open={isSubOpen} onOpenChange={() => toggleSub(subKey)}>
+                                <CollapsibleTrigger asChild>
+                                  <button className="w-full flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 border border-border hover:bg-muted/50 transition-colors">
+                                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span className="font-semibold text-[13px] flex-1 text-left">{subName}</span>
+                                    <span className="text-[11px] text-muted-foreground mr-1">{subData.materials.length}</span>
+                                    {subLowStock > 0 && <Badge variant="destructive" className="text-[9px] px-1 mr-1">{subLowStock} ⚠</Badge>}
+                                    {isSubOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  </button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
+                                    {subData.materials.map((m) => (
+                                      <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
                 );
               })}
             </div>

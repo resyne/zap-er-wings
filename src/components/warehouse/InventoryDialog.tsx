@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ClipboardCheck, Loader2, Save, Building2, ChevronDown, ChevronRight } from "lucide-react";
+import { ClipboardCheck, Loader2, Save, ChevronDown, ChevronRight, Wrench, Droplets, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -34,39 +34,39 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
   const [loading, setLoading] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
-  // Group by supplier
-  const groupedBySupplier = useMemo(() => {
-    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
+    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
+    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
+    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
+  };
+
+  const groupedByCategory = useMemo(() => {
+    const categories: Record<string, Record<string, Material[]>> = {};
     for (const m of materials) {
-      const key = m.supplier_id || "__no_supplier__";
-      const supplierName = m.suppliers?.name || "Senza fornitore";
-      if (!groups[key]) groups[key] = { supplierName, materials: [] };
-      groups[key].materials.push(m);
+      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+      const catName = mapping?.category || "Altro";
+      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+      if (!categories[catName]) categories[catName] = {};
+      if (!categories[catName][subName]) categories[catName][subName] = [];
+      categories[catName][subName].push(m);
     }
-    return Object.entries(groups).sort(([kA, a], [kB, b]) => {
-      if (kA === "__no_supplier__") return 1;
-      if (kB === "__no_supplier__") return -1;
-      return a.supplierName.localeCompare(b.supplierName);
+    const order = ["Materiale di assemblaggio", "Materiale di consumo"];
+    return Object.entries(categories).sort(([a], [b]) => {
+      const ia = order.indexOf(a); const ib = order.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1; if (ib === -1) return -1;
+      return ia - ib;
     });
   }, [materials]);
 
-  const isAllExpanded = expandedSuppliers.has("__all__");
-  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
-
-  const toggleSupplier = (key: string) => {
-    setExpandedSuppliers((prev) => {
-      if (isAllExpanded) {
-        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
-        allKeys.delete(key);
-        return allKeys;
-      }
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const toggleCat = (cat: string) => {
+    setExpandedCategories(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+  };
+  const toggleSub = (key: string) => {
+    setExpandedSubs(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   };
 
   const handleQuantityChange = (materialId: string, value: string) => {
@@ -198,56 +198,68 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
         )}
 
         <div className="flex-1 overflow-y-auto space-y-2 max-h-[450px] pr-1">
-          {groupedBySupplier.map(([key, group]) => (
-            <Collapsible key={key} open={isExpanded(key)} onOpenChange={() => toggleSupplier(key)}>
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border border-border hover:bg-muted transition-colors">
-                  <Building2 className="h-4 w-4 text-amber-700" />
-                  <span className="font-semibold text-sm flex-1 text-left">{group.supplierName}</span>
-                  <span className="text-xs text-muted-foreground">{group.materials.length} articoli</span>
-                  {isExpanded(key) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-1 mt-1 ml-2 border-l-2 border-amber-200 pl-2">
-                  {group.materials.map((m) => {
-                    const currentValue = quantities[m.id];
-                    const isTouched = touched.has(m.id);
-                    const newQty = parseFloat(currentValue || "");
-                    const isChanged = isTouched && !isNaN(newQty) && newQty !== m.current_stock;
+          {groupedByCategory.map(([catName, subs]) => {
+            const isCatOpen = expandedCategories.has(catName);
+            const catIcon = catName === "Materiale di assemblaggio" ? <Wrench className="h-4 w-4 text-blue-700" /> : <Droplets className="h-4 w-4 text-emerald-700" />;
+            return (
+              <Collapsible key={catName} open={isCatOpen} onOpenChange={() => toggleCat(catName)}>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 border border-border hover:bg-muted transition-colors">
+                    {catIcon}
+                    <span className="font-semibold text-sm flex-1 text-left">{catName}</span>
+                    <span className="text-xs text-muted-foreground">{Object.values(subs).flat().length} articoli</span>
+                    {isCatOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-1 mt-1 ml-2 border-l-2 border-border pl-2">
+                    {Object.entries(subs).map(([subName, subMaterials]) => {
+                      const subKey = `${catName}__${subName}`;
+                      const isSubOpen = expandedSubs.has(subKey);
+                      const showSubHeader = Object.keys(subs).length > 1 || subName !== "";
 
-                    return (
-                      <div
-                        key={m.id}
-                        className={`flex items-center gap-2 rounded-lg p-2 border transition-colors ${
-                          isChanged ? "bg-blue-50 border-blue-200" : "bg-white border-border"
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-[13px] truncate">{m.name}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {m.code} · Attuale: <strong>{m.current_stock}</strong> {m.unit}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder={m.current_stock.toString()}
-                            value={currentValue ?? ""}
-                            onChange={(e) => handleQuantityChange(m.id, e.target.value)}
-                            className="w-20 text-center h-8"
-                          />
-                          <span className="text-[11px] text-muted-foreground w-5">{m.unit}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+                      const renderMaterials = (mats: Material[]) => mats.map((m) => {
+                        const currentValue = quantities[m.id];
+                        const isTouched = touched.has(m.id);
+                        const newQty = parseFloat(currentValue || "");
+                        const isChanged = isTouched && !isNaN(newQty) && newQty !== m.current_stock;
+                        return (
+                          <div key={m.id} className={`flex items-center gap-2 rounded-lg p-2 border transition-colors ${isChanged ? "bg-primary/5 border-primary/30" : "bg-card border-border"}`}>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-[13px] truncate">{m.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{m.code} · Attuale: <strong>{m.current_stock}</strong> {m.unit}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <Input type="number" min="0" step="1" placeholder={m.current_stock.toString()} value={currentValue ?? ""} onChange={(e) => handleQuantityChange(m.id, e.target.value)} className="w-20 text-center h-8" />
+                              <span className="text-[11px] text-muted-foreground w-5">{m.unit}</span>
+                            </div>
+                          </div>
+                        );
+                      });
+
+                      if (!showSubHeader) return <div key={subKey} className="space-y-1">{renderMaterials(subMaterials)}</div>;
+
+                      return (
+                        <Collapsible key={subKey} open={isSubOpen} onOpenChange={() => toggleSub(subKey)}>
+                          <CollapsibleTrigger asChild>
+                            <button className="w-full flex items-center gap-2 bg-muted/30 rounded-md px-2 py-1.5 border border-border hover:bg-muted/50 transition-colors">
+                              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-medium text-[13px] flex-1 text-left">{subName}</span>
+                              <span className="text-[11px] text-muted-foreground">{subMaterials.length}</span>
+                              {isSubOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                            </button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="space-y-1 mt-1 ml-2 border-l border-muted pl-2">{renderMaterials(subMaterials)}</div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
 
         <DialogFooter>
