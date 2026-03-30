@@ -661,47 +661,128 @@ export default function ScrapingPage() {
       </Tabs>
 
       {/* Mission Results Dialog */}
-      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) setViewingMission(null); }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) { setViewingMission(null); setGeneratingMissionEmails(false); } }}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Risultati: {viewingMission?.name}
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({missionResults.length} risultati in {Object.keys(resultsByCity).length} città)
-              </span>
+            <DialogTitle className="flex items-center justify-between">
+              <div>
+                Risultati: {viewingMission?.name}
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  ({missionResults.length} risultati in {Object.keys(resultsByCity).length} città)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {missionResults.some(r => !r.email_generated) && (
+                  <Button 
+                    onClick={generateMissionEmails} 
+                    disabled={generatingMissionEmails}
+                    size="sm"
+                  >
+                    {generatingMissionEmails ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</>
+                    ) : (
+                      <><Mail className="h-4 w-4 mr-2" />Genera Email AI</>
+                    )}
+                  </Button>
+                )}
+              </div>
             </DialogTitle>
           </DialogHeader>
+
+          {emailGenProgress.running && (
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analisi siti web e generazione email...
+                </span>
+                <span>{emailGenProgress.processed}/{emailGenProgress.total}</span>
+              </div>
+              <Progress value={emailGenProgress.total > 0 ? (emailGenProgress.processed / emailGenProgress.total) * 100 : 0} className="h-2" />
+            </div>
+          )}
 
           {loadingResults ? (
             <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
-            <div className="space-y-4">
-              {Object.entries(resultsByCity).map(([city, cityResults]) => (
-                <Card key={city}>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center justify-between">
-                      <span>{city}</span>
-                      <Badge variant="secondary">{cityResults.length} risultati</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="py-0 pb-3">
-                    <div className="space-y-1">
-                      {cityResults.slice(0, 5).map((r) => (
-                        <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
-                          <span className="truncate max-w-md">{r.title}</span>
-                          <a href={r.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
-                          </a>
+            <Tabs defaultValue="by-city">
+              <TabsList>
+                <TabsTrigger value="by-city">Per Città</TabsTrigger>
+                <TabsTrigger value="emails" disabled={!missionResults.some(r => r.email_generated && r.generated_email_subject)}>
+                  Email Generate ({missionResults.filter(r => r.generated_email_subject).length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="by-city" className="space-y-4 mt-4">
+                {Object.entries(resultsByCity).map(([city, cityResults]) => (
+                  <Card key={city}>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>{city}</span>
+                        <div className="flex gap-2">
+                          {cityResults.some(r => r.generated_email_subject) && (
+                            <Badge className="bg-green-600 text-white">{cityResults.filter(r => r.generated_email_subject).length} email</Badge>
+                          )}
+                          <Badge variant="secondary">{cityResults.length} risultati</Badge>
                         </div>
-                      ))}
-                      {cityResults.length > 5 && (
-                        <p className="text-xs text-muted-foreground">... e altri {cityResults.length - 5} risultati</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-0 pb-3">
+                      <div className="space-y-1">
+                        {cityResults.slice(0, 5).map((r) => (
+                          <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                            <div className="flex items-center gap-2 truncate max-w-md">
+                              {r.generated_email_subject ? (
+                                <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />
+                              ) : null}
+                              <span className="truncate">{r.title}</span>
+                            </div>
+                            <a href={r.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                            </a>
+                          </div>
+                        ))}
+                        {cityResults.length > 5 && (
+                          <p className="text-xs text-muted-foreground">... e altri {cityResults.length - 5} risultati</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+
+              <TabsContent value="emails" className="space-y-3 mt-4">
+                {missionResults.filter(r => r.generated_email_subject).map((r) => (
+                  <Card key={r.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
+                          <Badge variant="outline" className="text-xs">{r.city}</Badge>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          navigator.clipboard.writeText(`Oggetto: ${r.generated_email_subject}\n\n${r.generated_email_body}`);
+                          toast({ title: "Copiato!" });
+                        }}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Oggetto</Label>
+                        <p className="font-medium text-sm">{r.generated_email_subject}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Corpo</Label>
+                        <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+            </Tabs>
           )}
         </DialogContent>
       </Dialog>
