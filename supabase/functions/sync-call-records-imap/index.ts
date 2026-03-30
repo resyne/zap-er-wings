@@ -422,31 +422,66 @@ async function syncLegacyConfig(supabase: any, config: any) {
 
     for (const msgId of messagesToProcess) {
       try {
-        const emailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
-        const emailData = parseEmailBody(emailResponse);
-        const callData = extractCallRecordData(emailData.body);
+        // STEP 1: Lightweight fetch - text only (no MP3 attachment download)
+        const headerResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[1])`);
+        let emailBody = '';
+        
+        // Try to extract text from BODY[1] response
+        const bodyMatch = headerResponse.match(/\{(\d+)\}\r?\n([\s\S]*)/);
+        if (bodyMatch) {
+          emailBody = bodyMatch[2].substring(0, parseInt(bodyMatch[1]));
+        } else {
+          emailBody = headerResponse;
+        }
+        
+        const callData = extractCallRecordData(emailBody);
 
-        if (callData) {
-          let { data: existing } = await supabase
-            .from('call_records')
-            .select('id, duration_seconds, recording_url, call_time, unique_call_id, transcription')
-            .eq('unique_call_id', callData.unique_call_id)
-            .single();
+        if (!callData) {
+          // Fallback: try full fetch if BODY[1] didn't work
+          const fullResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
+          const fullEmailData = parseEmailBody(fullResponse);
+          const fallbackCallData = extractCallRecordData(fullEmailData.body);
+          if (!fallbackCallData) continue;
+          
+          // Process with full data (including potential MP3)
+          await processCallRecord(supabase, fallbackCallData, fullEmailData, null);
+          processedCount++;
+          newCallRecords++;
+          continue;
+        }
 
-          // Secondary match for corrupted/different IDs
-          if (!existing) {
-            existing = await findExistingCallBySignature(supabase, callData);
-            if (existing) {
-              console.log(`(Legacy) matched existing record by signature: ${existing.id} (existing ID: ${existing.unique_call_id}, incoming ID: ${callData.unique_call_id})`);
-            }
+        // STEP 2: Check if record already exists (fast DB lookup)
+        let { data: existing } = await supabase
+          .from('call_records')
+          .select('id, duration_seconds, recording_url, call_time, unique_call_id, transcription')
+          .eq('unique_call_id', callData.unique_call_id)
+          .single();
+
+        if (!existing) {
+          existing = await findExistingCallBySignature(supabase, callData);
+          if (existing) {
+            console.log(`(Legacy) matched existing record by signature: ${existing.id}`);
           }
+        }
 
-          const hasValidTranscription = existing?.transcription && existing.transcription.length > 20;
-          const shouldRefreshRecording = !!existing && !hasValidTranscription && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
+        const hasValidTranscription = existing?.transcription && existing.transcription.length > 20;
+
+        // STEP 3: If record exists with valid transcription and adequate duration, SKIP entirely
+        if (existing && hasValidTranscription && callData.duration_seconds <= (existing.duration_seconds || 0)) {
+          processedCount++;
+          continue; // No need to download MP3
+        }
+
+        // STEP 4: Only now fetch full email with MP3 attachment for new/updated records
+        const fullEmailResponse = await sendCommand(conn, `FETCH ${msgId} (BODY.PEEK[])`);
+        const emailData = parseEmailBody(fullEmailResponse);
+
+        if (existing) {
+          // Update existing record if needed
+          const shouldRefreshRecording = !hasValidTranscription && !!emailData.mp3Attachment && callData.duration_seconds > 0 &&
             (!existing.recording_url || !existing.recording_url.includes(callData.unique_call_id));
 
-          // If record exists and new data is better, update it
-          if (existing && (callData.duration_seconds > (existing.duration_seconds || 0) || shouldRefreshRecording)) {
+          if (callData.duration_seconds > (existing.duration_seconds || 0) || shouldRefreshRecording) {
             console.log(`Updating existing record ${existing.id}: duration ${existing.duration_seconds} -> ${callData.duration_seconds}`);
             
             let updatedRecordingUrl: string | null = null;
@@ -491,82 +526,76 @@ async function syncLegacyConfig(supabase: any, config: any) {
             
             newCallRecords++;
           }
-
-          if (!existing) {
-            // Try to find matching lead by phone number
-            let leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
-            
-            // If no lead found, create a new one automatically
-            if (!leadMatch) {
-              const customerPhone = callData.direction === 'in' ? callData.caller_number : callData.called_number;
-              const newLead = await createLeadFromCall(supabase, customerPhone);
-              if (newLead) {
-                leadMatch = { id: newLead.id, matched_by: 'auto_created' };
-                console.log(`Created new lead from call: ${newLead.id}`);
-              }
+        } else {
+          // NEW record - insert it
+          let leadMatch = await findLeadByPhone(supabase, callData.caller_number, callData.direction);
+          
+          if (!leadMatch) {
+            const customerPhone = callData.direction === 'in' ? callData.caller_number : callData.called_number;
+            const newLead = await createLeadFromCall(supabase, customerPhone);
+            if (newLead) {
+              leadMatch = { id: newLead.id, matched_by: 'auto_created' };
+              console.log(`Created new lead from call: ${newLead.id}`);
             }
+          }
 
-            // Upload MP3 to storage if present
-            let recordingUrl: string | null = null;
-            if (emailData.mp3Attachment) {
-              const storagePath = `${callData.call_date}/${callData.unique_call_id}.mp3`;
-              const { error: uploadError } = await supabase.storage
-                .from('call-recordings')
-                .upload(storagePath, emailData.mp3Attachment.data, {
-                  contentType: 'audio/mpeg',
-                  upsert: true
-                });
-
-              if (uploadError) {
-                console.error('Failed to upload MP3:', uploadError);
-              } else {
-                const { data: urlData } = supabase.storage
-                  .from('call-recordings')
-                  .getPublicUrl(storagePath);
-                recordingUrl = urlData?.publicUrl || storagePath;
-                console.log(`Uploaded recording: ${recordingUrl}`);
-              }
-            }
-
-            const { error: insertError } = await supabase
-              .from('call_records')
-              .insert({
-                caller_number: callData.caller_number,
-                called_number: callData.called_number,
-                service: callData.service,
-                call_date: callData.call_date,
-                call_time: callData.call_time,
-                duration_seconds: callData.duration_seconds,
-                unique_call_id: callData.unique_call_id,
-                extension_number: callData.extension_number,
-                direction: callData.direction,
-                lead_id: leadMatch?.id || null,
-                matched_by: leadMatch?.matched_by || null,
-                recording_url: recordingUrl
+          let recordingUrl: string | null = null;
+          if (emailData.mp3Attachment) {
+            const storagePath = `${callData.call_date}/${callData.unique_call_id}.mp3`;
+            const { error: uploadError } = await supabase.storage
+              .from('call-recordings')
+              .upload(storagePath, emailData.mp3Attachment.data, {
+                contentType: 'audio/mpeg',
+                upsert: true
               });
 
-            if (!insertError) {
-              newCallRecords++;
-              
-              // Get the inserted record ID
-              const { data: insertedRecord } = await supabase
-                .from('call_records')
-                .select('id')
-                .eq('unique_call_id', callData.unique_call_id)
-                .single();
-              
-              if (insertedRecord) {
-                // If we have a recording, trigger transcription first
-                if (recordingUrl) {
-                  await triggerTranscription(insertedRecord.id, recordingUrl);
-                } else {
-                  // No recording - trigger AI analysis with basic call info
-                  triggerAIAnalysis(insertedRecord.id, callData);
-                }
+            if (uploadError) {
+              console.error('Failed to upload MP3:', uploadError);
+            } else {
+              const { data: urlData } = supabase.storage
+                .from('call-recordings')
+                .getPublicUrl(storagePath);
+              recordingUrl = urlData?.publicUrl || storagePath;
+              console.log(`Uploaded recording: ${recordingUrl}`);
+            }
+          }
+
+          const { error: insertError } = await supabase
+            .from('call_records')
+            .insert({
+              caller_number: callData.caller_number,
+              called_number: callData.called_number,
+              service: callData.service,
+              call_date: callData.call_date,
+              call_time: callData.call_time,
+              duration_seconds: callData.duration_seconds,
+              unique_call_id: callData.unique_call_id,
+              extension_number: callData.extension_number,
+              direction: callData.direction,
+              lead_id: leadMatch?.id || null,
+              matched_by: leadMatch?.matched_by || null,
+              recording_url: recordingUrl
+            });
+
+          if (!insertError) {
+            newCallRecords++;
+            
+            const { data: insertedRecord } = await supabase
+              .from('call_records')
+              .select('id')
+              .eq('unique_call_id', callData.unique_call_id)
+              .single();
+            
+            if (insertedRecord) {
+              if (recordingUrl) {
+                await triggerTranscription(insertedRecord.id, recordingUrl);
+              } else {
+                triggerAIAnalysis(insertedRecord.id, callData);
               }
             }
           }
-          processedCount++;
+        }
+        processedCount++;
         }
         
         // Mark email as read (SEEN) after processing to avoid reprocessing
