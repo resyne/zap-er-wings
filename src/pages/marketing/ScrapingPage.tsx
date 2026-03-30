@@ -101,6 +101,10 @@ export default function ScrapingPage() {
   const [emailGenProgress, setEmailGenProgress] = useState({ processed: 0, total: 0, running: false });
   const emailGenPausedRef = useRef(false);
   const [emailGenPaused, setEmailGenPaused] = useState(false);
+  const [recoveringEmails, setRecoveringEmails] = useState(false);
+  const [recoverProgress, setRecoverProgress] = useState({ processed: 0, total: 0, found: 0, running: false });
+  const recoverPausedRef = useRef(false);
+  const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
   // Email template & sending state
@@ -300,6 +304,64 @@ export default function ScrapingPage() {
   const resumeEmailGen = () => {
     setEmailGenPaused(false);
     generateMissionEmails();
+  };
+
+  const recoverMissingEmails = async () => {
+    if (!viewingMission) return;
+    recoverPausedRef.current = false;
+    setRecoverPaused(false);
+    setRecoveringEmails(true);
+    const totalMissing = missionResults.filter(r => r.email_generated && !r.contact_email).length;
+    setRecoverProgress({ processed: 0, total: totalMissing, found: 0, running: true });
+
+    try {
+      let done = false;
+      let totalProcessed = 0;
+      let totalFound = 0;
+
+      while (!done && !recoverPausedRef.current) {
+        const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
+          body: { missionId: viewingMission.id, batchSize: 10, emailOnly: true },
+        });
+
+        if (error) throw error;
+
+        totalProcessed += data.processed || 0;
+        totalFound += data.successCount || 0;
+        done = data.done;
+        setRecoverProgress({ processed: totalProcessed, total: totalMissing, found: totalFound, running: !done && !recoverPausedRef.current });
+
+        await refreshMissionResults(viewingMission.id);
+
+        if (!done && !recoverPausedRef.current) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      if (recoverPausedRef.current) {
+        toast({ title: "In pausa", description: `${totalFound} email trovate su ${totalProcessed} analizzati.` });
+      } else {
+        toast({ title: "Recupero completato!", description: `${totalFound} email trovate su ${totalProcessed} analizzati` });
+      }
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    } finally {
+      if (!recoverPausedRef.current) {
+        setRecoveringEmails(false);
+        setRecoverProgress(prev => ({ ...prev, running: false }));
+      }
+    }
+  };
+
+  const pauseRecover = () => {
+    recoverPausedRef.current = true;
+    setRecoverPaused(true);
+    setRecoverProgress(prev => ({ ...prev, running: false }));
+  };
+
+  const resumeRecover = () => {
+    setRecoverPaused(false);
+    recoverMissingEmails();
   };
 
   const copyMissionEmail = (r: MissionResult) => {
@@ -776,7 +838,24 @@ export default function ScrapingPage() {
                   ({missionResults.length} risultati in {Object.keys(resultsByCity).length} città)
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Recover missing emails button */}
+                {recoverProgress.running ? (
+                  <Button onClick={pauseRecover} variant="outline" size="sm">
+                    <Pause className="h-4 w-4 mr-1" />Pausa Recupero
+                  </Button>
+                ) : recoverPaused ? (
+                  <Button onClick={resumeRecover} variant="outline" size="sm">
+                    <Play className="h-4 w-4 mr-1" />Riprendi Recupero
+                  </Button>
+                ) : missionResults.some(r => r.email_generated && !r.contact_email) && !emailGenProgress.running ? (
+                  <Button onClick={recoverMissingEmails} variant="outline" size="sm" disabled={recoveringEmails}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Recupera Email ({missionResults.filter(r => r.email_generated && !r.contact_email).length})
+                  </Button>
+                ) : null}
+
+                {/* Generate emails button */}
                 {emailGenProgress.running ? (
                   <Button onClick={pauseEmailGen} variant="outline" size="sm">
                     <Pause className="h-4 w-4 mr-1" />Pausa
@@ -808,6 +887,23 @@ export default function ScrapingPage() {
                 <span>{emailGenProgress.processed}/{emailGenProgress.total}</span>
               </div>
               <Progress value={emailGenProgress.total > 0 ? (emailGenProgress.processed / emailGenProgress.total) * 100 : 0} className="h-2" />
+            </div>
+          )}
+
+          {(recoverProgress.running || recoverPaused) && (
+            <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  {recoverProgress.running ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  ) : (
+                    <Pause className="h-4 w-4 text-amber-500" />
+                  )}
+                  {recoverProgress.running ? 'Recupero email dai siti web...' : 'Recupero in pausa'}
+                </span>
+                <span>{recoverProgress.processed}/{recoverProgress.total} ({recoverProgress.found} trovate)</span>
+              </div>
+              <Progress value={recoverProgress.total > 0 ? (recoverProgress.processed / recoverProgress.total) * 100 : 0} className="h-2" />
             </div>
           )}
 

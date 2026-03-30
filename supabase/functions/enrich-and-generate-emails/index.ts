@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
     if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured')
 
-    const { missionId, batchOffset = 0, batchSize = 5 } = await req.json()
+    const { missionId, batchOffset = 0, batchSize = 5, emailOnly = false } = await req.json()
     if (!missionId) {
       return new Response(JSON.stringify({ error: 'missionId is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,30 +74,51 @@ Deno.serve(async (req) => {
 
     if (missionError || !mission) throw new Error('Mission not found')
 
-    // Get results that don't have emails yet
-    const { data: results, error: resultsError } = await supabase
-      .from('scraping_results')
-      .select('*')
-      .eq('mission_id', missionId)
-      .eq('email_generated', false)
-      .order('created_at', { ascending: true })
-      .range(0, batchSize - 1)
+    let results, resultsError, remainingCount
 
-    if (resultsError) throw resultsError
-    if (!results || results.length === 0) {
-      return new Response(JSON.stringify({ 
-        success: true, done: true, processed: 0, remaining: 0 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    if (emailOnly) {
+      // Mode: only re-fetch websites for results that have emails generated but no contact_email
+      const { data, error } = await supabase
+        .from('scraping_results')
+        .select('*')
+        .eq('mission_id', missionId)
+        .eq('email_generated', true)
+        .is('contact_email', null)
+        .order('created_at', { ascending: true })
+        .range(0, batchSize - 1)
+
+      results = data
+      resultsError = error
+
+      const { count } = await supabase
+        .from('scraping_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('mission_id', missionId)
+        .eq('email_generated', true)
+        .is('contact_email', null)
+
+      remainingCount = count
+    } else {
+      // Normal mode: get results that don't have emails yet
+      const { data, error } = await supabase
+        .from('scraping_results')
+        .select('*')
+        .eq('mission_id', missionId)
+        .eq('email_generated', false)
+        .order('created_at', { ascending: true })
+        .range(0, batchSize - 1)
+
+      results = data
+      resultsError = error
+
+      const { count } = await supabase
+        .from('scraping_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('mission_id', missionId)
+        .eq('email_generated', false)
+
+      remainingCount = count
     }
-
-    // Count remaining
-    const { count: remainingCount } = await supabase
-      .from('scraping_results')
-      .select('*', { count: 'exact', head: true })
-      .eq('mission_id', missionId)
-      .eq('email_generated', false)
 
     console.log(`[ENRICH-EMAILS] Processing ${results.length} results for mission "${mission.name}"`)
 
@@ -106,8 +127,64 @@ Deno.serve(async (req) => {
     for (const result of results) {
       try {
         // 1. Fetch and analyze website
-        console.log(`[ENRICH-EMAILS] Fetching website: ${result.url}`)
+        console.log(`[ENRICH-EMAILS] ${emailOnly ? '[EMAIL-ONLY]' : ''} Fetching website: ${result.url}`)
         const websiteContent = await fetchWebsiteContent(result.url)
+
+        if (emailOnly) {
+          // Email-only mode: just extract email from website, no AI call
+          let contactEmail: string | null = null
+          if (websiteContent) {
+            const emailMatch = websiteContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
+            if (emailMatch) {
+              const validEmails = emailMatch.filter((e: string) => 
+                !e.includes('example.') && !e.includes('sentry.') && !e.includes('wixpress.') && !e.includes('wordpress.')
+              )
+              contactEmail = validEmails[0] || null
+            }
+          }
+
+          if (!contactEmail && websiteContent) {
+            // Try AI extraction as fallback
+            const emailPrompt = `Analizza questo contenuto di un sito web e trova l'email di contatto dell'azienda (info@, contatti@, ecc.). Rispondi SOLO con l'email trovata oppure "null" se non trovata.\n\nContenuto:\n${websiteContent.slice(0, 2000)}`
+            
+            const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                  { role: 'system', content: 'Rispondi SOLO con l\'indirizzo email trovato oppure la parola "null". Nient\'altro.' },
+                  { role: 'user', content: emailPrompt }
+                ],
+                temperature: 0,
+                max_tokens: 100,
+              }),
+            })
+
+            if (aiResponse.ok) {
+              const aiData = await aiResponse.json()
+              const emailResult = aiData.choices?.[0]?.message?.content?.trim() || ''
+              const emailExtract = emailResult.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
+              if (emailExtract) contactEmail = emailExtract[0]
+            }
+          }
+
+          if (contactEmail) {
+            await supabase.from('scraping_results').update({
+              contact_email: contactEmail,
+            }).eq('id', result.id)
+            successCount++
+            console.log(`[ENRICH-EMAILS] ✓ Email found for "${result.title}": ${contactEmail}`)
+          } else {
+            console.log(`[ENRICH-EMAILS] ✗ No email found for "${result.title}"`)
+          }
+
+          await new Promise(r => setTimeout(r, 100))
+          continue
+        }
         
         // 2. Generate personalized email with context
         const prompt = `Sei un esperto di business development e outreach B2B.
