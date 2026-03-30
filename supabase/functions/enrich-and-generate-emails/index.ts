@@ -179,7 +179,11 @@ Deno.serve(async (req) => {
             successCount++
             console.log(`[ENRICH-EMAILS] ✓ Email found for "${result.title}": ${contactEmail}`)
           } else {
-            console.log(`[ENRICH-EMAILS] ✗ No email found for "${result.title}"`)
+            // Mark as "not found" so we don't retry infinitely
+            await supabase.from('scraping_results').update({
+              contact_email: 'NOT_FOUND',
+            }).eq('id', result.id)
+            console.log(`[ENRICH-EMAILS] ✗ No email found for "${result.title}" - marked as NOT_FOUND`)
           }
 
           await new Promise(r => setTimeout(r, 100))
