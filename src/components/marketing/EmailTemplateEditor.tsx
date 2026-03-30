@@ -55,6 +55,8 @@ export function EmailTemplateEditor({
   onSenderEmailChange,
   senderName,
   onSenderNameChange,
+  replyToEmail,
+  onReplyToEmailChange,
 }: EmailTemplateEditorProps) {
   const [editorTab, setEditorTab] = useState("preview");
 
