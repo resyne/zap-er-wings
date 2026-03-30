@@ -926,9 +926,20 @@ export default function ScrapingPage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    onClick={() => setPreviewEmail(r)}
+                                    disabled={sendingEmails}
+                                    title="Anteprima e invia"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {!r.email_sent && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => sendSelectedEmails([r.id])}
                                     disabled={sendingEmails}
-                                    title="Invia singola con Resend"
+                                    title="Invia direttamente con Resend"
                                   >
                                     <Send className="h-4 w-4" />
                                   </Button>
