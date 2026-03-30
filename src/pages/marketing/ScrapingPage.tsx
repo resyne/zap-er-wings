@@ -853,10 +853,10 @@ export default function ScrapingPage() {
                   <Button onClick={resumeRecover} variant="outline" size="sm">
                     <Play className="h-4 w-4 mr-1" />Riprendi Recupero
                   </Button>
-                ) : missionResults.some(r => r.email_generated && !r.contact_email) && !emailGenProgress.running ? (
+                ) : missionResults.some(r => r.email_generated && (!r.contact_email || r.contact_email === 'NOT_FOUND')) && !emailGenProgress.running ? (
                   <Button onClick={recoverMissingEmails} variant="outline" size="sm" disabled={recoveringEmails}>
                     <RefreshCw className="h-4 w-4 mr-1" />
-                    Recupera Email ({missionResults.filter(r => r.email_generated && !r.contact_email).length})
+                    Recupera Email ({missionResults.filter(r => r.email_generated && (!r.contact_email || r.contact_email === 'NOT_FOUND')).length})
                   </Button>
                 ) : null}
 
