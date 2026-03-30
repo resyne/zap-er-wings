@@ -10604,6 +10604,125 @@ export type Database = {
           },
         ]
       }
+      scraping_missions: {
+        Row: {
+          completed_cities: number | null
+          country_code: string | null
+          created_at: string
+          created_by: string | null
+          email_language: string | null
+          id: string
+          language_code: string | null
+          max_results_per_city: number | null
+          mission_description: string
+          name: string
+          query: string
+          sender_company: string | null
+          sender_name: string | null
+          status: string
+          total_cities: number | null
+          total_results: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed_cities?: number | null
+          country_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_language?: string | null
+          id?: string
+          language_code?: string | null
+          max_results_per_city?: number | null
+          mission_description: string
+          name: string
+          query: string
+          sender_company?: string | null
+          sender_name?: string | null
+          status?: string
+          total_cities?: number | null
+          total_results?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed_cities?: number | null
+          country_code?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_language?: string | null
+          id?: string
+          language_code?: string | null
+          max_results_per_city?: number | null
+          mission_description?: string
+          name?: string
+          query?: string
+          sender_company?: string | null
+          sender_name?: string | null
+          status?: string
+          total_cities?: number | null
+          total_results?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scraping_results: {
+        Row: {
+          city: string
+          created_at: string
+          description: string | null
+          email_generated: boolean | null
+          email_sent: boolean | null
+          generated_email_body: string | null
+          generated_email_subject: string | null
+          id: string
+          mission_id: string
+          position: number | null
+          recipient_company: string | null
+          recipient_name: string | null
+          title: string | null
+          url: string | null
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          description?: string | null
+          email_generated?: boolean | null
+          email_sent?: boolean | null
+          generated_email_body?: string | null
+          generated_email_subject?: string | null
+          id?: string
+          mission_id: string
+          position?: number | null
+          recipient_company?: string | null
+          recipient_name?: string | null
+          title?: string | null
+          url?: string | null
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          description?: string | null
+          email_generated?: boolean | null
+          email_sent?: boolean | null
+          generated_email_body?: string | null
+          generated_email_subject?: string | null
+          id?: string
+          mission_id?: string
+          position?: number | null
+          recipient_company?: string | null
+          recipient_name?: string | null
+          title?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_results_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sender_emails: {
         Row: {
           created_at: string
