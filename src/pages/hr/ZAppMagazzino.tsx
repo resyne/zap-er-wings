@@ -36,6 +36,8 @@ interface Material {
   supplier_id?: string;
   suppliers?: { name: string } | null;
   last_inventory_date?: string | null;
+  warehouse_category_id?: string | null;
+  warehouse_subcategory_id?: string | null;
 }
 
 interface Supplier {
@@ -249,7 +251,7 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("materials")
-        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, last_inventory_date, suppliers(name)")
+        .select("id, code, name, unit, current_stock, minimum_stock, maximum_stock, category, supplier_id, last_inventory_date, warehouse_category_id, warehouse_subcategory_id, suppliers(name)")
         .eq("active", true)
         .order("name");
       if (error) throw error;
@@ -417,9 +419,24 @@ export default function ZAppMagazzino() {
     }> = {};
 
     for (const m of filteredMaterials) {
-      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
-      const catName = mapping?.category || "Altro";
-      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+      // Priority: direct category assignment > supplier mapping
+      let catName = "Altro";
+      let subName = m.suppliers?.name || "Generale";
+
+      if (m.warehouse_category_id) {
+        const directCat = warehouseCategories.find(c => c.id === m.warehouse_category_id);
+        if (directCat) catName = directCat.name;
+        if (m.warehouse_subcategory_id) {
+          const directSub = warehouseSubcategories.find(s => s.id === m.warehouse_subcategory_id);
+          if (directSub) subName = directSub.name;
+        }
+      } else {
+        const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+        if (mapping) {
+          catName = mapping.category;
+          subName = mapping.subcategory;
+        }
+      }
 
       if (!categories[catName]) {
         categories[catName] = { subcategories: {} };
@@ -439,7 +456,7 @@ export default function ZAppMagazzino() {
       if (ib === -1) return -1;
       return ia - ib;
     });
-  }, [filteredMaterials]);
+  }, [filteredMaterials, warehouseCategories, warehouseSubcategories, SUPPLIER_CATEGORY_MAP]);
 
   const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 

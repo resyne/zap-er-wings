@@ -23,6 +23,8 @@ interface Material {
   supplier_id?: string;
   suppliers?: { name: string } | null;
   last_inventory_date?: string | null;
+  warehouse_category_id?: string | null;
+  warehouse_subcategory_id?: string | null;
 }
 
 interface MaterialDetailDialogProps {
@@ -37,50 +39,58 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
+  const [selectedCat, setSelectedCat] = useState<string>("");
+  const [selectedSub, setSelectedSub] = useState<string>("");
 
   if (!material) return null;
 
-  // Find current category mapping via supplier
-  const currentSub = warehouseSubcategories.find(s => s.supplier_id === material.supplier_id);
-  const currentCat = currentSub ? warehouseCategories.find(c => c.id === currentSub.category_id) : null;
+  // Current category - from direct assignment or from supplier mapping
+  const directCat = warehouseCategories.find(c => c.id === material.warehouse_category_id);
+  const directSub = warehouseSubcategories.find(s => s.id === material.warehouse_subcategory_id);
+  const supplierSub = warehouseSubcategories.find(s => s.supplier_id === material.supplier_id);
+  const supplierCat = supplierSub ? warehouseCategories.find(c => c.id === supplierSub.category_id) : null;
+
+  const currentCat = directCat || supplierCat;
+  const currentSub = directSub || supplierSub;
+
+  const filteredSubs = warehouseSubcategories.filter(s => s.category_id === selectedCat);
 
   const isLow = material.current_stock <= material.minimum_stock && material.current_stock > 0;
   const isOut = material.current_stock <= 0;
   const isExcess = material.current_stock >= material.maximum_stock;
   const stockPercent = material.maximum_stock > 0 ? Math.min((material.current_stock / material.maximum_stock) * 100, 100) : 0;
 
-  const handleReassignSupplier = async () => {
-    if (!selectedSubcategory || !material.supplier_id) return;
+  const handleSave = async () => {
+    if (!selectedCat) return;
     setSaving(true);
-    // Move the supplier to the selected subcategory
-    // First remove from old subcategory
-    const { error: removeError } = await supabase
-      .from("warehouse_subcategories")
-      .update({ supplier_id: null })
-      .eq("supplier_id", material.supplier_id);
-
-    if (removeError) {
-      toast({ title: "Errore", variant: "destructive" });
-      setSaving(false);
-      return;
-    }
-
-    // Set the new subcategory's supplier_id
-    const { error } = await supabase
-      .from("warehouse_subcategories")
-      .update({ supplier_id: material.supplier_id })
-      .eq("id", selectedSubcategory);
-
+    const { error } = await supabase.from("materials").update({
+      warehouse_category_id: selectedCat,
+      warehouse_subcategory_id: selectedSub || null,
+    }).eq("id", material.id);
     setSaving(false);
     if (error) {
       toast({ title: "Errore", variant: "destructive" });
       return;
     }
     toast({ title: "Categoria aggiornata" });
-    queryClient.invalidateQueries({ queryKey: ["warehouse-subcategories"] });
     queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
-    setSelectedSubcategory("");
+    setSelectedCat("");
+    setSelectedSub("");
+  };
+
+  const handleRemoveCategory = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("materials").update({
+      warehouse_category_id: null,
+      warehouse_subcategory_id: null,
+    }).eq("id", material.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Errore", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Categoria rimossa" });
+    queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
   };
 
   return (
@@ -140,8 +150,13 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
             <Layers className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Categoria:</span>
             <span className="text-sm font-medium">
-              {currentCat ? `${currentCat.name} → ${currentSub?.name}` : "Non assegnata"}
+              {currentCat ? `${currentCat.name}${currentSub ? ` → ${currentSub.name}` : ""}` : "Non assegnata"}
             </span>
+            {directCat && (
+              <Button variant="ghost" size="sm" className="h-6 text-[11px] text-destructive hover:text-destructive" onClick={handleRemoveCategory} disabled={saving}>
+                Rimuovi
+              </Button>
+            )}
           </div>
 
           {/* Last inventory */}
@@ -157,41 +172,43 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
 
           <Separator />
 
-          {/* Reassign category */}
-          {material.supplier_id && warehouseSubcategories.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Sposta in sottocategoria</Label>
-              <div className="flex gap-2">
-                <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Seleziona..." />
+          {/* Category assignment */}
+          {warehouseCategories.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">{currentCat ? "Cambia categoria" : "Assegna categoria"}</Label>
+              <div className="space-y-2">
+                <Select value={selectedCat} onValueChange={(v) => { setSelectedCat(v); setSelectedSub(""); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona categoria..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {warehouseCategories.map(cat => (
-                      <React.Fragment key={cat.id}>
-                        <SelectItem value={`__header_${cat.id}`} disabled className="font-bold text-xs text-muted-foreground">
-                          {cat.name}
-                        </SelectItem>
-                        {warehouseSubcategories.filter(s => s.category_id === cat.id).map(sub => (
-                          <SelectItem key={sub.id} value={sub.id} className="pl-6">
-                            {sub.name}
-                          </SelectItem>
-                        ))}
-                      </React.Fragment>
+                    {warehouseCategories.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  size="sm"
-                  onClick={handleReassignSupplier}
-                  disabled={!selectedSubcategory || saving || selectedSubcategory.startsWith("__header_")}
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                </Button>
+                {filteredSubs.length > 0 && (
+                  <Select value={selectedSub} onValueChange={setSelectedSub}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sottocategoria (opzionale)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredSubs.map(s => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Nota: sposta tutti i materiali di questo fornitore nella sottocategoria selezionata.
-              </p>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleSave}
+                disabled={!selectedCat || saving}
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                {currentCat ? "Aggiorna categoria" : "Assegna categoria"}
+              </Button>
             </div>
           )}
         </div>
