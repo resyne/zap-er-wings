@@ -102,12 +102,24 @@ export default function ScrapingPage() {
     fetchMissions();
   }, []);
 
-  // Poll for mission updates
+  // Poll running missions: trigger next batch every 8 seconds
   useEffect(() => {
-    const runningMissions = missions.filter(m => m.status === 'running');
+    const runningMissions = missions.filter(m => m.status === 'running' || m.status === 'pending');
     if (runningMissions.length === 0) return;
 
-    const interval = setInterval(fetchMissions, 5000);
+    const interval = setInterval(async () => {
+      // Trigger next batch for each running mission
+      for (const m of runningMissions.filter(m => m.status === 'running')) {
+        try {
+          await supabase.functions.invoke('scraping-agent', {
+            body: { missionId: m.id },
+          });
+        } catch (err) {
+          console.error('Batch trigger error:', err);
+        }
+      }
+      await fetchMissions();
+    }, 8000);
     return () => clearInterval(interval);
   }, [missions]);
 
@@ -154,15 +166,18 @@ export default function ScrapingPage() {
 
       if (insertError) throw insertError;
 
-      // Launch the agent
+      // Launch first batch
       const { error } = await supabase.functions.invoke('scraping-agent', {
         body: { missionId: (missionData as Mission).id },
       });
 
-      // Don't wait for completion - it runs in background
+      if (error) {
+        console.error('First batch error:', error);
+      }
+
       toast({
         title: "Agente avviato!",
-        description: `L'agente sta eseguendo lo scraping per ~140 città italiane`,
+        description: `Lo scraping procede in batch automatici su ~140 città italiane`,
       });
 
       // Reset form
