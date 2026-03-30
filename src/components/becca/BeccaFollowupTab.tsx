@@ -122,14 +122,14 @@ export function BeccaFollowupTab() {
 
       if (updateError) throw updateError;
 
-      // Send message via WaSender
+      // Send message via WhatsApp API
       const messageToSend = item.edited_message || item.proposed_message;
-      const { error: sendError } = await supabase.functions.invoke("wasender-send", {
+      const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
         body: {
           to: item.customer_phone,
           text: messageToSend,
-          accountId: item.account_id,
-          conversationId: item.conversation_id,
+          account_id: item.account_id,
+          conversation_id: item.conversation_id,
         },
       });
 
