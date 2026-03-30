@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro, Layers, Droplets, Wrench } from "lucide-react";
+import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro, Layers, Droplets, Wrench, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
+import { WarehouseCategorySettings } from "@/components/warehouse/WarehouseCategorySettings";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { format } from "date-fns";
@@ -158,6 +159,32 @@ export default function ZAppMagazzino() {
     },
   });
 
+  // Fetch warehouse categories
+  const { data: warehouseCategories = [] } = useQuery({
+    queryKey: ["warehouse-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("warehouse_categories")
+        .select("id, name, sort_order")
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch warehouse subcategories
+  const { data: warehouseSubcategories = [] } = useQuery({
+    queryKey: ["warehouse-subcategories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("warehouse_subcategories")
+        .select("id, category_id, name, supplier_id, sort_order, suppliers(name)")
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch products (finished goods)
   const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["zapp-products"],
@@ -180,12 +207,19 @@ export default function ZAppMagazzino() {
     );
   }, [products, productSearch]);
 
-  // Category mapping based on supplier ID
-  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
-    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
-    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
-    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
-  };
+  // Build supplier→category map from DB data
+  const SUPPLIER_CATEGORY_MAP = useMemo(() => {
+    const map: Record<string, { category: string; subcategory: string }> = {};
+    for (const sub of warehouseSubcategories) {
+      if (sub.supplier_id) {
+        const cat = warehouseCategories.find(c => c.id === sub.category_id);
+        if (cat) {
+          map[sub.supplier_id] = { category: cat.name, subcategory: sub.name };
+        }
+      }
+    }
+    return map;
+  }, [warehouseCategories, warehouseSubcategories]);
 
   // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
@@ -547,39 +581,14 @@ export default function ZAppMagazzino() {
         </TabsContent>
       </Tabs>
 
-      {/* Supplier Settings Dialog */}
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Fornitori in Magazzino
-            </DialogTitle>
-            <DialogDescription>
-              Attiva o disattiva i fornitori da visualizzare nel magazzino
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-1 max-h-[500px]">
-            {allSuppliers.map((supplier) => (
-              <div key={supplier.id} className="flex items-center justify-between rounded-lg border border-border p-3 bg-white">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${supplier.show_in_warehouse ? "bg-green-100" : "bg-muted"}`}>
-                    {supplier.show_in_warehouse ? <Eye className="h-4 w-4 text-green-600" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{supplier.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{supplier.code}</p>
-                  </div>
-                </div>
-                <Switch
-                  checked={supplier.show_in_warehouse}
-                  onCheckedChange={(checked) => toggleSupplierMutation.mutate({ id: supplier.id, show: checked })}
-                />
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Category Settings Dialog */}
+      <WarehouseCategorySettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        categories={warehouseCategories}
+        subcategories={warehouseSubcategories as any}
+        suppliers={allSuppliers.map(s => ({ id: s.id, name: s.name }))}
+      />
 
       {/* Dialogs */}
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />

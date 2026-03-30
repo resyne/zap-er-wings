@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { ClipboardCheck, Loader2, Save, ChevronDown, ChevronRight, Wrench, Droplets, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -37,11 +37,32 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
-  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
-    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
-    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
-    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
-  };
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ["warehouse-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("warehouse_categories").select("id, name, sort_order").order("sort_order");
+      return data || [];
+    },
+  });
+
+  const { data: dbSubcategories = [] } = useQuery({
+    queryKey: ["warehouse-subcategories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("warehouse_subcategories").select("id, category_id, name, supplier_id, sort_order").order("sort_order");
+      return data || [];
+    },
+  });
+
+  const SUPPLIER_CATEGORY_MAP = useMemo(() => {
+    const map: Record<string, { category: string; subcategory: string }> = {};
+    for (const sub of dbSubcategories) {
+      if (sub.supplier_id) {
+        const cat = dbCategories.find((c: any) => c.id === sub.category_id);
+        if (cat) map[sub.supplier_id] = { category: cat.name, subcategory: sub.name };
+      }
+    }
+    return map;
+  }, [dbCategories, dbSubcategories]);
 
   const groupedByCategory = useMemo(() => {
     const categories: Record<string, Record<string, Material[]>> = {};
