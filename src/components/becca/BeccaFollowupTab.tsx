@@ -62,6 +62,7 @@ interface FollowupItem {
   sent_at: string | null;
   rejected_at: string | null;
   edited_message: string | null;
+  detected_language: string | null;
   created_at: string;
   updated_at: string;
 }
