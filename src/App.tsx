@@ -114,6 +114,7 @@ const BeccaPage = lazy(() => import("./pages/becca/BeccaPage"));
 const TasksPage = lazy(() => import("./pages/tasks/TasksPage").then(m => ({ default: m.TasksPage })));
 const ContentCreationPage = lazy(() => import("./pages/marketing/ContentCreationPage"));
 const CompetitorAnalysisPage = lazy(() => import("./pages/marketing/CompetitorAnalysisPage"));
+const ScrapingPage = lazy(() => import("./pages/marketing/ScrapingPage"));
 const CalendarioPersonale = lazy(() => import("./pages/personal-area/CalendarioPersonale"));
 const TaskKpiPage = lazy(() => import("./pages/direzione/TaskKpiPage"));
 const ZAppPage = lazy(() => import("./pages/hr/ZAppPage"));
@@ -303,6 +304,7 @@ const App = () => (
                 <Route path="marketing/content-creation" element={<LazyPage><ContentCreationPage /></LazyPage>} />
                 <Route path="marketing/brandkit" element={<LazyPage><BrandkitPage /></LazyPage>} />
                 <Route path="marketing/competitor-analysis" element={<LazyPage><CompetitorAnalysisPage /></LazyPage>} />
+                <Route path="marketing/scraping" element={<LazyPage><ScrapingPage /></LazyPage>} />
                 <Route path="marketing/brandkit/:brandId" element={<LazyPage><BrandAssetManager /></LazyPage>} />
                 <Route path="integrations" element={<LazyPage><IntegrationsPage /></LazyPage>} />
                 <Route path="becca" element={<LazyPage><BeccaPage /></LazyPage>} />
