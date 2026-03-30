@@ -311,13 +311,13 @@ export default function ScrapingPage() {
     recoverPausedRef.current = false;
     setRecoverPaused(false);
     setRecoveringEmails(true);
-    const totalMissing = missionResults.filter(r => r.email_generated && !r.contact_email).length;
-    setRecoverProgress({ processed: 0, total: totalMissing, found: 0, running: true });
+    setRecoverProgress({ processed: 0, total: 0, found: 0, running: true });
 
     try {
       let done = false;
       let totalProcessed = 0;
       let totalFound = 0;
+      let realTotal: number | null = null;
 
       while (!done && !recoverPausedRef.current) {
         const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
@@ -326,10 +326,15 @@ export default function ScrapingPage() {
 
         if (error) throw error;
 
+        // On first batch, capture the real total from the DB
+        if (realTotal === null) {
+          realTotal = (data.processed || 0) + (data.remaining || 0);
+        }
+
         totalProcessed += data.processed || 0;
         totalFound += data.successCount || 0;
         done = data.done;
-        setRecoverProgress({ processed: totalProcessed, total: totalMissing, found: totalFound, running: !done && !recoverPausedRef.current });
+        setRecoverProgress({ processed: totalProcessed, total: realTotal, found: totalFound, running: !done && !recoverPausedRef.current });
 
         await refreshMissionResults(viewingMission.id);
 
