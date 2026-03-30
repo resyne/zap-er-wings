@@ -239,7 +239,7 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, unit_of_measure, current_stock, minimum_stock, maximum_stock, production_cost, sale_price, warehouse_location, last_inventory_date")
+        .select("id, code, name, unit_of_measure, current_stock, minimum_stock, maximum_stock, production_cost, sale_price, warehouse_location, last_inventory_date, product_category_id, product_subcategory_id")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -739,6 +739,35 @@ export default function ZAppMagazzino() {
         subcategories={warehouseSubcategories as any}
         suppliers={allSuppliers.map(s => ({ id: s.id, name: s.name }))}
       />
+
+      {/* Product Category Settings */}
+      <ProductCategorySettings
+        open={productSettingsOpen}
+        onOpenChange={setProductSettingsOpen}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
+
+      {/* Assign Product to Category Dialog */}
+      {assigningProduct && (
+        <Dialog open={!!assigningProduct} onOpenChange={() => setAssigningProduct(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assegna Categoria</DialogTitle>
+              <DialogDescription>Seleziona categoria e sottocategoria per questo prodotto</DialogDescription>
+            </DialogHeader>
+            <AssignProductForm
+              productId={assigningProduct}
+              categories={productCategories}
+              subcategories={productSubcategories}
+              onDone={() => {
+                setAssigningProduct(null);
+                queryClient.invalidateQueries({ queryKey: ["zapp-products"] });
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Dialogs */}
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />
