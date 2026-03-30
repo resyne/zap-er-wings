@@ -445,12 +445,15 @@ export default function ScrapingPage() {
     setSelectedEmailIds(next);
   };
 
+  const hasValidEmail = (r: MissionResult) => !!r.contact_email && r.contact_email !== 'NOT_FOUND';
+  const isSendable = (r: MissionResult) => r.generated_email_subject && !r.email_sent && hasValidEmail(r);
+
   const selectAllEmails = () => {
-    const emailResults = missionResults.filter(r => r.generated_email_subject && !r.email_sent);
-    if (selectedEmailIds.size === emailResults.length) {
+    const sendable = missionResults.filter(isSendable);
+    if (selectedEmailIds.size === sendable.length) {
       setSelectedEmailIds(new Set());
     } else {
-      setSelectedEmailIds(new Set(emailResults.map(r => r.id)));
+      setSelectedEmailIds(new Set(sendable.map(r => r.id)));
     }
   };
 
