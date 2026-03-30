@@ -818,10 +818,6 @@ export default function ScrapingPage() {
                 </TabsTrigger>
                 <TabsTrigger value="template">Template HTML</TabsTrigger>
               </TabsList>
-                <TabsTrigger value="emails">
-                  Email Generate ({missionResults.filter(r => r.generated_email_subject).length})
-                </TabsTrigger>
-              </TabsList>
 
               <TabsContent value="by-city" className="space-y-4 mt-4">
                 {Object.entries(resultsByCity).map(([city, cityResults]) => (
