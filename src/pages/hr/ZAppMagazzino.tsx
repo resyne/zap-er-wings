@@ -456,7 +456,7 @@ export default function ZAppMagazzino() {
       if (ib === -1) return -1;
       return ia - ib;
     });
-  }, [filteredMaterials]);
+  }, [filteredMaterials, warehouseCategories, warehouseSubcategories, SUPPLIER_CATEGORY_MAP]);
 
   const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 
