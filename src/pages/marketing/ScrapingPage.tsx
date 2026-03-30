@@ -107,6 +107,7 @@ export default function ScrapingPage() {
   const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
   const [emailSenderEmail, setEmailSenderEmail] = useState("noreply@erp.abbattitorizapper.it");
   const [emailSenderName, setEmailSenderName] = useState("ZAPPER Team");
+  const [replyToEmail, setReplyToEmail] = useState("info@abbattitorizapper.it");
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
 
