@@ -838,7 +838,24 @@ export default function ScrapingPage() {
                   ({missionResults.length} risultati in {Object.keys(resultsByCity).length} città)
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Recover missing emails button */}
+                {recoverProgress.running ? (
+                  <Button onClick={pauseRecover} variant="outline" size="sm">
+                    <Pause className="h-4 w-4 mr-1" />Pausa Recupero
+                  </Button>
+                ) : recoverPaused ? (
+                  <Button onClick={resumeRecover} variant="outline" size="sm">
+                    <Play className="h-4 w-4 mr-1" />Riprendi Recupero
+                  </Button>
+                ) : missionResults.some(r => r.email_generated && !r.contact_email) && !emailGenProgress.running ? (
+                  <Button onClick={recoverMissingEmails} variant="outline" size="sm" disabled={recoveringEmails}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Recupera Email ({missionResults.filter(r => r.email_generated && !r.contact_email).length})
+                  </Button>
+                ) : null}
+
+                {/* Generate emails button */}
                 {emailGenProgress.running ? (
                   <Button onClick={pauseEmailGen} variant="outline" size="sm">
                     <Pause className="h-4 w-4 mr-1" />Pausa
