@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -97,6 +97,9 @@ export default function ScrapingPage() {
   const [loadingResults, setLoadingResults] = useState(false);
   const [generatingMissionEmails, setGeneratingMissionEmails] = useState(false);
   const [emailGenProgress, setEmailGenProgress] = useState({ processed: 0, total: 0, running: false });
+  const emailGenPausedRef = useRef(false);
+  const [emailGenPaused, setEmailGenPaused] = useState(false);
+  const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
   const [activeTab, setActiveTab] = useState("agent");
 
@@ -219,8 +222,22 @@ export default function ScrapingPage() {
     }
   };
 
+  const refreshMissionResults = useCallback(async (missionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('scraping_results')
+        .select('*')
+        .eq('mission_id', missionId)
+        .order('city', { ascending: true })
+        .limit(2000);
+      if (!error && data) setMissionResults(data as MissionResult[]);
+    } catch {}
+  }, []);
+
   const generateMissionEmails = async () => {
     if (!viewingMission) return;
+    emailGenPausedRef.current = false;
+    setEmailGenPaused(false);
     setGeneratingMissionEmails(true);
     const totalToProcess = missionResults.filter(r => !r.email_generated).length;
     setEmailGenProgress({ processed: 0, total: totalToProcess, running: true });
@@ -229,31 +246,54 @@ export default function ScrapingPage() {
       let done = false;
       let totalProcessed = 0;
 
-      while (!done) {
+      while (!done && !emailGenPausedRef.current) {
         const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
-          body: { missionId: viewingMission.id, batchSize: 5 },
+          body: { missionId: viewingMission.id, batchSize: 10 },
         });
 
         if (error) throw error;
 
         totalProcessed += data.processed || 0;
-        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !data.done });
         done = data.done;
+        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !done && !emailGenPausedRef.current });
 
-        if (!done) {
-          await new Promise(r => setTimeout(r, 1000));
+        // Refresh results to show new emails in real-time
+        await refreshMissionResults(viewingMission.id);
+
+        if (!done && !emailGenPausedRef.current) {
+          await new Promise(r => setTimeout(r, 500));
         }
       }
 
-      toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
-      // Refresh results
-      await viewMissionResults(viewingMission);
+      if (emailGenPausedRef.current) {
+        toast({ title: "In pausa", description: `${totalProcessed} email generate. Puoi riprendere quando vuoi.` });
+      } else {
+        toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
+      }
     } catch (error: any) {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
     } finally {
-      setGeneratingMissionEmails(false);
-      setEmailGenProgress(prev => ({ ...prev, running: false }));
+      if (!emailGenPausedRef.current) {
+        setGeneratingMissionEmails(false);
+        setEmailGenProgress(prev => ({ ...prev, running: false }));
+      }
     }
+  };
+
+  const pauseEmailGen = () => {
+    emailGenPausedRef.current = true;
+    setEmailGenPaused(true);
+    setEmailGenProgress(prev => ({ ...prev, running: false }));
+  };
+
+  const resumeEmailGen = () => {
+    setEmailGenPaused(false);
+    generateMissionEmails();
+  };
+
+  const copyMissionEmail = (r: MissionResult) => {
+    navigator.clipboard.writeText(`Oggetto: ${r.generated_email_subject}\n\n${r.generated_email_body}`);
+    toast({ title: "Copiato!" });
   };
 
   // Manual scraping handlers
@@ -661,7 +701,7 @@ export default function ScrapingPage() {
       </Tabs>
 
       {/* Mission Results Dialog */}
-      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) { setViewingMission(null); setGeneratingMissionEmails(false); } }}>
+      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) { setViewingMission(null); setGeneratingMissionEmails(false); emailGenPausedRef.current = true; setEmailGenPaused(false); } }}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
@@ -672,29 +712,33 @@ export default function ScrapingPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {missionResults.some(r => !r.email_generated) && (
-                  <Button 
-                    onClick={generateMissionEmails} 
-                    disabled={generatingMissionEmails}
-                    size="sm"
-                  >
-                    {generatingMissionEmails ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</>
-                    ) : (
-                      <><Mail className="h-4 w-4 mr-2" />Genera Email AI</>
-                    )}
+                {emailGenProgress.running ? (
+                  <Button onClick={pauseEmailGen} variant="outline" size="sm">
+                    <Pause className="h-4 w-4 mr-1" />Pausa
                   </Button>
-                )}
+                ) : emailGenPaused ? (
+                  <Button onClick={resumeEmailGen} size="sm">
+                    <Play className="h-4 w-4 mr-1" />Riprendi
+                  </Button>
+                ) : missionResults.some(r => !r.email_generated) ? (
+                  <Button onClick={generateMissionEmails} disabled={generatingMissionEmails} size="sm">
+                    <Mail className="h-4 w-4 mr-1" />Genera Email AI
+                  </Button>
+                ) : null}
               </div>
             </DialogTitle>
           </DialogHeader>
 
-          {emailGenProgress.running && (
+          {(emailGenProgress.running || emailGenPaused) && (
             <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Analisi siti web e generazione email...
+                  {emailGenProgress.running ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Pause className="h-4 w-4 text-amber-500" />
+                  )}
+                  {emailGenProgress.running ? 'Analisi siti web e generazione email...' : 'In pausa'}
                 </span>
                 <span>{emailGenProgress.processed}/{emailGenProgress.total}</span>
               </div>
@@ -705,10 +749,10 @@ export default function ScrapingPage() {
           {loadingResults ? (
             <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
-            <Tabs defaultValue="by-city">
+            <Tabs value={dialogEmailTab} onValueChange={setDialogEmailTab}>
               <TabsList>
                 <TabsTrigger value="by-city">Per Città</TabsTrigger>
-                <TabsTrigger value="emails" disabled={!missionResults.some(r => r.email_generated && r.generated_email_subject)}>
+                <TabsTrigger value="emails">
                   Email Generate ({missionResults.filter(r => r.generated_email_subject).length})
                 </TabsTrigger>
               </TabsList>
@@ -752,35 +796,50 @@ export default function ScrapingPage() {
               </TabsContent>
 
               <TabsContent value="emails" className="space-y-3 mt-4">
-                {missionResults.filter(r => r.generated_email_subject).map((r) => (
-                  <Card key={r.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
-                          <Badge variant="outline" className="text-xs">{r.city}</Badge>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          navigator.clipboard.writeText(`Oggetto: ${r.generated_email_subject}\n\n${r.generated_email_body}`);
-                          toast({ title: "Copiato!" });
-                        }}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Oggetto</Label>
-                        <p className="font-medium text-sm">{r.generated_email_subject}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Corpo</Label>
-                        <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
-                      </div>
+                {missionResults.filter(r => r.generated_email_subject).length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      Nessuna email generata ancora. Clicca "Genera Email AI" per iniziare.
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  missionResults.filter(r => r.generated_email_subject).map((r) => (
+                    <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : ""}>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
+                            <Badge variant="outline" className="text-xs">{r.city}</Badge>
+                            {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => copyMissionEmail(r)}>
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            {!r.email_sent && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                window.open(`mailto:?subject=${encodeURIComponent(r.generated_email_subject || '')}&body=${encodeURIComponent(r.generated_email_body || '')}`, '_blank');
+                              }}>
+                                <Send className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Oggetto</Label>
+                          <p className="font-medium text-sm">{r.generated_email_subject}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Corpo</Label>
+                          <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </TabsContent>
             </Tabs>
           )}
