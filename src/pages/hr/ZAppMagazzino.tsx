@@ -78,7 +78,49 @@ function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Mat
   );
 }
 
-export default function ZAppMagazzino() {
+function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void; categories: any[] }) {
+  const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
+  const isOut = p.current_stock <= 0;
+  return (
+    <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-destructive/10" : isLow ? "bg-amber-50" : "bg-primary/10"}`}>
+          <Box className={`h-4 w-4 ${isOut ? "text-destructive" : isLow ? "text-amber-500" : "text-primary"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-[13px] truncate">{p.name}</p>
+          <p className="text-[11px] text-muted-foreground">{p.code}</p>
+          {p.warehouse_location && (
+            <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <MapPin className="h-2.5 w-2.5" /> {p.warehouse_location}
+            </p>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0 space-y-0.5">
+          <p className="font-bold text-[13px]">{p.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{p.unit_of_measure || "pz"}</span></p>
+          {isOut ? (
+            <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>
+          ) : isLow ? (
+            <Badge variant="destructive" className="text-[10px] px-1.5">Sotto scorta</Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] px-1.5 text-green-700 border-green-300">OK</Badge>
+          )}
+          {(p.sale_price || 0) > 0 && (
+            <p className="text-[10px] text-muted-foreground flex items-center justify-end gap-0.5">
+              <Euro className="h-2.5 w-2.5" /> {Number(p.sale_price).toLocaleString("it-IT")}
+            </p>
+          )}
+        </div>
+        {categories.length > 0 && !p.product_category_id && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onAssign} title="Assegna categoria">
+            <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
