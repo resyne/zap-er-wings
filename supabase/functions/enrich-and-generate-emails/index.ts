@@ -194,7 +194,7 @@ Rispondi SOLO con JSON valido:
         }
 
         // Small delay to avoid rate limits
-        await new Promise(r => setTimeout(r, 300))
+        await new Promise(r => setTimeout(r, 200))
 
       } catch (err) {
         console.error(`[ENRICH-EMAILS] Error for "${result.title}":`, err)
