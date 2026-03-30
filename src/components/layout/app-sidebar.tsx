@@ -46,7 +46,8 @@ import {
   AlertTriangle,
   Bot,
   ArrowDownCircle,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Search
 } from "lucide-react";
 
 import {
