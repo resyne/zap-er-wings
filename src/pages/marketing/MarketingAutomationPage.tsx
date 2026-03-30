@@ -19,7 +19,7 @@ export default function MarketingAutomationPage() {
             <Zap className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Marketing Automation</h1>
+            <h1 className="text-2xl font-bold text-foreground">Automation</h1>
             <p className="text-sm text-muted-foreground">
               Gestisci le tue campagne di automazione Email e WhatsApp
             </p>
