@@ -127,9 +127,9 @@ export function BeccaFollowupTab() {
       const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
         body: {
           to: item.customer_phone,
-          text: messageToSend,
+          type: "text",
+          content: messageToSend,
           account_id: item.account_id,
-          conversation_id: item.conversation_id,
         },
       });
 
