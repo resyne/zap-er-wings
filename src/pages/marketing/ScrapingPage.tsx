@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ScrapingResult {
   title: string;
@@ -31,136 +33,254 @@ interface GeneratedEmail {
   error: string | null;
 }
 
+interface Mission {
+  id: string;
+  name: string;
+  query: string;
+  mission_description: string;
+  sender_name: string;
+  sender_company: string;
+  status: string;
+  total_cities: number;
+  completed_cities: number;
+  total_results: number;
+  created_at: string;
+}
+
+interface MissionResult {
+  id: string;
+  city: string;
+  title: string;
+  url: string;
+  description: string;
+  position: number;
+  generated_email_subject: string | null;
+  generated_email_body: string | null;
+  recipient_name: string | null;
+  recipient_company: string | null;
+  email_generated: boolean;
+  email_sent: boolean;
+}
+
 export default function ScrapingPage() {
   const { toast } = useToast();
 
-  // Scraping config
+  // Scraping config (manual)
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("it");
   const [language, setLanguage] = useState("it");
   const [maxResults, setMaxResults] = useState(20);
-
-  // Mission config
   const [mission, setMission] = useState("");
   const [senderName, setSenderName] = useState("");
   const [senderCompany, setSenderCompany] = useState("");
   const [emailLanguage, setEmailLanguage] = useState("Italiano");
 
-  // State
+  // Manual scraping state
   const [scraping, setScraping] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [results, setResults] = useState<ScrapingResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<Set<number>>(new Set());
   const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmail[]>([]);
-  const [activeTab, setActiveTab] = useState("search");
 
-  const handleScrape = async () => {
-    if (!query.trim()) {
-      toast({ title: "Errore", description: "Inserisci una query di ricerca", variant: "destructive" });
+  // Agent/Mission state
+  const [missionName, setMissionName] = useState("");
+  const [agentQuery, setAgentQuery] = useState("");
+  const [agentMission, setAgentMission] = useState("");
+  const [agentSenderName, setAgentSenderName] = useState("");
+  const [agentSenderCompany, setAgentSenderCompany] = useState("");
+  const [agentMaxResults, setAgentMaxResults] = useState(20);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [loadingMissions, setLoadingMissions] = useState(false);
+  const [launchingAgent, setLaunchingAgent] = useState(false);
+  const [viewingMission, setViewingMission] = useState<Mission | null>(null);
+  const [missionResults, setMissionResults] = useState<MissionResult[]>([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("agent");
+
+  useEffect(() => {
+    fetchMissions();
+  }, []);
+
+  // Poll for mission updates
+  useEffect(() => {
+    const runningMissions = missions.filter(m => m.status === 'running');
+    if (runningMissions.length === 0) return;
+
+    const interval = setInterval(fetchMissions, 5000);
+    return () => clearInterval(interval);
+  }, [missions]);
+
+  const fetchMissions = async () => {
+    setLoadingMissions(true);
+    try {
+      const { data, error } = await supabase
+        .from('scraping_missions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setMissions((data as Mission[]) || []);
+    } catch (error) {
+      console.error('Error fetching missions:', error);
+    } finally {
+      setLoadingMissions(false);
+    }
+  };
+
+  const launchAgent = async () => {
+    if (!missionName.trim() || !agentQuery.trim() || !agentMission.trim()) {
+      toast({ title: "Errore", description: "Compila nome, query e missione", variant: "destructive" });
       return;
     }
 
+    setLaunchingAgent(true);
+    try {
+      // Create mission record
+      const { data: missionData, error: insertError } = await supabase
+        .from('scraping_missions')
+        .insert({
+          name: missionName,
+          query: agentQuery,
+          mission_description: agentMission,
+          sender_name: agentSenderName,
+          sender_company: agentSenderCompany,
+          max_results_per_city: agentMaxResults,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Launch the agent
+      const { error } = await supabase.functions.invoke('scraping-agent', {
+        body: { missionId: (missionData as Mission).id },
+      });
+
+      // Don't wait for completion - it runs in background
+      toast({
+        title: "Agente avviato!",
+        description: `L'agente sta eseguendo lo scraping per ~140 città italiane`,
+      });
+
+      // Reset form
+      setMissionName("");
+      setAgentQuery("");
+      setAgentMission("");
+      setAgentSenderName("");
+      setAgentSenderCompany("");
+
+      // Refresh missions list
+      await fetchMissions();
+    } catch (error: any) {
+      console.error('Agent launch error:', error);
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    } finally {
+      setLaunchingAgent(false);
+    }
+  };
+
+  const viewMissionResults = async (m: Mission) => {
+    setViewingMission(m);
+    setLoadingResults(true);
+    try {
+      const { data, error } = await supabase
+        .from('scraping_results')
+        .select('*')
+        .eq('mission_id', m.id)
+        .order('city', { ascending: true })
+        .limit(1000);
+
+      if (error) throw error;
+      setMissionResults((data as MissionResult[]) || []);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+    } finally {
+      setLoadingResults(false);
+    }
+  };
+
+  // Manual scraping handlers
+  const handleScrape = async () => {
+    if (!query.trim()) {
+      toast({ title: "Errore", description: "Inserisci una query", variant: "destructive" });
+      return;
+    }
     setScraping(true);
     setResults([]);
     setSelectedResults(new Set());
     setGeneratedEmails([]);
-
     try {
       const { data, error } = await supabase.functions.invoke('apify-scrape', {
         body: { query, location, language, maxResults },
       });
-
       if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Scraping failed');
-
+      if (!data.success) throw new Error(data.error);
       setResults(data.results || []);
-      // Select all by default
       setSelectedResults(new Set(data.results?.map((_: any, i: number) => i) || []));
-
-      toast({
-        title: "Scraping completato",
-        description: `Trovati ${data.resultsCount} risultati per "${query}"`,
-      });
-
-      if (data.results?.length > 0) {
-        setActiveTab("results");
-      }
+      toast({ title: "Completato", description: `${data.resultsCount} risultati trovati` });
+      if (data.results?.length > 0) setActiveTab("results");
     } catch (error: any) {
-      console.error('Scraping error:', error);
-      toast({ title: "Errore", description: error.message || "Errore durante lo scraping", variant: "destructive" });
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
     } finally {
       setScraping(false);
     }
   };
 
   const handleGenerateEmails = async () => {
-    if (selectedResults.size === 0) {
-      toast({ title: "Errore", description: "Seleziona almeno un risultato", variant: "destructive" });
-      return;
-    }
-    if (!mission.trim()) {
-      toast({ title: "Errore", description: "Inserisci la missione dell'email", variant: "destructive" });
-      return;
-    }
-
+    if (selectedResults.size === 0 || !mission.trim()) return;
     setGenerating(true);
-
     try {
       const selectedData = results.filter((_, i) => selectedResults.has(i));
-
       const { data, error } = await supabase.functions.invoke('generate-scraping-emails', {
-        body: {
-          results: selectedData,
-          mission,
-          senderName,
-          senderCompany,
-          language: emailLanguage,
-        },
+        body: { results: selectedData, mission, senderName, senderCompany, language: emailLanguage },
       });
-
       if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Email generation failed');
-
       setGeneratedEmails(data.emails || []);
-      toast({
-        title: "Email generate",
-        description: `${data.successCount}/${data.totalProcessed} email generate con successo`,
-      });
-
+      toast({ title: "Email generate", description: `${data.successCount}/${data.totalProcessed} email generate` });
       setActiveTab("emails");
     } catch (error: any) {
-      console.error('Email generation error:', error);
-      toast({ title: "Errore", description: error.message || "Errore nella generazione email", variant: "destructive" });
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
     } finally {
       setGenerating(false);
     }
   };
 
-  const toggleResult = (index: number) => {
+  const toggleResult = (i: number) => {
     const next = new Set(selectedResults);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
+    if (next.has(i)) next.delete(i); else next.add(i);
     setSelectedResults(next);
   };
-
   const toggleAll = () => {
-    if (selectedResults.size === results.length) {
-      setSelectedResults(new Set());
-    } else {
-      setSelectedResults(new Set(results.map((_, i) => i)));
+    setSelectedResults(selectedResults.size === results.length ? new Set() : new Set(results.map((_, i) => i)));
+  };
+  const copyEmail = (email: GeneratedEmail) => {
+    if (!email.email) return;
+    navigator.clipboard.writeText(`Oggetto: ${email.email.subject}\n\n${email.email.body}`);
+    toast({ title: "Copiato" });
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending': return <Badge variant="secondary">In attesa</Badge>;
+      case 'running': return <Badge className="bg-blue-500 text-white">In corso</Badge>;
+      case 'completed': return <Badge className="bg-green-600 text-white">Completata</Badge>;
+      case 'failed': return <Badge variant="destructive">Fallita</Badge>;
+      default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  const copyEmail = (email: GeneratedEmail) => {
-    if (!email.email) return;
-    const text = `Oggetto: ${email.email.subject}\n\n${email.email.body}`;
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copiato", description: "Email copiata negli appunti" });
-  };
+  // Group mission results by city
+  const resultsByCity = missionResults.reduce((acc, r) => {
+    if (!acc[r.city]) acc[r.city] = [];
+    acc[r.city].push(r);
+    return acc;
+  }, {} as Record<string, MissionResult[]>);
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2 bg-primary/10 rounded-lg">
@@ -177,170 +297,230 @@ export default function ScrapingPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="border-b">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-none lg:flex">
+            <TabsTrigger value="agent" className="flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">Agente</span>
+            </TabsTrigger>
+            <TabsTrigger value="missions" className="flex items-center gap-2">
+              <Rocket className="h-4 w-4" />
+              <span className="hidden sm:inline">Missioni {missions.length > 0 && `(${missions.length})`}</span>
+            </TabsTrigger>
             <TabsTrigger value="search" className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
-              <span>Ricerca</span>
+              <span className="hidden sm:inline">Ricerca Manuale</span>
             </TabsTrigger>
             <TabsTrigger value="results" className="flex items-center gap-2" disabled={results.length === 0}>
               <Search className="h-4 w-4" />
-              <span>Risultati {results.length > 0 && `(${results.length})`}</span>
+              <span className="hidden sm:inline">Risultati</span>
             </TabsTrigger>
             <TabsTrigger value="emails" className="flex items-center gap-2" disabled={generatedEmails.length === 0}>
               <Mail className="h-4 w-4" />
-              <span>Email Generate {generatedEmails.length > 0 && `(${generatedEmails.filter(e => e.email).length})`}</span>
+              <span className="hidden sm:inline">Email</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Search Tab */}
-        <TabsContent value="search" className="space-y-6">
+        {/* Agent Tab */}
+        <TabsContent value="agent" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Scraping Config */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
-                  Configurazione Scraping
+                  <Bot className="h-5 w-5" />
+                  Nuova Missione Automatica
                 </CardTitle>
-                <CardDescription>Configura i parametri di ricerca Google tramite Apify</CardDescription>
+                <CardDescription>
+                  L'agente eseguirà lo scraping per ~140 città italiane (50k+ abitanti)
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Query di ricerca *</Label>
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="es: spazzacamino Milano, idraulico Roma..."
-                    className="mt-1"
-                  />
+                  <Label>Nome missione *</Label>
+                  <Input value={missionName} onChange={(e) => setMissionName(e.target.value)} placeholder="es: Ricerca Spazzacamini Italia" className="mt-1" />
                 </div>
+                <div>
+                  <Label>Query di ricerca *</Label>
+                  <Input value={agentQuery} onChange={(e) => setAgentQuery(e.target.value)} placeholder="es: spazzacamino (la città viene aggiunta automaticamente)" className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">L'agente cercherà "{agentQuery || '...'} + [città]" per ogni città</p>
+                </div>
+                <div>
+                  <Label>Missione / Scopo email *</Label>
+                  <Textarea value={agentMission} onChange={(e) => setAgentMission(e.target.value)} placeholder="es: Presentazione Programma Partnership ZAPPER..." className="mt-1 min-h-[80px]" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Nome mittente</Label>
+                    <Input value={agentSenderName} onChange={(e) => setAgentSenderName(e.target.value)} placeholder="es: Mario Rossi" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Azienda</Label>
+                    <Input value={agentSenderCompany} onChange={(e) => setAgentSenderCompany(e.target.value)} placeholder="es: ZAPPER" className="mt-1" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Max risultati per città</Label>
+                  <Select value={String(agentMaxResults)} onValueChange={(v) => setAgentMaxResults(Number(v))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={launchAgent} disabled={launchingAgent} className="w-full" size="lg">
+                  {launchingAgent ? (
+                    <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Avvio in corso...</>
+                  ) : (
+                    <><Bot className="h-5 w-5 mr-2" />Lancia Agente</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle>Come funziona</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">1</span></div>
+                  <p>Inserisci la query base (es: "spazzacamino") e la missione delle email</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">2</span></div>
+                  <p>L'agente cerca automaticamente "{agentQuery || 'query'} + [città]" per tutte le ~140 città italiane con 50k+ abitanti</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">3</span></div>
+                  <p>Tutti i risultati vengono salvati nel database, organizzati per città</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">4</span></div>
+                  <p>Puoi poi generare email AI personalizzate per ciascun risultato dalla sezione Missioni</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Missions Tab */}
+        <TabsContent value="missions" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Missioni di Scraping</h3>
+            <Button variant="outline" size="sm" onClick={fetchMissions}>
+              <RefreshCw className="h-4 w-4 mr-2" />Aggiorna
+            </Button>
+          </div>
+
+          {missions.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                Nessuna missione ancora. Vai su "Agente" per lanciarne una.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {missions.map((m) => (
+                <Card key={m.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold">{m.name}</h4>
+                          {getStatusBadge(m.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">Query: "{m.query}"</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(m.created_at).toLocaleString('it-IT')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-sm">
+                          <p><span className="font-medium">{m.completed_cities}</span>/{m.total_cities} città</p>
+                          <p><span className="font-medium">{m.total_results}</span> risultati</p>
+                        </div>
+                        {m.status === 'completed' && (
+                          <Button variant="outline" size="sm" onClick={() => viewMissionResults(m)}>
+                            <Eye className="h-4 w-4 mr-1" />Vedi
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {m.status === 'running' && m.total_cities > 0 && (
+                      <div className="mt-3">
+                        <Progress value={(m.completed_cities / m.total_cities) * 100} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {Math.round((m.completed_cities / m.total_cities) * 100)}% completato
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Manual Search Tab */}
+        <TabsContent value="search" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Configurazione Scraping</CardTitle>
+                <CardDescription>Ricerca manuale singola tramite Apify</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Query *</Label>
+                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="es: spazzacamino Milano" className="mt-1" />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Paese</Label>
                     <Select value={location} onValueChange={setLocation}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="it">Italia</SelectItem>
                         <SelectItem value="de">Germania</SelectItem>
                         <SelectItem value="fr">Francia</SelectItem>
                         <SelectItem value="es">Spagna</SelectItem>
-                        <SelectItem value="gb">Regno Unito</SelectItem>
-                        <SelectItem value="us">Stati Uniti</SelectItem>
-                        <SelectItem value="at">Austria</SelectItem>
-                        <SelectItem value="ch">Svizzera</SelectItem>
-                        <SelectItem value="pt">Portogallo</SelectItem>
+                        <SelectItem value="gb">UK</SelectItem>
+                        <SelectItem value="us">USA</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label>Lingua</Label>
                     <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="it">Italiano</SelectItem>
                         <SelectItem value="de">Tedesco</SelectItem>
                         <SelectItem value="fr">Francese</SelectItem>
-                        <SelectItem value="es">Spagnolo</SelectItem>
                         <SelectItem value="en">Inglese</SelectItem>
-                        <SelectItem value="pt">Portoghese</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-
-                <div>
-                  <Label>Numero massimo risultati</Label>
-                  <Select value={String(maxResults)} onValueChange={(v) => setMaxResults(Number(v))}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <Button onClick={handleScrape} disabled={scraping} className="w-full" size="lg">
-                  {scraping ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Scraping in corso...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-5 w-5 mr-2" />
-                      Avvia Scraping
-                    </>
-                  )}
+                  {scraping ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Scraping...</> : <><Search className="h-5 w-5 mr-2" />Avvia Scraping</>}
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Mission Config */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Rocket className="h-5 w-5" />
-                  Missione Email
-                </CardTitle>
-                <CardDescription>Definisci lo scopo delle email che verranno generate dall'AI</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Rocket className="h-5 w-5" />Missione Email</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Missione / Scopo *</Label>
-                  <Textarea
-                    value={mission}
-                    onChange={(e) => setMission(e.target.value)}
-                    placeholder="es: Presentazione Programma Partnership ZAPPER - Proporre collaborazione per installazione e manutenzione caminetti..."
-                    className="mt-1 min-h-[100px]"
-                  />
+                  <Label>Missione *</Label>
+                  <Textarea value={mission} onChange={(e) => setMission(e.target.value)} placeholder="es: Presentazione Programma Partnership ZAPPER" className="mt-1 min-h-[80px]" />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nome mittente</Label>
-                    <Input
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="es: Mario Rossi"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Azienda mittente</Label>
-                    <Input
-                      value={senderCompany}
-                      onChange={(e) => setSenderCompany(e.target.value)}
-                      placeholder="es: ZAPPER"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Lingua email</Label>
-                  <Select value={emailLanguage} onValueChange={setEmailLanguage}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Italiano">Italiano</SelectItem>
-                      <SelectItem value="Inglese">Inglese</SelectItem>
-                      <SelectItem value="Tedesco">Tedesco</SelectItem>
-                      <SelectItem value="Francese">Francese</SelectItem>
-                      <SelectItem value="Spagnolo">Spagnolo</SelectItem>
-                      <SelectItem value="Portoghese">Portoghese</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div><Label>Mittente</Label><Input value={senderName} onChange={(e) => setSenderName(e.target.value)} className="mt-1" /></div>
+                  <div><Label>Azienda</Label><Input value={senderCompany} onChange={(e) => setSenderCompany(e.target.value)} className="mt-1" /></div>
                 </div>
               </CardContent>
             </Card>
@@ -354,30 +534,14 @@ export default function ScrapingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Risultati Scraping</CardTitle>
-                  <CardDescription>
-                    {selectedResults.size} di {results.length} risultati selezionati
-                  </CardDescription>
+                  <CardDescription>{selectedResults.size} di {results.length} selezionati</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={toggleAll}>
-                    {selectedResults.size === results.length ? "Deseleziona tutti" : "Seleziona tutti"}
+                    {selectedResults.size === results.length ? "Deseleziona" : "Seleziona tutti"}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleGenerateEmails}
-                    disabled={generating || selectedResults.size === 0 || !mission.trim()}
-                  >
-                    {generating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generando...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="h-4 w-4 mr-2" />
-                        Genera Email ({selectedResults.size})
-                      </>
-                    )}
+                  <Button size="sm" onClick={handleGenerateEmails} disabled={generating || selectedResults.size === 0 || !mission.trim()}>
+                    {generating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generando...</> : <><Mail className="h-4 w-4 mr-2" />Genera Email ({selectedResults.size})</>}
                   </Button>
                 </div>
               </div>
@@ -387,12 +551,7 @@ export default function ScrapingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={selectedResults.size === results.length && results.length > 0}
-                          onCheckedChange={toggleAll}
-                        />
-                      </TableHead>
+                      <TableHead className="w-10"><Checkbox checked={selectedResults.size === results.length && results.length > 0} onCheckedChange={toggleAll} /></TableHead>
                       <TableHead className="w-10">#</TableHead>
                       <TableHead>Titolo</TableHead>
                       <TableHead>Descrizione</TableHead>
@@ -400,24 +559,13 @@ export default function ScrapingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {results.map((result, i) => (
+                    {results.map((r, i) => (
                       <TableRow key={i} className={selectedResults.has(i) ? "bg-primary/5" : ""}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedResults.has(i)}
-                            onCheckedChange={() => toggleResult(i)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{result.position || i + 1}</TableCell>
-                        <TableCell className="font-medium max-w-xs truncate">{result.title}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-md truncate">
-                          {result.description}
-                        </TableCell>
-                        <TableCell>
-                          <a href={result.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                          </a>
-                        </TableCell>
+                        <TableCell><Checkbox checked={selectedResults.has(i)} onCheckedChange={() => toggleResult(i)} /></TableCell>
+                        <TableCell className="text-muted-foreground">{r.position || i + 1}</TableCell>
+                        <TableCell className="font-medium max-w-xs truncate">{r.title}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-md truncate">{r.description}</TableCell>
+                        <TableCell><a href={r.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4 text-muted-foreground hover:text-primary" /></a></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -429,68 +577,80 @@ export default function ScrapingPage() {
 
         {/* Emails Tab */}
         <TabsContent value="emails" className="space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h3 className="text-lg font-semibold">Email Generate</h3>
-              <p className="text-sm text-muted-foreground">
-                {generatedEmails.filter(e => e.email).length} email pronte su {generatedEmails.length} totali
-              </p>
-            </div>
-          </div>
-
           <div className="space-y-4">
             {generatedEmails.map((item, i) => (
               <Card key={i} className={item.error ? "border-destructive/50" : ""}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {item.email ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive" />
-                      )}
+                      {item.email ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
                       <CardTitle className="text-base">{item.source.title}</CardTitle>
                     </div>
                     <div className="flex items-center gap-2">
-                      {item.email?.recipientCompany && (
-                        <Badge variant="outline">{item.email.recipientCompany}</Badge>
-                      )}
-                      {item.email && (
-                        <Button variant="ghost" size="sm" onClick={() => copyEmail(item)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <a href={item.source.url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </a>
+                      {item.email?.recipientCompany && <Badge variant="outline">{item.email.recipientCompany}</Badge>}
+                      {item.email && <Button variant="ghost" size="sm" onClick={() => copyEmail(item)}><Copy className="h-4 w-4" /></Button>}
                     </div>
                   </div>
                 </CardHeader>
                 {item.email ? (
                   <CardContent className="space-y-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Oggetto</Label>
-                      <p className="font-medium">{item.email.subject}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Corpo</Label>
-                      <p className="text-sm whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">
-                        {item.email.body}
-                      </p>
-                    </div>
+                    <div><Label className="text-xs text-muted-foreground">Oggetto</Label><p className="font-medium">{item.email.subject}</p></div>
+                    <div><Label className="text-xs text-muted-foreground">Corpo</Label><p className="text-sm whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{item.email.body}</p></div>
                   </CardContent>
                 ) : (
-                  <CardContent>
-                    <p className="text-sm text-destructive">{item.error}</p>
-                  </CardContent>
+                  <CardContent><p className="text-sm text-destructive">{item.error}</p></CardContent>
                 )}
               </Card>
             ))}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Mission Results Dialog */}
+      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) setViewingMission(null); }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Risultati: {viewingMission?.name}
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({missionResults.length} risultati in {Object.keys(resultsByCity).length} città)
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingResults ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(resultsByCity).map(([city, cityResults]) => (
+                <Card key={city}>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <span>{city}</span>
+                      <Badge variant="secondary">{cityResults.length} risultati</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-0 pb-3">
+                    <div className="space-y-1">
+                      {cityResults.slice(0, 5).map((r) => (
+                        <div key={r.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                          <span className="truncate max-w-md">{r.title}</span>
+                          <a href={r.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                          </a>
+                        </div>
+                      ))}
+                      {cityResults.length > 5 && (
+                        <p className="text-xs text-muted-foreground">... e altri {cityResults.length - 5} risultati</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
