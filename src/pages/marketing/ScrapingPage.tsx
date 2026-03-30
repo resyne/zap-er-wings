@@ -1115,7 +1115,7 @@ export default function ScrapingPage() {
                 />
                 <div className="flex justify-end mt-4">
                   <Button onClick={saveTemplate} disabled={!templateUnsaved} className="gap-2">
-                    <Save className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                     {templateUnsaved ? 'Salva Template' : 'Salvato ✓'}
                   </Button>
                 </div>
