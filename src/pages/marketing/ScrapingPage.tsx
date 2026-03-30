@@ -304,6 +304,59 @@ export default function ScrapingPage() {
     toast({ title: "Copiato!" });
   };
 
+  const sendSelectedEmails = async (ids?: string[]) => {
+    const idsToSend = ids || Array.from(selectedEmailIds);
+    if (idsToSend.length === 0) {
+      toast({ title: "Errore", description: "Seleziona almeno un'email da inviare", variant: "destructive" });
+      return;
+    }
+    if (!emailSenderEmail) {
+      toast({ title: "Errore", description: "Configura l'email mittente", variant: "destructive" });
+      return;
+    }
+    setSendingEmails(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-scraping-email', {
+        body: {
+          resultIds: idsToSend,
+          senderEmail: emailSenderEmail,
+          senderName: emailSenderName,
+          htmlTemplate,
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: "Email inviate!",
+        description: `${data.sent} inviate, ${data.failed} fallite su ${data.total} totali`,
+      });
+      if (data.errors?.length) {
+        console.warn('Send errors:', data.errors);
+      }
+      // Refresh results
+      if (viewingMission) await refreshMissionResults(viewingMission.id);
+      setSelectedEmailIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Errore invio", description: error.message, variant: "destructive" });
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const toggleEmailSelection = (id: string) => {
+    const next = new Set(selectedEmailIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedEmailIds(next);
+  };
+
+  const selectAllEmails = () => {
+    const emailResults = missionResults.filter(r => r.generated_email_subject && !r.email_sent);
+    if (selectedEmailIds.size === emailResults.length) {
+      setSelectedEmailIds(new Set());
+    } else {
+      setSelectedEmailIds(new Set(emailResults.map(r => r.id)));
+    }
+  };
+
   // Manual scraping handlers
   const handleScrape = async () => {
     if (!query.trim()) {
