@@ -19,6 +19,8 @@ import { WarehouseCategorySettings } from "@/components/warehouse/WarehouseCateg
 import { ProductCategorySettings } from "@/components/warehouse/ProductCategorySettings";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
+import { MaterialDetailDialog } from "@/components/warehouse/MaterialDetailDialog";
+import { ProductDetailDialog } from "@/components/warehouse/ProductDetailDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -56,9 +58,9 @@ interface StockMovement {
   created_at: string;
 }
 
-function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Material) => React.ReactNode }) {
+function MaterialRow({ m, getStockBadge, onClick }: { m: Material; getStockBadge: (m: Material) => React.ReactNode; onClick: () => void }) {
   return (
-    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
+    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5 cursor-pointer hover:bg-muted/50 transition-colors" onClick={onClick}>
       <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-destructive/10" : "bg-green-50"}`}>
         <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-destructive" : "text-green-500"}`} />
       </div>
@@ -79,11 +81,11 @@ function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Mat
   );
 }
 
-function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void; categories: any[] }) {
+function ProductCard({ p, onAssign, onClick, categories }: { p: any; onAssign: () => void; onClick: () => void; categories: any[] }) {
   const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
   const isOut = p.current_stock <= 0;
   return (
-    <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
+    <div className="bg-card rounded-xl p-3 shadow-sm border border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={onClick}>
       <div className="flex items-center gap-3">
         <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-destructive/10" : isLow ? "bg-amber-50" : "bg-primary/10"}`}>
           <Box className={`h-4 w-4 ${isOut ? "text-destructive" : isLow ? "text-amber-500" : "text-primary"}`} />
@@ -113,7 +115,7 @@ function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void
           )}
         </div>
         {categories.length > 0 && !p.product_category_id && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onAssign} title="Assegna categoria">
+          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={(e) => { e.stopPropagation(); onAssign(); }} title="Assegna categoria">
             <Plus className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         )}
@@ -204,6 +206,8 @@ export default function ZAppMagazzino() {
   const [assigningProduct, setAssigningProduct] = useState<string | null>(null);
   const [expandedProductCats, setExpandedProductCats] = useState<Set<string>>(new Set());
   const [expandedProductSubs, setExpandedProductSubs] = useState<Set<string>>(new Set());
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
   // Fetch all suppliers for settings
   const { data: allSuppliers = [] } = useQuery({
@@ -613,7 +617,7 @@ export default function ZAppMagazzino() {
                               return (
                                 <div key={subKey} className="space-y-1.5">
                                   {subData.materials.map((m) => (
-                                    <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                    <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} onClick={() => setSelectedMaterial(m)} />
                                   ))}
                                 </div>
                               );
@@ -633,7 +637,7 @@ export default function ZAppMagazzino() {
                                 <CollapsibleContent>
                                   <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
                                     {subData.materials.map((m) => (
-                                      <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                      <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} onClick={() => setSelectedMaterial(m)} />
                                     ))}
                                   </div>
                                 </CollapsibleContent>
@@ -682,7 +686,7 @@ export default function ZAppMagazzino() {
           ) : !hasProductCategories ? (
             // Flat list when no categories exist
             <div className="space-y-2">
-              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
             </div>
           ) : (
             <div className="space-y-4">
@@ -736,14 +740,14 @@ export default function ZAppMagazzino() {
                               </CollapsibleTrigger>
                               <CollapsibleContent>
                                 <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
-                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>
                           );
                         })}
                         {/* Uncategorized within category */}
-                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
@@ -754,7 +758,7 @@ export default function ZAppMagazzino() {
               {groupedProducts.uncategorized.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground px-1">Senza categoria ({groupedProducts.uncategorized.length})</p>
-                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                 </div>
               )}
             </div>
@@ -839,6 +843,20 @@ export default function ZAppMagazzino() {
       <InventoryLogDialog open={logOpen} onOpenChange={setLogOpen} />
       <ProductMovementDialog open={productCaricoOpen} onOpenChange={setProductCaricoOpen} movementType="carico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
       <ProductMovementDialog open={productScaricoOpen} onOpenChange={setProductScaricoOpen} movementType="scarico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
+      <MaterialDetailDialog
+        open={!!selectedMaterial}
+        onOpenChange={(open) => !open && setSelectedMaterial(null)}
+        material={selectedMaterial}
+        warehouseCategories={warehouseCategories}
+        warehouseSubcategories={warehouseSubcategories as any}
+      />
+      <ProductDetailDialog
+        open={!!selectedProduct}
+        onOpenChange={(open) => !open && setSelectedProduct(null)}
+        product={selectedProduct}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
     </div>
   );
 }
