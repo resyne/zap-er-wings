@@ -412,8 +412,8 @@ async function syncLegacyConfig(supabase: any, config: any) {
     const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
     const messageIds = extractMessageIds(searchResponse);
 
-    // Limit to 10 messages per sync to avoid CPU timeout
-    const MAX_MESSAGES_PER_SYNC = 10;
+    // Process up to 100 messages per sync - take the most recent ones
+    const MAX_MESSAGES_PER_SYNC = 100;
     const messagesToProcess = messageIds.slice(-MAX_MESSAGES_PER_SYNC); // Take most recent
 
     let processedCount = 0;
