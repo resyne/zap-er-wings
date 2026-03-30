@@ -226,6 +226,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Archivio documenti/media", url: "/marketing/archive", icon: FileText },
       { title: "Brandkit", url: "/marketing/brandkit", icon: Palette },
       { title: "Competitor Analysis", url: "/marketing/competitor-analysis", icon: Target },
+      { title: "Scraping", url: "/marketing/scraping", icon: Search },
     ]
   },
   {

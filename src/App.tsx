@@ -114,6 +114,7 @@ const BeccaPage = lazy(() => import("./pages/becca/BeccaPage"));
 const TasksPage = lazy(() => import("./pages/tasks/TasksPage").then(m => ({ default: m.TasksPage })));
 const ContentCreationPage = lazy(() => import("./pages/marketing/ContentCreationPage"));
 const CompetitorAnalysisPage = lazy(() => import("./pages/marketing/CompetitorAnalysisPage"));
+const ScrapingPage = lazy(() => import("./pages/marketing/ScrapingPage"));
 const CalendarioPersonale = lazy(() => import("./pages/personal-area/CalendarioPersonale"));
 const TaskKpiPage = lazy(() => import("./pages/direzione/TaskKpiPage"));
 const ZAppPage = lazy(() => import("./pages/hr/ZAppPage"));
