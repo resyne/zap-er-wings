@@ -234,6 +234,11 @@ export default function BeccaPage() {
           <BeccaConversationsTab />
         </TabsContent>
 
+        {/* Follow-up */}
+        <TabsContent value="followup">
+          <BeccaFollowupTab />
+        </TabsContent>
+
         {/* Activity Log */}
         <TabsContent value="activity">
           <Card>
