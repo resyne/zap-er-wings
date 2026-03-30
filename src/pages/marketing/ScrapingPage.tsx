@@ -971,6 +971,8 @@ export default function ScrapingPage() {
                   onSenderEmailChange={setEmailSenderEmail}
                   senderName={emailSenderName}
                   onSenderNameChange={setEmailSenderName}
+                  replyToEmail={replyToEmail}
+                  onReplyToEmailChange={setReplyToEmail}
                 />
               </TabsContent>
             </Tabs>
