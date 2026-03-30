@@ -617,7 +617,7 @@ export default function ZAppMagazzino() {
                               return (
                                 <div key={subKey} className="space-y-1.5">
                                   {subData.materials.map((m) => (
-                                    <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                    <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} onClick={() => setSelectedMaterial(m)} />
                                   ))}
                                 </div>
                               );
@@ -637,7 +637,7 @@ export default function ZAppMagazzino() {
                                 <CollapsibleContent>
                                   <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
                                     {subData.materials.map((m) => (
-                                      <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} />
+                                      <MaterialRow key={m.id} m={m} getStockBadge={getStockBadge} onClick={() => setSelectedMaterial(m)} />
                                     ))}
                                   </div>
                                 </CollapsibleContent>
@@ -686,7 +686,7 @@ export default function ZAppMagazzino() {
           ) : !hasProductCategories ? (
             // Flat list when no categories exist
             <div className="space-y-2">
-              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
             </div>
           ) : (
             <div className="space-y-4">
@@ -740,14 +740,14 @@ export default function ZAppMagazzino() {
                               </CollapsibleTrigger>
                               <CollapsibleContent>
                                 <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
-                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                                 </div>
                               </CollapsibleContent>
                             </Collapsible>
                           );
                         })}
                         {/* Uncategorized within category */}
-                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
@@ -758,7 +758,7 @@ export default function ZAppMagazzino() {
               {groupedProducts.uncategorized.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground px-1">Senza categoria ({groupedProducts.uncategorized.length})</p>
-                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
                 </div>
               )}
             </div>
@@ -843,6 +843,20 @@ export default function ZAppMagazzino() {
       <InventoryLogDialog open={logOpen} onOpenChange={setLogOpen} />
       <ProductMovementDialog open={productCaricoOpen} onOpenChange={setProductCaricoOpen} movementType="carico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
       <ProductMovementDialog open={productScaricoOpen} onOpenChange={setProductScaricoOpen} movementType="scarico" products={products.map(p => ({ id: p.id, code: p.code, name: p.name, unit_of_measure: p.unit_of_measure, current_stock: Number(p.current_stock) }))} />
+      <MaterialDetailDialog
+        open={!!selectedMaterial}
+        onOpenChange={(open) => !open && setSelectedMaterial(null)}
+        material={selectedMaterial}
+        warehouseCategories={warehouseCategories}
+        warehouseSubcategories={warehouseSubcategories as any}
+      />
+      <ProductDetailDialog
+        open={!!selectedProduct}
+        onOpenChange={(open) => !open && setSelectedProduct(null)}
+        product={selectedProduct}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
     </div>
   );
 }
