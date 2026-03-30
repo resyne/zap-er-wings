@@ -19,6 +19,8 @@ import { WarehouseCategorySettings } from "@/components/warehouse/WarehouseCateg
 import { ProductCategorySettings } from "@/components/warehouse/ProductCategorySettings";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
+import { MaterialDetailDialog } from "@/components/warehouse/MaterialDetailDialog";
+import { ProductDetailDialog } from "@/components/warehouse/ProductDetailDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
