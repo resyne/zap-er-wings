@@ -160,9 +160,10 @@ Regole:
 - Massimo 3-4 frasi
 - Scrivi SOLO il messaggio, nient'altro
 - Se il cliente ha scritto in un'altra lingua, rispondi in quella lingua
+- NON includere saluti iniziali come "Ciao nome" perché quello verrà inviato separatamente tramite template
 
 Rispondi con un JSON:
-{"message": "il messaggio proposto", "reasoning": "breve spiegazione del perché questo messaggio"}`;
+{"message": "il messaggio proposto", "reasoning": "breve spiegazione del perché questo messaggio", "language": "codice lingua del cliente: it, es, en, fr"}`;
 
       let aiResponse: any = null;
 
