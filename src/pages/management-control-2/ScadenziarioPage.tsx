@@ -214,6 +214,19 @@ export default function ScadenziarioPage() {
     enabled: !!previewFatturaId && invoicePreviewOpen,
   });
 
+  // Global query for all uncollected assegno movements (for effetti KPI)
+  const { data: assegnoMovimenti = [] } = useQuery({
+    queryKey: ["assegno-movimenti-global"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scadenza_movimenti")
+        .select("id, scadenza_id, importo, metodo_pagamento, check_due_date, check_number, data_movimento")
+        .eq("metodo_pagamento", "assegno");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
 
   const periodLabel = useMemo(() => {
     if (groupBy === "anno") return format(selectedPeriod, "yyyy");
@@ -442,22 +455,59 @@ export default function ScadenziarioPage() {
   }, [scadenze, searchQuery, groupBy, selectedPeriod, showClosed]);
 
   // ── KPI totals ────────────────────────────────────
+  // Build set of scadenza IDs that are NOT fully collected (assegno still pending)
+  const assegnoScadenzaIds = useMemo(() => {
+    if (!scadenze) return new Set<string>();
+    const notCollected = scadenze.filter(s => s.stato !== "chiusa" && s.stato !== "saldata");
+    return new Set(notCollected.map(s => s.id));
+  }, [scadenze]);
+
+  // Calculate uncollected assegno totals by tipo (credito/debito)
+  const assegnoTotals = useMemo(() => {
+    if (!scadenze) return { effettiCredito: 0, effettiDebito: 0, assegni: [] as { importo: number; check_due_date: string | null; check_number: string | null; soggetto: string; tipo: string }[] };
+    const scadenzeMap = new Map(scadenze.map(s => [s.id, s]));
+    let effettiCredito = 0;
+    let effettiDebito = 0;
+    const assegni: { importo: number; check_due_date: string | null; check_number: string | null; soggetto: string; tipo: string }[] = [];
+    
+    for (const mov of assegnoMovimenti) {
+      if (!assegnoScadenzaIds.has(mov.scadenza_id)) continue;
+      const sc = scadenzeMap.get(mov.scadenza_id);
+      if (!sc) continue;
+      const importo = Number(mov.importo);
+      if (sc.tipo === "credito") effettiCredito += importo;
+      else effettiDebito += importo;
+      assegni.push({
+        importo,
+        check_due_date: mov.check_due_date || null,
+        check_number: mov.check_number || null,
+        soggetto: sc.soggetto_nome || "N/D",
+        tipo: sc.tipo,
+      });
+    }
+    // Sort by due date
+    assegni.sort((a, b) => (a.check_due_date || "").localeCompare(b.check_due_date || ""));
+    return { effettiCredito, effettiDebito, assegni };
+  }, [assegnoMovimenti, assegnoScadenzaIds, scadenze]);
+
   const totali = useMemo(() => {
     const items = groups.flatMap(g => g.scadenze);
-    return items.reduce(
+    const base = items.reduce(
       (acc, s) => {
-        if (isAssegnoInCassa(s)) {
-          if (s.tipo === "credito") acc.effettiCredito += Number(s.importo_totale);
-          else acc.effettiDebito += Number(s.importo_totale);
-        } else if (!isClosedScadenza(s)) {
+        if (!isClosedScadenza(s) && !isAssegnoInCassa(s)) {
           if (s.tipo === "credito") acc.crediti += Number(s.importo_residuo);
           else acc.debiti += Number(s.importo_residuo);
         }
         return acc;
       },
-      { crediti: 0, debiti: 0, effettiCredito: 0, effettiDebito: 0 }
+      { crediti: 0, debiti: 0 }
     );
-  }, [groups]);
+    return {
+      ...base,
+      effettiCredito: assegnoTotals.effettiCredito,
+      effettiDebito: assegnoTotals.effettiDebito,
+    };
+  }, [groups, assegnoTotals]);
 
   const scaduteCount = useMemo(() => {
     return groups.flatMap(g => g.scadenze).filter(s => !isClosedScadenza(s) && !isAssegnoInCassa(s) && getGiorniScadenza(s.data_scadenza) < 0).length;
@@ -845,18 +895,68 @@ export default function ScadenziarioPage() {
               </span>
             </div>
             {totali.effettiCredito > 0 && (
-              <div className="flex items-center gap-1.5 border-l pl-4">
-                <Receipt className="h-4 w-4 text-indigo-600" />
-                <span className="text-xs text-muted-foreground">Effetti a credito</span>
-                <span className="text-sm font-bold text-indigo-700">{fmtEuro(totali.effettiCredito)}</span>
-              </div>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-1.5 border-l pl-4 hover:opacity-80 transition-opacity cursor-pointer">
+                    <Receipt className="h-4 w-4 text-indigo-600" />
+                    <span className="text-xs text-muted-foreground">Effetti a credito</span>
+                    <span className="text-sm font-bold text-indigo-700">{fmtEuro(totali.effettiCredito)}</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="absolute z-20 mt-2 bg-background border rounded-lg shadow-lg p-3 min-w-[320px]">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Assegni in portafoglio (crediti)</div>
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {assegnoTotals.assegni.filter(a => a.tipo === "credito").map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm border rounded p-2 bg-indigo-50/50">
+                        <div>
+                          <span className="font-medium">{fmtEuro(a.importo)}</span>
+                          <span className="text-muted-foreground ml-1.5">· {a.soggetto}</span>
+                        </div>
+                        {a.check_due_date && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            Scade: {format(parseISO(a.check_due_date), "dd/MM/yyyy")}
+                            {a.check_number && ` (N. ${a.check_number})`}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
             {totali.effettiDebito > 0 && (
-              <div className="flex items-center gap-1.5 border-l pl-4">
-                <Receipt className="h-4 w-4 text-purple-600" />
-                <span className="text-xs text-muted-foreground">Effetti a debito</span>
-                <span className="text-sm font-bold text-purple-700">{fmtEuro(totali.effettiDebito)}</span>
-              </div>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-1.5 border-l pl-4 hover:opacity-80 transition-opacity cursor-pointer">
+                    <Receipt className="h-4 w-4 text-purple-600" />
+                    <span className="text-xs text-muted-foreground">Effetti a debito</span>
+                    <span className="text-sm font-bold text-purple-700">{fmtEuro(totali.effettiDebito)}</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="absolute z-20 mt-2 bg-background border rounded-lg shadow-lg p-3 min-w-[320px]">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Assegni in portafoglio (debiti)</div>
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {assegnoTotals.assegni.filter(a => a.tipo === "debito").map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm border rounded p-2 bg-purple-50/50">
+                        <div>
+                          <span className="font-medium">{fmtEuro(a.importo)}</span>
+                          <span className="text-muted-foreground ml-1.5">· {a.soggetto}</span>
+                        </div>
+                        {a.check_due_date && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            Scade: {format(parseISO(a.check_due_date), "dd/MM/yyyy")}
+                            {a.check_number && ` (N. ${a.check_number})`}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
             {scaduteCount > 0 && (
               <div className="flex items-center gap-1.5">
