@@ -1105,14 +1105,20 @@ export default function ScrapingPage() {
               <TabsContent value="template" className="mt-4">
                 <EmailTemplateEditor
                   htmlTemplate={htmlTemplate}
-                  onTemplateChange={setHtmlTemplate}
+                  onTemplateChange={handleTemplateChange}
                   senderEmail={emailSenderEmail}
-                  onSenderEmailChange={setEmailSenderEmail}
+                  onSenderEmailChange={handleSenderEmailChange}
                   senderName={emailSenderName}
-                  onSenderNameChange={setEmailSenderName}
+                  onSenderNameChange={handleSenderNameChange}
                   replyToEmail={replyToEmail}
-                  onReplyToEmailChange={setReplyToEmail}
+                  onReplyToEmailChange={handleReplyToChange}
                 />
+                <div className="flex justify-end mt-4">
+                  <Button onClick={saveTemplate} disabled={!templateUnsaved} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    {templateUnsaved ? 'Salva Template' : 'Salvato ✓'}
+                  </Button>
+                </div>
               </TabsContent>
             </Tabs>
           )}
