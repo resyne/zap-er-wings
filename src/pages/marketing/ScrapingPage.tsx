@@ -1040,26 +1040,33 @@ export default function ScrapingPage() {
                       </div>
 
                       {emailResults.map((r) => (
-                        <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : ""}>
+                        <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : !hasValidEmail(r) ? "opacity-60" : ""}>
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Checkbox
                                     checked={selectedEmailIds.has(r.id)}
                                     onCheckedChange={() => toggleEmailSelection(r.id)}
                                   />
                                 )}
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                {r.email_sent ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : hasValidEmail(r) ? (
+                                  <Mail className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                )}
                                 <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
                                 <Badge variant="outline" className="text-xs">{r.city}</Badge>
                                 {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                                {!hasValidEmail(r) && !r.email_sent && <Badge variant="destructive" className="text-xs">No email</Badge>}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" onClick={() => copyMissionEmail(r)}>
                                   <Copy className="h-4 w-4" />
                                 </Button>
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1070,7 +1077,7 @@ export default function ScrapingPage() {
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
