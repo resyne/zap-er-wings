@@ -999,6 +999,97 @@ export type Database = {
           },
         ]
       }
+      becca_followup_queue: {
+        Row: {
+          account_id: string
+          ai_reasoning: string | null
+          approved_at: string | null
+          approved_by: string | null
+          conversation_id: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          days_inactive: number
+          delay_days: number
+          edited_message: string | null
+          followup_number: number
+          id: string
+          lead_id: string | null
+          proposed_message: string
+          rejected_at: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          ai_reasoning?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          conversation_id: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          days_inactive?: number
+          delay_days?: number
+          edited_message?: string | null
+          followup_number?: number
+          id?: string
+          lead_id?: string | null
+          proposed_message: string
+          rejected_at?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          ai_reasoning?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          conversation_id?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          days_inactive?: number
+          delay_days?: number
+          edited_message?: string | null
+          followup_number?: number
+          id?: string
+          lead_id?: string | null
+          proposed_message?: string
+          rejected_at?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "becca_followup_queue_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "becca_followup_queue_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "becca_followup_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       becca_settings: {
         Row: {
           account_id: string
