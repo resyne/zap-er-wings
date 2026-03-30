@@ -419,9 +419,24 @@ export default function ZAppMagazzino() {
     }> = {};
 
     for (const m of filteredMaterials) {
-      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
-      const catName = mapping?.category || "Altro";
-      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+      // Priority: direct category assignment > supplier mapping
+      let catName = "Altro";
+      let subName = m.suppliers?.name || "Generale";
+
+      if (m.warehouse_category_id) {
+        const directCat = warehouseCategories.find(c => c.id === m.warehouse_category_id);
+        if (directCat) catName = directCat.name;
+        if (m.warehouse_subcategory_id) {
+          const directSub = warehouseSubcategories.find(s => s.id === m.warehouse_subcategory_id);
+          if (directSub) subName = directSub.name;
+        }
+      } else {
+        const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+        if (mapping) {
+          catName = mapping.category;
+          subName = mapping.subcategory;
+        }
+      }
 
       if (!categories[catName]) {
         categories[catName] = { subcategories: {} };
