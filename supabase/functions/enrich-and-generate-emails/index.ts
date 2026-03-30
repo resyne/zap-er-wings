@@ -133,13 +133,18 @@ ISTRUZIONI IMPORTANTI:
 - Tono professionale ma diretto, non generico
 - L'email deve sembrare scritta da un umano che ha veramente visitato il sito
 
+ISTRUZIONI PER L'ESTRAZIONE DEI DATI:
+- "recipientCompany": Cerca il NOME ESATTO dell'azienda dal sito (dal logo, titolo pagina, about, footer). NON usare la categoria/settore come nome azienda. Es: "Termoidraulica Rossi Srl", NON "Caldaie Industriali".
+- "recipientName": Se trovi il nome del titolare/responsabile sul sito, inseriscilo. Altrimenti null.
+- "contactEmail": Cerca email di contatto sul sito (info@, contatti@, etc.)
+
 Rispondi SOLO con JSON valido:
 {
   "subject": "oggetto email personalizzato",
   "body": "corpo email personalizzato con riferimenti al loro sito/attività",
-  "recipientName": "nome del destinatario se individuabile",
-  "recipientCompany": "nome dell'azienda destinataria",
-  "contactEmail": "email di contatto trovata sul sito (info@, contatti@, etc.) oppure null se non trovata"
+  "recipientName": "nome della persona di contatto se trovata, altrimenti null",
+  "recipientCompany": "nome ESATTO dell'azienda (NON il settore/categoria)",
+  "contactEmail": "email di contatto trovata sul sito oppure null"
 }`
 
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
