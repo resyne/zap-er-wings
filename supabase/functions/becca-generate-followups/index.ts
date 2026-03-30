@@ -192,8 +192,9 @@ Rispondi con un JSON:
                     properties: {
                       message: { type: "string", description: "The proposed follow-up message" },
                       reasoning: { type: "string", description: "Why this message was chosen" },
+                      language: { type: "string", description: "Language code: it, es, en, fr", enum: ["it", "es", "en", "fr"] },
                     },
-                    required: ["message", "reasoning"],
+                    required: ["message", "reasoning", "language"],
                     additionalProperties: false,
                   },
                 },
