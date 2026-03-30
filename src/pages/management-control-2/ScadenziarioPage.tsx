@@ -667,6 +667,7 @@ export default function ScadenziarioPage() {
       queryClient.invalidateQueries({ queryKey: ["prima-nota"] });
       queryClient.invalidateQueries({ queryKey: ["scadenze-stats"] });
       queryClient.invalidateQueries({ queryKey: ["registro-contabile"] });
+      queryClient.invalidateQueries({ queryKey: ["assegno-movimenti-global"] });
       resetForm();
     },
     onError: (error) => {
