@@ -97,6 +97,9 @@ export default function ScrapingPage() {
   const [loadingResults, setLoadingResults] = useState(false);
   const [generatingMissionEmails, setGeneratingMissionEmails] = useState(false);
   const [emailGenProgress, setEmailGenProgress] = useState({ processed: 0, total: 0, running: false });
+  const emailGenPausedRef = useRef(false);
+  const [emailGenPaused, setEmailGenPaused] = useState(false);
+  const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
   const [activeTab, setActiveTab] = useState("agent");
 
