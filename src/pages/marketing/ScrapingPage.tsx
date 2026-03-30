@@ -934,6 +934,17 @@ export default function ScrapingPage() {
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-2">
+                            {r.contact_email && (
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Email contatto</Label>
+                                <p className="text-sm font-medium text-primary">{r.contact_email}</p>
+                              </div>
+                            )}
+                            {!r.contact_email && (
+                              <div>
+                                <Label className="text-xs text-destructive">⚠️ Nessuna email di contatto trovata</Label>
+                              </div>
+                            )}
                             <div>
                               <Label className="text-xs text-muted-foreground">Oggetto</Label>
                               <p className="font-medium text-sm">{r.generated_email_subject}</p>
