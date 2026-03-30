@@ -323,6 +323,7 @@ export default function ScrapingPage() {
           resultIds: idsToSend,
           senderEmail: emailSenderEmail,
           senderName: emailSenderName,
+          replyToEmail,
           htmlTemplate,
         },
       });
