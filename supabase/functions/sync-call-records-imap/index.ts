@@ -383,11 +383,11 @@ async function syncPbxEmails(supabase: any, pbx: any) {
 
 // Sync legacy imap_config (backward compatibility)
 async function syncLegacyConfig(supabase: any, config: any) {
-  // Use SINCE to search emails from last 7 days - handles pre-read emails
+  // Use SINCE to search emails from last 2 days for better coverage without overload
   const today = new Date();
-  const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const dateStr = `${sevenDaysAgo.getDate()}-${months[sevenDaysAgo.getMonth()]}-${sevenDaysAgo.getFullYear()}`;
+  const dateStr = `${twoDaysAgo.getDate()}-${months[twoDaysAgo.getMonth()]}-${twoDaysAgo.getFullYear()}`;
   const searchCriteria = `SINCE ${dateStr}`;
   console.log(`Config ${config.name} using search criteria: ${searchCriteria}`);
 
@@ -412,9 +412,10 @@ async function syncLegacyConfig(supabase: any, config: any) {
     const searchResponse = await sendCommand(conn, `SEARCH ${searchCriteria}`);
     const messageIds = extractMessageIds(searchResponse);
 
-    // Process up to 100 messages per sync - take the most recent ones
-    const MAX_MESSAGES_PER_SYNC = 100;
-    const messagesToProcess = messageIds.slice(-MAX_MESSAGES_PER_SYNC); // Take most recent
+    console.log(`Legacy config ${config.name}: found ${messageIds.length} messages in last 2 days`);
+
+    // Process ALL messages (dedup logic handles already-imported records efficiently)
+    const messagesToProcess = messageIds;
 
     let processedCount = 0;
     let newCallRecords = 0;
