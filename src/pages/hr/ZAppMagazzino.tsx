@@ -773,7 +773,7 @@ export default function ZAppMagazzino() {
 
               {/* Uncategorized products */}
               {groupedProducts.uncategorized.length > 0 && (
-                <Collapsible defaultOpen>
+                <Collapsible>
                   <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-1 py-1 hover:bg-muted/50 rounded">
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
                     <span className="text-xs font-semibold text-muted-foreground">Senza categoria ({groupedProducts.uncategorized.length})</span>
