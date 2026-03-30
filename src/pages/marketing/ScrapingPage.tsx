@@ -107,11 +107,37 @@ export default function ScrapingPage() {
   const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
-  // Email template & sending state
-  const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
-  const [emailSenderEmail, setEmailSenderEmail] = useState("noreply@erp.abbattitorizapper.it");
-  const [emailSenderName, setEmailSenderName] = useState("ZAPPER Team");
-  const [replyToEmail, setReplyToEmail] = useState("info@abbattitorizapper.it");
+  // Email template & sending state - persist to localStorage
+  const [htmlTemplate, setHtmlTemplate] = useState(() => localStorage.getItem('scraping_email_template') || DEFAULT_TEMPLATE);
+  const [emailSenderEmail, setEmailSenderEmail] = useState(() => localStorage.getItem('scraping_sender_email') || "noreply@erp.abbattitorizapper.it");
+  const [emailSenderName, setEmailSenderName] = useState(() => localStorage.getItem('scraping_sender_name') || "ZAPPER Team");
+  const [replyToEmail, setReplyToEmail] = useState(() => localStorage.getItem('scraping_reply_to') || "info@abbattitorizapper.it");
+  const [templateUnsaved, setTemplateUnsaved] = useState(false);
+
+  const handleTemplateChange = (val: string) => {
+    setHtmlTemplate(val);
+    setTemplateUnsaved(true);
+  };
+  const handleSenderEmailChange = (val: string) => {
+    setEmailSenderEmail(val);
+    setTemplateUnsaved(true);
+  };
+  const handleSenderNameChange = (val: string) => {
+    setEmailSenderName(val);
+    setTemplateUnsaved(true);
+  };
+  const handleReplyToChange = (val: string) => {
+    setReplyToEmail(val);
+    setTemplateUnsaved(true);
+  };
+  const saveTemplate = () => {
+    localStorage.setItem('scraping_email_template', htmlTemplate);
+    localStorage.setItem('scraping_sender_email', emailSenderEmail);
+    localStorage.setItem('scraping_sender_name', emailSenderName);
+    localStorage.setItem('scraping_reply_to', replyToEmail);
+    setTemplateUnsaved(false);
+    toast({ title: "Template salvato!" });
+  };
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
   const [previewEmail, setPreviewEmail] = useState<MissionResult | null>(null);
