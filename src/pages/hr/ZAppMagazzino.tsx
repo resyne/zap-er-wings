@@ -773,10 +773,17 @@ export default function ZAppMagazzino() {
 
               {/* Uncategorized products */}
               {groupedProducts.uncategorized.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground px-1">Senza categoria ({groupedProducts.uncategorized.length})</p>
-                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
-                </div>
+                <Collapsible defaultOpen>
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-1 py-1 hover:bg-muted/50 rounded">
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
+                    <span className="text-xs font-semibold text-muted-foreground">Senza categoria ({groupedProducts.uncategorized.length})</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-1.5 mt-1.5">
+                      {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} onClick={() => setSelectedProduct(p)} categories={productCategories} />)}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
           )}
