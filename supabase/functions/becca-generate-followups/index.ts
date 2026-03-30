@@ -266,6 +266,7 @@ Rispondi con un JSON:
           followup_number: nextFollowupNumber,
           days_inactive: daysInactive,
           delay_days: minInactiveDays,
+          detected_language: aiResponse.language || "it",
         });
 
       if (insertError) {
