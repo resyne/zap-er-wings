@@ -222,8 +222,22 @@ export default function ScrapingPage() {
     }
   };
 
+  const refreshMissionResults = useCallback(async (missionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('scraping_results')
+        .select('*')
+        .eq('mission_id', missionId)
+        .order('city', { ascending: true })
+        .limit(2000);
+      if (!error && data) setMissionResults(data as MissionResult[]);
+    } catch {}
+  }, []);
+
   const generateMissionEmails = async () => {
     if (!viewingMission) return;
+    emailGenPausedRef.current = false;
+    setEmailGenPaused(false);
     setGeneratingMissionEmails(true);
     const totalToProcess = missionResults.filter(r => !r.email_generated).length;
     setEmailGenProgress({ processed: 0, total: totalToProcess, running: true });
@@ -232,31 +246,54 @@ export default function ScrapingPage() {
       let done = false;
       let totalProcessed = 0;
 
-      while (!done) {
+      while (!done && !emailGenPausedRef.current) {
         const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
-          body: { missionId: viewingMission.id, batchSize: 5 },
+          body: { missionId: viewingMission.id, batchSize: 10 },
         });
 
         if (error) throw error;
 
         totalProcessed += data.processed || 0;
-        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !data.done });
         done = data.done;
+        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !done && !emailGenPausedRef.current });
 
-        if (!done) {
-          await new Promise(r => setTimeout(r, 1000));
+        // Refresh results to show new emails in real-time
+        await refreshMissionResults(viewingMission.id);
+
+        if (!done && !emailGenPausedRef.current) {
+          await new Promise(r => setTimeout(r, 500));
         }
       }
 
-      toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
-      // Refresh results
-      await viewMissionResults(viewingMission);
+      if (emailGenPausedRef.current) {
+        toast({ title: "In pausa", description: `${totalProcessed} email generate. Puoi riprendere quando vuoi.` });
+      } else {
+        toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
+      }
     } catch (error: any) {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
     } finally {
-      setGeneratingMissionEmails(false);
-      setEmailGenProgress(prev => ({ ...prev, running: false }));
+      if (!emailGenPausedRef.current) {
+        setGeneratingMissionEmails(false);
+        setEmailGenProgress(prev => ({ ...prev, running: false }));
+      }
     }
+  };
+
+  const pauseEmailGen = () => {
+    emailGenPausedRef.current = true;
+    setEmailGenPaused(true);
+    setEmailGenProgress(prev => ({ ...prev, running: false }));
+  };
+
+  const resumeEmailGen = () => {
+    setEmailGenPaused(false);
+    generateMissionEmails();
+  };
+
+  const copyMissionEmail = (r: MissionResult) => {
+    navigator.clipboard.writeText(`Oggetto: ${r.generated_email_subject}\n\n${r.generated_email_body}`);
+    toast({ title: "Copiato!" });
   };
 
   // Manual scraping handlers
