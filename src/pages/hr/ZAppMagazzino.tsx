@@ -121,6 +121,7 @@ function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void
   );
 }
 
+export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
