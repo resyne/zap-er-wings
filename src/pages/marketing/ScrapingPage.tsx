@@ -994,7 +994,6 @@ export default function ScrapingPage() {
               <TabsContent value="emails" className="space-y-3 mt-4">
                 {(() => {
                   const emailResults = missionResults.filter(r => r.generated_email_subject);
-                  const unsent = emailResults.filter(r => !r.email_sent);
                    const sendable = emailResults.filter(r => isSendable(r));
                    if (emailResults.length === 0) {
                     return (
