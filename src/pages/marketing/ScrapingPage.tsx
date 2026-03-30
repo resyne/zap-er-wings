@@ -306,6 +306,64 @@ export default function ScrapingPage() {
     generateMissionEmails();
   };
 
+  const recoverMissingEmails = async () => {
+    if (!viewingMission) return;
+    recoverPausedRef.current = false;
+    setRecoverPaused(false);
+    setRecoveringEmails(true);
+    const totalMissing = missionResults.filter(r => r.email_generated && !r.contact_email).length;
+    setRecoverProgress({ processed: 0, total: totalMissing, found: 0, running: true });
+
+    try {
+      let done = false;
+      let totalProcessed = 0;
+      let totalFound = 0;
+
+      while (!done && !recoverPausedRef.current) {
+        const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
+          body: { missionId: viewingMission.id, batchSize: 10, emailOnly: true },
+        });
+
+        if (error) throw error;
+
+        totalProcessed += data.processed || 0;
+        totalFound += data.successCount || 0;
+        done = data.done;
+        setRecoverProgress({ processed: totalProcessed, total: totalMissing, found: totalFound, running: !done && !recoverPausedRef.current });
+
+        await refreshMissionResults(viewingMission.id);
+
+        if (!done && !recoverPausedRef.current) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      if (recoverPausedRef.current) {
+        toast({ title: "In pausa", description: `${totalFound} email trovate su ${totalProcessed} analizzati.` });
+      } else {
+        toast({ title: "Recupero completato!", description: `${totalFound} email trovate su ${totalProcessed} analizzati` });
+      }
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    } finally {
+      if (!recoverPausedRef.current) {
+        setRecoveringEmails(false);
+        setRecoverProgress(prev => ({ ...prev, running: false }));
+      }
+    }
+  };
+
+  const pauseRecover = () => {
+    recoverPausedRef.current = true;
+    setRecoverPaused(true);
+    setRecoverProgress(prev => ({ ...prev, running: false }));
+  };
+
+  const resumeRecover = () => {
+    setRecoverPaused(false);
+    recoverMissingEmails();
+  };
+
   const copyMissionEmail = (r: MissionResult) => {
     navigator.clipboard.writeText(`Oggetto: ${r.generated_email_subject}\n\n${r.generated_email_body}`);
     toast({ title: "Copiato!" });
