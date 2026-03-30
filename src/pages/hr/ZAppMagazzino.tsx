@@ -271,6 +271,9 @@ export default function ZAppMagazzino() {
   }, [filteredProducts, productCategories, productSubcategories]);
 
   const hasProductCategories = productCategories.length > 0;
+
+  // Build supplier→category map from DB data
+  const SUPPLIER_CATEGORY_MAP = useMemo(() => {
     const map: Record<string, { category: string; subcategory: string }> = {};
     for (const sub of warehouseSubcategories) {
       if (sub.supplier_id) {
