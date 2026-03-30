@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Save } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -445,12 +445,15 @@ export default function ScrapingPage() {
     setSelectedEmailIds(next);
   };
 
+  const hasValidEmail = (r: MissionResult) => !!r.contact_email && r.contact_email !== 'NOT_FOUND';
+  const isSendable = (r: MissionResult) => r.generated_email_subject && !r.email_sent && hasValidEmail(r);
+
   const selectAllEmails = () => {
-    const emailResults = missionResults.filter(r => r.generated_email_subject && !r.email_sent);
-    if (selectedEmailIds.size === emailResults.length) {
+    const sendable = missionResults.filter(isSendable);
+    if (selectedEmailIds.size === sendable.length) {
       setSelectedEmailIds(new Set());
     } else {
-      setSelectedEmailIds(new Set(emailResults.map(r => r.id)));
+      setSelectedEmailIds(new Set(sendable.map(r => r.id)));
     }
   };
 
@@ -991,8 +994,8 @@ export default function ScrapingPage() {
               <TabsContent value="emails" className="space-y-3 mt-4">
                 {(() => {
                   const emailResults = missionResults.filter(r => r.generated_email_subject);
-                  const unsent = emailResults.filter(r => !r.email_sent);
-                  if (emailResults.length === 0) {
+                   const sendable = emailResults.filter(r => isSendable(r));
+                   if (emailResults.length === 0) {
                     return (
                       <Card>
                         <CardContent className="py-8 text-center text-muted-foreground">
@@ -1007,13 +1010,19 @@ export default function ScrapingPage() {
                       <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
                         <div className="flex items-center gap-3">
                           <Checkbox
-                            checked={selectedEmailIds.size === unsent.length && unsent.length > 0}
+                            checked={selectedEmailIds.size === sendable.length && sendable.length > 0}
                             onCheckedChange={selectAllEmails}
+                            disabled={sendable.length === 0}
                           />
                           <span className="text-sm">
                             {selectedEmailIds.size > 0
                               ? `${selectedEmailIds.size} selezionate`
-                              : `${unsent.length} da inviare`}
+                              : `${sendable.length} da inviare`}
+                            {emailResults.filter(r => r.email_sent).length > 0 && (
+                              <span className="text-muted-foreground ml-1">
+                                ({emailResults.filter(r => r.email_sent).length} già inviate)
+                              </span>
+                            )}
                           </span>
                         </div>
                         <Button
@@ -1030,26 +1039,33 @@ export default function ScrapingPage() {
                       </div>
 
                       {emailResults.map((r) => (
-                        <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : ""}>
+                        <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : !hasValidEmail(r) ? "opacity-60" : ""}>
                           <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Checkbox
                                     checked={selectedEmailIds.has(r.id)}
                                     onCheckedChange={() => toggleEmailSelection(r.id)}
                                   />
                                 )}
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                {r.email_sent ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : hasValidEmail(r) ? (
+                                  <Mail className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-destructive" />
+                                )}
                                 <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
                                 <Badge variant="outline" className="text-xs">{r.city}</Badge>
                                 {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                                {!hasValidEmail(r) && !r.email_sent && <Badge variant="destructive" className="text-xs">No email</Badge>}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" onClick={() => copyMissionEmail(r)}>
                                   <Copy className="h-4 w-4" />
                                 </Button>
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1060,7 +1076,7 @@ export default function ScrapingPage() {
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {!r.email_sent && (
+                                {!r.email_sent && hasValidEmail(r) && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1115,7 +1131,7 @@ export default function ScrapingPage() {
                 />
                 <div className="flex justify-end mt-4">
                   <Button onClick={saveTemplate} disabled={!templateUnsaved} className="gap-2">
-                    <Save className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                     {templateUnsaved ? 'Salva Template' : 'Salvato ✓'}
                   </Button>
                 </div>
