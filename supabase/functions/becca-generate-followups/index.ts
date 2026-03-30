@@ -160,9 +160,10 @@ Regole:
 - Massimo 3-4 frasi
 - Scrivi SOLO il messaggio, nient'altro
 - Se il cliente ha scritto in un'altra lingua, rispondi in quella lingua
+- NON includere saluti iniziali come "Ciao nome" perché quello verrà inviato separatamente tramite template
 
 Rispondi con un JSON:
-{"message": "il messaggio proposto", "reasoning": "breve spiegazione del perché questo messaggio"}`;
+{"message": "il messaggio proposto", "reasoning": "breve spiegazione del perché questo messaggio", "language": "codice lingua del cliente: it, es, en, fr"}`;
 
       let aiResponse: any = null;
 
@@ -191,8 +192,9 @@ Rispondi con un JSON:
                     properties: {
                       message: { type: "string", description: "The proposed follow-up message" },
                       reasoning: { type: "string", description: "Why this message was chosen" },
+                      language: { type: "string", description: "Language code: it, es, en, fr", enum: ["it", "es", "en", "fr"] },
                     },
-                    required: ["message", "reasoning"],
+                    required: ["message", "reasoning", "language"],
                     additionalProperties: false,
                   },
                 },
