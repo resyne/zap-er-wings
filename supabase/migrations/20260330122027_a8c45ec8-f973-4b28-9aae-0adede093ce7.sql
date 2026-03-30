@@ -1,0 +1,1 @@
+ALTER TABLE public.becca_followup_queue ADD COLUMN IF NOT EXISTS detected_language text DEFAULT 'it';

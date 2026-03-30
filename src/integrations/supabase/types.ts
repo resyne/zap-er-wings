@@ -1011,6 +1011,7 @@ export type Database = {
           customer_phone: string
           days_inactive: number
           delay_days: number
+          detected_language: string | null
           edited_message: string | null
           followup_number: number
           id: string
@@ -1033,6 +1034,7 @@ export type Database = {
           customer_phone: string
           days_inactive?: number
           delay_days?: number
+          detected_language?: string | null
           edited_message?: string | null
           followup_number?: number
           id?: string
@@ -1055,6 +1057,7 @@ export type Database = {
           customer_phone?: string
           days_inactive?: number
           delay_days?: number
+          detected_language?: string | null
           edited_message?: string | null
           followup_number?: number
           id?: string

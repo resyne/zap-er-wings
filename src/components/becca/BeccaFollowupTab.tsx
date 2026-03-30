@@ -62,6 +62,7 @@ interface FollowupItem {
   sent_at: string | null;
   rejected_at: string | null;
   edited_message: string | null;
+  detected_language: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -122,7 +123,27 @@ export function BeccaFollowupTab() {
 
       if (updateError) throw updateError;
 
-      // Send message via WhatsApp API
+      // Step 1: Send template to reopen conversation window
+      const lang = item.detected_language || "it";
+      const templateName = "becca_followup";
+      const customerName = item.customer_name || "👋";
+
+      const { error: templateError } = await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          to: item.customer_phone,
+          type: "template",
+          template_name: templateName,
+          template_language: lang,
+          template_params: [customerName],
+          account_id: item.account_id,
+        },
+      });
+
+      if (templateError) throw new Error(`Errore template: ${templateError.message}`);
+
+      // Step 2: Wait briefly then send personalized AI message as free text
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       const messageToSend = item.edited_message || item.proposed_message;
       const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
         body: {
@@ -133,7 +154,7 @@ export function BeccaFollowupTab() {
         },
       });
 
-      if (sendError) throw sendError;
+      if (sendError) throw new Error(`Errore testo: ${sendError.message}`);
 
       // Update status to sent
       const { error: sentError } = await supabase
@@ -147,7 +168,7 @@ export function BeccaFollowupTab() {
       if (sentError) throw sentError;
     },
     onSuccess: () => {
-      toast.success("Follow-up inviato con successo!");
+      toast.success("Follow-up inviato! (Template + messaggio personalizzato)");
       setSelectedItem(null);
       queryClient.invalidateQueries({ queryKey: ["becca-followup-queue"] });
     },
