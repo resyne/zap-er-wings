@@ -686,26 +686,38 @@ async function connectToImap(config: ImapConfig): Promise<Deno.TcpConn | null> {
 async function sendCommand(conn: Deno.TcpConn, command: string): Promise<string> {
   const encoder = new TextEncoder();
   
-  const tag = 'A' + Math.floor(Math.random() * 1000);
+  const tag = 'A' + Math.floor(Math.random() * 10000);
   await conn.write(encoder.encode(`${tag} ${command}\r\n`));
   
-  return await readResponse(conn);
+  return await readResponse(conn, tag);
 }
 
-async function readResponse(conn: Deno.TcpConn): Promise<string> {
+async function readResponse(conn: Deno.TcpConn, tag?: string): Promise<string> {
   const decoder = new TextDecoder();
   const buffer = new Uint8Array(65536);
   let fullResponse = '';
+  const maxBytes = 10 * 1024 * 1024; // 10MB safety limit
   
-  while (true) {
+  while (fullResponse.length < maxBytes) {
     const bytesRead = await conn.read(buffer);
     if (bytesRead === null) break;
     
     const chunk = decoder.decode(buffer.subarray(0, bytesRead));
     fullResponse += chunk;
     
-    if (chunk.includes(' OK ') || chunk.includes(' NO ') || chunk.includes(' BAD ')) {
-      break;
+    // Check for IMAP tagged response completion (must be at start of a line)
+    // e.g., "A1234 OK FETCH completed" or "A1234 NO ..." or "A1234 BAD ..."
+    if (tag) {
+      // Check only the last portion for the tag to avoid false positives in binary data
+      const tail = fullResponse.slice(-Math.min(fullResponse.length, 500));
+      if (tail.includes(`${tag} OK`) || tail.includes(`${tag} NO`) || tail.includes(`${tag} BAD`)) {
+        break;
+      }
+    } else {
+      // No tag (greeting) - check for any OK/NO/BAD or server greeting
+      if (chunk.includes('* OK') || chunk.includes(' OK ') || chunk.includes(' NO ') || chunk.includes(' BAD ')) {
+        break;
+      }
     }
   }
   
