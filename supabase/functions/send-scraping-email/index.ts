@@ -91,8 +91,9 @@ Deno.serve(async (req) => {
           <img src="https://zap-er-wings.lovable.app/lovable-uploads/e8493046-02d3-407a-ae34-b061ef9720af.png" alt="ZAPPER" height="48" style="height:48px;" />
         </td></tr>
         <tr><td style="padding:32px;">
-          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333;">${result.generated_email_body.replace(/\n/g, '<br>')}</p>
-        </td></tr>
+           ${result.recipient_company ? `<p style="margin:0 0 8px;font-size:13px;color:#666;">A: ${result.recipient_company}</p>` : ''}
+           <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333;">${result.generated_email_body.replace(/\n/g, '<br>')}</p>
+         </td></tr>
         <tr><td style="padding:0 32px 24px;">
           <p style="margin:0;font-size:13px;color:#666;">Cordiali saluti,<br><strong>${senderName || 'Il Team'}</strong></p>
         </td></tr>
