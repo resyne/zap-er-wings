@@ -35,6 +35,8 @@ const ITALIAN_CITIES_50K = [
   'Sondrio', 'Imperia'
 ]
 
+const BATCH_SIZE = 3 // cities per invocation
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -70,127 +72,146 @@ Deno.serve(async (req) => {
       throw new Error('Mission not found')
     }
 
+    // If mission is already completed or failed, skip
+    if (mission.status === 'completed' || mission.status === 'failed') {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        status: mission.status,
+        message: 'Mission already finished' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const cities = ITALIAN_CITIES_50K
     const totalCities = cities.length
+    const completedSoFar = mission.completed_cities || 0
+    const totalResultsSoFar = mission.total_results || 0
 
-    // Update mission as running
-    await supabase.from('scraping_missions').update({
-      status: 'running',
-      total_cities: totalCities,
-      completed_cities: 0,
-    }).eq('id', missionId)
+    // First call: set total_cities and status
+    if (mission.status === 'pending') {
+      await supabase.from('scraping_missions').update({
+        status: 'running',
+        total_cities: totalCities,
+      }).eq('id', missionId)
+    }
 
-    console.log(`[SCRAPING-AGENT] Starting mission "${mission.name}" for ${totalCities} cities, query: "${mission.query}"`)
+    // Determine which cities to process in this batch
+    const startIndex = completedSoFar
+    const endIndex = Math.min(startIndex + BATCH_SIZE, totalCities)
+    const batch = cities.slice(startIndex, endIndex)
 
-    let totalResults = 0
-    let completedCities = 0
+    if (batch.length === 0) {
+      // All cities done
+      await supabase.from('scraping_missions').update({
+        status: 'completed',
+      }).eq('id', missionId)
 
-    // Process cities in batches of 3 to avoid rate limits
-    const batchSize = 3
-    for (let i = 0; i < cities.length; i += batchSize) {
-      const batch = cities.slice(i, i + batchSize)
+      return new Response(JSON.stringify({
+        success: true,
+        status: 'completed',
+        completedCities: completedSoFar,
+        totalResults: totalResultsSoFar,
+        hasMore: false,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
-      const batchPromises = batch.map(async (city) => {
-        const searchQuery = `${mission.query} ${city}`
-        
-        try {
-          console.log(`[SCRAPING-AGENT] Scraping: "${searchQuery}"`)
+    console.log(`[SCRAPING-AGENT] Mission "${mission.name}" batch: cities ${startIndex+1}-${endIndex}/${totalCities}`)
 
-          const runResponse = await fetch(
-            `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_API_KEY}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                queries: searchQuery,
-                languageCode: mission.language_code || 'it',
-                countryCode: mission.country_code || 'it',
-                maxPagesPerQuery: 1,
-                resultsPerPage: mission.max_results_per_city || 20,
-                mobileResults: false,
-                includeUnfilteredResults: false,
-              }),
-            }
-          )
+    let batchResults = 0
 
-          if (!runResponse.ok) {
-            console.error(`[SCRAPING-AGENT] Apify error for ${city}:`, runResponse.status)
-            return []
+    const batchPromises = batch.map(async (city) => {
+      const searchQuery = `${mission.query} ${city}`
+      
+      try {
+        console.log(`[SCRAPING-AGENT] Scraping: "${searchQuery}"`)
+
+        const runResponse = await fetch(
+          `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              queries: searchQuery,
+              languageCode: mission.language_code || 'it',
+              countryCode: mission.country_code || 'it',
+              maxPagesPerQuery: 1,
+              resultsPerPage: mission.max_results_per_city || 20,
+              mobileResults: false,
+              includeUnfilteredResults: false,
+            }),
           }
+        )
 
-          const results = await runResponse.json()
-          const organicResults: any[] = []
+        if (!runResponse.ok) {
+          console.error(`[SCRAPING-AGENT] Apify error for ${city}:`, runResponse.status)
+          return 0
+        }
 
-          if (Array.isArray(results)) {
-            for (const resultSet of results) {
-              if (resultSet.organicResults && Array.isArray(resultSet.organicResults)) {
-                for (const result of resultSet.organicResults) {
-                  organicResults.push({
-                    mission_id: missionId,
-                    city,
-                    title: result.title,
-                    url: result.url,
-                    description: result.description,
-                    position: result.position,
-                  })
-                }
+        const results = await runResponse.json()
+        const organicResults: any[] = []
+
+        if (Array.isArray(results)) {
+          for (const resultSet of results) {
+            if (resultSet.organicResults && Array.isArray(resultSet.organicResults)) {
+              for (const result of resultSet.organicResults) {
+                organicResults.push({
+                  mission_id: missionId,
+                  city,
+                  title: result.title,
+                  url: result.url,
+                  description: result.description,
+                  position: result.position,
+                  place_id: result.placeId || null,
+                })
               }
             }
           }
-
-          // Insert results into database, skip duplicates by URL
-          if (organicResults.length > 0) {
-            const { data: inserted, error: insertError } = await supabase
-              .from('scraping_results')
-              .upsert(organicResults, { onConflict: 'url', ignoreDuplicates: true })
-
-            if (insertError) {
-              console.error(`[SCRAPING-AGENT] Insert error for ${city}:`, insertError)
-            } else {
-              console.log(`[SCRAPING-AGENT] ${city}: ${organicResults.length} found, duplicates skipped`)
-            }
-          }
-
-          console.log(`[SCRAPING-AGENT] ${city}: ${organicResults.length} results`)
-          return organicResults
-        } catch (err) {
-          console.error(`[SCRAPING-AGENT] Error for ${city}:`, err)
-          return []
         }
-      })
 
-      const batchResults = await Promise.all(batchPromises)
-      const batchTotal = batchResults.reduce((sum, r) => sum + r.length, 0)
-      totalResults += batchTotal
-      completedCities += batch.length
+        if (organicResults.length > 0) {
+          const { error: insertError } = await supabase
+            .from('scraping_results')
+            .upsert(organicResults, { onConflict: 'url', ignoreDuplicates: true })
 
-      // Update progress
-      await supabase.from('scraping_missions').update({
-        completed_cities: completedCities,
-        total_results: totalResults,
-      }).eq('id', missionId)
+          if (insertError) {
+            console.error(`[SCRAPING-AGENT] Insert error for ${city}:`, insertError)
+          }
+        }
 
-      // Delay between batches to avoid rate limits
-      if (i + batchSize < cities.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        console.log(`[SCRAPING-AGENT] ${city}: ${organicResults.length} results`)
+        return organicResults.length
+      } catch (err) {
+        console.error(`[SCRAPING-AGENT] Error for ${city}:`, err)
+        return 0
       }
-    }
+    })
 
-    // Mark mission as completed
+    const counts = await Promise.all(batchPromises)
+    batchResults = counts.reduce((sum, c) => sum + c, 0)
+
+    const newCompleted = completedSoFar + batch.length
+    const newTotalResults = totalResultsSoFar + batchResults
+    const hasMore = newCompleted < totalCities
+
+    // Update progress
     await supabase.from('scraping_missions').update({
-      status: 'completed',
-      completed_cities: completedCities,
-      total_results: totalResults,
+      completed_cities: newCompleted,
+      total_results: newTotalResults,
+      status: hasMore ? 'running' : 'completed',
     }).eq('id', missionId)
 
-    console.log(`[SCRAPING-AGENT] Mission completed. ${totalResults} total results from ${completedCities} cities.`)
+    console.log(`[SCRAPING-AGENT] Batch done: ${newCompleted}/${totalCities} cities, ${newTotalResults} total results, hasMore: ${hasMore}`)
 
     return new Response(JSON.stringify({
       success: true,
-      totalCities: completedCities,
-      totalResults,
+      status: hasMore ? 'running' : 'completed',
+      completedCities: newCompleted,
+      totalResults: newTotalResults,
+      hasMore,
     }), {
-      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
