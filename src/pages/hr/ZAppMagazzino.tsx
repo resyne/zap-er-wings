@@ -58,9 +58,9 @@ interface StockMovement {
   created_at: string;
 }
 
-function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Material) => React.ReactNode }) {
+function MaterialRow({ m, getStockBadge, onClick }: { m: Material; getStockBadge: (m: Material) => React.ReactNode; onClick: () => void }) {
   return (
-    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
+    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5 cursor-pointer hover:bg-muted/50 transition-colors" onClick={onClick}>
       <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-destructive/10" : "bg-green-50"}`}>
         <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-destructive" : "text-green-500"}`} />
       </div>
@@ -81,11 +81,11 @@ function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Mat
   );
 }
 
-function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void; categories: any[] }) {
+function ProductCard({ p, onAssign, onClick, categories }: { p: any; onAssign: () => void; onClick: () => void; categories: any[] }) {
   const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
   const isOut = p.current_stock <= 0;
   return (
-    <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
+    <div className="bg-card rounded-xl p-3 shadow-sm border border-border cursor-pointer hover:bg-muted/50 transition-colors" onClick={onClick}>
       <div className="flex items-center gap-3">
         <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-destructive/10" : isLow ? "bg-amber-50" : "bg-primary/10"}`}>
           <Box className={`h-4 w-4 ${isOut ? "text-destructive" : isLow ? "text-amber-500" : "text-primary"}`} />
@@ -115,7 +115,7 @@ function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void
           )}
         </div>
         {categories.length > 0 && !p.product_category_id && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onAssign} title="Assegna categoria">
+          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={(e) => { e.stopPropagation(); onAssign(); }} title="Assegna categoria">
             <Plus className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         )}
