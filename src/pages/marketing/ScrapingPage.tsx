@@ -219,6 +219,43 @@ export default function ScrapingPage() {
     }
   };
 
+  const generateMissionEmails = async () => {
+    if (!viewingMission) return;
+    setGeneratingMissionEmails(true);
+    const totalToProcess = missionResults.filter(r => !r.email_generated).length;
+    setEmailGenProgress({ processed: 0, total: totalToProcess, running: true });
+
+    try {
+      let done = false;
+      let totalProcessed = 0;
+
+      while (!done) {
+        const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
+          body: { missionId: viewingMission.id, batchSize: 5 },
+        });
+
+        if (error) throw error;
+
+        totalProcessed += data.processed || 0;
+        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !data.done });
+        done = data.done;
+
+        if (!done) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+
+      toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
+      // Refresh results
+      await viewMissionResults(viewingMission);
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    } finally {
+      setGeneratingMissionEmails(false);
+      setEmailGenProgress(prev => ({ ...prev, running: false }));
+    }
+  };
+
   // Manual scraping handlers
   const handleScrape = async () => {
     if (!query.trim()) {
