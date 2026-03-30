@@ -102,6 +102,13 @@ export default function ScrapingPage() {
   const [emailGenPaused, setEmailGenPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
+  // Email template & sending state
+  const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
+  const [emailSenderEmail, setEmailSenderEmail] = useState("noreply@erp.abbattitorizapper.it");
+  const [emailSenderName, setEmailSenderName] = useState("ZAPPER Team");
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
+
   const [activeTab, setActiveTab] = useState("agent");
 
   useEffect(() => {
