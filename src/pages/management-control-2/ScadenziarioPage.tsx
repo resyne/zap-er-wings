@@ -214,6 +214,19 @@ export default function ScadenziarioPage() {
     enabled: !!previewFatturaId && invoicePreviewOpen,
   });
 
+  // Global query for all uncollected assegno movements (for effetti KPI)
+  const { data: assegnoMovimenti = [] } = useQuery({
+    queryKey: ["assegno-movimenti-global"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scadenza_movimenti")
+        .select("id, scadenza_id, importo, metodo_pagamento, check_due_date, check_number, data_movimento")
+        .eq("metodo_pagamento", "assegno");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
 
   const periodLabel = useMemo(() => {
     if (groupBy === "anno") return format(selectedPeriod, "yyyy");
