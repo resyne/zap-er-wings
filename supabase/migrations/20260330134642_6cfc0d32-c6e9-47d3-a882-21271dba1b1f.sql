@@ -1,0 +1,1 @@
+DELETE FROM becca_followup_queue WHERE status = 'pending';
