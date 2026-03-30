@@ -138,14 +138,16 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Insert results into database
+          // Insert results into database, skip duplicates by URL
           if (organicResults.length > 0) {
-            const { error: insertError } = await supabase
+            const { data: inserted, error: insertError } = await supabase
               .from('scraping_results')
-              .insert(organicResults)
+              .upsert(organicResults, { onConflict: 'url', ignoreDuplicates: true })
 
             if (insertError) {
               console.error(`[SCRAPING-AGENT] Insert error for ${city}:`, insertError)
+            } else {
+              console.log(`[SCRAPING-AGENT] ${city}: ${organicResults.length} found, duplicates skipped`)
             }
           }
 

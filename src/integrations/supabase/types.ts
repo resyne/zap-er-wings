@@ -10675,6 +10675,7 @@ export type Database = {
           generated_email_subject: string | null
           id: string
           mission_id: string
+          place_id: string | null
           position: number | null
           recipient_company: string | null
           recipient_name: string | null
@@ -10691,6 +10692,7 @@ export type Database = {
           generated_email_subject?: string | null
           id?: string
           mission_id: string
+          place_id?: string | null
           position?: number | null
           recipient_company?: string | null
           recipient_name?: string | null
@@ -10707,6 +10709,7 @@ export type Database = {
           generated_email_subject?: string | null
           id?: string
           mission_id?: string
+          place_id?: string | null
           position?: number | null
           recipient_company?: string | null
           recipient_name?: string | null
