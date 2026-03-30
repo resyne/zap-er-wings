@@ -596,7 +596,6 @@ async function syncLegacyConfig(supabase: any, config: any) {
           }
         }
         processedCount++;
-        }
         
         // Mark email as read (SEEN) after processing to avoid reprocessing
         await sendCommand(conn, `STORE ${msgId} +FLAGS (\\Seen)`);
