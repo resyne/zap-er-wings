@@ -995,7 +995,8 @@ export default function ScrapingPage() {
                 {(() => {
                   const emailResults = missionResults.filter(r => r.generated_email_subject);
                   const unsent = emailResults.filter(r => !r.email_sent);
-                  if (emailResults.length === 0) {
+                   const sendable = emailResults.filter(r => isSendable(r));
+                   if (emailResults.length === 0) {
                     return (
                       <Card>
                         <CardContent className="py-8 text-center text-muted-foreground">
@@ -1010,13 +1011,19 @@ export default function ScrapingPage() {
                       <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
                         <div className="flex items-center gap-3">
                           <Checkbox
-                            checked={selectedEmailIds.size === unsent.length && unsent.length > 0}
+                            checked={selectedEmailIds.size === sendable.length && sendable.length > 0}
                             onCheckedChange={selectAllEmails}
+                            disabled={sendable.length === 0}
                           />
                           <span className="text-sm">
                             {selectedEmailIds.size > 0
                               ? `${selectedEmailIds.size} selezionate`
-                              : `${unsent.length} da inviare`}
+                              : `${sendable.length} da inviare`}
+                            {emailResults.filter(r => r.email_sent).length > 0 && (
+                              <span className="text-muted-foreground ml-1">
+                                ({emailResults.filter(r => r.email_sent).length} già inviate)
+                              </span>
+                            )}
                           </span>
                         </div>
                         <Button
