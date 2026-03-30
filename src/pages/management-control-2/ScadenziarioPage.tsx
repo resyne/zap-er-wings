@@ -895,18 +895,68 @@ export default function ScadenziarioPage() {
               </span>
             </div>
             {totali.effettiCredito > 0 && (
-              <div className="flex items-center gap-1.5 border-l pl-4">
-                <Receipt className="h-4 w-4 text-indigo-600" />
-                <span className="text-xs text-muted-foreground">Effetti a credito</span>
-                <span className="text-sm font-bold text-indigo-700">{fmtEuro(totali.effettiCredito)}</span>
-              </div>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-1.5 border-l pl-4 hover:opacity-80 transition-opacity cursor-pointer">
+                    <Receipt className="h-4 w-4 text-indigo-600" />
+                    <span className="text-xs text-muted-foreground">Effetti a credito</span>
+                    <span className="text-sm font-bold text-indigo-700">{fmtEuro(totali.effettiCredito)}</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="absolute z-20 mt-2 bg-background border rounded-lg shadow-lg p-3 min-w-[320px]">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Assegni in portafoglio (crediti)</div>
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {assegnoTotals.assegni.filter(a => a.tipo === "credito").map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm border rounded p-2 bg-indigo-50/50">
+                        <div>
+                          <span className="font-medium">{fmtEuro(a.importo)}</span>
+                          <span className="text-muted-foreground ml-1.5">· {a.soggetto}</span>
+                        </div>
+                        {a.check_due_date && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            Scade: {format(parseISO(a.check_due_date), "dd/MM/yyyy")}
+                            {a.check_number && ` (N. ${a.check_number})`}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
             {totali.effettiDebito > 0 && (
-              <div className="flex items-center gap-1.5 border-l pl-4">
-                <Receipt className="h-4 w-4 text-purple-600" />
-                <span className="text-xs text-muted-foreground">Effetti a debito</span>
-                <span className="text-sm font-bold text-purple-700">{fmtEuro(totali.effettiDebito)}</span>
-              </div>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-1.5 border-l pl-4 hover:opacity-80 transition-opacity cursor-pointer">
+                    <Receipt className="h-4 w-4 text-purple-600" />
+                    <span className="text-xs text-muted-foreground">Effetti a debito</span>
+                    <span className="text-sm font-bold text-purple-700">{fmtEuro(totali.effettiDebito)}</span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="absolute z-20 mt-2 bg-background border rounded-lg shadow-lg p-3 min-w-[320px]">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Assegni in portafoglio (debiti)</div>
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {assegnoTotals.assegni.filter(a => a.tipo === "debito").map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm border rounded p-2 bg-purple-50/50">
+                        <div>
+                          <span className="font-medium">{fmtEuro(a.importo)}</span>
+                          <span className="text-muted-foreground ml-1.5">· {a.soggetto}</span>
+                        </div>
+                        {a.check_due_date && (
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200 gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            Scade: {format(parseISO(a.check_due_date), "dd/MM/yyyy")}
+                            {a.check_number && ` (N. ${a.check_number})`}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
             {scaduteCount > 0 && (
               <div className="flex items-center gap-1.5">
