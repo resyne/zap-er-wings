@@ -19,7 +19,82 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { resultIds, senderEmail, senderName, replyToEmail, htmlTemplate, subject: overrideSubject } = await req.json()
+    const { resultIds, senderEmail, senderName, replyToEmail, htmlTemplate, subject: overrideSubject, testMode, testRecipient, testBody } = await req.json()
+
+    // Test mode: send a single test email without needing resultIds
+    if (testMode && testRecipient) {
+      const emailSubject = overrideSubject || 'Email di test - Zapper'
+      const emailBody = testBody || 'Questa è un\'email di test.'
+      
+      let htmlBody: string
+      if (htmlTemplate) {
+        htmlBody = htmlTemplate
+          .replace(/\{\{subject\}\}/g, emailSubject)
+          .replace(/\{\{body\}\}/g, emailBody.replace(/\n/g, '<br>'))
+          .replace(/\{\{recipient_name\}\}/g, '')
+          .replace(/\{\{recipient_company\}\}/g, '')
+          .replace(/\{\{sender_name\}\}/g, senderName || '')
+          .replace(/\{\{city\}\}/g, '')
+          .replace(/\{\{url\}\}/g, '')
+      } else {
+        htmlBody = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <tr><td style="background:#1e3a5f;padding:24px 32px;text-align:center;">
+          <img src="https://zap-er-wings.lovable.app/lovable-uploads/e8493046-02d3-407a-ae34-b061ef9720af.png" alt="ZAPPER" height="48" style="height:48px;" />
+        </td></tr>
+        <tr><td style="padding:32px;">
+           <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333;">${emailBody.replace(/\n/g, '<br>')}</p>
+         </td></tr>
+        <tr><td style="padding:0 32px 24px;">
+          <p style="margin:0;font-size:13px;color:#666;">Cordiali saluti,<br><strong>${senderName || 'Il Team'}</strong></p>
+        </td></tr>
+        <tr><td style="background:#f8f9fa;padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0;font-size:11px;color:#999;">info@abbattitorizapper.it | Scafati (SA) - Italy | 08119968436</p>
+          <p style="margin:4px 0 0;font-size:11px;"><a href="https://www.abbattitorizapper.it" style="color:#1e3a5f;">www.abbattitorizapper.it</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+      }
+
+      const resendResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: senderName ? `${senderName} <${senderEmail}>` : senderEmail,
+          to: [testRecipient],
+          reply_to: replyToEmail || senderEmail,
+          subject: emailSubject,
+          html: htmlBody,
+        }),
+      })
+
+      if (!resendResponse.ok) {
+        const errText = await resendResponse.text()
+        console.error('[SEND-EMAIL] Test mode error:', errText)
+        return new Response(JSON.stringify({ error: errText }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const resendData = await resendResponse.json()
+      console.log(`[SEND-EMAIL] ✓ Test email sent to ${testRecipient}, id: ${resendData.id}`)
+      
+      return new Response(JSON.stringify({ success: true, sent: 1, id: resendData.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     if (!resultIds || !Array.isArray(resultIds) || resultIds.length === 0) {
       return new Response(JSON.stringify({ error: 'resultIds array is required' }), {
