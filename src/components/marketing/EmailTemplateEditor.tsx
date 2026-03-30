@@ -14,6 +14,8 @@ interface EmailTemplateEditorProps {
   onSenderEmailChange: (email: string) => void;
   senderName: string;
   onSenderNameChange: (name: string) => void;
+  replyToEmail: string;
+  onReplyToEmailChange: (email: string) => void;
 }
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
@@ -53,6 +55,8 @@ export function EmailTemplateEditor({
   onSenderEmailChange,
   senderName,
   onSenderNameChange,
+  replyToEmail,
+  onReplyToEmailChange,
 }: EmailTemplateEditorProps) {
   const [editorTab, setEditorTab] = useState("preview");
 
@@ -85,7 +89,7 @@ export function EmailTemplateEditor({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <Label className="text-xs">Email mittente *</Label>
             <Input
@@ -101,6 +105,15 @@ export function EmailTemplateEditor({
               value={senderName}
               onChange={(e) => onSenderNameChange(e.target.value)}
               placeholder="ZAPPER Team"
+              className="mt-1 h-8 text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Reply-To (risposte a)</Label>
+            <Input
+              value={replyToEmail}
+              onChange={(e) => onReplyToEmailChange(e.target.value)}
+              placeholder="info@abbattitorizapper.it"
               className="mt-1 h-8 text-sm"
             />
           </div>

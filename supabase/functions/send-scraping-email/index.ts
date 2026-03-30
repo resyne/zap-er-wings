@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { resultIds, senderEmail, senderName, htmlTemplate, subject: overrideSubject } = await req.json()
+    const { resultIds, senderEmail, senderName, replyToEmail, htmlTemplate, subject: overrideSubject } = await req.json()
 
     if (!resultIds || !Array.isArray(resultIds) || resultIds.length === 0) {
       return new Response(JSON.stringify({ error: 'resultIds array is required' }), {
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: senderName ? `${senderName} <${senderEmail}>` : senderEmail,
             to: [recipientEmail],
+            reply_to: replyToEmail || senderEmail,
             subject: emailSubject,
             html: htmlBody,
           }),
