@@ -156,6 +156,13 @@ export default function ZAppMagazzino() {
     );
   }, [products, productSearch]);
 
+  // Category mapping based on supplier ID
+  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
+    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
+    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
+    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
+  };
+
   // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
     return materials.filter((m) => {
@@ -170,40 +177,57 @@ export default function ZAppMagazzino() {
     });
   }, [materials, searchTerm, stockFilter, enabledSupplierIds]);
 
-  // Group by supplier
-  const groupedBySupplier = useMemo(() => {
-    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+  // Group by category → subcategory
+  const groupedByCategory = useMemo(() => {
+    const categories: Record<string, {
+      subcategories: Record<string, { supplierName: string; materials: Material[] }>;
+    }> = {};
+
     for (const m of filteredMaterials) {
-      const key = m.supplier_id || "__no_supplier__";
-      const supplierName = m.suppliers?.name || "Senza fornitore";
-      if (!groups[key]) groups[key] = { supplierName, materials: [] };
-      groups[key].materials.push(m);
+      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+      const catName = mapping?.category || "Altro";
+      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+
+      if (!categories[catName]) {
+        categories[catName] = { subcategories: {} };
+      }
+      if (!categories[catName].subcategories[subName]) {
+        categories[catName].subcategories[subName] = { supplierName: m.suppliers?.name || "", materials: [] };
+      }
+      categories[catName].subcategories[subName].materials.push(m);
     }
-    return Object.entries(groups).sort(([keyA, a], [keyB, b]) => {
-      if (keyA === "__no_supplier__") return 1;
-      if (keyB === "__no_supplier__") return -1;
-      return a.supplierName.localeCompare(b.supplierName);
+
+    const order = ["Materiale di assemblaggio", "Materiale di consumo"];
+    return Object.entries(categories).sort(([a], [b]) => {
+      const ia = order.indexOf(a);
+      const ib = order.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
     });
   }, [filteredMaterials]);
 
   const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 
-  const toggleSupplierExpand = (key: string) => {
-    setExpandedSuppliers((prev) => {
-      if (prev.has("__all__")) {
-        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
-        allKeys.delete(key);
-        return allKeys;
-      }
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
       return next;
     });
   };
 
-  const isAllExpanded = expandedSuppliers.has("__all__");
-  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
+  const toggleSub = (key: string) => {
+    setExpandedSubs((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const getStockBadge = (m: Material) => {
     if (m.current_stock <= 0) return <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>;
