@@ -138,7 +138,8 @@ Rispondi SOLO con JSON valido:
   "subject": "oggetto email personalizzato",
   "body": "corpo email personalizzato con riferimenti al loro sito/attività",
   "recipientName": "nome del destinatario se individuabile",
-  "recipientCompany": "nome dell'azienda destinataria"
+  "recipientCompany": "nome dell'azienda destinataria",
+  "contactEmail": "email di contatto trovata sul sito (info@, contatti@, etc.) oppure null se non trovata"
 }`
 
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -175,11 +176,25 @@ Rispondi SOLO con JSON valido:
         }
 
         if (emailData) {
+          // Also try to extract email from website content directly
+          let contactEmail = emailData.contactEmail || null
+          if (!contactEmail && websiteContent) {
+            const emailMatch = websiteContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
+            if (emailMatch) {
+              // Filter out common non-contact emails
+              const validEmails = emailMatch.filter((e: string) => 
+                !e.includes('example.') && !e.includes('sentry.') && !e.includes('wixpress.')
+              )
+              contactEmail = validEmails[0] || null
+            }
+          }
+
           await supabase.from('scraping_results').update({
             generated_email_subject: emailData.subject,
             generated_email_body: emailData.body,
             recipient_name: emailData.recipientName || null,
             recipient_company: emailData.recipientCompany || null,
+            contact_email: contactEmail,
             email_generated: true,
           }).eq('id', result.id)
 

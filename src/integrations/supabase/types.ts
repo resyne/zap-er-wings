@@ -10667,6 +10667,7 @@ export type Database = {
       scraping_results: {
         Row: {
           city: string
+          contact_email: string | null
           created_at: string
           description: string | null
           email_generated: boolean | null
@@ -10684,6 +10685,7 @@ export type Database = {
         }
         Insert: {
           city: string
+          contact_email?: string | null
           created_at?: string
           description?: string | null
           email_generated?: boolean | null
@@ -10701,6 +10703,7 @@ export type Database = {
         }
         Update: {
           city?: string
+          contact_email?: string | null
           created_at?: string
           description?: string | null
           email_generated?: boolean | null

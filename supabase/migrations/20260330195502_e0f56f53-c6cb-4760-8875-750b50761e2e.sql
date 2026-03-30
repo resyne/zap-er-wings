@@ -1,0 +1,1 @@
+ALTER TABLE scraping_results ADD COLUMN contact_email TEXT;
