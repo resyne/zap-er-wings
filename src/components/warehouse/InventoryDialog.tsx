@@ -34,39 +34,39 @@ export function InventoryDialog({ open, onOpenChange, materials }: InventoryDial
   const [loading, setLoading] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
 
-  // Group by supplier
-  const groupedBySupplier = useMemo(() => {
-    const groups: Record<string, { supplierName: string; materials: Material[] }> = {};
+  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
+    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
+    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
+    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
+  };
+
+  const groupedByCategory = useMemo(() => {
+    const categories: Record<string, Record<string, Material[]>> = {};
     for (const m of materials) {
-      const key = m.supplier_id || "__no_supplier__";
-      const supplierName = m.suppliers?.name || "Senza fornitore";
-      if (!groups[key]) groups[key] = { supplierName, materials: [] };
-      groups[key].materials.push(m);
+      const mapping = m.supplier_id ? SUPPLIER_CATEGORY_MAP[m.supplier_id] : null;
+      const catName = mapping?.category || "Altro";
+      const subName = mapping?.subcategory || m.suppliers?.name || "Generale";
+      if (!categories[catName]) categories[catName] = {};
+      if (!categories[catName][subName]) categories[catName][subName] = [];
+      categories[catName][subName].push(m);
     }
-    return Object.entries(groups).sort(([kA, a], [kB, b]) => {
-      if (kA === "__no_supplier__") return 1;
-      if (kB === "__no_supplier__") return -1;
-      return a.supplierName.localeCompare(b.supplierName);
+    const order = ["Materiale di assemblaggio", "Materiale di consumo"];
+    return Object.entries(categories).sort(([a], [b]) => {
+      const ia = order.indexOf(a); const ib = order.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1; if (ib === -1) return -1;
+      return ia - ib;
     });
   }, [materials]);
 
-  const isAllExpanded = expandedSuppliers.has("__all__");
-  const isExpanded = (key: string) => isAllExpanded || expandedSuppliers.has(key);
-
-  const toggleSupplier = (key: string) => {
-    setExpandedSuppliers((prev) => {
-      if (isAllExpanded) {
-        const allKeys = new Set(groupedBySupplier.map(([k]) => k));
-        allKeys.delete(key);
-        return allKeys;
-      }
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const toggleCat = (cat: string) => {
+    setExpandedCategories(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
+  };
+  const toggleSub = (key: string) => {
+    setExpandedSubs(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   };
 
   const handleQuantityChange = (materialId: string, value: string) => {
