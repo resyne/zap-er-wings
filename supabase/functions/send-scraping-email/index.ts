@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: senderName ? `${senderName} <${senderEmail}>` : senderEmail,
             to: [recipientEmail],
+            reply_to: replyToEmail || senderEmail,
             subject: emailSubject,
             html: htmlBody,
           }),
