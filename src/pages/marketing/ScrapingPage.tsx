@@ -858,50 +858,106 @@ export default function ScrapingPage() {
               </TabsContent>
 
               <TabsContent value="emails" className="space-y-3 mt-4">
-                {missionResults.filter(r => r.generated_email_subject).length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                      Nessuna email generata ancora. Clicca "Genera Email AI" per iniziare.
-                    </CardContent>
-                  </Card>
-                ) : (
-                  missionResults.filter(r => r.generated_email_subject).map((r) => (
-                    <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : ""}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
-                            <Badge variant="outline" className="text-xs">{r.city}</Badge>
-                            {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => copyMissionEmail(r)}>
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            {!r.email_sent && (
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                window.open(`mailto:?subject=${encodeURIComponent(r.generated_email_subject || '')}&body=${encodeURIComponent(r.generated_email_body || '')}`, '_blank');
-                              }}>
-                                <Send className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
+                {(() => {
+                  const emailResults = missionResults.filter(r => r.generated_email_subject);
+                  const unsent = emailResults.filter(r => !r.email_sent);
+                  if (emailResults.length === 0) {
+                    return (
+                      <Card>
+                        <CardContent className="py-8 text-center text-muted-foreground">
+                          Nessuna email generata ancora. Clicca "Genera Email AI" per iniziare.
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+                  return (
+                    <>
+                      {/* Bulk send controls */}
+                      <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selectedEmailIds.size === unsent.length && unsent.length > 0}
+                            onCheckedChange={selectAllEmails}
+                          />
+                          <span className="text-sm">
+                            {selectedEmailIds.size > 0
+                              ? `${selectedEmailIds.size} selezionate`
+                              : `${unsent.length} da inviare`}
+                          </span>
                         </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Oggetto</Label>
-                          <p className="font-medium text-sm">{r.generated_email_subject}</p>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Corpo</Label>
-                          <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
+                        <Button
+                          size="sm"
+                          onClick={() => sendSelectedEmails()}
+                          disabled={sendingEmails || selectedEmailIds.size === 0}
+                        >
+                          {sendingEmails ? (
+                            <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Invio...</>
+                          ) : (
+                            <><Send className="h-4 w-4 mr-1" />Invia con Resend ({selectedEmailIds.size})</>
+                          )}
+                        </Button>
+                      </div>
+
+                      {emailResults.map((r) => (
+                        <Card key={r.id} className={r.email_sent ? "border-green-200 bg-green-50/30" : ""}>
+                          <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {!r.email_sent && (
+                                  <Checkbox
+                                    checked={selectedEmailIds.has(r.id)}
+                                    onCheckedChange={() => toggleEmailSelection(r.id)}
+                                  />
+                                )}
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
+                                <Badge variant="outline" className="text-xs">{r.city}</Badge>
+                                {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => copyMissionEmail(r)}>
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                {!r.email_sent && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => sendSelectedEmails([r.id])}
+                                    disabled={sendingEmails}
+                                    title="Invia singola con Resend"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Oggetto</Label>
+                              <p className="font-medium text-sm">{r.generated_email_subject}</p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Corpo</Label>
+                              <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </>
+                  );
+                })()}
+              </TabsContent>
+
+              <TabsContent value="template" className="mt-4">
+                <EmailTemplateEditor
+                  htmlTemplate={htmlTemplate}
+                  onTemplateChange={setHtmlTemplate}
+                  senderEmail={emailSenderEmail}
+                  onSenderEmailChange={setEmailSenderEmail}
+                  senderName={emailSenderName}
+                  onSenderNameChange={setEmailSenderName}
+                />
               </TabsContent>
             </Tabs>
           )}
