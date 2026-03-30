@@ -159,6 +159,32 @@ export default function ZAppMagazzino() {
     },
   });
 
+  // Fetch warehouse categories
+  const { data: warehouseCategories = [] } = useQuery({
+    queryKey: ["warehouse-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("warehouse_categories")
+        .select("id, name, sort_order")
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch warehouse subcategories
+  const { data: warehouseSubcategories = [] } = useQuery({
+    queryKey: ["warehouse-subcategories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("warehouse_subcategories")
+        .select("id, category_id, name, supplier_id, sort_order, suppliers(name)")
+        .order("sort_order");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch products (finished goods)
   const { data: products = [], isLoading: loadingProducts } = useQuery({
     queryKey: ["zapp-products"],
@@ -181,12 +207,19 @@ export default function ZAppMagazzino() {
     );
   }, [products, productSearch]);
 
-  // Category mapping based on supplier ID
-  const SUPPLIER_CATEGORY_MAP: Record<string, { category: string; subcategory: string }> = {
-    "0a348318-6673-4122-a8e1-b2d7477af721": { category: "Materiale di assemblaggio", subcategory: "Elettropompe" },
-    "f68ad624-666e-466b-8910-7b1b53e8d7f0": { category: "Materiale di assemblaggio", subcategory: "Vasche" },
-    "ea9c4fb8-9ccf-4754-b11d-ed865303dde2": { category: "Materiale di consumo", subcategory: "" },
-  };
+  // Build supplier→category map from DB data
+  const SUPPLIER_CATEGORY_MAP = useMemo(() => {
+    const map: Record<string, { category: string; subcategory: string }> = {};
+    for (const sub of warehouseSubcategories) {
+      if (sub.supplier_id) {
+        const cat = warehouseCategories.find(c => c.id === sub.category_id);
+        if (cat) {
+          map[sub.supplier_id] = { category: cat.name, subcategory: sub.name };
+        }
+      }
+    }
+    return map;
+  }, [warehouseCategories, warehouseSubcategories]);
 
   // Filter materials by enabled suppliers + search + stock filter
   const filteredMaterials = useMemo(() => {
