@@ -14,6 +14,8 @@ interface EmailTemplateEditorProps {
   onSenderEmailChange: (email: string) => void;
   senderName: string;
   onSenderNameChange: (name: string) => void;
+  replyToEmail: string;
+  onReplyToEmailChange: (email: string) => void;
 }
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
