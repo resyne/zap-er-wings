@@ -138,7 +138,8 @@ Rispondi SOLO con JSON valido:
   "subject": "oggetto email personalizzato",
   "body": "corpo email personalizzato con riferimenti al loro sito/attività",
   "recipientName": "nome del destinatario se individuabile",
-  "recipientCompany": "nome dell'azienda destinataria"
+  "recipientCompany": "nome dell'azienda destinataria",
+  "contactEmail": "email di contatto trovata sul sito (info@, contatti@, etc.) oppure null se non trovata"
 }`
 
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
