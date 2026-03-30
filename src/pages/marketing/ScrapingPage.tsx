@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmailTemplateEditor, DEFAULT_TEMPLATE } from "@/components/marketing/EmailTemplateEditor";
 
 interface ScrapingResult {
   title: string;
