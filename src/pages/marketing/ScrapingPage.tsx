@@ -95,6 +95,8 @@ export default function ScrapingPage() {
   const [viewingMission, setViewingMission] = useState<Mission | null>(null);
   const [missionResults, setMissionResults] = useState<MissionResult[]>([]);
   const [loadingResults, setLoadingResults] = useState(false);
+  const [generatingMissionEmails, setGeneratingMissionEmails] = useState(false);
+  const [emailGenProgress, setEmailGenProgress] = useState({ processed: 0, total: 0, running: false });
 
   const [activeTab, setActiveTab] = useState("agent");
 
