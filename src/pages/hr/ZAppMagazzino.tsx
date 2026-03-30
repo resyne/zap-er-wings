@@ -211,9 +211,6 @@ export default function ZAppMagazzino() {
 
   const lowStockCount = filteredMaterials.filter((m) => m.current_stock <= m.minimum_stock).length;
 
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
-
   const toggleCategory = (cat: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
