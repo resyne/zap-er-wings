@@ -6693,6 +6693,8 @@ export type Database = {
           supplier_id: string | null
           unit: string | null
           updated_at: string
+          warehouse_category_id: string | null
+          warehouse_subcategory_id: string | null
         }
         Insert: {
           active?: boolean | null
@@ -6713,6 +6715,8 @@ export type Database = {
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
+          warehouse_category_id?: string | null
+          warehouse_subcategory_id?: string | null
         }
         Update: {
           active?: boolean | null
@@ -6733,6 +6737,8 @@ export type Database = {
           supplier_id?: string | null
           unit?: string | null
           updated_at?: string
+          warehouse_category_id?: string | null
+          warehouse_subcategory_id?: string | null
         }
         Relationships: [
           {
@@ -6740,6 +6746,20 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materials_warehouse_category_id_fkey"
+            columns: ["warehouse_category_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materials_warehouse_subcategory_id_fkey"
+            columns: ["warehouse_subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_subcategories"
             referencedColumns: ["id"]
           },
         ]
