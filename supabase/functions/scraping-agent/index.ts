@@ -35,7 +35,7 @@ const ITALIAN_CITIES_50K = [
   'Sondrio', 'Imperia'
 ]
 
-const BATCH_SIZE = 3 // cities per invocation
+const BATCH_SIZE = 1 // cities per invocation - keep low due to Apify sync timeout
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
