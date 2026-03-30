@@ -64,7 +64,8 @@ export default function ZAppMagazzino() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [stockFilter, setStockFilter] = useState<string>("all");
-  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set(["__all__"]));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
   const [productCaricoOpen, setProductCaricoOpen] = useState(false);
   const [productScaricoOpen, setProductScaricoOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
