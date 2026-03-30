@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, Package, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, ChevronRight, Building2, Filter, ClipboardCheck, ClipboardList, Settings, Eye, EyeOff, Box, MapPin, Euro, Layers, Droplets, Wrench, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ManualMovementDialog } from "@/components/warehouse/ManualMovementDialog";
 import { InventoryDialog } from "@/components/warehouse/InventoryDialog";
 import { WarehouseCategorySettings } from "@/components/warehouse/WarehouseCategorySettings";
+import { ProductCategorySettings } from "@/components/warehouse/ProductCategorySettings";
 import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { format } from "date-fns";
@@ -77,6 +79,111 @@ function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Mat
   );
 }
 
+function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void; categories: any[] }) {
+  const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
+  const isOut = p.current_stock <= 0;
+  return (
+    <div className="bg-card rounded-xl p-3 shadow-sm border border-border">
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-destructive/10" : isLow ? "bg-amber-50" : "bg-primary/10"}`}>
+          <Box className={`h-4 w-4 ${isOut ? "text-destructive" : isLow ? "text-amber-500" : "text-primary"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-[13px] truncate">{p.name}</p>
+          <p className="text-[11px] text-muted-foreground">{p.code}</p>
+          {p.warehouse_location && (
+            <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <MapPin className="h-2.5 w-2.5" /> {p.warehouse_location}
+            </p>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0 space-y-0.5">
+          <p className="font-bold text-[13px]">{p.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{p.unit_of_measure || "pz"}</span></p>
+          {isOut ? (
+            <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>
+          ) : isLow ? (
+            <Badge variant="destructive" className="text-[10px] px-1.5">Sotto scorta</Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] px-1.5 text-green-700 border-green-300">OK</Badge>
+          )}
+          {(p.sale_price || 0) > 0 && (
+            <p className="text-[10px] text-muted-foreground flex items-center justify-end gap-0.5">
+              <Euro className="h-2.5 w-2.5" /> {Number(p.sale_price).toLocaleString("it-IT")}
+            </p>
+          )}
+        </div>
+        {categories.length > 0 && !p.product_category_id && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onAssign} title="Assegna categoria">
+            <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AssignProductForm({ productId, categories, subcategories, onDone }: {
+  productId: string;
+  categories: { id: string; name: string; sort_order: number }[];
+  subcategories: { id: string; category_id: string; name: string; sort_order: number }[];
+  onDone: () => void;
+}) {
+  const [selectedCat, setSelectedCat] = useState("");
+  const [selectedSub, setSelectedSub] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const filteredSubs = subcategories.filter(s => s.category_id === selectedCat);
+
+  const handleSave = async () => {
+    if (!selectedCat) return;
+    setSaving(true);
+    const { error } = await supabase.from("products").update({
+      product_category_id: selectedCat,
+      product_subcategory_id: selectedSub || null,
+    }).eq("id", productId);
+    setSaving(false);
+    if (error) { toast({ title: "Errore", variant: "destructive" }); return; }
+    toast({ title: "Categoria assegnata" });
+    onDone();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Categoria *</Label>
+        <Select value={selectedCat} onValueChange={(v) => { setSelectedCat(v); setSelectedSub(""); }}>
+          <SelectTrigger><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
+          <SelectContent>
+            {categories.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {filteredSubs.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Sottocategoria</Label>
+          <Select value={selectedSub} onValueChange={setSelectedSub}>
+            <SelectTrigger><SelectValue placeholder="Opzionale" /></SelectTrigger>
+            <SelectContent>
+              {filteredSubs.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="flex gap-2 justify-end pt-2">
+        <Button variant="outline" onClick={onDone} disabled={saving}>Annulla</Button>
+        <Button onClick={handleSave} disabled={!selectedCat || saving}>
+          {saving ? "Salvataggio..." : "Assegna"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -93,6 +200,10 @@ export default function ZAppMagazzino() {
   const [productCaricoOpen, setProductCaricoOpen] = useState(false);
   const [productScaricoOpen, setProductScaricoOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  const [productSettingsOpen, setProductSettingsOpen] = useState(false);
+  const [assigningProduct, setAssigningProduct] = useState<string | null>(null);
+  const [expandedProductCats, setExpandedProductCats] = useState<Set<string>>(new Set());
+  const [expandedProductSubs, setExpandedProductSubs] = useState<Set<string>>(new Set());
 
   // Fetch all suppliers for settings
   const { data: allSuppliers = [] } = useQuery({
@@ -191,10 +302,28 @@ export default function ZAppMagazzino() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, code, name, unit_of_measure, current_stock, minimum_stock, maximum_stock, production_cost, sale_price, warehouse_location, last_inventory_date")
+        .select("id, code, name, unit_of_measure, current_stock, minimum_stock, maximum_stock, production_cost, sale_price, warehouse_location, last_inventory_date, product_category_id, product_subcategory_id")
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch product categories
+  const { data: productCategories = [] } = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_categories").select("id, name, sort_order").order("sort_order");
+      return data || [];
+    },
+  });
+
+  // Fetch product subcategories
+  const { data: productSubcategories = [] } = useQuery({
+    queryKey: ["product-subcategories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_subcategories").select("id, category_id, name, sort_order").order("sort_order");
       return data || [];
     },
   });
@@ -206,6 +335,48 @@ export default function ZAppMagazzino() {
       p.name.toLowerCase().includes(term) || p.code.toLowerCase().includes(term)
     );
   }, [products, productSearch]);
+
+  // Group products by category → subcategory
+  const groupedProducts = useMemo(() => {
+    const groups: Record<string, {
+      catId: string;
+      subcategories: Record<string, { subId: string; products: typeof filteredProducts }>;
+      uncategorized: typeof filteredProducts;
+    }> = {};
+    const uncategorized: typeof filteredProducts = [];
+
+    for (const p of filteredProducts) {
+      const catId = (p as any).product_category_id;
+      const subId = (p as any).product_subcategory_id;
+
+      if (!catId) {
+        uncategorized.push(p);
+        continue;
+      }
+
+      const cat = productCategories.find(c => c.id === catId);
+      if (!cat) { uncategorized.push(p); continue; }
+
+      if (!groups[cat.name]) {
+        groups[cat.name] = { catId: cat.id, subcategories: {}, uncategorized: [] };
+      }
+
+      if (subId) {
+        const sub = productSubcategories.find(s => s.id === subId);
+        const subName = sub?.name || "Generale";
+        if (!groups[cat.name].subcategories[subName]) {
+          groups[cat.name].subcategories[subName] = { subId: sub?.id || "", products: [] };
+        }
+        groups[cat.name].subcategories[subName].products.push(p);
+      } else {
+        groups[cat.name].uncategorized.push(p);
+      }
+    }
+
+    return { groups, uncategorized };
+  }, [filteredProducts, productCategories, productSubcategories]);
+
+  const hasProductCategories = productCategories.length > 0;
 
   // Build supplier→category map from DB data
   const SUPPLIER_CATEGORY_MAP = useMemo(() => {
@@ -484,8 +655,11 @@ export default function ZAppMagazzino() {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-white" />
+              <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-card" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setProductSettingsOpen(true)}>
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex gap-2">
@@ -497,7 +671,7 @@ export default function ZAppMagazzino() {
             </Button>
           </div>
 
-          <p className="text-xs text-muted-foreground">{filteredProducts.length} prodotti finiti</p>
+          <p className="text-xs text-muted-foreground">{filteredProducts.length} prodotti finiti · {productCategories.length} categorie</p>
 
           {loadingProducts ? (
             <div className="flex items-center justify-center py-12">
@@ -505,45 +679,84 @@ export default function ZAppMagazzino() {
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">Nessun prodotto trovato</div>
-          ) : (
+          ) : !hasProductCategories ? (
+            // Flat list when no categories exist
             <div className="space-y-2">
-              {filteredProducts.map((p) => {
-                const isLow = p.current_stock <= (p.minimum_stock || 0) && p.current_stock > 0;
-                const isOut = p.current_stock <= 0;
+              {filteredProducts.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Categorized products */}
+              {Object.entries(groupedProducts.groups).map(([catName, catData]) => {
+                const allProducts = [...catData.uncategorized, ...Object.values(catData.subcategories).flatMap(s => s.products)];
+                const isCatOpen = expandedProductCats.has(catName);
+
                 return (
-                  <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-border">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isOut ? "bg-red-50" : isLow ? "bg-amber-50" : "bg-blue-50"}`}>
-                        <Box className={`h-4 w-4 ${isOut ? "text-red-500" : isLow ? "text-amber-500" : "text-blue-500"}`} />
+                  <Collapsible key={catName} open={isCatOpen} onOpenChange={() => {
+                    setExpandedProductCats(prev => {
+                      const n = new Set(prev);
+                      n.has(catName) ? n.delete(catName) : n.add(catName);
+                      return n;
+                    });
+                  }}>
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center gap-2 bg-card rounded-xl px-3 py-3 shadow-sm border border-border hover:bg-muted/50 transition-colors">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Box className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="font-bold text-sm">{catName}</p>
+                          <p className="text-[11px] text-muted-foreground">{allProducts.length} prodotti</p>
+                        </div>
+                        {isCatOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-2 mt-2 ml-2 border-l-2 border-border pl-2">
+                        {/* Subcategories */}
+                        {Object.entries(catData.subcategories).map(([subName, subData]) => {
+                          const subKey = `${catName}__${subName}`;
+                          const isSubOpen = expandedProductSubs.has(subKey);
+
+                          return (
+                            <Collapsible key={subKey} open={isSubOpen} onOpenChange={() => {
+                              setExpandedProductSubs(prev => {
+                                const n = new Set(prev);
+                                n.has(subKey) ? n.delete(subKey) : n.add(subKey);
+                                return n;
+                              });
+                            }}>
+                              <CollapsibleTrigger asChild>
+                                <button className="w-full flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 border border-border hover:bg-muted/50 transition-colors">
+                                  <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span className="font-semibold text-[13px] flex-1 text-left">{subName}</span>
+                                  <span className="text-[11px] text-muted-foreground mr-1">{subData.products.length}</span>
+                                  {isSubOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                </button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="space-y-1.5 mt-1.5 ml-2 border-l-2 border-muted pl-2">
+                                  {subData.products.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        })}
+                        {/* Uncategorized within category */}
+                        {catData.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[13px] truncate">{p.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{p.code}</p>
-                        {p.warehouse_location && (
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                            <MapPin className="h-2.5 w-2.5" /> {p.warehouse_location}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-[13px]">{p.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{p.unit_of_measure || "pz"}</span></p>
-                        {isOut ? (
-                          <Badge variant="destructive" className="text-[10px] px-1.5">Esaurito</Badge>
-                        ) : isLow ? (
-                          <Badge variant="destructive" className="text-[10px] px-1.5">Sotto scorta</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 text-green-700 border-green-300">OK</Badge>
-                        )}
-                        {(p.sale_price || 0) > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-0.5">
-                            <Euro className="h-2.5 w-2.5" /> {Number(p.sale_price).toLocaleString("it-IT")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
+
+              {/* Uncategorized products */}
+              {groupedProducts.uncategorized.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground px-1">Senza categoria ({groupedProducts.uncategorized.length})</p>
+                  {groupedProducts.uncategorized.map((p) => <ProductCard key={p.id} p={p} onAssign={() => setAssigningProduct(p.id)} categories={productCategories} />)}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -589,6 +802,35 @@ export default function ZAppMagazzino() {
         subcategories={warehouseSubcategories as any}
         suppliers={allSuppliers.map(s => ({ id: s.id, name: s.name }))}
       />
+
+      {/* Product Category Settings */}
+      <ProductCategorySettings
+        open={productSettingsOpen}
+        onOpenChange={setProductSettingsOpen}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
+
+      {/* Assign Product to Category Dialog */}
+      {assigningProduct && (
+        <Dialog open={!!assigningProduct} onOpenChange={() => setAssigningProduct(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Assegna Categoria</DialogTitle>
+              <DialogDescription>Seleziona categoria e sottocategoria per questo prodotto</DialogDescription>
+            </DialogHeader>
+            <AssignProductForm
+              productId={assigningProduct}
+              categories={productCategories}
+              subcategories={productSubcategories}
+              onDone={() => {
+                setAssigningProduct(null);
+                queryClient.invalidateQueries({ queryKey: ["zapp-products"] });
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Dialogs */}
       <ManualMovementDialog open={caricoOpen} onOpenChange={setCaricoOpen} movementType="carico" />

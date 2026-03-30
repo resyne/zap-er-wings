@@ -8213,6 +8213,27 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       product_configurations: {
         Row: {
           additional_info: Json | null
@@ -8453,6 +8474,38 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_subcategories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -8700,6 +8753,8 @@ export type Database = {
           maximum_stock: number
           minimum_stock: number
           name: string
+          product_category_id: string | null
+          product_subcategory_id: string | null
           product_type: string
           production_cost: number | null
           requires_production: boolean
@@ -8726,6 +8781,8 @@ export type Database = {
           maximum_stock?: number
           minimum_stock?: number
           name: string
+          product_category_id?: string | null
+          product_subcategory_id?: string | null
           product_type: string
           production_cost?: number | null
           requires_production?: boolean
@@ -8752,6 +8809,8 @@ export type Database = {
           maximum_stock?: number
           minimum_stock?: number
           name?: string
+          product_category_id?: string | null
+          product_subcategory_id?: string | null
           product_type?: string
           production_cost?: number | null
           requires_production?: boolean
@@ -8775,6 +8834,20 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_product_category_id_fkey"
+            columns: ["product_category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_product_subcategory_id_fkey"
+            columns: ["product_subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "product_subcategories"
             referencedColumns: ["id"]
           },
         ]
