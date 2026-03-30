@@ -121,6 +121,68 @@ function ProductCard({ p, onAssign, categories }: { p: any; onAssign: () => void
   );
 }
 
+function AssignProductForm({ productId, categories, subcategories, onDone }: {
+  productId: string;
+  categories: { id: string; name: string; sort_order: number }[];
+  subcategories: { id: string; category_id: string; name: string; sort_order: number }[];
+  onDone: () => void;
+}) {
+  const [selectedCat, setSelectedCat] = useState("");
+  const [selectedSub, setSelectedSub] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const filteredSubs = subcategories.filter(s => s.category_id === selectedCat);
+
+  const handleSave = async () => {
+    if (!selectedCat) return;
+    setSaving(true);
+    const { error } = await supabase.from("products").update({
+      product_category_id: selectedCat,
+      product_subcategory_id: selectedSub || null,
+    }).eq("id", productId);
+    setSaving(false);
+    if (error) { toast({ title: "Errore", variant: "destructive" }); return; }
+    toast({ title: "Categoria assegnata" });
+    onDone();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Categoria *</Label>
+        <Select value={selectedCat} onValueChange={(v) => { setSelectedCat(v); setSelectedSub(""); }}>
+          <SelectTrigger><SelectValue placeholder="Seleziona categoria" /></SelectTrigger>
+          <SelectContent>
+            {categories.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {filteredSubs.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Sottocategoria</Label>
+          <Select value={selectedSub} onValueChange={setSelectedSub}>
+            <SelectTrigger><SelectValue placeholder="Opzionale" /></SelectTrigger>
+            <SelectContent>
+              {filteredSubs.map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="flex gap-2 justify-end pt-2">
+        <Button variant="outline" onClick={onDone} disabled={saving}>Annulla</Button>
+        <Button onClick={handleSave} disabled={!selectedCat || saving}>
+          {saving ? "Salvataggio..." : "Assegna"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
