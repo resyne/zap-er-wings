@@ -1078,7 +1078,7 @@ export type Database = {
             foreignKeyName: "becca_followup_queue_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
-            referencedRelation: "whatsapp_conversations"
+            referencedRelation: "wasender_conversations"
             referencedColumns: ["id"]
           },
           {
