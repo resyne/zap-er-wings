@@ -539,6 +539,7 @@ export default function ZAppWhatsAppPage() {
                       originalText={msg.content}
                       isInbound={msg.direction === "inbound"}
                       savedTranslation={(msg as any).translation_it}
+                      savedSourceLanguage={(msg as any).source_language}
                     />
                   )}
 
