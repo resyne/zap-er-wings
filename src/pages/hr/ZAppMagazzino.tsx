@@ -53,6 +53,29 @@ interface StockMovement {
   created_at: string;
 }
 
+function MaterialRow({ m, getStockBadge }: { m: Material; getStockBadge: (m: Material) => React.ReactNode }) {
+  return (
+    <div className="bg-card rounded-lg p-2.5 shadow-sm border border-border flex items-center gap-2.5">
+      <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${m.current_stock <= m.minimum_stock ? "bg-destructive/10" : "bg-green-50"}`}>
+        <Package className={`h-4 w-4 ${m.current_stock <= m.minimum_stock ? "text-destructive" : "text-green-500"}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-[13px] truncate">{m.name}</p>
+        <p className="text-[11px] text-muted-foreground">{m.code}</p>
+        {m.last_inventory_date && (
+          <p className="text-[10px] text-primary">
+            Inventario: {format(new Date(m.last_inventory_date), "dd/MM/yy", { locale: it })}
+          </p>
+        )}
+      </div>
+      <div className="text-right flex-shrink-0">
+        <p className="font-bold text-[13px]">{m.current_stock} <span className="text-[11px] font-normal text-muted-foreground">{m.unit}</span></p>
+        {getStockBadge(m)}
+      </div>
+    </div>
+  );
+}
+
 export default function ZAppMagazzino() {
   const navigate = useNavigate();
   const { toast } = useToast();
