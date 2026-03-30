@@ -455,22 +455,59 @@ export default function ScadenziarioPage() {
   }, [scadenze, searchQuery, groupBy, selectedPeriod, showClosed]);
 
   // ── KPI totals ────────────────────────────────────
+  // Build set of scadenza IDs that are NOT fully collected (assegno still pending)
+  const assegnoScadenzaIds = useMemo(() => {
+    if (!scadenze) return new Set<string>();
+    const notCollected = scadenze.filter(s => s.stato !== "chiusa" && s.stato !== "saldata");
+    return new Set(notCollected.map(s => s.id));
+  }, [scadenze]);
+
+  // Calculate uncollected assegno totals by tipo (credito/debito)
+  const assegnoTotals = useMemo(() => {
+    if (!scadenze) return { effettiCredito: 0, effettiDebito: 0, assegni: [] as { importo: number; check_due_date: string | null; check_number: string | null; soggetto: string; tipo: string }[] };
+    const scadenzeMap = new Map(scadenze.map(s => [s.id, s]));
+    let effettiCredito = 0;
+    let effettiDebito = 0;
+    const assegni: { importo: number; check_due_date: string | null; check_number: string | null; soggetto: string; tipo: string }[] = [];
+    
+    for (const mov of assegnoMovimenti) {
+      if (!assegnoScadenzaIds.has(mov.scadenza_id)) continue;
+      const sc = scadenzeMap.get(mov.scadenza_id);
+      if (!sc) continue;
+      const importo = Number(mov.importo);
+      if (sc.tipo === "credito") effettiCredito += importo;
+      else effettiDebito += importo;
+      assegni.push({
+        importo,
+        check_due_date: mov.check_due_date || null,
+        check_number: mov.check_number || null,
+        soggetto: sc.soggetto_nome || "N/D",
+        tipo: sc.tipo,
+      });
+    }
+    // Sort by due date
+    assegni.sort((a, b) => (a.check_due_date || "").localeCompare(b.check_due_date || ""));
+    return { effettiCredito, effettiDebito, assegni };
+  }, [assegnoMovimenti, assegnoScadenzaIds, scadenze]);
+
   const totali = useMemo(() => {
     const items = groups.flatMap(g => g.scadenze);
-    return items.reduce(
+    const base = items.reduce(
       (acc, s) => {
-        if (isAssegnoInCassa(s)) {
-          if (s.tipo === "credito") acc.effettiCredito += Number(s.importo_totale);
-          else acc.effettiDebito += Number(s.importo_totale);
-        } else if (!isClosedScadenza(s)) {
+        if (!isClosedScadenza(s) && !isAssegnoInCassa(s)) {
           if (s.tipo === "credito") acc.crediti += Number(s.importo_residuo);
           else acc.debiti += Number(s.importo_residuo);
         }
         return acc;
       },
-      { crediti: 0, debiti: 0, effettiCredito: 0, effettiDebito: 0 }
+      { crediti: 0, debiti: 0 }
     );
-  }, [groups]);
+    return {
+      ...base,
+      effettiCredito: assegnoTotals.effettiCredito,
+      effettiDebito: assegnoTotals.effettiDebito,
+    };
+  }, [groups, assegnoTotals]);
 
   const scaduteCount = useMemo(() => {
     return groups.flatMap(g => g.scadenze).filter(s => !isClosedScadenza(s) && !isAssegnoInCassa(s) && getGiorniScadenza(s.data_scadenza) < 0).length;
