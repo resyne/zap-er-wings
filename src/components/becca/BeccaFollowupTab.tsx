@@ -123,7 +123,8 @@ export function BeccaFollowupTab() {
 
       if (updateError) throw updateError;
 
-      // Step 1: Send template to reopen conversation window
+      // Send template to reopen conversation window
+      // The AI personalized message will be used by Becca when the customer replies
       const lang = item.detected_language || "it";
       const templateName = "becca_followup";
       const customerName = item.customer_name || "👋";
@@ -141,22 +142,7 @@ export function BeccaFollowupTab() {
 
       if (templateError) throw new Error(`Errore template: ${templateError.message}`);
 
-      // Step 2: Wait briefly then send personalized AI message as free text
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const messageToSend = item.edited_message || item.proposed_message;
-      const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
-        body: {
-          to: item.customer_phone,
-          type: "text",
-          content: messageToSend,
-          account_id: item.account_id,
-        },
-      });
-
-      if (sendError) throw new Error(`Errore testo: ${sendError.message}`);
-
-      // Update status to sent
+      // Update status to sent (only template sent, Becca handles the rest when customer replies)
       const { error: sentError } = await supabase
         .from("becca_followup_queue" as any)
         .update({
@@ -168,7 +154,7 @@ export function BeccaFollowupTab() {
       if (sentError) throw sentError;
     },
     onSuccess: () => {
-      toast.success("Follow-up inviato! (Template + messaggio personalizzato)");
+      toast.success("Template follow-up inviato! Becca risponderà quando il cliente reagisce.");
       setSelectedItem(null);
       queryClient.invalidateQueries({ queryKey: ["becca-followup-queue"] });
     },
