@@ -204,6 +204,24 @@ export default function ZAppMagazzino() {
     },
   });
 
+  // Fetch product categories
+  const { data: productCategories = [] } = useQuery({
+    queryKey: ["product-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_categories").select("id, name, sort_order").order("sort_order");
+      return data || [];
+    },
+  });
+
+  // Fetch product subcategories
+  const { data: productSubcategories = [] } = useQuery({
+    queryKey: ["product-subcategories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("product_subcategories").select("id, category_id, name, sort_order").order("sort_order");
+      return data || [];
+    },
+  });
+
   const filteredProducts = useMemo(() => {
     if (!productSearch) return products;
     const term = productSearch.toLowerCase();
@@ -212,8 +230,47 @@ export default function ZAppMagazzino() {
     );
   }, [products, productSearch]);
 
-  // Build supplier→category map from DB data
-  const SUPPLIER_CATEGORY_MAP = useMemo(() => {
+  // Group products by category → subcategory
+  const groupedProducts = useMemo(() => {
+    const groups: Record<string, {
+      catId: string;
+      subcategories: Record<string, { subId: string; products: typeof filteredProducts }>;
+      uncategorized: typeof filteredProducts;
+    }> = {};
+    const uncategorized: typeof filteredProducts = [];
+
+    for (const p of filteredProducts) {
+      const catId = (p as any).product_category_id;
+      const subId = (p as any).product_subcategory_id;
+
+      if (!catId) {
+        uncategorized.push(p);
+        continue;
+      }
+
+      const cat = productCategories.find(c => c.id === catId);
+      if (!cat) { uncategorized.push(p); continue; }
+
+      if (!groups[cat.name]) {
+        groups[cat.name] = { catId: cat.id, subcategories: {}, uncategorized: [] };
+      }
+
+      if (subId) {
+        const sub = productSubcategories.find(s => s.id === subId);
+        const subName = sub?.name || "Generale";
+        if (!groups[cat.name].subcategories[subName]) {
+          groups[cat.name].subcategories[subName] = { subId: sub?.id || "", products: [] };
+        }
+        groups[cat.name].subcategories[subName].products.push(p);
+      } else {
+        groups[cat.name].uncategorized.push(p);
+      }
+    }
+
+    return { groups, uncategorized };
+  }, [filteredProducts, productCategories, productSubcategories]);
+
+  const hasProductCategories = productCategories.length > 0;
     const map: Record<string, { category: string; subcategory: string }> = {};
     for (const sub of warehouseSubcategories) {
       if (sub.supplier_id) {
