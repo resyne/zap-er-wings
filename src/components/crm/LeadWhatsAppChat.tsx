@@ -696,7 +696,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
   };
 
   // Inline component for translated messages
-  const TranslatedMessageBubbleInline = ({ messageId, originalText }: { messageId: string; originalText: string }) => {
+  const TranslatedMessageBubbleInline = ({ messageId, originalText, savedTranslation, savedSourceLanguage }: { messageId: string; originalText: string; savedTranslation?: string | null; savedSourceLanguage?: string | null }) => {
     const [translation, setTranslation] = useState<{
       translatedText: string;
       sourceLanguage: string;
@@ -709,6 +709,20 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
 
     useEffect(() => {
       if (hasChecked) return;
+
+      // Use saved translation from DB if available
+      if (savedTranslation && savedSourceLanguage) {
+        const isSame = savedSourceLanguage === 'it';
+        if (!isSame) {
+          setTranslation({
+            translatedText: savedTranslation,
+            sourceLanguage: savedSourceLanguage,
+            sameLanguage: false
+          });
+        }
+        setHasChecked(true);
+        return;
+      }
       
       const cached = getCachedTranslation(messageId);
       if (cached) {
@@ -735,7 +749,7 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
       }
 
       setIsLoading(true);
-      translateIncoming(messageId, originalText).then(result => {
+      translateIncoming(messageId, originalText).then(async (result) => {
         if (result && !result.same_language) {
           setTranslation({
             translatedText: result.translation,
@@ -743,11 +757,24 @@ export default function LeadWhatsAppChat({ leadId, leadPhone, leadName, leadCoun
             sourceLanguageName: result.source_language_name,
             sameLanguage: result.same_language
           });
+          // Save to DB
+          try {
+            await (supabase as any).from('whatsapp_messages').update({
+              translation_it: result.translation,
+              source_language: result.source_language
+            }).eq('id', messageId);
+          } catch (err) { console.error('Failed to save translation:', err); }
+        } else if (result?.same_language) {
+          try {
+            await (supabase as any).from('whatsapp_messages').update({
+              source_language: 'it'
+            }).eq('id', messageId);
+          } catch (err) { console.error('Failed to save source language:', err); }
         }
         setHasChecked(true);
         setIsLoading(false);
       });
-    }, [messageId, originalText, hasChecked]);
+    }, [messageId, originalText, hasChecked, savedTranslation, savedSourceLanguage]);
 
     if (!translation) {
       return (
