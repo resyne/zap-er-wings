@@ -110,6 +110,7 @@ export default function ScrapingPage() {
   const [replyToEmail, setReplyToEmail] = useState("info@abbattitorizapper.it");
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
+  const [previewEmail, setPreviewEmail] = useState<MissionResult | null>(null);
 
   const [activeTab, setActiveTab] = useState("agent");
 
