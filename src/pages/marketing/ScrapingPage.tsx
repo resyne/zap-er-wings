@@ -890,6 +890,23 @@ export default function ScrapingPage() {
             </div>
           )}
 
+          {(recoverProgress.running || recoverPaused) && (
+            <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2">
+                  {recoverProgress.running ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  ) : (
+                    <Pause className="h-4 w-4 text-amber-500" />
+                  )}
+                  {recoverProgress.running ? 'Recupero email dai siti web...' : 'Recupero in pausa'}
+                </span>
+                <span>{recoverProgress.processed}/{recoverProgress.total} ({recoverProgress.found} trovate)</span>
+              </div>
+              <Progress value={recoverProgress.total > 0 ? (recoverProgress.processed / recoverProgress.total) * 100 : 0} className="h-2" />
+            </div>
+          )}
+
           {loadingResults ? (
             <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
