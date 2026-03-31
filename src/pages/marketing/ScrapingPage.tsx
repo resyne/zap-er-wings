@@ -744,16 +744,29 @@ export default function ScrapingPage() {
                     <Input value={agentSenderCompany} onChange={(e) => setAgentSenderCompany(e.target.value)} placeholder="es: ZAPPER" className="mt-1" />
                   </div>
                 </div>
-                <div>
-                  <Label>Max risultati per città</Label>
-                  <Select value={String(agentMaxResults)} onValueChange={(v) => setAgentMaxResults(Number(v))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Paese</Label>
+                    <Select value={agentCountry} onValueChange={setAgentCountry}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {COUNTRY_OPTIONS.map(c => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Max risultati per città</Label>
+                    <Select value={String(agentMaxResults)} onValueChange={(v) => setAgentMaxResults(Number(v))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button onClick={launchAgent} disabled={launchingAgent} className="w-full" size="lg">
                   {launchingAgent ? (
