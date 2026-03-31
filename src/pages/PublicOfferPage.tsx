@@ -303,6 +303,7 @@ export default function PublicOfferPage() {
       let bankHolder = '';
       let bankName = '';
       let bankIban = '';
+      let bankExtra = '';
 
       if (template === 'vesuviano') {
         if (companyEntity === 'wise') {
