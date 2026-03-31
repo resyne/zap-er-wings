@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Upload, Users, Mail, Loader } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Trash2, Plus, Upload, Users, Mail, Loader, RefreshCw, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
@@ -26,6 +27,8 @@ interface EmailList {
   name: string;
   description?: string;
   contact_count?: number;
+  auto_sync_leads?: boolean;
+  auto_sync_customers?: boolean;
 }
 
 interface EmailListManagerProps {
