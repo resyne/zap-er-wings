@@ -731,7 +731,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
             <Label className="text-xs">Intestazione e Coordinate Bancarie</Label>
             <Select 
               value={newOffer.company_entity} 
-              onValueChange={(value: 'climatel' | 'unita1') => 
+              onValueChange={(value: 'climatel' | 'unita1' | 'wise') => 
                 setNewOffer({ ...newOffer, company_entity: value })
               }
             >
@@ -741,6 +741,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
               <SelectContent className="z-[100] bg-background">
                 <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
                 <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+                <SelectItem value="wise">WISE - Unita 1 di Stanislao Elefante</SelectItem>
               </SelectContent>
             </Select>
           </div>

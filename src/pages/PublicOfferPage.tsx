@@ -305,7 +305,12 @@ export default function PublicOfferPage() {
       let bankIban = '';
 
       if (template === 'vesuviano') {
-        if (companyEntity === 'unita1') {
+        if (companyEntity === 'wise') {
+          brandOwnershipText = 'Vesuviano Forni brand owned by UNITA 1 di Stanislao Elefante - P.IVA: IT02192040661 - C.F.: LFNSNS94E20G813Z - VIA PIAIA, 44 - 67034 PETTORANO SUL GIZIO (AQ) - IT - PEC: u1@pec.it';
+          bankHolder = 'Unita 1 di Stanislao Elefante';
+          bankName = 'Wise Payments Limited, Worship Square, 65 Clifton Street, London, EC2A 4JE, United Kingdom - BIC/SWIFT: TRWIGB2LXXX';
+          bankIban = 'GB61 TRWI 6084 6462 5318 58';
+        } else if (companyEntity === 'unita1') {
           brandOwnershipText = 'Vesuviano Forni brand owned by UNITA 1 di Stanislao Elefante - P.IVA: IT02192040661 - C.F.: LFNSNS94E20G813Z - VIA PIAIA, 44 - 67034 PETTORANO SUL GIZIO (AQ) - IT - PEC: u1@pec.it';
           bankHolder = 'UNITA 1 di Stanislao Elefante';
           bankName = 'INTESA SAN PAOLO BANK - BIC/SWIFT: BCITITMM';
