@@ -1316,6 +1316,33 @@ export default function ScrapingPage() {
                               <Label className="text-xs text-muted-foreground">Corpo</Label>
                               <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
                             </div>
+                            {/* Response tracking buttons */}
+                            {r.email_sent && r.response_status !== 'interested' && (
+                              <div className="flex items-center gap-2 pt-2 border-t">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => { setResponseDialogResult(r); setResponseType("email_reply"); setResponseNotes(""); }}
+                                >
+                                  <ThumbsUp className="h-3 w-3 mr-1" />Ha risposto / Interessato
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs text-muted-foreground"
+                                  onClick={() => markResponse(r.id, 'not_interested', 'none', '')}
+                                >
+                                  <ThumbsDown className="h-3 w-3 mr-1" />Non interessato
+                                </Button>
+                              </div>
+                            )}
+                            {r.response_status === 'interested' && r.response_notes && (
+                              <div className="text-xs text-muted-foreground pt-1 border-t">
+                                <span className="font-medium">Note:</span> {r.response_notes}
+                                {r.response_type && <span className="ml-2">({r.response_type === 'email_reply' ? '📧 Email' : r.response_type === 'phone_call' ? '📞 Telefono' : r.response_type === 'whatsapp' ? '💬 WhatsApp' : r.response_type})</span>}
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
