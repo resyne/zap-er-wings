@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
     if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured')
 
-    const { missionId, batchOffset = 0, batchSize = 5, emailOnly = false } = await req.json()
+    const { missionId, batchOffset = 0, batchSize = 5, emailOnly = false, background = false } = await req.json()
     if (!missionId) {
       return new Response(JSON.stringify({ error: 'missionId is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -263,6 +263,20 @@ Deno.serve(async (req) => {
         .eq('email_generated', false)
 
       remainingCount = count
+    }
+
+    // Get total results count for progress tracking
+    const { count: missionResults_count } = await supabase
+      .from('scraping_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('mission_id', missionId)
+
+    // Update status to running if background mode
+    if (background && results.length > 0) {
+      await supabase.from('scraping_missions').update({
+        email_generation_status: 'running',
+        email_generation_total: missionResults_count || 0,
+      }).eq('id', missionId)
     }
 
     console.log(`[ENRICH-EMAILS] Processing ${results.length} results for mission "${mission.name}"`)
@@ -431,7 +445,39 @@ Rispondi SOLO con JSON valido:
 
     const remaining = (remainingCount || 0) - results.length
 
+    // Update mission progress in DB
+    const totalGenerated = missionResults_count || 0
+    await supabase.from('scraping_missions').update({
+      email_generation_processed: totalGenerated - Math.max(0, remaining),
+      email_generation_total: totalGenerated,
+      email_generation_status: remaining <= 0 ? 'completed' : 'running',
+    }).eq('id', missionId)
+
     console.log(`[ENRICH-EMAILS] Batch done: ${successCount}/${results.length} emails generated, ${remaining} remaining`)
+
+    // If background mode and more to process, check if not paused then self-invoke
+    if (background && remaining > 0) {
+      // Re-check mission status to see if paused
+      const { data: missionCheck } = await supabase
+        .from('scraping_missions')
+        .select('email_generation_status')
+        .eq('id', missionId)
+        .single()
+
+      if (missionCheck?.email_generation_status !== 'paused') {
+        const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-and-generate-emails`
+        fetch(selfUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ missionId, batchSize: 10, emailOnly, background: true }),
+        }).catch(err => console.error('[ENRICH-EMAILS] Self-invoke error:', err))
+      } else {
+        console.log('[ENRICH-EMAILS] Generation paused by user, stopping self-invocation')
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
