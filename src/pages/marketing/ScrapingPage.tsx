@@ -300,6 +300,23 @@ export default function ScrapingPage() {
 
       if (error) throw error;
       setMissionResults((data as MissionResult[]) || []);
+
+      // Check if background generation is still running
+      const { data: missionStatus } = await supabase
+        .from('scraping_missions')
+        .select('email_generation_status, email_generation_processed, email_generation_total')
+        .eq('id', m.id)
+        .single();
+
+      if (missionStatus?.email_generation_status === 'running') {
+        setGeneratingMissionEmails(true);
+        setEmailGenProgress({
+          processed: missionStatus.email_generation_processed || 0,
+          total: missionStatus.email_generation_total || 0,
+          running: true,
+        });
+        pollEmailGenProgress(m.id);
+      }
     } catch (error) {
       console.error('Error fetching results:', error);
     } finally {
