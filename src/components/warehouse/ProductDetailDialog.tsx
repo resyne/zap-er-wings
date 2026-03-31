@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Box, MapPin, Euro, Layers, Calendar, Save, Loader2 } from "lucide-react";
+import { Box, MapPin, Euro, Layers, Calendar, Save, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,6 +28,10 @@ export function ProductDetailDialog({ open, onOpenChange, product, categories, s
   const [saving, setSaving] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>("");
   const [selectedSub, setSelectedSub] = useState<string>("");
+  const [movementMode, setMovementMode] = useState<"carico" | "scarico" | null>(null);
+  const [movementQty, setMovementQty] = useState("");
+  const [movementNotes, setMovementNotes] = useState("");
+  const [movementSaving, setMovementSaving] = useState(false);
 
   if (!product) return null;
 
@@ -72,9 +78,45 @@ export function ProductDetailDialog({ open, onOpenChange, product, categories, s
     queryClient.invalidateQueries({ queryKey: ["zapp-products"] });
   };
 
+  const handleMovement = async () => {
+    if (!movementMode || !movementQty || Number(movementQty) <= 0) return;
+    const qty = Number(movementQty);
+    if (movementMode === "scarico" && qty > product.current_stock) {
+      toast({ title: "Quantità insufficiente", variant: "destructive" });
+      return;
+    }
+    setMovementSaving(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Non autenticato");
+      const { error: movError } = await supabase.from("product_stock_movements").insert({
+        product_id: product.id,
+        movement_type: movementMode,
+        quantity: qty,
+        unit: product.unit_of_measure || "pz",
+        notes: movementNotes || null,
+        created_by: userData.user.id,
+      });
+      if (movError) throw movError;
+      const newStock = movementMode === "carico" ? product.current_stock + qty : product.current_stock - qty;
+      const { error: upErr } = await supabase.from("products").update({ current_stock: newStock }).eq("id", product.id);
+      if (upErr) throw upErr;
+      toast({ title: `${movementMode === "carico" ? "Carico" : "Scarico"} registrato` });
+      queryClient.invalidateQueries({ queryKey: ["zapp-products"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-product-movements"] });
+      setMovementMode(null);
+      setMovementQty("");
+      setMovementNotes("");
+    } catch (err: any) {
+      toast({ title: "Errore", description: err.message, variant: "destructive" });
+    } finally {
+      setMovementSaving(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Box className={`h-5 w-5 ${isOut ? "text-destructive" : isLow ? "text-amber-500" : "text-primary"}`} />
@@ -110,6 +152,68 @@ export function ProductDetailDialog({ open, onOpenChange, product, categories, s
               )}
             </div>
           </div>
+
+          {/* Quick movement buttons */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => { setMovementMode("carico"); setMovementQty(""); setMovementNotes(""); }}
+            >
+              <TrendingUp className="h-3.5 w-3.5 mr-1" /> Carico
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => { setMovementMode("scarico"); setMovementQty(""); setMovementNotes(""); }}
+            >
+              <TrendingDown className="h-3.5 w-3.5 mr-1" /> Scarico
+            </Button>
+          </div>
+
+          {/* Movement form */}
+          {movementMode && (
+            <div className="bg-muted/50 rounded-lg p-3 space-y-3 border border-border">
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                {movementMode === "carico" ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-red-600" />}
+                {movementMode === "carico" ? "Carico" : "Scarico"} - {product.name}
+              </p>
+              <div className="space-y-2">
+                <Label className="text-xs">Quantità ({product.unit_of_measure || "pz"})</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={movementQty}
+                  onChange={(e) => setMovementQty(e.target.value)}
+                  placeholder="Quantità..."
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Note (opzionale)</Label>
+                <Textarea
+                  value={movementNotes}
+                  onChange={(e) => setMovementNotes(e.target.value)}
+                  placeholder="Note..."
+                  className="min-h-[60px]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setMovementMode(null)} disabled={movementSaving}>
+                  Annulla
+                </Button>
+                <Button
+                  size="sm"
+                  className={`flex-1 ${movementMode === "carico" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"} text-white`}
+                  onClick={handleMovement}
+                  disabled={!movementQty || Number(movementQty) <= 0 || movementSaving}
+                >
+                  {movementSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Conferma
+                </Button>
+              </div>
+            </div>
+          )}
 
           <Separator />
 
