@@ -566,6 +566,9 @@ export default function ZAppMagazzino() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cerca materiale..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 rounded-xl bg-white" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setAddMaterialOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger className="w-[110px] rounded-xl bg-white">
                 <Filter className="h-3.5 w-3.5 mr-1" />
