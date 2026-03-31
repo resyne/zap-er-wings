@@ -1351,7 +1351,121 @@ export default function ScrapingPage() {
                 })()}
               </TabsContent>
 
-              <TabsContent value="template" className="mt-4">
+              <TabsContent value="kpi" className="space-y-4 mt-4">
+                {(() => {
+                  const sent = missionResults.filter(r => r.email_sent);
+                  const interested = missionResults.filter(r => r.response_status === 'interested');
+                  const notInterested = missionResults.filter(r => r.response_status === 'not_interested');
+                  const noResponse = sent.filter(r => !r.response_status || r.response_status === 'none');
+                  const responseRate = sent.length > 0 ? ((interested.length / sent.length) * 100).toFixed(1) : '0';
+
+                  return (
+                    <>
+                      {/* KPI Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{missionResults.length}</p>
+                            <p className="text-xs text-muted-foreground">Lead Totali</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{sent.length}</p>
+                            <p className="text-xs text-muted-foreground">Email Inviate</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="border-primary/50">
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold text-primary">{interested.length}</p>
+                            <p className="text-xs text-muted-foreground">🔥 Interessati</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{responseRate}%</p>
+                            <p className="text-xs text-muted-foreground">Tasso Risposta</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Funnel */}
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm">Funnel Missione</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Lead trovati</span>
+                            <Progress value={100} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{missionResults.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Email inviate</span>
+                            <Progress value={missionResults.length > 0 ? (sent.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{sent.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Interessati</span>
+                            <Progress value={missionResults.length > 0 ? (interested.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{interested.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Non interessati</span>
+                            <Progress value={missionResults.length > 0 ? (notInterested.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{notInterested.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Senza risposta</span>
+                            <Progress value={missionResults.length > 0 ? (noResponse.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{noResponse.length}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Interested list */}
+                      {interested.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">🔥 Interessati ({interested.length})</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Azienda</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Canale</TableHead>
+                                  <TableHead>Città</TableHead>
+                                  <TableHead>Note</TableHead>
+                                  <TableHead>Data</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {interested.map(r => (
+                                  <TableRow key={r.id}>
+                                    <TableCell className="font-medium">{r.recipient_company || r.title}</TableCell>
+                                    <TableCell className="text-sm">{r.contact_email}</TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="text-xs">
+                                        {r.response_type === 'email_reply' ? '📧 Email' : r.response_type === 'phone_call' ? '📞 Telefono' : r.response_type === 'whatsapp' ? '💬 WhatsApp' : r.response_type || '-'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm">{r.city}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.response_notes || '-'}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{r.response_date ? new Date(r.response_date).toLocaleDateString('it-IT') : '-'}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  );
+                })()}
+              </TabsContent>
+
                 <EmailTemplateEditor
                   htmlTemplate={htmlTemplate}
                   onTemplateChange={handleTemplateChange}
