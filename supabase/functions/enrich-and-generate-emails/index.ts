@@ -271,25 +271,18 @@ Deno.serve(async (req) => {
 
     for (const result of results) {
       try {
-        // 1. Fetch and analyze website
-        console.log(`[ENRICH-EMAILS] ${emailOnly ? '[EMAIL-ONLY]' : ''} Fetching website: ${result.url}`)
-        const websiteContent = await fetchWebsiteContent(result.url)
+        // 1. Fetch website + contact pages and extract emails
+        console.log(`[ENRICH-EMAILS] ${emailOnly ? '[EMAIL-ONLY]' : ''} Fetching website (multi-page): ${result.url}`)
+        const { emails: extractedEmails, textContent: websiteContent } = await fetchWebsiteEmails(result.url)
+        
+        console.log(`[ENRICH-EMAILS] Found ${extractedEmails.length} emails for "${result.title}": ${extractedEmails.slice(0, 3).join(', ')}`)
 
         if (emailOnly) {
-          // Email-only mode: just extract email from website, no AI call
-          let contactEmail: string | null = null
-          if (websiteContent) {
-            const emailMatch = websiteContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
-            if (emailMatch) {
-              const validEmails = emailMatch.filter((e: string) => 
-                !e.includes('example.') && !e.includes('sentry.') && !e.includes('wixpress.') && !e.includes('wordpress.')
-              )
-              contactEmail = validEmails[0] || null
-            }
-          }
+          // Email-only mode: use extracted emails, fallback to AI
+          let contactEmail: string | null = extractedEmails[0] || null
 
           if (!contactEmail && websiteContent) {
-            // Try AI extraction as fallback
+            // Try AI extraction as last resort
             const emailPrompt = `Analizza questo contenuto di un sito web e trova l'email di contatto dell'azienda (info@, contatti@, ecc.). Rispondi SOLO con l'email trovata oppure "null" se non trovata.\n\nContenuto:\n${websiteContent.slice(0, 2000)}`
             
             const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -324,7 +317,6 @@ Deno.serve(async (req) => {
             successCount++
             console.log(`[ENRICH-EMAILS] ✓ Email found for "${result.title}": ${contactEmail}`)
           } else {
-            // Mark as "not found" so we don't retry infinitely
             await supabase.from('scraping_results').update({
               contact_email: 'NOT_FOUND',
             }).eq('id', result.id)
@@ -346,6 +338,7 @@ INFORMAZIONI SUL DESTINATARIO:
 - Descrizione Google: ${result.description || 'Non disponibile'}
 - Città: ${result.city || 'Non specificata'}
 ${websiteContent ? `\nCONTENUTO DEL SITO WEB (analizzalo per personalizzare l'email):\n${websiteContent}` : '\n(Sito web non raggiungibile - usa le info dalla ricerca Google)'}
+${extractedEmails.length > 0 ? `\nEMAIL GIÀ TROVATE SUL SITO: ${extractedEmails.join(', ')}` : ''}
 
 MISSIONE/OBIETTIVO DELL'EMAIL: "${mission.mission_description}"
 
@@ -362,7 +355,7 @@ ISTRUZIONI IMPORTANTI:
 ISTRUZIONI PER L'ESTRAZIONE DEI DATI:
 - "recipientCompany": Cerca il NOME ESATTO dell'azienda dal sito (dal logo, titolo pagina, about, footer). NON usare la categoria/settore come nome azienda. Es: "Termoidraulica Rossi Srl", NON "Caldaie Industriali".
 - "recipientName": Se trovi il nome del titolare/responsabile sul sito, inseriscilo. Altrimenti null.
-- "contactEmail": Cerca email di contatto sul sito (info@, contatti@, etc.)
+- "contactEmail": Usa l'email migliore tra quelle già trovate, oppure null se nessuna disponibile.
 
 Rispondi SOLO con JSON valido:
 {
@@ -407,18 +400,8 @@ Rispondi SOLO con JSON valido:
         }
 
         if (emailData) {
-          // Also try to extract email from website content directly
-          let contactEmail = emailData.contactEmail || null
-          if (!contactEmail && websiteContent) {
-            const emailMatch = websiteContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g)
-            if (emailMatch) {
-              // Filter out common non-contact emails
-              const validEmails = emailMatch.filter((e: string) => 
-                !e.includes('example.') && !e.includes('sentry.') && !e.includes('wixpress.')
-              )
-              contactEmail = validEmails[0] || null
-            }
-          }
+          // Use extracted emails as primary source, AI suggestion as fallback
+          let contactEmail = extractedEmails[0] || emailData.contactEmail || null
 
           await supabase.from('scraping_results').update({
             generated_email_subject: emailData.subject,
@@ -430,9 +413,8 @@ Rispondi SOLO con JSON valido:
           }).eq('id', result.id)
 
           successCount++
-          console.log(`[ENRICH-EMAILS] ✓ Email generated for "${result.title}"`)
+          console.log(`[ENRICH-EMAILS] ✓ Email generated for "${result.title}" (contact: ${contactEmail || 'none'})`)
         } else {
-          // Mark as generated (failed) to avoid retrying
           await supabase.from('scraping_results').update({
             email_generated: true,
           }).eq('id', result.id)
