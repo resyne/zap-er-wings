@@ -10764,6 +10764,10 @@ export type Database = {
           position: number | null
           recipient_company: string | null
           recipient_name: string | null
+          response_date: string | null
+          response_notes: string | null
+          response_status: string | null
+          response_type: string | null
           title: string | null
           url: string | null
         }
@@ -10782,6 +10786,10 @@ export type Database = {
           position?: number | null
           recipient_company?: string | null
           recipient_name?: string | null
+          response_date?: string | null
+          response_notes?: string | null
+          response_status?: string | null
+          response_type?: string | null
           title?: string | null
           url?: string | null
         }
@@ -10800,6 +10808,10 @@ export type Database = {
           position?: number | null
           recipient_company?: string | null
           recipient_name?: string | null
+          response_date?: string | null
+          response_notes?: string | null
+          response_status?: string | null
+          response_type?: string | null
           title?: string | null
           url?: string | null
         }
