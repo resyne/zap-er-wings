@@ -721,6 +721,8 @@ export default function ScadenziarioPage() {
       await supabase.from("solleciti").delete().eq("scadenza_id", scadenzaId);
       // Delete related movimenti
       await supabase.from("scadenza_movimenti").delete().eq("scadenza_id", scadenzaId);
+      // Unlink from invoice_registry (nullify FK reference)
+      await supabase.from("invoice_registry").update({ scadenza_id: null } as any).eq("scadenza_id", scadenzaId);
       // Delete the scadenza
       const { error } = await supabase.from("scadenze").delete().eq("id", scadenzaId);
       if (error) throw error;
