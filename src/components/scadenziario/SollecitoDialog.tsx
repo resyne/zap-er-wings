@@ -385,6 +385,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                     <div className="flex items-center gap-1.5">
                       {s.email_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><Mail className="h-2.5 w-2.5" />Email</Badge>}
                       {s.whatsapp_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><MessageSquare className="h-2.5 w-2.5" />WA</Badge>}
+                      {(s as any).manual_record && <Badge variant="outline" className="text-[10px] gap-0.5"><History className="h-2.5 w-2.5" />Manuale</Badge>}
                     </div>
                   </div>
                 ))}
