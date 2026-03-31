@@ -180,6 +180,68 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
             </div>
           </div>
 
+          {/* Quick movement buttons */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => { setMovementMode("carico"); setMovementQty(""); setMovementNotes(""); }}
+            >
+              <TrendingUp className="h-3.5 w-3.5 mr-1" /> Carico
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => { setMovementMode("scarico"); setMovementQty(""); setMovementNotes(""); }}
+            >
+              <TrendingDown className="h-3.5 w-3.5 mr-1" /> Scarico
+            </Button>
+          </div>
+
+          {/* Movement form */}
+          {movementMode && (
+            <div className="bg-muted/50 rounded-lg p-3 space-y-3 border border-border">
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                {movementMode === "carico" ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-red-600" />}
+                {movementMode === "carico" ? "Carico" : "Scarico"} - {material.name}
+              </p>
+              <div className="space-y-2">
+                <Label className="text-xs">Quantità ({material.unit})</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={movementQty}
+                  onChange={(e) => setMovementQty(e.target.value)}
+                  placeholder="Quantità..."
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Note (opzionale)</Label>
+                <Textarea
+                  value={movementNotes}
+                  onChange={(e) => setMovementNotes(e.target.value)}
+                  placeholder="Note..."
+                  className="min-h-[60px]"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setMovementMode(null)} disabled={movementSaving}>
+                  Annulla
+                </Button>
+                <Button
+                  size="sm"
+                  className={`flex-1 ${movementMode === "carico" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"} text-white`}
+                  onClick={handleMovement}
+                  disabled={!movementQty || Number(movementQty) <= 0 || movementSaving}
+                >
+                  {movementSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Conferma
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           {/* Supplier */}
