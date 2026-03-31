@@ -49,15 +49,16 @@ export function AddMaterialDialog({ open, onOpenChange, suppliers, categories, s
   const filteredSubs = subcategories.filter(s => s.category_id === form.category_id);
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.code.trim()) {
-      toast({ title: "Nome e codice sono obbligatori", variant: "destructive" });
+    if (!form.name.trim()) {
+      toast({ title: "Il nome è obbligatorio", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
+      const autoCode = `MAT-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.from("materials").insert({
         name: form.name.trim(),
-        code: form.code.trim(),
+        code: autoCode,
         material_type: form.material_type,
         unit: form.unit,
         minimum_stock: Number(form.minimum_stock) || 0,
