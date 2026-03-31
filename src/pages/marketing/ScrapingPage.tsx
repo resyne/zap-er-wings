@@ -1551,6 +1551,51 @@ export default function ScrapingPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Response Dialog */}
+      <Dialog open={!!responseDialogResult} onOpenChange={(open) => !open && setResponseDialogResult(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Segna come interessato</DialogTitle>
+          </DialogHeader>
+          {responseDialogResult && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {responseDialogResult.recipient_company || responseDialogResult.title}
+              </p>
+              <div>
+                <Label className="text-xs">Come ti ha contattato?</Label>
+                <Select value={responseType} onValueChange={setResponseType}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email_reply">📧 Risposta Email</SelectItem>
+                    <SelectItem value="phone_call">📞 Telefonata</SelectItem>
+                    <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
+                    <SelectItem value="other">Altro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Note (opzionale)</Label>
+                <Textarea
+                  value={responseNotes}
+                  onChange={(e) => setResponseNotes(e.target.value)}
+                  placeholder="Es: Vuole un preventivo per..."
+                  className="mt-1 min-h-[80px]"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setResponseDialogResult(null)}>Annulla</Button>
+                <Button onClick={() => markResponse(responseDialogResult.id, 'interested', responseType, responseNotes)}>
+                  <ThumbsUp className="h-4 w-4 mr-1" />Conferma Interessato
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
