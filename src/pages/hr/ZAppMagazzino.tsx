@@ -21,6 +21,8 @@ import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { MaterialDetailDialog } from "@/components/warehouse/MaterialDetailDialog";
 import { ProductDetailDialog } from "@/components/warehouse/ProductDetailDialog";
+import { AddMaterialDialog } from "@/components/warehouse/AddMaterialDialog";
+import { AddProductDialog } from "@/components/warehouse/AddProductDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
