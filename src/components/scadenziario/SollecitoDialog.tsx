@@ -33,9 +33,8 @@ interface SollecitoDialogProps {
   scadenza: Scadenza | null;
 }
 
-const COORDINATE_BANCARIE = `Abbattitori Zapper S.r.l.
-IBAN: IT60 O030 6940 1041 0000 0010 388
-Banca Intesa Sanpaolo
+const COORDINATE_BANCARIE = `CLIMATEL di ELEFANTE PASQUALE
+IBAN: IT82 S030 6976 4511 0000 0003 441
 Causale: Pagamento fattura N. {INVOICE_NUMBER}`;
 
 const LIVELLO_LABELS: Record<number, { label: string; tono: string; color: string }> = {
