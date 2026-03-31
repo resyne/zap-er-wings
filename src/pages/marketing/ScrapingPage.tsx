@@ -189,6 +189,35 @@ export default function ScrapingPage() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
   const [previewEmail, setPreviewEmail] = useState<MissionResult | null>(null);
+  const [responseDialogResult, setResponseDialogResult] = useState<MissionResult | null>(null);
+  const [responseType, setResponseType] = useState("email_reply");
+  const [responseNotes, setResponseNotes] = useState("");
+
+  const markResponse = async (resultId: string, status: string, type: string, notes: string) => {
+    try {
+      const { error } = await supabase
+        .from('scraping_results')
+        .update({
+          response_status: status,
+          response_type: type,
+          response_date: new Date().toISOString(),
+          response_notes: notes || null,
+        })
+        .eq('id', resultId);
+      if (error) throw error;
+      setMissionResults(prev => prev.map(r =>
+        r.id === resultId
+          ? { ...r, response_status: status, response_type: type, response_date: new Date().toISOString(), response_notes: notes || null }
+          : r
+      ));
+      toast({ title: status === 'interested' ? "✅ Segnato come interessato!" : "Stato aggiornato" });
+      setResponseDialogResult(null);
+      setResponseNotes("");
+    } catch (err: any) {
+      toast({ title: "Errore", description: err.message, variant: "destructive" });
+    }
+  };
+
 
   const [activeTab, setActiveTab] = useState("agent");
 
