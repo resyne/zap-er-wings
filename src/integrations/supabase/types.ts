@@ -3918,6 +3918,8 @@ export type Database = {
       }
       email_lists: {
         Row: {
+          auto_sync_customers: boolean | null
+          auto_sync_leads: boolean | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -3926,6 +3928,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          auto_sync_customers?: boolean | null
+          auto_sync_leads?: boolean | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -3934,6 +3938,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          auto_sync_customers?: boolean | null
+          auto_sync_leads?: boolean | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
