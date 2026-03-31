@@ -717,7 +717,7 @@ export default function ScrapingPage() {
                   Nuova Missione Automatica
                 </CardTitle>
                 <CardDescription>
-                  L'agente eseguirà lo scraping per ~140 città italiane (50k+ abitanti)
+                  L'agente eseguirà lo scraping per le principali città del paese selezionato
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
