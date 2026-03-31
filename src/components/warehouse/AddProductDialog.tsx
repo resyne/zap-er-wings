@@ -51,15 +51,16 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
   const filteredSubs = subcategories.filter(s => s.category_id === form.category_id);
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.code.trim()) {
-      toast({ title: "Nome e codice sono obbligatori", variant: "destructive" });
+    if (!form.name.trim()) {
+      toast({ title: "Il nome è obbligatorio", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
+      const autoCode = `PROD-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.from("products").insert({
         name: form.name.trim(),
-        code: form.code.trim(),
+        code: autoCode,
         product_type: form.product_type,
         unit_of_measure: form.unit_of_measure,
         current_stock: Number(form.current_stock) || 0,
@@ -96,15 +97,9 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Nome *</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome prodotto" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Codice *</Label>
-              <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="PROD-001" className="h-9" />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Nome *</Label>
+            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome prodotto" className="h-9" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -201,7 +196,7 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>Annulla</Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving || !form.name.trim() || !form.code.trim()}>
+            <Button className="flex-1" onClick={handleSave} disabled={saving || !form.name.trim()}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Crea Prodotto
             </Button>
