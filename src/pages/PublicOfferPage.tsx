@@ -337,6 +337,7 @@ export default function PublicOfferPage() {
         .replace(/\{\{bank_holder\}\}/g, bankHolder)
         .replace(/\{\{bank_name\}\}/g, bankName)
         .replace(/\{\{bank_iban\}\}/g, bankIban)
+        .replace(/\{\{bank_extra\}\}/g, bankExtra)
         // Cliente placeholders (with and without dots)
         .replace(/\{\{cliente\.nome\}\}/g, offer.customers?.name || offer.customer_name || '')
         .replace(/\{\{cliente_nome\}\}/g, offer.customers?.name || offer.customer_name || '')
