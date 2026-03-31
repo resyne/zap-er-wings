@@ -42,6 +42,10 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>("");
+  const [movementMode, setMovementMode] = useState<"carico" | "scarico" | null>(null);
+  const [movementQty, setMovementQty] = useState("");
+  const [movementNotes, setMovementNotes] = useState("");
+  const [movementSaving, setMovementSaving] = useState(false);
   const [selectedSub, setSelectedSub] = useState<string>("");
 
   if (!material) return null;
