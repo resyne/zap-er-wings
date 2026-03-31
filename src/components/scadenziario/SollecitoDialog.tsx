@@ -168,6 +168,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
           inviato_da: user.id,
           email_sent: canale === "email" || canale === "entrambi",
           whatsapp_sent: canale === "whatsapp" || canale === "entrambi",
+          manual_record: canale === "manuale",
         } as any);
       if (insertError) throw insertError;
 
