@@ -51,15 +51,16 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
   const filteredSubs = subcategories.filter(s => s.category_id === form.category_id);
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.code.trim()) {
-      toast({ title: "Nome e codice sono obbligatori", variant: "destructive" });
+    if (!form.name.trim()) {
+      toast({ title: "Il nome è obbligatorio", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
+      const autoCode = `PROD-${Date.now().toString(36).toUpperCase()}`;
       const { error } = await supabase.from("products").insert({
         name: form.name.trim(),
-        code: form.code.trim(),
+        code: autoCode,
         product_type: form.product_type,
         unit_of_measure: form.unit_of_measure,
         current_stock: Number(form.current_stock) || 0,
