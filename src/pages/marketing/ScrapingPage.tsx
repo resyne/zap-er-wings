@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -106,6 +106,10 @@ export default function ScrapingPage() {
   const recoverPausedRef = useRef(false);
   const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
+  const [editingMission, setEditingMission] = useState(false);
+  const [editMissionDesc, setEditMissionDesc] = useState("");
+  const [editSenderName, setEditSenderName] = useState("");
+  const [editSenderCompany, setEditSenderCompany] = useState("");
 
   // Email template & sending state - persist to Supabase
   const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
@@ -902,7 +906,7 @@ export default function ScrapingPage() {
       </Tabs>
 
       {/* Mission Results Dialog */}
-      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) { setViewingMission(null); setGeneratingMissionEmails(false); emailGenPausedRef.current = true; setEmailGenPaused(false); } }}>
+      <Dialog open={!!viewingMission} onOpenChange={(open) => { if (!open) { setViewingMission(null); setGeneratingMissionEmails(false); emailGenPausedRef.current = true; setEmailGenPaused(false); setEditingMission(false); } }}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
@@ -913,6 +917,22 @@ export default function ScrapingPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Edit mission button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (viewingMission) {
+                      setEditMissionDesc(viewingMission.mission_description || '');
+                      setEditSenderName(viewingMission.sender_name || '');
+                      setEditSenderCompany(viewingMission.sender_company || '');
+                      setEditingMission(true);
+                    }
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-1" />Modifica Missione
+                </Button>
+
                 {/* Recover missing emails button */}
                 {recoverProgress.running ? (
                   <Button onClick={pauseRecover} variant="outline" size="sm">
@@ -946,6 +966,63 @@ export default function ScrapingPage() {
               </div>
             </DialogTitle>
           </DialogHeader>
+
+          {/* Edit mission panel */}
+          {editingMission && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <Pencil className="h-4 w-4" /> Modifica Missione
+              </h4>
+              <div>
+                <Label className="text-xs">Missione / Scopo email</Label>
+                <Textarea
+                  value={editMissionDesc}
+                  onChange={(e) => setEditMissionDesc(e.target.value)}
+                  className="mt-1 min-h-[100px]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Nome mittente</Label>
+                  <Input value={editSenderName} onChange={(e) => setEditSenderName(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">Azienda</Label>
+                  <Input value={editSenderCompany} onChange={(e) => setEditSenderCompany(e.target.value)} className="mt-1" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setEditingMission(false)}>Annulla</Button>
+                <Button size="sm" onClick={async () => {
+                  if (!viewingMission) return;
+                  try {
+                    const { error } = await supabase
+                      .from('scraping_missions')
+                      .update({
+                        mission_description: editMissionDesc,
+                        sender_name: editSenderName,
+                        sender_company: editSenderCompany,
+                      })
+                      .eq('id', viewingMission.id);
+                    if (error) throw error;
+                    setViewingMission({
+                      ...viewingMission,
+                      mission_description: editMissionDesc,
+                      sender_name: editSenderName,
+                      sender_company: editSenderCompany,
+                    });
+                    setEditingMission(false);
+                    fetchMissions();
+                    toast({ title: "Missione aggiornata!", description: "Le prossime email useranno il nuovo testo." });
+                  } catch (err: any) {
+                    toast({ title: "Errore", description: err.message, variant: "destructive" });
+                  }
+                }}>
+                  <Save className="h-4 w-4 mr-1" />Salva
+                </Button>
+              </div>
+            </div>
+          )}
 
           {(emailGenProgress.running || emailGenPaused) && (
             <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
