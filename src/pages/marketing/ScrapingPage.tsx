@@ -107,12 +107,40 @@ export default function ScrapingPage() {
   const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
 
-  // Email template & sending state - persist to localStorage
-  const [htmlTemplate, setHtmlTemplate] = useState(() => localStorage.getItem('scraping_email_template') || DEFAULT_TEMPLATE);
-  const [emailSenderEmail, setEmailSenderEmail] = useState(() => localStorage.getItem('scraping_sender_email') || "noreply@erp.abbattitorizapper.it");
-  const [emailSenderName, setEmailSenderName] = useState(() => localStorage.getItem('scraping_sender_name') || "ZAPPER Team");
-  const [replyToEmail, setReplyToEmail] = useState(() => localStorage.getItem('scraping_reply_to') || "info@abbattitorizapper.it");
+  // Email template & sending state - persist to Supabase
+  const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
+  const [emailSenderEmail, setEmailSenderEmail] = useState("noreply@erp.abbattitorizapper.it");
+  const [emailSenderName, setEmailSenderName] = useState("ZAPPER Team");
+  const [replyToEmail, setReplyToEmail] = useState("info@abbattitorizapper.it");
   const [templateUnsaved, setTemplateUnsaved] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Load email settings from database on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('scraping_email_settings')
+          .select('setting_key, setting_value');
+        if (error) throw error;
+        if (data) {
+          for (const row of data) {
+            switch (row.setting_key) {
+              case 'sender_email': if (row.setting_value) setEmailSenderEmail(row.setting_value); break;
+              case 'sender_name': if (row.setting_value) setEmailSenderName(row.setting_value); break;
+              case 'reply_to': if (row.setting_value) setReplyToEmail(row.setting_value); break;
+              case 'html_template': if (row.setting_value) setHtmlTemplate(row.setting_value); break;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading email settings:', err);
+      } finally {
+        setSettingsLoaded(true);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const handleTemplateChange = (val: string) => {
     setHtmlTemplate(val);
@@ -130,13 +158,25 @@ export default function ScrapingPage() {
     setReplyToEmail(val);
     setTemplateUnsaved(true);
   };
-  const saveTemplate = () => {
-    localStorage.setItem('scraping_email_template', htmlTemplate);
-    localStorage.setItem('scraping_sender_email', emailSenderEmail);
-    localStorage.setItem('scraping_sender_name', emailSenderName);
-    localStorage.setItem('scraping_reply_to', replyToEmail);
-    setTemplateUnsaved(false);
-    toast({ title: "Template salvato!" });
+  const saveTemplate = async () => {
+    try {
+      const settings = [
+        { setting_key: 'sender_email', setting_value: emailSenderEmail },
+        { setting_key: 'sender_name', setting_value: emailSenderName },
+        { setting_key: 'reply_to', setting_value: replyToEmail },
+        { setting_key: 'html_template', setting_value: htmlTemplate },
+      ];
+      for (const s of settings) {
+        await supabase
+          .from('scraping_email_settings')
+          .update({ setting_value: s.setting_value, updated_at: new Date().toISOString() })
+          .eq('setting_key', s.setting_key);
+      }
+      setTemplateUnsaved(false);
+      toast({ title: "Template salvato!" });
+    } catch (err: any) {
+      toast({ title: "Errore salvataggio", description: err.message, variant: "destructive" });
+    }
   };
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
