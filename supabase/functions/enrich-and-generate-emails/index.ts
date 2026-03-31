@@ -431,7 +431,28 @@ Rispondi SOLO con JSON valido:
 
     const remaining = (remainingCount || 0) - results.length
 
+    // Update mission progress in DB
+    const totalGenerated = missionResults_count || 0
+    await supabase.from('scraping_missions').update({
+      email_generation_processed: totalGenerated - Math.max(0, remaining),
+      email_generation_total: totalGenerated,
+      email_generation_status: remaining <= 0 ? 'completed' : 'running',
+    }).eq('id', missionId)
+
     console.log(`[ENRICH-EMAILS] Batch done: ${successCount}/${results.length} emails generated, ${remaining} remaining`)
+
+    // If background mode and more to process, self-invoke
+    if (background && remaining > 0) {
+      const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-and-generate-emails`
+      fetch(selfUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ missionId, batchSize: 10, emailOnly, background: true }),
+      }).catch(err => console.error('[ENRICH-EMAILS] Self-invoke error:', err))
+    }
 
     return new Response(JSON.stringify({
       success: true,
