@@ -191,7 +191,7 @@ const erpSections: SectionDoc[] = [
     pages: [
       { title: "Campagne", path: "/marketing/campaigns", icon: Target, description: "Creazione e gestione campagne marketing multicanale con obiettivi, budget e risultati." },
       { title: "Marketing Automation", path: "/marketing/automation", icon: Zap, description: "Automazioni WhatsApp e email basate su trigger, sequenze temporali e segmentazione lead." },
-      { title: "Email Marketing", path: "/marketing/email-marketing", icon: Mail, description: "Newsletter e campagne email con template editor, liste di distribuzione e statistiche invio." },
+      { title: "Newsletter", path: "/marketing/email-marketing", icon: Mail, description: "Newsletter e campagne email con template editor, liste di distribuzione e statistiche invio." },
       { title: "Content Creation", path: "/marketing/content-creation", icon: CheckSquare, description: "Creazione contenuti marketing con assistenza AI per testi, immagini e materiali promozionali." },
       { title: "Archivio Media", path: "/marketing/archive", icon: FileText, description: "Repository centralizzato per documenti, immagini, video e materiali marketing organizzati per categoria." },
       { title: "Brandkit", path: "/marketing/brandkit", icon: Palette, description: "Gestione identità visiva dei brand: loghi, colori, font, linee guida e asset grafici." },

@@ -222,7 +222,7 @@ const navigationGroups: NavGroup[] = [
       { title: "Cruscotto KPI", url: "/marketing/dashboard", icon: BarChart3 },
       
       { title: "Automation", url: "/marketing/automation", icon: Zap },
-      { title: "Email Marketing", url: "/marketing/email-marketing", icon: Mail },
+      { title: "Newsletter", url: "/marketing/email-marketing", icon: Mail },
       { title: "Content Creation", url: "/marketing/content-creation", icon: CheckSquare },
       { title: "Archivio documenti/media", url: "/marketing/archive", icon: FileText },
       { title: "Brandkit", url: "/marketing/brandkit", icon: Palette },
