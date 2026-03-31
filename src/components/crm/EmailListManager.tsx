@@ -464,9 +464,46 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                       <Mail className="h-4 w-4" />
                       {list.contact_count || 0} contatti
                     </span>
+                    {list.auto_sync_leads && (
+                      <Badge variant="outline" className="text-xs border-green-500/30 text-green-600">
+                        <Zap className="h-3 w-3 mr-1" />Auto-sync Lead
+                      </Badge>
+                    )}
+                    {list.auto_sync_customers && (
+                      <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-600">
+                        <Zap className="h-3 w-3 mr-1" />Auto-sync Clienti
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <div className="flex flex-col gap-1 mr-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={list.auto_sync_leads || false}
+                        onCheckedChange={(v) => toggleAutoSync(list.id, 'auto_sync_leads', v)}
+                        className="scale-75"
+                      />
+                      <span className="text-[10px] text-muted-foreground">Lead</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={list.auto_sync_customers || false}
+                        onCheckedChange={(v) => toggleAutoSync(list.id, 'auto_sync_customers', v)}
+                        className="scale-75"
+                      />
+                      <span className="text-[10px] text-muted-foreground">Clienti</span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => { e.stopPropagation(); syncExistingLeads(list.id); }}
+                    disabled={loading}
+                    title="Importa tutti i lead esistenti"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
