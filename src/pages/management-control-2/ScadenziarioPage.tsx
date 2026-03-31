@@ -89,6 +89,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
 import { LinkCustomerDialog } from "@/components/scadenziario/LinkCustomerDialog";
+import { AbbuonoDialog } from "@/components/scadenziario/AbbuonoDialog";
 
 // ── Types ──────────────────────────────────────────
 interface Scadenza {
