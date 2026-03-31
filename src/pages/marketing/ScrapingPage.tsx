@@ -1263,6 +1263,8 @@ export default function ScrapingPage() {
                                 <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
                                 <Badge variant="outline" className="text-xs">{r.city}</Badge>
                                 {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                                {r.response_status === 'interested' && <Badge className="bg-primary text-primary-foreground text-xs">🔥 Interessato</Badge>}
+                                {r.response_status === 'not_interested' && <Badge variant="secondary" className="text-xs">Non interessato</Badge>}
                                 {!hasValidEmail(r) && !r.email_sent && <Badge variant="destructive" className="text-xs">No email</Badge>}
                               </div>
                               <div className="flex items-center gap-1">
