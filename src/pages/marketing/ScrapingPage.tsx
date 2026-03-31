@@ -328,42 +328,60 @@ export default function ScrapingPage() {
     setEmailGenProgress({ processed: 0, total: totalToProcess, running: true });
 
     try {
-      let done = false;
-      let totalProcessed = 0;
+      // Trigger background processing
+      const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
+        body: { missionId: viewingMission.id, batchSize: 10, background: true },
+      });
 
-      while (!done && !emailGenPausedRef.current) {
-        const { data, error } = await supabase.functions.invoke('enrich-and-generate-emails', {
-          body: { missionId: viewingMission.id, batchSize: 10 },
-        });
+      if (error) throw error;
 
-        if (error) throw error;
+      toast({ title: "Generazione avviata!", description: "Le email vengono generate in background. Puoi chiudere questa pagina." });
 
-        totalProcessed += data.processed || 0;
-        done = data.done;
-        setEmailGenProgress({ processed: totalProcessed, total: totalToProcess, running: !done && !emailGenPausedRef.current });
-
-        // Refresh results to show new emails in real-time
-        await refreshMissionResults(viewingMission.id);
-
-        if (!done && !emailGenPausedRef.current) {
-          await new Promise(r => setTimeout(r, 500));
-        }
-      }
-
-      if (emailGenPausedRef.current) {
-        toast({ title: "In pausa", description: `${totalProcessed} email generate. Puoi riprendere quando vuoi.` });
-      } else {
-        toast({ title: "Email generate!", description: `${totalProcessed} email create con analisi del sito web` });
-      }
+      // Start polling for progress
+      pollEmailGenProgress(viewingMission.id);
     } catch (error: any) {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
-    } finally {
-      if (!emailGenPausedRef.current) {
-        setGeneratingMissionEmails(false);
-        setEmailGenProgress(prev => ({ ...prev, running: false }));
-      }
+      setGeneratingMissionEmails(false);
+      setEmailGenProgress(prev => ({ ...prev, running: false }));
     }
   };
+
+  const pollEmailGenProgress = useCallback(async (missionId: string) => {
+    const poll = async () => {
+      if (emailGenPausedRef.current) return;
+
+      const { data: missionData } = await supabase
+        .from('scraping_missions')
+        .select('email_generation_status, email_generation_processed, email_generation_total')
+        .eq('id', missionId)
+        .single();
+
+      if (!missionData) return;
+
+      const total = missionData.email_generation_total || 0;
+      const processed = missionData.email_generation_processed || 0;
+      const status = missionData.email_generation_status;
+
+      setEmailGenProgress({ processed, total, running: status === 'running' });
+
+      // Refresh results to show new emails
+      await refreshMissionResults(missionId);
+
+      if (status === 'completed' || status === 'idle') {
+        setGeneratingMissionEmails(false);
+        setEmailGenProgress(prev => ({ ...prev, running: false }));
+        if (status === 'completed') {
+          toast({ title: "Email generate!", description: `Tutte le email sono state create in background.` });
+        }
+        return;
+      }
+
+      // Continue polling
+      setTimeout(poll, 5000);
+    };
+
+    poll();
+  }, [refreshMissionResults, toast]);
 
   const pauseEmailGen = () => {
     emailGenPausedRef.current = true;
