@@ -21,6 +21,8 @@ import { InventoryLogDialog } from "@/components/warehouse/InventoryLogDialog";
 import { ProductMovementDialog } from "@/components/warehouse/ProductMovementDialog";
 import { MaterialDetailDialog } from "@/components/warehouse/MaterialDetailDialog";
 import { ProductDetailDialog } from "@/components/warehouse/ProductDetailDialog";
+import { AddMaterialDialog } from "@/components/warehouse/AddMaterialDialog";
+import { AddProductDialog } from "@/components/warehouse/AddProductDialog";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -210,6 +212,8 @@ export default function ZAppMagazzino() {
   const [expandedProductSubs, setExpandedProductSubs] = useState<Set<string>>(new Set());
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [addMaterialOpen, setAddMaterialOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
 
   // Fetch all suppliers for settings
   const { data: allSuppliers = [] } = useQuery({
@@ -562,6 +566,9 @@ export default function ZAppMagazzino() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cerca materiale..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 rounded-xl bg-white" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setAddMaterialOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger className="w-[110px] rounded-xl bg-white">
                 <Filter className="h-3.5 w-3.5 mr-1" />
@@ -678,6 +685,9 @@ export default function ZAppMagazzino() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-card" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setAddProductOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setProductSettingsOpen(true)}>
               <Settings className="h-4 w-4" />
             </Button>
@@ -878,6 +888,19 @@ export default function ZAppMagazzino() {
         open={!!selectedProduct}
         onOpenChange={(open) => !open && setSelectedProduct(null)}
         product={selectedProduct}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
+      <AddMaterialDialog
+        open={addMaterialOpen}
+        onOpenChange={setAddMaterialOpen}
+        suppliers={allSuppliers.map(s => ({ id: s.id, name: s.name }))}
+        categories={warehouseCategories}
+        subcategories={warehouseSubcategories as any}
+      />
+      <AddProductDialog
+        open={addProductOpen}
+        onOpenChange={setAddProductOpen}
         categories={productCategories}
         subcategories={productSubcategories}
       />
