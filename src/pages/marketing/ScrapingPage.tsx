@@ -1150,6 +1150,10 @@ export default function ScrapingPage() {
                 <TabsTrigger value="emails">
                   Email Generate ({missionResults.filter(r => r.generated_email_subject).length})
                 </TabsTrigger>
+                <TabsTrigger value="kpi" className="flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" />
+                  KPI ({missionResults.filter(r => r.response_status === 'interested').length} interessati)
+                </TabsTrigger>
                 <TabsTrigger value="template">Template HTML</TabsTrigger>
               </TabsList>
 
