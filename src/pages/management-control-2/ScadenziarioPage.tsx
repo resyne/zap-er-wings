@@ -1290,6 +1290,14 @@ export default function ScadenziarioPage() {
                                                                 </Badge>
                                                               </div>
                                                             )}
+                                                            {mov.metodo_pagamento === "abbuono" && (
+                                                              <div className="flex items-center gap-1 mt-0.5">
+                                                                <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] gap-1">
+                                                                  <Gift className="h-2.5 w-2.5" />
+                                                                  Abbuono — Nota credito da emettere
+                                                                </Badge>
+                                                              </div>
+                                                            )}
                                                           </div>
                                                         </div>
                                                         {mov.note && <span className="text-xs text-muted-foreground max-w-xs truncate">{mov.note}</span>}
