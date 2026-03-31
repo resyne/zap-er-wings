@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, History as HistoryIcon, CheckCircle2, XCircle, Clock, List, Settings as SettingsIcon, Rocket } from "lucide-react";
+import { Mail, History as HistoryIcon, CheckCircle2, XCircle, Clock, Users, Settings as SettingsIcon, Send, Plus, BarChart3, FileText, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { EmailListManager } from "@/components/crm/EmailListManager";
@@ -128,18 +128,11 @@ export default function NewsletterPage() {
         requestData.use_partners = false;
       }
 
-      console.log('Sending newsletter with data:', requestData);
-
       const { data: result, error } = await supabase.functions.invoke('queue-newsletter-emails', {
         body: requestData
       });
 
-      if (error) {
-        console.error('Function invocation error:', error);
-        throw error;
-      }
-
-      console.log('Newsletter queued:', result);
+      if (error) throw error;
 
       toast({
         title: "Newsletter in coda",
@@ -164,22 +157,28 @@ export default function NewsletterPage() {
     return new Date(dateString).toLocaleString('it-IT');
   };
 
-  const getStatusIcon = (successCount: number, failureCount: number, recipientsCount: number) => {
+  const getStatusBadge = (successCount: number, failureCount: number, recipientsCount: number) => {
     if (failureCount > 0) {
-      return <XCircle className="h-4 w-4 text-destructive" />;
-    } else if (successCount === recipientsCount) {
-      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      return <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" /> Errori</Badge>;
+    } else if (successCount === recipientsCount && recipientsCount > 0) {
+      return <Badge className="gap-1 bg-emerald-500/10 text-emerald-600 border-emerald-200 hover:bg-emerald-500/20"><CheckCircle2 className="h-3 w-3" /> Completato</Badge>;
     } else {
-      return <Clock className="h-4 w-4 text-yellow-600" />;
+      return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> In corso</Badge>;
     }
   };
 
+  // Stats
+  const totalSent = sentEmails.reduce((acc, e) => acc + e.success_count, 0);
+  const totalFailed = sentEmails.reduce((acc, e) => acc + e.failure_count, 0);
+  const totalCampaigns = sentEmails.length;
+  const totalContacts = emailLists.reduce((acc, l) => acc + l.contact_count, 0);
+
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header Section */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-primary/10 rounded-lg">
+    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 rounded-xl">
             <Mail className="h-6 w-6 text-primary" />
           </div>
           <div>
@@ -189,156 +188,181 @@ export default function NewsletterPage() {
             </p>
           </div>
         </div>
+        <Button 
+          onClick={() => setShowWizard(true)} 
+          size="lg"
+          className="gap-2 shadow-md"
+        >
+          <Plus className="h-4 w-4" />
+          Nuova Newsletter
+        </Button>
       </div>
 
-      <Tabs defaultValue="compose" className="space-y-6">
-        <div className="border-b">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-none lg:flex">
-            <TabsTrigger value="compose" className="flex items-center gap-2">
-              <Rocket className="h-4 w-4" />
-              <span className="hidden sm:inline">Componi</span>
-            </TabsTrigger>
-            <TabsTrigger value="automation" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Automation</span>
-            </TabsTrigger>
-            <TabsTrigger value="lists" className="flex items-center gap-2">
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Contatti</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <HistoryIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Cronologia</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Impostazioni</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* Compose Tab */}
-        <TabsContent value="compose" className="space-y-6">
-          {!showWizard ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Crea una nuova Newsletter</CardTitle>
-                <CardDescription>
-                  Avvia il processo guidato per creare e inviare una newsletter professionale
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setShowWizard(true)} size="lg" className="w-full sm:w-auto">
-                  <Rocket className="h-5 w-5 mr-2" />
-                  Inizia Processo Guidato
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div>
-              <div className="mb-4">
-                <Button variant="outline" onClick={() => setShowWizard(false)}>
-                  ← Annulla
-                </Button>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="border-none shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Send className="h-4 w-4 text-primary" />
               </div>
-              <NewsletterWizard
-                key={templateRefreshKey}
-                onSend={handleWizardSend}
-                emailLists={emailLists}
-              />
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Campagne</p>
+                <p className="text-xl font-bold text-foreground">{totalCampaigns}</p>
+              </div>
             </div>
-          )}
-        </TabsContent>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Email Inviate</p>
+                <p className="text-xl font-bold text-foreground">{totalSent.toLocaleString('it-IT')}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Users className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Contatti Totali</p>
+                <p className="text-xl font-bold text-foreground">{totalContacts.toLocaleString('it-IT')}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-sm bg-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <XCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Errori</p>
+                <p className="text-xl font-bold text-foreground">{totalFailed.toLocaleString('it-IT')}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Automation Tab */}
-        <TabsContent value="automation">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Automation</CardTitle>
-              <CardDescription>
-                Gestisci le tue automation di follow-up e monitora gli invii programmati
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AutomationManager />
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Wizard Overlay */}
+      {showWizard && (
+        <Card className="border-primary/20 shadow-lg">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-primary/10 rounded-lg">
+                  <Send className="h-4 w-4 text-primary" />
+                </div>
+                <CardTitle className="text-lg">Crea Newsletter</CardTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowWizard(false)}>
+                ✕
+              </Button>
+            </div>
+            <CardDescription>Segui il processo guidato per comporre e inviare la tua newsletter</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NewsletterWizard
+              key={templateRefreshKey}
+              onSend={handleWizardSend}
+              emailLists={emailLists}
+            />
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Lists Tab */}
-        <TabsContent value="lists" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestione Liste Contatti</CardTitle>
-              <CardDescription>
-                Crea e gestisci le tue liste personalizzate di contatti
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EmailListManager onListSelect={() => {}} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Tabs */}
+      <Tabs defaultValue="history" className="space-y-4">
+        <TabsList className="bg-muted/50 p-1 h-auto flex-wrap">
+          <TabsTrigger value="history" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <HistoryIcon className="h-4 w-4" />
+            Cronologia
+          </TabsTrigger>
+          <TabsTrigger value="lists" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Users className="h-4 w-4" />
+            Mailing List
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <FileText className="h-4 w-4" />
+            Template
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <Zap className="h-4 w-4" />
+            Automation
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <SettingsIcon className="h-4 w-4" />
+            Impostazioni
+          </TabsTrigger>
+        </TabsList>
 
         {/* History Tab */}
-        <TabsContent value="history" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HistoryIcon className="h-5 w-5" />
-                Cronologia Invii
-              </CardTitle>
-              <CardDescription>
-                Visualizza lo storico delle newsletter inviate
-              </CardDescription>
+        <TabsContent value="history">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Invii Recenti</CardTitle>
+                  <CardDescription>Le ultime newsletter inviate</CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs">{sentEmails.length} campagne</Badge>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingSentEmails ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <div className="flex items-center justify-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
                 </div>
               ) : sentEmails.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nessuna email inviata ancora
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="p-4 bg-muted/50 rounded-full mb-4">
+                    <Mail className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground font-medium">Nessuna newsletter inviata</p>
+                  <p className="text-sm text-muted-foreground mt-1">Crea la tua prima newsletter cliccando il pulsante in alto</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-6">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Stato</TableHead>
-                        <TableHead>Oggetto</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Destinatari</TableHead>
-                        <TableHead>Inviate</TableHead>
-                        <TableHead>Fallite</TableHead>
-                        <TableHead>Data</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Stato</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Oggetto</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Tipo</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-center">Destinatari</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-center">Inviate</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-center">Fallite</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Data</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sentEmails.map((email) => (
-                        <TableRow key={email.id}>
+                        <TableRow key={email.id} className="group">
                           <TableCell>
-                            {getStatusIcon(
-                              email.success_count,
-                              email.failure_count,
-                              email.recipients_count
-                            )}
+                            {getStatusBadge(email.success_count, email.failure_count, email.recipients_count)}
                           </TableCell>
-                          <TableCell className="font-medium max-w-xs truncate">
-                            {email.subject}
-                          </TableCell>
+                          <TableCell className="font-medium max-w-xs truncate">{email.subject}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{email.campaign_type}</Badge>
+                            <Badge variant="outline" className="text-xs font-normal">{email.campaign_type}</Badge>
                           </TableCell>
-                          <TableCell>{email.recipients_count}</TableCell>
-                          <TableCell>
-                            <span className="text-green-600">{email.success_count}</span>
+                          <TableCell className="text-center font-medium">{email.recipients_count}</TableCell>
+                          <TableCell className="text-center">
+                            <span className="text-emerald-600 font-medium">{email.success_count}</span>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-destructive">{email.failure_count}</span>
+                          <TableCell className="text-center">
+                            <span className="text-destructive font-medium">{email.failure_count}</span>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                             {formatDate(email.sent_at || email.created_at)}
                           </TableCell>
                         </TableRow>
@@ -351,14 +375,30 @@ export default function NewsletterPage() {
           </Card>
         </TabsContent>
 
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Template Newsletter</CardTitle>
-              <CardDescription>
-                Crea e gestisci i template per le tue newsletter
-              </CardDescription>
+        {/* Mailing Lists Tab */}
+        <TabsContent value="lists">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Mailing List</CardTitle>
+                  <CardDescription>Gestisci le tue liste di distribuzione per le newsletter</CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs">{emailLists.length} liste · {totalContacts} contatti</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <EmailListManager onListSelect={() => {}} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Templates Tab */}
+        <TabsContent value="templates">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Template Newsletter</CardTitle>
+              <CardDescription>Crea e personalizza i template per le tue newsletter</CardDescription>
             </CardHeader>
             <CardContent>
               <NewsletterTemplateManager 
@@ -366,13 +406,27 @@ export default function NewsletterPage() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Mittente</CardTitle>
-              <CardDescription>
-                Gestisci le email mittente verificate
-              </CardDescription>
+        {/* Automation Tab */}
+        <TabsContent value="automation">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Email Automation</CardTitle>
+              <CardDescription>Configura invii automatici e follow-up programmati</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AutomationManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4">
+          <Card className="border-none shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Email Mittente</CardTitle>
+              <CardDescription>Gestisci gli indirizzi email verificati per l'invio</CardDescription>
             </CardHeader>
             <CardContent>
               <SenderEmailManager onEmailSelect={() => {}} />
