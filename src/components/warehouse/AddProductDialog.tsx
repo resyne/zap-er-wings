@@ -196,7 +196,7 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={saving}>Annulla</Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving || !form.name.trim() || !form.code.trim()}>
+            <Button className="flex-1" onClick={handleSave} disabled={saving || !form.name.trim()}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Crea Prodotto
             </Button>
