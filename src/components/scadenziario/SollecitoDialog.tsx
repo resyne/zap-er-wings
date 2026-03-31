@@ -327,6 +327,11 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="manuale">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4" /> Manuale (telefonata, di persona, ecc.)
+                  </div>
+                </SelectItem>
                 <SelectItem value="email">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4" /> Email
