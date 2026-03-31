@@ -301,9 +301,10 @@ export default function ScrapingPage() {
         console.error('First batch error:', error);
       }
 
+      const countryLabel = COUNTRY_OPTIONS.find(c => c.value === agentCountry)?.label || agentCountry;
       toast({
         title: "Agente avviato!",
-        description: `Lo scraping procede in batch automatici su ~140 città italiane`,
+        description: `Lo scraping procede in batch automatici sulle città di: ${countryLabel}`,
       });
 
       // Reset form
