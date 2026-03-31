@@ -219,6 +219,24 @@ export default function ScrapingPage() {
     }
   };
 
+const COUNTRY_OPTIONS = [
+  { value: 'it', label: '🇮🇹 Italia', lang: 'it' },
+  { value: 'es', label: '🇪🇸 Spagna', lang: 'es' },
+  { value: 'fr', label: '🇫🇷 Francia', lang: 'fr' },
+  { value: 'de', label: '🇩🇪 Germania', lang: 'de' },
+  { value: 'gb', label: '🇬🇧 Regno Unito', lang: 'en' },
+  { value: 'pt', label: '🇵🇹 Portogallo', lang: 'pt' },
+  { value: 'nl', label: '🇳🇱 Paesi Bassi', lang: 'nl' },
+  { value: 'be', label: '🇧🇪 Belgio', lang: 'fr' },
+  { value: 'at', label: '🇦🇹 Austria', lang: 'de' },
+  { value: 'ch', label: '🇨🇭 Svizzera', lang: 'de' },
+  { value: 'pl', label: '🇵🇱 Polonia', lang: 'pl' },
+  { value: 'us', label: '🇺🇸 USA', lang: 'en' },
+  { value: 'gr', label: '🇬🇷 Grecia', lang: 'el' },
+  { value: 'ro', label: '🇷🇴 Romania', lang: 'ro' },
+  { value: 'hr', label: '🇭🇷 Croazia', lang: 'hr' },
+  { value: 'se', label: '🇸🇪 Svezia', lang: 'sv' },
+];
 
   const [activeTab, setActiveTab] = useState("agent");
 
