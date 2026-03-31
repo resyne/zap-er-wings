@@ -195,6 +195,8 @@ export default function ScadenziarioPage() {
   const [sollecitoScadenza, setSollecitoScadenza] = useState<Scadenza | null>(null);
   const [linkCustomerOpen, setLinkCustomerOpen] = useState(false);
   const [linkCustomerScadenza, setLinkCustomerScadenza] = useState<Scadenza | null>(null);
+  const [abbuonoOpen, setAbbuonoOpen] = useState(false);
+  const [abbuonoScadenza, setAbbuonoScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
