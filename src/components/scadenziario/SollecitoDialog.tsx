@@ -215,7 +215,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
         } catch (e) {
           console.warn("WhatsApp sollecito non inviato:", e);
         }
-      }
+      } // end canale !== "manuale"
     },
     onSuccess: () => {
       toast.success(`${LIVELLO_LABELS[nextLivello].label} inviato con successo`);
