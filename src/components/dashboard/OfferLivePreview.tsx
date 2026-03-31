@@ -20,7 +20,7 @@ interface OfferLivePreviewProps {
   description: string;
   template: 'zapper' | 'vesuviano' | 'zapperpro';
   language: 'it' | 'en' | 'fr' | 'es';
-  companyEntity: 'climatel' | 'unita1';
+  companyEntity: 'climatel' | 'unita1' | 'wise';
   validUntil: string;
   products: OfferProduct[];
   timelineProduzione: string;
@@ -46,6 +46,11 @@ const companyInfo = {
   },
   unita1: {
     name: "UNITA 1 di Stanislao Elefante",
+    piva: "IT02192040661",
+    address: "VIA PIAIA 44, 67034 Pettorano sul Gizio (AQ)"
+  },
+  wise: {
+    name: "Unita 1 di Stanislao Elefante",
     piva: "IT02192040661",
     address: "VIA PIAIA 44, 67034 Pettorano sul Gizio (AQ)"
   }

@@ -544,9 +544,26 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
             <Text style={styles.paymentInfo}>{paymentAgreementText}</Text>
             <View style={styles.bankBox}>
               <Text style={styles.bankTitle}>Coordinate Bancarie:</Text>
-              <Text style={styles.bankCompany}>CLIMATEL DI ELEFANTE PASQUALE</Text>
-              <Text>Banca: INTESA SANPAOLO</Text>
-              <Text style={styles.bankIban}>IBAN: IT82 S030 6976 4511 0000 0003 441</Text>
+              {(offer as any).company_entity === 'wise' ? (
+                <>
+                  <Text style={styles.bankCompany}>Unita 1 di Stanislao Elefante</Text>
+                  <Text>Banca: Wise Payments Limited, London, UK</Text>
+                  <Text style={styles.bankIban}>IBAN: GB61 TRWI 6084 6462 5318 58</Text>
+                  <Text>BIC/SWIFT: TRWIGB2LXXX</Text>
+                </>
+              ) : (offer as any).company_entity === 'unita1' ? (
+                <>
+                  <Text style={styles.bankCompany}>UNITA 1 di Stanislao Elefante</Text>
+                  <Text>Banca: INTESA SAN PAOLO BANK - BIC/SWIFT: BCITITMM</Text>
+                  <Text style={styles.bankIban}>IBAN: IT12P0306976451100000003224</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.bankCompany}>CLIMATEL DI ELEFANTE PASQUALE</Text>
+                  <Text>Banca: INTESA SANPAOLO</Text>
+                  <Text style={styles.bankIban}>IBAN: IT82 S030 6976 4511 0000 0003 441</Text>
+                </>
+              )}
             </View>
           </View>
 

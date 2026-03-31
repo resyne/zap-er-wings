@@ -150,7 +150,7 @@ export default function OffersPage() {
     payment_agreement?: string;
     vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
     currency?: string;
-    company_entity?: 'climatel' | 'unita1';
+    company_entity?: 'climatel' | 'unita1' | 'wise';
     lead_id?: string;
     customer_name_fallback?: string;
   }>({
@@ -1845,11 +1845,12 @@ export default function OffersPage() {
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Intestazione e Coordinate Bancarie</label>
-                              <Select value={newOffer.company_entity || 'climatel'} onValueChange={(value: 'climatel' | 'unita1') => setNewOffer(prev => ({ ...prev, company_entity: value }))}>
+                              <Select value={newOffer.company_entity || 'climatel'} onValueChange={(value: 'climatel' | 'unita1' | 'wise') => setNewOffer(prev => ({ ...prev, company_entity: value }))}>
                               <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                               <SelectContent className="z-[100] bg-background">
                                 <SelectItem value="climatel">CLIMATEL di Elefante Pasquale</SelectItem>
                                 <SelectItem value="unita1">UNITA 1 di Stanislao Elefante</SelectItem>
+                                <SelectItem value="wise">WISE - Unita 1 di Stanislao Elefante</SelectItem>
                               </SelectContent>
                             </Select>
                             </div>
