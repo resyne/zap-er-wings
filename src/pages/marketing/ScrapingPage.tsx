@@ -391,7 +391,16 @@ export default function ScrapingPage() {
 
   const resumeEmailGen = () => {
     setEmailGenPaused(false);
-    generateMissionEmails();
+    emailGenPausedRef.current = false;
+    if (viewingMission) {
+      // Re-trigger background processing
+      supabase.functions.invoke('enrich-and-generate-emails', {
+        body: { missionId: viewingMission.id, batchSize: 10, background: true },
+      });
+      setGeneratingMissionEmails(true);
+      setEmailGenProgress(prev => ({ ...prev, running: true }));
+      pollEmailGenProgress(viewingMission.id);
+    }
   };
 
   const recoverMissingEmails = async () => {
