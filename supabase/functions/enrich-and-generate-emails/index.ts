@@ -472,7 +472,7 @@ Rispondi SOLO con JSON valido:
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
           },
-          body: JSON.stringify({ missionId, batchSize: 10, emailOnly, background: true }),
+          body: JSON.stringify({ missionId, batchSize: 3, emailOnly, background: true }),
         }).catch(err => console.error('[ENRICH-EMAILS] Self-invoke error:', err))
       } else {
         console.log('[ENRICH-EMAILS] Generation paused by user, stopping self-invocation')
