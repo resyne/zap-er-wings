@@ -1265,10 +1265,12 @@ export default function ScadenziarioPage() {
                                                   if (item.type === "payment") {
                                                     const mov = item.data;
                                                     return (
-                                                      <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 border-amber-200" : "bg-background")}>
+                                                      <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "abbuono" ? "bg-purple-50/50 border-purple-200" : mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 border-amber-200" : "bg-background")}>
                                                         <div className="flex items-center gap-2.5">
-                                                          <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                            {mov.metodo_pagamento === "assegno"
+                                                          <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "abbuono" ? "bg-purple-100" : mov.metodo_pagamento === "assegno" ? "bg-amber-100" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                            {mov.metodo_pagamento === "abbuono"
+                                                              ? <Gift className="h-3.5 w-3.5 text-purple-700" />
+                                                              : mov.metodo_pagamento === "assegno"
                                                               ? <Receipt className="h-3.5 w-3.5 text-amber-700" />
                                                               : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
                                                             }
