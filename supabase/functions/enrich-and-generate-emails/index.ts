@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
     if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured')
 
-    const { missionId, batchOffset = 0, batchSize = 5, emailOnly = false } = await req.json()
+    const { missionId, batchOffset = 0, batchSize = 5, emailOnly = false, background = false } = await req.json()
     if (!missionId) {
       return new Response(JSON.stringify({ error: 'missionId is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
