@@ -1,41 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0'
+import { CITIES_BY_COUNTRY } from './cities.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Italian cities with 50k+ inhabitants
-const ITALIAN_CITIES_50K = [
-  'Roma', 'Milano', 'Napoli', 'Torino', 'Palermo', 'Genova', 'Bologna', 'Firenze',
-  'Bari', 'Catania', 'Venezia', 'Verona', 'Messina', 'Padova', 'Trieste', 'Taranto',
-  'Brescia', 'Parma', 'Prato', 'Modena', 'Reggio Calabria', 'Reggio Emilia',
-  'Perugia', 'Ravenna', 'Livorno', 'Cagliari', 'Foggia', 'Rimini', 'Salerno',
-  'Ferrara', 'Sassari', 'Latina', 'Giugliano in Campania', 'Monza', 'Siracusa',
-  'Pescara', 'Bergamo', 'Forlì', 'Trento', 'Vicenza', 'Terni', 'Bolzano',
-  'Novara', 'Piacenza', 'Ancona', 'Andria', 'Arezzo', 'Udine', 'Cesena',
-  'Lecce', 'Pesaro', 'Alessandria', 'La Spezia', 'Pistoia', 'Catanzaro',
-  'Lucca', 'Torre del Greco', 'Brindisi', 'Como', 'Busto Arsizio', 'Marsala',
-  'Altamura', 'Sesto San Giovanni', 'Pozzuoli', 'Guidonia Montecelio',
-  'Quartu Sant\'Elena', 'Castellammare di Stabia', 'Lamezia Terme', 'Ragusa',
-  'Cosenza', 'Massa', 'Trapani', 'Crotone', 'Potenza', 'Fiumicino',
-  'Cinisello Balsamo', 'Carrara', 'Vittoria', 'Aprilia', 'Manfredonia',
-  'Vigevano', 'Legnano', 'Matera', 'Caserta', 'Asti', 'Moncalieri',
-  'Acerra', 'Afragola', 'Aversa', 'Portici', 'San Severo', 'Cerignola',
-  'Casoria', 'Caltanissetta', 'Treviso', 'Bagheria', 'Gela', 'Carpi',
-  'Imola', 'Mazara del Vallo', 'Cava de\' Tirreni', 'Barletta', 'Olbia',
-  'Acireale', 'Molfetta', 'Bitonto', 'San Benedetto del Tronto',
-  'Ercolano', 'Scafati', 'Gallarate', 'Faenza', 'Marano di Napoli',
-  'Velletri', 'Viterbo', 'Savona', 'Agrigento', 'Corigliano-Rossano',
-  'Collegno', 'Sanremo', 'Benevento', 'Avellino', 'Lodi', 'Trani',
-  'Teramo', 'Chieti', 'Rovigo', 'Grosseto', 'Siena', 'Varese',
-  'Cremona', 'Pavia', 'Mantova', 'Lecco', 'Campobasso', 'Vercelli',
-  'Enna', 'Nuoro', 'Oristano', 'Biella', 'Verbania', 'Belluno',
-  'Pordenone', 'Gorizia', 'Aosta', 'Rieti', 'Frosinone', 'Isernia',
-  'Sondrio', 'Imperia'
-]
-
-const BATCH_SIZE = 1 // cities per invocation - keep low due to Apify sync timeout
+const BATCH_SIZE = 1
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -72,7 +43,6 @@ Deno.serve(async (req) => {
       throw new Error('Mission not found')
     }
 
-    // If mission is already completed or failed, skip
     if (mission.status === 'completed' || mission.status === 'failed') {
       return new Response(JSON.stringify({ 
         success: true, 
@@ -83,12 +53,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const cities = ITALIAN_CITIES_50K
+    const countryCode = mission.country_code || 'it'
+    const cities = CITIES_BY_COUNTRY[countryCode] || CITIES_BY_COUNTRY['it']
     const totalCities = cities.length
     const completedSoFar = mission.completed_cities || 0
     const totalResultsSoFar = mission.total_results || 0
 
-    // First call: set total_cities and status
     if (mission.status === 'pending') {
       await supabase.from('scraping_missions').update({
         status: 'running',
@@ -96,13 +66,11 @@ Deno.serve(async (req) => {
       }).eq('id', missionId)
     }
 
-    // Determine which cities to process in this batch
     const startIndex = completedSoFar
     const endIndex = Math.min(startIndex + BATCH_SIZE, totalCities)
     const batch = cities.slice(startIndex, endIndex)
 
     if (batch.length === 0) {
-      // All cities done
       await supabase.from('scraping_missions').update({
         status: 'completed',
       }).eq('id', missionId)
@@ -118,7 +86,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log(`[SCRAPING-AGENT] Mission "${mission.name}" batch: cities ${startIndex+1}-${endIndex}/${totalCities}`)
+    console.log(`[SCRAPING-AGENT] Mission "${mission.name}" batch: cities ${startIndex+1}-${endIndex}/${totalCities} (country: ${countryCode})`)
 
     let batchResults = 0
 
@@ -136,7 +104,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               queries: searchQuery,
               languageCode: mission.language_code || 'it',
-              countryCode: mission.country_code || 'it',
+              countryCode: countryCode,
               maxPagesPerQuery: 1,
               resultsPerPage: mission.max_results_per_city || 20,
               mobileResults: false,
@@ -196,7 +164,6 @@ Deno.serve(async (req) => {
     const newTotalResults = totalResultsSoFar + batchResults
     const hasMore = newCompleted < totalCities
 
-    // Update progress
     await supabase.from('scraping_missions').update({
       completed_cities: newCompleted,
       total_results: newTotalResults,

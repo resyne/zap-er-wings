@@ -95,6 +95,7 @@ export default function ScrapingPage() {
   const [agentSenderName, setAgentSenderName] = useState("");
   const [agentSenderCompany, setAgentSenderCompany] = useState("");
   const [agentMaxResults, setAgentMaxResults] = useState(20);
+  const [agentCountry, setAgentCountry] = useState("it");
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(false);
   const [launchingAgent, setLaunchingAgent] = useState(false);
@@ -218,6 +219,24 @@ export default function ScrapingPage() {
     }
   };
 
+const COUNTRY_OPTIONS = [
+  { value: 'it', label: '🇮🇹 Italia', lang: 'it' },
+  { value: 'es', label: '🇪🇸 Spagna', lang: 'es' },
+  { value: 'fr', label: '🇫🇷 Francia', lang: 'fr' },
+  { value: 'de', label: '🇩🇪 Germania', lang: 'de' },
+  { value: 'gb', label: '🇬🇧 Regno Unito', lang: 'en' },
+  { value: 'pt', label: '🇵🇹 Portogallo', lang: 'pt' },
+  { value: 'nl', label: '🇳🇱 Paesi Bassi', lang: 'nl' },
+  { value: 'be', label: '🇧🇪 Belgio', lang: 'fr' },
+  { value: 'at', label: '🇦🇹 Austria', lang: 'de' },
+  { value: 'ch', label: '🇨🇭 Svizzera', lang: 'de' },
+  { value: 'pl', label: '🇵🇱 Polonia', lang: 'pl' },
+  { value: 'us', label: '🇺🇸 USA', lang: 'en' },
+  { value: 'gr', label: '🇬🇷 Grecia', lang: 'el' },
+  { value: 'ro', label: '🇷🇴 Romania', lang: 'ro' },
+  { value: 'hr', label: '🇭🇷 Croazia', lang: 'hr' },
+  { value: 'se', label: '🇸🇪 Svezia', lang: 'sv' },
+];
 
   const [activeTab, setActiveTab] = useState("agent");
 
@@ -282,6 +301,8 @@ export default function ScrapingPage() {
           sender_name: agentSenderName,
           sender_company: agentSenderCompany,
           max_results_per_city: agentMaxResults,
+          country_code: agentCountry,
+          language_code: COUNTRY_OPTIONS.find(c => c.value === agentCountry)?.lang || 'it',
           status: 'pending',
         })
         .select()
@@ -298,9 +319,10 @@ export default function ScrapingPage() {
         console.error('First batch error:', error);
       }
 
+      const countryLabel = COUNTRY_OPTIONS.find(c => c.value === agentCountry)?.label || agentCountry;
       toast({
         title: "Agente avviato!",
-        description: `Lo scraping procede in batch automatici su ~140 città italiane`,
+        description: `Lo scraping procede in batch automatici sulle città di: ${countryLabel}`,
       });
 
       // Reset form
@@ -713,7 +735,7 @@ export default function ScrapingPage() {
                   Nuova Missione Automatica
                 </CardTitle>
                 <CardDescription>
-                  L'agente eseguirà lo scraping per ~140 città italiane (50k+ abitanti)
+                  L'agente eseguirà lo scraping per le principali città del paese selezionato
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -740,16 +762,29 @@ export default function ScrapingPage() {
                     <Input value={agentSenderCompany} onChange={(e) => setAgentSenderCompany(e.target.value)} placeholder="es: ZAPPER" className="mt-1" />
                   </div>
                 </div>
-                <div>
-                  <Label>Max risultati per città</Label>
-                  <Select value={String(agentMaxResults)} onValueChange={(v) => setAgentMaxResults(Number(v))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Paese</Label>
+                    <Select value={agentCountry} onValueChange={setAgentCountry}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {COUNTRY_OPTIONS.map(c => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Max risultati per città</Label>
+                    <Select value={String(agentMaxResults)} onValueChange={(v) => setAgentMaxResults(Number(v))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button onClick={launchAgent} disabled={launchingAgent} className="w-full" size="lg">
                   {launchingAgent ? (
@@ -772,7 +807,7 @@ export default function ScrapingPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">2</span></div>
-                  <p>L'agente cerca automaticamente "{agentQuery || 'query'} + [città]" per tutte le ~140 città italiane con 50k+ abitanti</p>
+                  <p>L'agente cerca automaticamente "{agentQuery || 'query'} + [città]" per le principali città del paese selezionato</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">3</span></div>
