@@ -46,6 +46,9 @@ interface Mission {
   completed_cities: number;
   total_results: number;
   created_at: string;
+  country_code: string;
+  language_code: string;
+  max_results_per_city: number;
 }
 
 interface MissionResult {
