@@ -678,6 +678,20 @@ export default function LeadsPage() {
 
       if (error) throw error;
 
+      // Sincronizza anagrafica cliente collegata
+      if (selectedLead.customer_id) {
+        await supabase
+          .from("customers")
+          .update({
+            company_name: newLead.company_name,
+            email: newLead.email || null,
+            phone: newLead.phone || null,
+            city: newLead.city || null,
+            country: newLead.country || "Italia",
+          })
+          .eq("id", selectedLead.customer_id);
+      }
+
       // Se c'è una nuova prossima attività o è stata modificata, aggiornala anche in lead_activities
       if (newLead.next_activity_type && newLead.next_activity_date) {
         // Controlla se esiste già un'attività per questo lead
