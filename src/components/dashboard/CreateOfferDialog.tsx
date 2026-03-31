@@ -130,7 +130,7 @@ export function CreateOfferDialog({ open, onOpenChange, onSuccess, defaultStatus
     payment_method: '',
     payment_agreement: '',
     vat_regime: 'standard' as 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario',
-    company_entity: 'climatel' as 'climatel' | 'unita1'
+    company_entity: 'climatel' as 'climatel' | 'unita1' | 'wise'
   });
 
   // Calculate total from products
