@@ -789,7 +789,7 @@ export default function ScrapingPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">2</span></div>
-                  <p>L'agente cerca automaticamente "{agentQuery || 'query'} + [città]" per tutte le ~140 città italiane con 50k+ abitanti</p>
+                  <p>L'agente cerca automaticamente "{agentQuery || 'query'} + [città]" per le principali città del paese selezionato</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 mt-0.5"><span className="text-primary font-bold text-xs">3</span></div>
