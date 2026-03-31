@@ -62,6 +62,10 @@ interface MissionResult {
   email_generated: boolean;
   email_sent: boolean;
   contact_email: string | null;
+  response_status: string | null;
+  response_type: string | null;
+  response_date: string | null;
+  response_notes: string | null;
 }
 
 export default function ScrapingPage() {
