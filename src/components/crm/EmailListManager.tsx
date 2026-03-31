@@ -67,6 +67,8 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
           id,
           name,
           description,
+          auto_sync_leads,
+          auto_sync_customers,
           email_list_contacts(count)
         `)
         .order('created_at', { ascending: false });
@@ -86,6 +88,77 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
         description: "Impossibile caricare le liste email",
         variant: "destructive",
       });
+    }
+  };
+
+  const toggleAutoSync = async (listId: string, field: 'auto_sync_leads' | 'auto_sync_customers', value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('email_lists')
+        .update({ [field]: value } as any)
+        .eq('id', listId);
+      if (error) throw error;
+      fetchEmailLists();
+      toast({ title: "Aggiornato", description: `Auto-sync ${field === 'auto_sync_leads' ? 'lead' : 'clienti'} ${value ? 'attivato' : 'disattivato'}` });
+    } catch (error) {
+      toast({ title: "Errore", description: "Impossibile aggiornare", variant: "destructive" });
+    }
+  };
+
+  const syncExistingLeads = async (listId: string) => {
+    try {
+      setLoading(true);
+      // Fetch all leads with email
+      let allLeads: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('email, contact_name, company_name')
+          .not('email', 'is', null)
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allLeads = [...allLeads, ...data];
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+
+      const contacts = allLeads
+        .filter(l => l.email?.trim())
+        .map(l => ({
+          email_list_id: listId,
+          email: l.email.trim(),
+          first_name: l.contact_name || null,
+          company: l.company_name || null,
+        }));
+
+      // Deduplicate
+      const unique = contacts.filter((c, i, self) => 
+        i === self.findIndex(x => x.email.toLowerCase() === c.email.toLowerCase())
+      );
+
+      if (unique.length === 0) {
+        toast({ title: "Info", description: "Nessun lead con email trovato" });
+        return;
+      }
+
+      // Upsert in batches
+      for (let i = 0; i < unique.length; i += 500) {
+        const batch = unique.slice(i, i + 500);
+        const { error } = await supabase
+          .from('email_list_contacts')
+          .upsert(batch, { onConflict: 'email_list_id,email' });
+        if (error) throw error;
+      }
+
+      fetchEmailLists();
+      toast({ title: "Sincronizzazione completata", description: `${unique.length} contatti lead importati nella lista` });
+    } catch (error: any) {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
