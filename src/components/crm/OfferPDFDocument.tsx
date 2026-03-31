@@ -549,6 +549,7 @@ export const OfferPDFDocument = ({ offer, customer, items, user }: OfferPDFDocum
                   <Text style={styles.bankCompany}>Unita 1 di Stanislao Elefante</Text>
                   <Text>Banca: Wise Payments Limited, London, UK</Text>
                   <Text style={styles.bankIban}>IBAN: GB61 TRWI 6084 6462 5318 58</Text>
+                  <Text>Account number: 62531858 — Sort code: 60-84-64</Text>
                   <Text>BIC/SWIFT: TRWIGB2LXXX</Text>
                 </>
               ) : (offer as any).company_entity === 'unita1' ? (
