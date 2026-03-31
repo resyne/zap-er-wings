@@ -212,6 +212,8 @@ export default function ZAppMagazzino() {
   const [expandedProductSubs, setExpandedProductSubs] = useState<Set<string>>(new Set());
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [addMaterialOpen, setAddMaterialOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
 
   // Fetch all suppliers for settings
   const { data: allSuppliers = [] } = useQuery({
