@@ -891,6 +891,19 @@ export default function ZAppMagazzino() {
         categories={productCategories}
         subcategories={productSubcategories}
       />
+      <AddMaterialDialog
+        open={addMaterialOpen}
+        onOpenChange={setAddMaterialOpen}
+        suppliers={allSuppliers.map(s => ({ id: s.id, name: s.name }))}
+        categories={warehouseCategories}
+        subcategories={warehouseSubcategories as any}
+      />
+      <AddProductDialog
+        open={addProductOpen}
+        onOpenChange={setAddProductOpen}
+        categories={productCategories}
+        subcategories={productSubcategories}
+      />
     </div>
   );
 }
