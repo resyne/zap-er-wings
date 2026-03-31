@@ -95,6 +95,7 @@ export default function ScrapingPage() {
   const [agentSenderName, setAgentSenderName] = useState("");
   const [agentSenderCompany, setAgentSenderCompany] = useState("");
   const [agentMaxResults, setAgentMaxResults] = useState(20);
+  const [agentCountry, setAgentCountry] = useState("it");
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(false);
   const [launchingAgent, setLaunchingAgent] = useState(false);
