@@ -10685,6 +10685,9 @@ export type Database = {
           country_code: string | null
           created_at: string
           created_by: string | null
+          email_generation_processed: number | null
+          email_generation_status: string | null
+          email_generation_total: number | null
           email_language: string | null
           id: string
           language_code: string | null
@@ -10704,6 +10707,9 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           created_by?: string | null
+          email_generation_processed?: number | null
+          email_generation_status?: string | null
+          email_generation_total?: number | null
           email_language?: string | null
           id?: string
           language_code?: string | null
@@ -10723,6 +10729,9 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           created_by?: string | null
+          email_generation_processed?: number | null
+          email_generation_status?: string | null
+          email_generation_total?: number | null
           email_language?: string | null
           id?: string
           language_code?: string | null
