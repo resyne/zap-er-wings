@@ -168,6 +168,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
           inviato_da: user.id,
           email_sent: canale === "email" || canale === "entrambi",
           whatsapp_sent: canale === "whatsapp" || canale === "entrambi",
+          manual_record: canale === "manuale",
         } as any);
       if (insertError) throw insertError;
 
@@ -180,38 +181,40 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
         } as any)
         .eq("id", scadenza.id);
 
-      // Try to send email if applicable
-      const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
-      if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
-        try {
-          await supabase.functions.invoke("send-sollecito-email", {
-            body: {
-              recipient_email: sollecitoEmail,
-              subject: `Sollecito pagamento fattura ${scadenza.invoice_number || ""}`,
-              message: messaggio,
-              livello: nextLivello,
-              soggetto_nome: scadenza.soggetto_nome,
-            },
-          });
-        } catch (e) {
-          console.warn("Email sollecito non inviata:", e);
+      if (canale !== "manuale") {
+        // Try to send email if applicable
+        const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
+        if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
+          try {
+            await supabase.functions.invoke("send-sollecito-email", {
+              body: {
+                recipient_email: sollecitoEmail,
+                subject: `Sollecito pagamento fattura ${scadenza.invoice_number || ""}`,
+                message: messaggio,
+                livello: nextLivello,
+                soggetto_nome: scadenza.soggetto_nome,
+              },
+            });
+          } catch (e) {
+            console.warn("Email sollecito non inviata:", e);
+          }
         }
-      }
 
-      // Try WhatsApp if applicable
-      const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone;
-      if ((canale === "whatsapp" || canale === "entrambi") && sollecitoPhone) {
-        try {
-          await supabase.functions.invoke("send-whatsapp-sollecito", {
-            body: {
-              phone: sollecitoPhone,
-              message: messaggio,
-              livello: nextLivello,
-              soggetto_nome: scadenza.soggetto_nome,
-            },
-          });
-        } catch (e) {
-          console.warn("WhatsApp sollecito non inviato:", e);
+        // Try WhatsApp if applicable
+        const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone;
+        if ((canale === "whatsapp" || canale === "entrambi") && sollecitoPhone) {
+          try {
+            await supabase.functions.invoke("send-whatsapp-sollecito", {
+              body: {
+                phone: sollecitoPhone,
+                message: messaggio,
+                livello: nextLivello,
+                soggetto_nome: scadenza.soggetto_nome,
+              },
+            });
+          } catch (e) {
+            console.warn("WhatsApp sollecito non inviato:", e);
+          }
         }
       }
     },
@@ -327,6 +330,11 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="manuale">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4" /> Manuale (telefonata, di persona, ecc.)
+                  </div>
+                </SelectItem>
                 <SelectItem value="email">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4" /> Email
@@ -378,6 +386,7 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
                     <div className="flex items-center gap-1.5">
                       {s.email_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><Mail className="h-2.5 w-2.5" />Email</Badge>}
                       {s.whatsapp_sent && <Badge variant="outline" className="text-[10px] gap-0.5"><MessageSquare className="h-2.5 w-2.5" />WA</Badge>}
+                      {(s as any).manual_record && <Badge variant="outline" className="text-[10px] gap-0.5"><History className="h-2.5 w-2.5" />Manuale</Badge>}
                     </div>
                   </div>
                 ))}
