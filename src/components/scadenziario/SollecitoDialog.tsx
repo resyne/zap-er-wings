@@ -184,38 +184,39 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
       if (canale !== "manuale") {
         // Try to send email if applicable
         const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
-      if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
-        try {
-          await supabase.functions.invoke("send-sollecito-email", {
-            body: {
-              recipient_email: sollecitoEmail,
-              subject: `Sollecito pagamento fattura ${scadenza.invoice_number || ""}`,
-              message: messaggio,
-              livello: nextLivello,
-              soggetto_nome: scadenza.soggetto_nome,
-            },
-          });
-        } catch (e) {
-          console.warn("Email sollecito non inviata:", e);
+        if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
+          try {
+            await supabase.functions.invoke("send-sollecito-email", {
+              body: {
+                recipient_email: sollecitoEmail,
+                subject: `Sollecito pagamento fattura ${scadenza.invoice_number || ""}`,
+                message: messaggio,
+                livello: nextLivello,
+                soggetto_nome: scadenza.soggetto_nome,
+              },
+            });
+          } catch (e) {
+            console.warn("Email sollecito non inviata:", e);
+          }
+        }
+
+        // Try WhatsApp if applicable
+        const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone;
+        if ((canale === "whatsapp" || canale === "entrambi") && sollecitoPhone) {
+          try {
+            await supabase.functions.invoke("send-whatsapp-sollecito", {
+              body: {
+                phone: sollecitoPhone,
+                message: messaggio,
+                livello: nextLivello,
+                soggetto_nome: scadenza.soggetto_nome,
+              },
+            });
+          } catch (e) {
+            console.warn("WhatsApp sollecito non inviato:", e);
+          }
         }
       }
-
-      // Try WhatsApp if applicable
-      const sollecitoPhone = (customerInfo as any)?.contact_phone || customerInfo?.phone;
-      if ((canale === "whatsapp" || canale === "entrambi") && sollecitoPhone) {
-        try {
-          await supabase.functions.invoke("send-whatsapp-sollecito", {
-            body: {
-              phone: sollecitoPhone,
-              message: messaggio,
-              livello: nextLivello,
-              soggetto_nome: scadenza.soggetto_nome,
-            },
-          });
-        } catch (e) {
-          console.warn("WhatsApp sollecito non inviato:", e);
-        }
-      } // end canale !== "manuale"
     },
     onSuccess: () => {
       toast.success(`${LIVELLO_LABELS[nextLivello].label} inviato con successo`);
