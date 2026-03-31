@@ -181,8 +181,9 @@ export function SollecitoDialog({ open, onOpenChange, scadenza }: SollecitoDialo
         } as any)
         .eq("id", scadenza.id);
 
-      // Try to send email if applicable
-      const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
+      if (canale !== "manuale") {
+        // Try to send email if applicable
+        const sollecitoEmail = (customerInfo as any)?.contact_email || customerInfo?.email;
       if ((canale === "email" || canale === "entrambi") && sollecitoEmail) {
         try {
           await supabase.functions.invoke("send-sollecito-email", {
