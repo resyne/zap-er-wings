@@ -455,17 +455,28 @@ Rispondi SOLO con JSON valido:
 
     console.log(`[ENRICH-EMAILS] Batch done: ${successCount}/${results.length} emails generated, ${remaining} remaining`)
 
-    // If background mode and more to process, self-invoke
+    // If background mode and more to process, check if not paused then self-invoke
     if (background && remaining > 0) {
-      const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-and-generate-emails`
-      fetch(selfUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ missionId, batchSize: 10, emailOnly, background: true }),
-      }).catch(err => console.error('[ENRICH-EMAILS] Self-invoke error:', err))
+      // Re-check mission status to see if paused
+      const { data: missionCheck } = await supabase
+        .from('scraping_missions')
+        .select('email_generation_status')
+        .eq('id', missionId)
+        .single()
+
+      if (missionCheck?.email_generation_status !== 'paused') {
+        const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/enrich-and-generate-emails`
+        fetch(selfUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ missionId, batchSize: 10, emailOnly, background: true }),
+        }).catch(err => console.error('[ENRICH-EMAILS] Self-invoke error:', err))
+      } else {
+        console.log('[ENRICH-EMAILS] Generation paused by user, stopping self-invocation')
+      }
     }
 
     return new Response(JSON.stringify({
