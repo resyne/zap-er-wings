@@ -850,11 +850,24 @@ const COUNTRY_OPTIONS = [
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold">{m.name}</h4>
                           {getStatusBadge(m.status)}
+                          {m.country_code && (
+                            <span className="text-xs text-muted-foreground">
+                              {COUNTRY_OPTIONS.find(c => c.value === m.country_code)?.label || m.country_code}
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">Query: "{m.query}"</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(m.created_at).toLocaleString('it-IT')}
-                        </p>
+                        {m.mission_description && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            <span className="font-medium">Missione:</span> {m.mission_description.length > 100 ? m.mission_description.substring(0, 100) + '...' : m.mission_description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{new Date(m.created_at).toLocaleString('it-IT')}</span>
+                          {m.sender_name && <span>• Mittente: {m.sender_name}</span>}
+                          {m.sender_company && <span>• Azienda: {m.sender_company}</span>}
+                          {m.max_results_per_city && <span>• Max {m.max_results_per_city}/città</span>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right text-sm">
