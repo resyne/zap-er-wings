@@ -1629,6 +1629,13 @@ export default function ScadenziarioPage() {
         onOpenChange={setLinkCustomerOpen}
         scadenza={linkCustomerScadenza}
       />
+
+      {/* Abbuono Dialog */}
+      <AbbuonoDialog
+        open={abbuonoOpen}
+        onOpenChange={setAbbuonoOpen}
+        scadenza={abbuonoScadenza}
+      />
     </div>
   );
 }
