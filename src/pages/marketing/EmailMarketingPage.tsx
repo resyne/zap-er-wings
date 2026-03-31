@@ -183,9 +183,9 @@ export default function NewsletterPage() {
             <Mail className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Email Marketing</h1>
+            <h1 className="text-2xl font-bold text-foreground">Newsletter</h1>
             <p className="text-sm text-muted-foreground">
-              Gestisci e invia newsletter ai tuoi contatti
+              Crea mailing list e invia newsletter con i tuoi template
             </p>
           </div>
         </div>
