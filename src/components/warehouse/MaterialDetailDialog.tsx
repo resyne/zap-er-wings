@@ -99,6 +99,46 @@ export function MaterialDetailDialog({ open, onOpenChange, material, warehouseCa
     queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
   };
 
+  const handleMovement = async () => {
+    if (!movementMode || !movementQty || Number(movementQty) <= 0) return;
+    const qty = Number(movementQty);
+    if (movementMode === "scarico" && qty > material.current_stock) {
+      toast({ title: "Quantità insufficiente", variant: "destructive" });
+      return;
+    }
+    setMovementSaving(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Non autenticato");
+      const { error: movError } = await supabase.from("stock_movements").insert({
+        material_id: material.id,
+        item_description: material.name,
+        movement_type: movementMode,
+        quantity: qty,
+        unit: material.unit,
+        origin_type: "manuale",
+        status: "confermato",
+        notes: movementNotes || null,
+        created_by: userData.user.id,
+        supplier_id: material.supplier_id || null,
+      });
+      if (movError) throw movError;
+      const newStock = movementMode === "carico" ? material.current_stock + qty : material.current_stock - qty;
+      const { error: upErr } = await supabase.from("materials").update({ current_stock: newStock }).eq("id", material.id);
+      if (upErr) throw upErr;
+      toast({ title: `${movementMode === "carico" ? "Carico" : "Scarico"} registrato` });
+      queryClient.invalidateQueries({ queryKey: ["zapp-materials"] });
+      queryClient.invalidateQueries({ queryKey: ["zapp-movements"] });
+      setMovementMode(null);
+      setMovementQty("");
+      setMovementNotes("");
+    } catch (err: any) {
+      toast({ title: "Errore", description: err.message, variant: "destructive" });
+    } finally {
+      setMovementSaving(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
