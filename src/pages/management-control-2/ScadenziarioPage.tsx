@@ -85,6 +85,7 @@ import {
   CalendarDays,
   Mail,
   MessageSquare,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
