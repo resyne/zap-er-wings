@@ -150,7 +150,7 @@ export default function OffersPage() {
     payment_agreement?: string;
     vat_regime: 'standard' | 'reverse_charge' | 'intra_ue' | 'extra_ue' | 'forfetario';
     currency?: string;
-    company_entity?: 'climatel' | 'unita1';
+    company_entity?: 'climatel' | 'unita1' | 'wise';
     lead_id?: string;
     customer_name_fallback?: string;
   }>({
