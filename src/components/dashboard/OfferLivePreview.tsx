@@ -20,7 +20,7 @@ interface OfferLivePreviewProps {
   description: string;
   template: 'zapper' | 'vesuviano' | 'zapperpro';
   language: 'it' | 'en' | 'fr' | 'es';
-  companyEntity: 'climatel' | 'unita1';
+  companyEntity: 'climatel' | 'unita1' | 'wise';
   validUntil: string;
   products: OfferProduct[];
   timelineProduzione: string;
