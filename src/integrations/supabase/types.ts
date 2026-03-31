@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      abbuoni: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          importo: number
+          motivo: string | null
+          nota_credito_emessa: boolean | null
+          nota_credito_id: string | null
+          scadenza_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          importo: number
+          motivo?: string | null
+          nota_credito_emessa?: boolean | null
+          nota_credito_id?: string | null
+          scadenza_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          importo?: number
+          motivo?: string | null
+          nota_credito_emessa?: boolean | null
+          nota_credito_id?: string | null
+          scadenza_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "abbuoni_nota_credito_id_fkey"
+            columns: ["nota_credito_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abbuoni_scadenza_id_fkey"
+            columns: ["scadenza_id"]
+            isOneToOne: false
+            referencedRelation: "scadenze"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_documents: {
         Row: {
           accounting_entry_id: string | null

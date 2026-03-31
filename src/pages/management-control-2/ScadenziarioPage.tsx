@@ -85,10 +85,12 @@ import {
   CalendarDays,
   Mail,
   MessageSquare,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SollecitoDialog } from "@/components/scadenziario/SollecitoDialog";
 import { LinkCustomerDialog } from "@/components/scadenziario/LinkCustomerDialog";
+import { AbbuonoDialog } from "@/components/scadenziario/AbbuonoDialog";
 
 // ── Types ──────────────────────────────────────────
 interface Scadenza {
@@ -194,6 +196,8 @@ export default function ScadenziarioPage() {
   const [sollecitoScadenza, setSollecitoScadenza] = useState<Scadenza | null>(null);
   const [linkCustomerOpen, setLinkCustomerOpen] = useState(false);
   const [linkCustomerScadenza, setLinkCustomerScadenza] = useState<Scadenza | null>(null);
+  const [abbuonoOpen, setAbbuonoOpen] = useState(false);
+  const [abbuonoScadenza, setAbbuonoScadenza] = useState<Scadenza | null>(null);
 
   // Invoice preview dialog
   const [invoicePreviewOpen, setInvoicePreviewOpen] = useState(false);
@@ -1208,6 +1212,11 @@ export default function ScadenziarioPage() {
                                                 ) : null}
                                               </Button>
                                             )}
+                                            <Button size="sm" variant="outline" onClick={() => { setAbbuonoScadenza(scadenza); setAbbuonoOpen(true); }}
+                                              className="gap-1 h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50">
+                                              <Gift className="h-3 w-3" />
+                                              Abbuona
+                                            </Button>
                                           </>
                                         )}
                                         <Button size="sm" variant="ghost" onClick={(e) => {
@@ -1256,10 +1265,12 @@ export default function ScadenziarioPage() {
                                                   if (item.type === "payment") {
                                                     const mov = item.data;
                                                     return (
-                                                      <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 border-amber-200" : "bg-background")}>
+                                                      <div key={mov.id} className={cn("flex items-center justify-between p-2.5 rounded-md border text-sm", mov.metodo_pagamento === "abbuono" ? "bg-purple-50/50 border-purple-200" : mov.metodo_pagamento === "assegno" ? "bg-amber-50/50 border-amber-200" : "bg-background")}>
                                                         <div className="flex items-center gap-2.5">
-                                                          <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "assegno" ? "bg-amber-100" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
-                                                            {mov.metodo_pagamento === "assegno"
+                                                          <div className={cn("p-1.5 rounded-full", mov.metodo_pagamento === "abbuono" ? "bg-purple-100" : mov.metodo_pagamento === "assegno" ? "bg-amber-100" : scadenza.tipo === "credito" ? "bg-emerald-100" : "bg-red-100")}>
+                                                            {mov.metodo_pagamento === "abbuono"
+                                                              ? <Gift className="h-3.5 w-3.5 text-purple-700" />
+                                                              : mov.metodo_pagamento === "assegno"
                                                               ? <Receipt className="h-3.5 w-3.5 text-amber-700" />
                                                               : <CreditCard className={cn("h-3.5 w-3.5", scadenza.tipo === "credito" ? "text-emerald-700" : "text-red-700")} />
                                                             }
@@ -1276,6 +1287,14 @@ export default function ScadenziarioPage() {
                                                                   <Clock className="h-2.5 w-2.5" />
                                                                   Assegno scade: {format(parseISO(mov.check_due_date), "dd/MM/yyyy")}
                                                                   {mov.check_number && ` (N. ${mov.check_number})`}
+                                                                </Badge>
+                                                              </div>
+                                                            )}
+                                                            {mov.metodo_pagamento === "abbuono" && (
+                                                              <div className="flex items-center gap-1 mt-0.5">
+                                                                <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] gap-1">
+                                                                  <Gift className="h-2.5 w-2.5" />
+                                                                  Abbuono — Nota credito da emettere
                                                                 </Badge>
                                                               </div>
                                                             )}
@@ -1619,6 +1638,13 @@ export default function ScadenziarioPage() {
         open={linkCustomerOpen}
         onOpenChange={setLinkCustomerOpen}
         scadenza={linkCustomerScadenza}
+      />
+
+      {/* Abbuono Dialog */}
+      <AbbuonoDialog
+        open={abbuonoOpen}
+        onOpenChange={setAbbuonoOpen}
+        scadenza={abbuonoScadenza}
       />
     </div>
   );
