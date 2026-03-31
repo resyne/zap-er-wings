@@ -1211,6 +1211,11 @@ export default function ScadenziarioPage() {
                                                 ) : null}
                                               </Button>
                                             )}
+                                            <Button size="sm" variant="outline" onClick={() => { setAbbuonoScadenza(scadenza); setAbbuonoOpen(true); }}
+                                              className="gap-1 h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50">
+                                              <Gift className="h-3 w-3" />
+                                              Abbuona
+                                            </Button>
                                           </>
                                         )}
                                         <Button size="sm" variant="ghost" onClick={(e) => {
