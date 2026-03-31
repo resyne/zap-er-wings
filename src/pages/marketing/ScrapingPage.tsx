@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save, Phone, MessageSquare, ThumbsUp, ThumbsDown, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -62,6 +62,10 @@ interface MissionResult {
   email_generated: boolean;
   email_sent: boolean;
   contact_email: string | null;
+  response_status: string | null;
+  response_type: string | null;
+  response_date: string | null;
+  response_notes: string | null;
 }
 
 export default function ScrapingPage() {
@@ -185,6 +189,35 @@ export default function ScrapingPage() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
   const [previewEmail, setPreviewEmail] = useState<MissionResult | null>(null);
+  const [responseDialogResult, setResponseDialogResult] = useState<MissionResult | null>(null);
+  const [responseType, setResponseType] = useState("email_reply");
+  const [responseNotes, setResponseNotes] = useState("");
+
+  const markResponse = async (resultId: string, status: string, type: string, notes: string) => {
+    try {
+      const { error } = await supabase
+        .from('scraping_results')
+        .update({
+          response_status: status,
+          response_type: type,
+          response_date: new Date().toISOString(),
+          response_notes: notes || null,
+        })
+        .eq('id', resultId);
+      if (error) throw error;
+      setMissionResults(prev => prev.map(r =>
+        r.id === resultId
+          ? { ...r, response_status: status, response_type: type, response_date: new Date().toISOString(), response_notes: notes || null }
+          : r
+      ));
+      toast({ title: status === 'interested' ? "✅ Segnato come interessato!" : "Stato aggiornato" });
+      setResponseDialogResult(null);
+      setResponseNotes("");
+    } catch (err: any) {
+      toast({ title: "Errore", description: err.message, variant: "destructive" });
+    }
+  };
+
 
   const [activeTab, setActiveTab] = useState("agent");
 
@@ -1117,6 +1150,10 @@ export default function ScrapingPage() {
                 <TabsTrigger value="emails">
                   Email Generate ({missionResults.filter(r => r.generated_email_subject).length})
                 </TabsTrigger>
+                <TabsTrigger value="kpi" className="flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" />
+                  KPI ({missionResults.filter(r => r.response_status === 'interested').length} interessati)
+                </TabsTrigger>
                 <TabsTrigger value="template">Template HTML</TabsTrigger>
               </TabsList>
 
@@ -1226,6 +1263,8 @@ export default function ScrapingPage() {
                                 <CardTitle className="text-sm">{r.recipient_company || r.title}</CardTitle>
                                 <Badge variant="outline" className="text-xs">{r.city}</Badge>
                                 {r.email_sent && <Badge className="bg-green-600 text-white text-xs">Inviata</Badge>}
+                                {r.response_status === 'interested' && <Badge className="bg-primary text-primary-foreground text-xs">🔥 Interessato</Badge>}
+                                {r.response_status === 'not_interested' && <Badge variant="secondary" className="text-xs">Non interessato</Badge>}
                                 {!hasValidEmail(r) && !r.email_sent && <Badge variant="destructive" className="text-xs">No email</Badge>}
                               </div>
                               <div className="flex items-center gap-1">
@@ -1277,9 +1316,151 @@ export default function ScrapingPage() {
                               <Label className="text-xs text-muted-foreground">Corpo</Label>
                               <p className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-3 mt-1">{r.generated_email_body}</p>
                             </div>
+                            {/* Response tracking buttons */}
+                            {r.email_sent && r.response_status !== 'interested' && (
+                              <div className="flex items-center gap-2 pt-2 border-t">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => { setResponseDialogResult(r); setResponseType("email_reply"); setResponseNotes(""); }}
+                                >
+                                  <ThumbsUp className="h-3 w-3 mr-1" />Ha risposto / Interessato
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs text-muted-foreground"
+                                  onClick={() => markResponse(r.id, 'not_interested', 'none', '')}
+                                >
+                                  <ThumbsDown className="h-3 w-3 mr-1" />Non interessato
+                                </Button>
+                              </div>
+                            )}
+                            {r.response_status === 'interested' && r.response_notes && (
+                              <div className="text-xs text-muted-foreground pt-1 border-t">
+                                <span className="font-medium">Note:</span> {r.response_notes}
+                                {r.response_type && <span className="ml-2">({r.response_type === 'email_reply' ? '📧 Email' : r.response_type === 'phone_call' ? '📞 Telefono' : r.response_type === 'whatsapp' ? '💬 WhatsApp' : r.response_type})</span>}
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
+                    </>
+                  );
+                })()}
+              </TabsContent>
+
+              <TabsContent value="kpi" className="space-y-4 mt-4">
+                {(() => {
+                  const sent = missionResults.filter(r => r.email_sent);
+                  const interested = missionResults.filter(r => r.response_status === 'interested');
+                  const notInterested = missionResults.filter(r => r.response_status === 'not_interested');
+                  const noResponse = sent.filter(r => !r.response_status || r.response_status === 'none');
+                  const responseRate = sent.length > 0 ? ((interested.length / sent.length) * 100).toFixed(1) : '0';
+
+                  return (
+                    <>
+                      {/* KPI Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{missionResults.length}</p>
+                            <p className="text-xs text-muted-foreground">Lead Totali</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{sent.length}</p>
+                            <p className="text-xs text-muted-foreground">Email Inviate</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="border-primary/50">
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold text-primary">{interested.length}</p>
+                            <p className="text-xs text-muted-foreground">🔥 Interessati</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4 pb-3 text-center">
+                            <p className="text-2xl font-bold">{responseRate}%</p>
+                            <p className="text-xs text-muted-foreground">Tasso Risposta</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Funnel */}
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm">Funnel Missione</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Lead trovati</span>
+                            <Progress value={100} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{missionResults.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Email inviate</span>
+                            <Progress value={missionResults.length > 0 ? (sent.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{sent.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Interessati</span>
+                            <Progress value={missionResults.length > 0 ? (interested.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{interested.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Non interessati</span>
+                            <Progress value={missionResults.length > 0 ? (notInterested.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{notInterested.length}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs w-28 text-muted-foreground">Senza risposta</span>
+                            <Progress value={missionResults.length > 0 ? (noResponse.length / missionResults.length) * 100 : 0} className="h-3 flex-1" />
+                            <span className="text-xs font-medium w-10 text-right">{noResponse.length}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Interested list */}
+                      {interested.length > 0 && (
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">🔥 Interessati ({interested.length})</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Azienda</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Canale</TableHead>
+                                  <TableHead>Città</TableHead>
+                                  <TableHead>Note</TableHead>
+                                  <TableHead>Data</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {interested.map(r => (
+                                  <TableRow key={r.id}>
+                                    <TableCell className="font-medium">{r.recipient_company || r.title}</TableCell>
+                                    <TableCell className="text-sm">{r.contact_email}</TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="text-xs">
+                                        {r.response_type === 'email_reply' ? '📧 Email' : r.response_type === 'phone_call' ? '📞 Telefono' : r.response_type === 'whatsapp' ? '💬 WhatsApp' : r.response_type || '-'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm">{r.city}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.response_notes || '-'}</TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{r.response_date ? new Date(r.response_date).toLocaleDateString('it-IT') : '-'}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </CardContent>
+                        </Card>
+                      )}
                     </>
                   );
                 })()}
@@ -1368,6 +1549,51 @@ export default function ScrapingPage() {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Response Dialog */}
+      <Dialog open={!!responseDialogResult} onOpenChange={(open) => !open && setResponseDialogResult(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Segna come interessato</DialogTitle>
+          </DialogHeader>
+          {responseDialogResult && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {responseDialogResult.recipient_company || responseDialogResult.title}
+              </p>
+              <div>
+                <Label className="text-xs">Come ti ha contattato?</Label>
+                <Select value={responseType} onValueChange={setResponseType}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email_reply">📧 Risposta Email</SelectItem>
+                    <SelectItem value="phone_call">📞 Telefonata</SelectItem>
+                    <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
+                    <SelectItem value="other">Altro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Note (opzionale)</Label>
+                <Textarea
+                  value={responseNotes}
+                  onChange={(e) => setResponseNotes(e.target.value)}
+                  placeholder="Es: Vuole un preventivo per..."
+                  className="mt-1 min-h-[80px]"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setResponseDialogResult(null)}>Annulla</Button>
+                <Button onClick={() => markResponse(responseDialogResult.id, 'interested', responseType, responseNotes)}>
+                  <ThumbsUp className="h-4 w-4 mr-1" />Conferma Interessato
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
