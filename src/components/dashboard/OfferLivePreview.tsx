@@ -48,6 +48,11 @@ const companyInfo = {
     name: "UNITA 1 di Stanislao Elefante",
     piva: "IT02192040661",
     address: "VIA PIAIA 44, 67034 Pettorano sul Gizio (AQ)"
+  },
+  wise: {
+    name: "Unita 1 di Stanislao Elefante",
+    piva: "IT02192040661",
+    address: "VIA PIAIA 44, 67034 Pettorano sul Gizio (AQ)"
   }
 };
 
