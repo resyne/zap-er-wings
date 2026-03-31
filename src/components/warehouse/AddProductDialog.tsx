@@ -97,15 +97,9 @@ export function AddProductDialog({ open, onOpenChange, categories, subcategories
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Nome *</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome prodotto" className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Codice *</Label>
-              <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="PROD-001" className="h-9" />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Nome *</Label>
+            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome prodotto" className="h-9" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
