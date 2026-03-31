@@ -283,6 +283,8 @@ export default function ScrapingPage() {
           sender_name: agentSenderName,
           sender_company: agentSenderCompany,
           max_results_per_city: agentMaxResults,
+          country_code: agentCountry,
+          language_code: COUNTRY_OPTIONS.find(c => c.value === agentCountry)?.lang || 'it',
           status: 'pending',
         })
         .select()
