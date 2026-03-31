@@ -685,6 +685,9 @@ export default function ZAppMagazzino() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Cerca prodotto..." value={productSearch} onChange={(e) => setProductSearch(e.target.value)} className="pl-9 rounded-xl bg-card" />
             </div>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setAddProductOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="icon" className="h-8 w-8 rounded-xl" onClick={() => setProductSettingsOpen(true)}>
               <Settings className="h-4 w-4" />
             </Button>
