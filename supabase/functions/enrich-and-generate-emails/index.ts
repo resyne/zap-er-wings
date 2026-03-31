@@ -265,6 +265,20 @@ Deno.serve(async (req) => {
       remainingCount = count
     }
 
+    // Get total results count for progress tracking
+    const { count: missionResults_count } = await supabase
+      .from('scraping_results')
+      .select('*', { count: 'exact', head: true })
+      .eq('mission_id', missionId)
+
+    // Update status to running if background mode
+    if (background && results.length > 0) {
+      await supabase.from('scraping_missions').update({
+        email_generation_status: 'running',
+        email_generation_total: missionResults_count || 0,
+      }).eq('id', missionId)
+    }
+
     console.log(`[ENRICH-EMAILS] Processing ${results.length} results for mission "${mission.name}"`)
 
     let successCount = 0
