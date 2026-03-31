@@ -28,6 +28,10 @@ export function ProductDetailDialog({ open, onOpenChange, product, categories, s
   const [saving, setSaving] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>("");
   const [selectedSub, setSelectedSub] = useState<string>("");
+  const [movementMode, setMovementMode] = useState<"carico" | "scarico" | null>(null);
+  const [movementQty, setMovementQty] = useState("");
+  const [movementNotes, setMovementNotes] = useState("");
+  const [movementSaving, setMovementSaving] = useState(false);
 
   if (!product) return null;
 
