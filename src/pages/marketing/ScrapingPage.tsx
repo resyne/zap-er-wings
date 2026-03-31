@@ -106,6 +106,10 @@ export default function ScrapingPage() {
   const recoverPausedRef = useRef(false);
   const [recoverPaused, setRecoverPaused] = useState(false);
   const [dialogEmailTab, setDialogEmailTab] = useState("by-city");
+  const [editingMission, setEditingMission] = useState(false);
+  const [editMissionDesc, setEditMissionDesc] = useState("");
+  const [editSenderName, setEditSenderName] = useState("");
+  const [editSenderCompany, setEditSenderCompany] = useState("");
 
   // Email template & sending state - persist to Supabase
   const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_TEMPLATE);
