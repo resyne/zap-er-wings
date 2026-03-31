@@ -1466,6 +1466,7 @@ export default function ScrapingPage() {
                 })()}
               </TabsContent>
 
+              <TabsContent value="template" className="mt-4">
                 <EmailTemplateEditor
                   htmlTemplate={htmlTemplate}
                   onTemplateChange={handleTemplateChange}
