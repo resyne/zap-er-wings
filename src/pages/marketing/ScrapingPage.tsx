@@ -404,6 +404,12 @@ export default function ScrapingPage() {
     emailGenPausedRef.current = true;
     setEmailGenPaused(true);
     setEmailGenProgress(prev => ({ ...prev, running: false }));
+    // Update DB status to stop background self-invocation
+    if (viewingMission) {
+      supabase.from('scraping_missions').update({
+        email_generation_status: 'paused',
+      }).eq('id', viewingMission.id);
+    }
   };
 
   const resumeEmailGen = () => {
