@@ -23,6 +23,7 @@ interface SavedTemplate {
   header_text: string;
   footer_text: string;
   signature: string;
+  html_content?: string;
   is_default: boolean;
   created_at: string;
 }
