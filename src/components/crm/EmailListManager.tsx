@@ -334,12 +334,18 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
       console.log('Raw Excel data:', jsonData);
       console.log('First row keys:', jsonData.length > 0 ? Object.keys(jsonData[0]) : []);
 
-      // Find email column by checking various possible names (case insensitive)
+      // Find column by checking various possible names (case insensitive, supports partial matching)
       const findColumn = (row: any, possibleNames: string[]) => {
         const keys = Object.keys(row);
+        // First try exact match
         for (const name of possibleNames) {
-          const key = keys.find(k => k.toLowerCase() === name.toLowerCase());
-          if (key && row[key]) return row[key];
+          const key = keys.find(k => k.toLowerCase().trim() === name.toLowerCase().trim());
+          if (key && row[key]) return String(row[key]);
+        }
+        // Then try partial match (column contains one of the names)
+        for (const name of possibleNames) {
+          const key = keys.find(k => k.toLowerCase().includes(name.toLowerCase()));
+          if (key && row[key]) return String(row[key]);
         }
         return '';
       };
