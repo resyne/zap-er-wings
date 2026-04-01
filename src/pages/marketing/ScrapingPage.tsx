@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save, Phone, MessageSquare, ThumbsUp, ThumbsDown, BarChart3 } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save, Phone, MessageSquare, ThumbsUp, ThumbsDown, BarChart3, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1344,6 +1344,28 @@ const COUNTRY_OPTIONS = [
                                     <Send className="h-4 w-4" />
                                   </Button>
                                 )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={async () => {
+                                    if (!confirm(`Eliminare "${r.recipient_company || r.title}"?`)) return;
+                                    try {
+                                      const { error } = await supabase
+                                        .from('scraping_results')
+                                        .delete()
+                                        .eq('id', r.id);
+                                      if (error) throw error;
+                                      setMissionResults(prev => prev.filter(mr => mr.id !== r.id));
+                                      toast({ title: "Contatto eliminato" });
+                                    } catch (err: any) {
+                                      toast({ title: "Errore", description: err.message, variant: "destructive" });
+                                    }
+                                  }}
+                                  title="Elimina contatto"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </div>
                           </CardHeader>
