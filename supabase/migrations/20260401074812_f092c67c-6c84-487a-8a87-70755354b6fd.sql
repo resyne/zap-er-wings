@@ -1,0 +1,1 @@
+ALTER TABLE public.newsletter_templates ADD COLUMN IF NOT EXISTS html_content text;
