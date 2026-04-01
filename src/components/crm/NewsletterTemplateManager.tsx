@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Star, Copy, Eye, Upload, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Edit, Trash2, Star, Copy, Eye, Upload, X, Code, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
@@ -22,6 +23,7 @@ interface SavedTemplate {
   header_text: string;
   footer_text: string;
   signature: string;
+  html_content?: string;
   is_default: boolean;
   created_at: string;
 }
@@ -49,8 +51,10 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
     header_text: '',
     footer_text: '',
     signature: '',
+    html_content: '',
     is_default: false
   });
+  const [editTab, setEditTab] = useState('fields');
 
   useEffect(() => {
     fetchTemplates();
@@ -88,9 +92,11 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
       header_text: '',
       footer_text: '',
       signature: '',
+      html_content: '',
       is_default: false
     });
     setEditingTemplate(null);
+    setEditTab('fields');
   };
 
   const handleOpenDialog = (template?: SavedTemplate) => {
@@ -105,6 +111,7 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
         header_text: template.header_text,
         footer_text: template.footer_text,
         signature: template.signature,
+        html_content: template.html_content || '',
         is_default: template.is_default
       });
     } else {
@@ -186,8 +193,9 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
             header_text: formData.header_text,
             footer_text: formData.footer_text,
             signature: formData.signature,
+            html_content: formData.html_content || null,
             is_default: formData.is_default
-          })
+          } as any)
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
@@ -209,9 +217,10 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
             header_text: formData.header_text,
             footer_text: formData.footer_text,
             signature: formData.signature,
+            html_content: formData.html_content || null,
             is_default: formData.is_default,
             created_by: user?.id
-          });
+          } as any);
 
         if (error) throw error;
 
@@ -398,7 +407,7 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
               Nuovo Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingTemplate ? 'Modifica Template' : 'Nuovo Template'}
@@ -410,115 +419,172 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
                 }
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Nome Template *</label>
-                  <Input
-                    placeholder="Es. Newsletter Mensile"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Descrizione</label>
-                  <Input
-                    placeholder="Breve descrizione"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                </div>
-              </div>
+            <Tabs value={editTab} onValueChange={setEditTab} className="py-2">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="fields" className="gap-1.5 text-xs">
+                  <FileText className="h-3.5 w-3.5" />
+                  Campi
+                </TabsTrigger>
+                <TabsTrigger value="html" className="gap-1.5 text-xs">
+                  <Code className="h-3.5 w-3.5" />
+                  HTML
+                </TabsTrigger>
+                <TabsTrigger value="preview" className="gap-1.5 text-xs">
+                  <Eye className="h-3.5 w-3.5" />
+                  Anteprima
+                </TabsTrigger>
+              </TabsList>
 
-              <div>
-                <label className="text-sm font-medium">Logo</label>
-                {formData.logo_url ? (
-                  <div className="space-y-2 mb-3">
-                    <div className="relative w-full max-w-xs border rounded-lg p-4 bg-gray-50">
-                      <img 
-                        src={formData.logo_url} 
-                        alt="Logo preview" 
-                        className="max-h-32 mx-auto object-contain"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={handleRemoveLogo}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Carica un nuovo logo per sostituire quello esistente
-                    </p>
+              <TabsContent value="fields" className="space-y-4 mt-4 max-h-[55vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Nome Template *</label>
+                    <Input
+                      placeholder="Es. Newsletter Mensile"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
                   </div>
-                ) : null}
-                <FileUpload
-                  value={[]}
-                  onChange={handleLogoUpload}
-                  maxFiles={1}
-                  acceptedFileTypes={["image/jpeg", "image/png", "image/svg+xml", "image/webp"]}
-                />
-              </div>
+                  <div>
+                    <label className="text-sm font-medium">Descrizione</label>
+                    <Input
+                      placeholder="Breve descrizione"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Testo Header</label>
-                <Input
-                  placeholder="Newsletter Aziendale"
-                  value={formData.header_text}
-                  onChange={(e) => setFormData({ ...formData, header_text: e.target.value })}
-                />
-              </div>
+                <div>
+                  <label className="text-sm font-medium">Logo</label>
+                  {formData.logo_url ? (
+                    <div className="space-y-2 mb-3">
+                      <div className="relative w-full max-w-xs border rounded-lg p-4 bg-muted/30">
+                        <img 
+                          src={formData.logo_url} 
+                          alt="Logo preview" 
+                          className="max-h-32 mx-auto object-contain"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-2 right-2"
+                          onClick={handleRemoveLogo}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Carica un nuovo logo per sostituire quello esistente
+                      </p>
+                    </div>
+                  ) : null}
+                  <FileUpload
+                    value={[]}
+                    onChange={handleLogoUpload}
+                    maxFiles={1}
+                    acceptedFileTypes={["image/jpeg", "image/png", "image/svg+xml", "image/webp"]}
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Oggetto Predefinito</label>
-                <Input
-                  placeholder="Oggetto dell'email"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                />
-              </div>
+                <div>
+                  <label className="text-sm font-medium">Testo Header</label>
+                  <Input
+                    placeholder="Newsletter Aziendale"
+                    value={formData.header_text}
+                    onChange={(e) => setFormData({ ...formData, header_text: e.target.value })}
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Messaggio Predefinito</label>
-                <Textarea
-                  placeholder="Contenuto del messaggio..."
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  rows={5}
-                />
-              </div>
+                <div>
+                  <label className="text-sm font-medium">Oggetto Predefinito</label>
+                  <Input
+                    placeholder="Oggetto dell'email"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Firma *</label>
-                <Textarea
-                  placeholder="Cordiali saluti,&#10;Il Team"
-                  value={formData.signature}
-                  onChange={(e) => setFormData({ ...formData, signature: e.target.value })}
-                  rows={4}
-                />
-              </div>
+                <div>
+                  <label className="text-sm font-medium">Messaggio Predefinito</label>
+                  <Textarea
+                    placeholder="Contenuto del messaggio..."
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    rows={5}
+                  />
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Testo Footer</label>
-                <Input
-                  placeholder="© 2024 La Tua Azienda"
-                  value={formData.footer_text}
-                  onChange={(e) => setFormData({ ...formData, footer_text: e.target.value })}
-                />
-              </div>
+                <div>
+                  <label className="text-sm font-medium">Firma *</label>
+                  <Textarea
+                    placeholder="Cordiali saluti,&#10;Il Team"
+                    value={formData.signature}
+                    onChange={(e) => setFormData({ ...formData, signature: e.target.value })}
+                    rows={4}
+                  />
+                </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={formData.is_default}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_default: checked })}
-                />
-                <label className="text-sm font-medium">
-                  Imposta come template predefinito
-                </label>
-              </div>
-            </div>
+                <div>
+                  <label className="text-sm font-medium">Testo Footer</label>
+                  <Input
+                    placeholder="© 2024 La Tua Azienda"
+                    value={formData.footer_text}
+                    onChange={(e) => setFormData({ ...formData, footer_text: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={formData.is_default}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_default: checked })}
+                  />
+                  <label className="text-sm font-medium">
+                    Imposta come template predefinito
+                  </label>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="html" className="mt-4">
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Modifica direttamente il codice HTML del template. Se compilato, verrà usato al posto dei campi strutturati.
+                  </p>
+                  <textarea
+                    value={formData.html_content}
+                    onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
+                    className="w-full h-[50vh] font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                    spellCheck={false}
+                    placeholder="<!DOCTYPE html>\n<html>\n<head>...</head>\n<body>\n  <!-- Il tuo template HTML qui -->\n</body>\n</html>"
+                  />
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-[10px]">{"{{subject}}"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{"{{body}}"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{"{{recipient_name}}"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{"{{recipient_company}}"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{"{{sender_name}}"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{"{{city}}"}</Badge>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="preview" className="mt-4">
+                <div className="border rounded-lg overflow-hidden bg-muted/30" style={{ maxHeight: '55vh' }}>
+                  <iframe
+                    srcDoc={formData.html_content || generatePreview({
+                      ...formData,
+                      id: '',
+                      is_default: formData.is_default,
+                      created_at: '',
+                    } as SavedTemplate)}
+                    className="w-full border-0"
+                    style={{ height: '50vh' }}
+                    title="Template Preview"
+                    sandbox=""
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
             <DialogFooter>
               <Button variant="outline" onClick={handleCloseDialog}>
                 Annulla

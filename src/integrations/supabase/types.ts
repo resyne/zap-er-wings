@@ -7106,6 +7106,7 @@ export type Database = {
           description: string | null
           footer_text: string
           header_text: string
+          html_content: string | null
           id: string
           is_default: boolean | null
           logo_url: string | null
@@ -7122,6 +7123,7 @@ export type Database = {
           description?: string | null
           footer_text?: string
           header_text?: string
+          html_content?: string | null
           id?: string
           is_default?: boolean | null
           logo_url?: string | null
@@ -7138,6 +7140,7 @@ export type Database = {
           description?: string | null
           footer_text?: string
           header_text?: string
+          html_content?: string | null
           id?: string
           is_default?: boolean | null
           logo_url?: string | null
