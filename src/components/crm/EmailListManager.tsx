@@ -639,6 +639,8 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                     <TableHead>Nome</TableHead>
                     <TableHead>Azienda</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Telefono</TableHead>
+                    <TableHead>Città</TableHead>
                     <TableHead className="w-[60px]">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
