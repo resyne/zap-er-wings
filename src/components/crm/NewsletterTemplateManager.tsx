@@ -111,6 +111,7 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
         header_text: template.header_text,
         footer_text: template.footer_text,
         signature: template.signature,
+        html_content: template.html_content || '',
         is_default: template.is_default
       });
     } else {
