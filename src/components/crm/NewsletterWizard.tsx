@@ -75,6 +75,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [previewTab, setPreviewTab] = useState<string>("preview");
+  const [customHtml, setCustomHtml] = useState<string>("");
 
   // Template CRUD
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
