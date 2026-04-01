@@ -527,12 +527,15 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
 
       {/* Contacts Dialog */}
       <Dialog open={showContactsDialog} onOpenChange={setShowContactsDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Gestisci Contatti Lista</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center justify-between">
+              <span>Gestisci Contatti Lista</span>
+              <Badge variant="secondary" className="ml-2">{selectedContacts.length} contatti</Badge>
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
+          <div className="space-y-4 flex flex-col flex-1 min-h-0">
+            <div className="flex gap-2 flex-shrink-0">
               <Dialog open={showAddContactDialog} onOpenChange={setShowAddContactDialog}>
                 <DialogTrigger asChild>
                   <Button size="sm">
@@ -611,36 +614,45 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
               </div>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Cognome</TableHead>
-                  <TableHead>Azienda</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedContacts.map((contact) => (
-                  <TableRow key={contact.id}>
-                    <TableCell>{contact.first_name}</TableCell>
-                    <TableCell>{contact.last_name}</TableCell>
-                    <TableCell>{contact.company}</TableCell>
-                    <TableCell>{contact.email}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteContact(contact.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <div className="flex-1 min-h-0 overflow-auto border rounded-md">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Azienda</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead className="w-[60px]">Azioni</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {selectedContacts.map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell className="font-medium">
+                        {[contact.first_name, contact.last_name].filter(Boolean).join(' ') || '-'}
+                      </TableCell>
+                      <TableCell>{contact.company || '-'}</TableCell>
+                      <TableCell className="text-sm">{contact.email}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteContact(contact.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {selectedContacts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nessun contatto in questa lista. Aggiungi contatti manualmente o importa da Excel.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
