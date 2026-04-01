@@ -719,7 +719,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-hidden bg-muted/30">
-                  <iframe srcDoc={generatePreviewHtml()} className="w-full border-0" style={{ height: 420 }} title="Email Preview" sandbox="" />
+                  <iframe srcDoc={customHtml || generatePreviewHtml()} className="w-full border-0" style={{ height: 420 }} title="Email Preview" sandbox="" />
                 </div>
               </CardContent>
             </Card>
