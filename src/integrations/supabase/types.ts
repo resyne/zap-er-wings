@@ -3880,6 +3880,7 @@ export type Database = {
       }
       email_list_contacts: {
         Row: {
+          city: string | null
           company: string | null
           created_at: string | null
           email: string
@@ -3887,8 +3888,10 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          phone: string | null
         }
         Insert: {
+          city?: string | null
           company?: string | null
           created_at?: string | null
           email: string
@@ -3896,8 +3899,10 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
         }
         Update: {
+          city?: string | null
           company?: string | null
           created_at?: string | null
           email?: string
@@ -3905,6 +3910,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
         }
         Relationships: [
           {

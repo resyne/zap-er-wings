@@ -667,7 +667,7 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                   ))}
                   {selectedContacts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nessun contatto in questa lista. Aggiungi contatti manualmente o importa da Excel.
                       </TableCell>
                     </TableRow>
