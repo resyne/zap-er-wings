@@ -457,43 +457,45 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
             </CardContent>
           </Card>
 
-          {/* Template customization */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">Personalizza Template</CardTitle>
-                  <CardDescription>Modifica i dettagli del template selezionato</CardDescription>
+          {/* Template customization - only show when NOT using custom HTML */}
+          {!customHtml && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Personalizza Template</CardTitle>
+                    <CardDescription>Modifica i dettagli del template selezionato</CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={saveCurrentAsTemplate} className="gap-1.5">
+                    <Save className="h-3.5 w-3.5" />
+                    Salva come Template
+                  </Button>
                 </div>
-                <Button size="sm" variant="outline" onClick={saveCurrentAsTemplate} className="gap-1.5">
-                  <Save className="h-3.5 w-3.5" />
-                  Salva come Template
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs">Logo (URL)</Label>
-                <Input placeholder="https://example.com/logo.png (opzionale)" value={template.logo}
-                  onChange={(e) => setTemplate({ ...template, logo: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">Testo Header</Label>
-                <Input placeholder="Titolo della newsletter (opzionale)" value={template.headerText}
-                  onChange={(e) => setTemplate({ ...template, headerText: e.target.value })} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">Firma *</Label>
-                <Textarea placeholder={"Cordiali saluti,\nIl Team"} value={template.signature}
-                  onChange={(e) => setTemplate({ ...template, signature: e.target.value })} rows={3} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-xs">Testo Footer</Label>
-                <Input placeholder="© 2025 La Tua Azienda (opzionale)" value={template.footerText}
-                  onChange={(e) => setTemplate({ ...template, footerText: e.target.value })} className="mt-1" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label className="text-xs">Logo (URL)</Label>
+                  <Input placeholder="https://example.com/logo.png (opzionale)" value={template.logo}
+                    onChange={(e) => setTemplate({ ...template, logo: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">Testo Header</Label>
+                  <Input placeholder="Titolo della newsletter (opzionale)" value={template.headerText}
+                    onChange={(e) => setTemplate({ ...template, headerText: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">Firma *</Label>
+                  <Textarea placeholder={"Cordiali saluti,\nIl Team"} value={template.signature}
+                    onChange={(e) => setTemplate({ ...template, signature: e.target.value })} rows={3} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">Testo Footer</Label>
+                  <Input placeholder="© 2025 La Tua Azienda (opzionale)" value={template.footerText}
+                    onChange={(e) => setTemplate({ ...template, footerText: e.target.value })} className="mt-1" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Template Preview */}
           <Card>
