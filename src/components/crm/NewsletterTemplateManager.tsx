@@ -193,8 +193,9 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
             header_text: formData.header_text,
             footer_text: formData.footer_text,
             signature: formData.signature,
+            html_content: formData.html_content || null,
             is_default: formData.is_default
-          })
+          } as any)
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
