@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2, Plus, Trash2, Eye, Code, Send } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowRight, ArrowLeft, Check, Mail, Users, FileText, Loader2, Plus, Trash2, Eye, Code, Send, Save, Edit, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,6 @@ interface WizardStep {
   step: number;
   title: string;
   description: string;
-  icon: React.ReactNode;
 }
 
 interface EmailList {
@@ -76,12 +76,17 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [previewTab, setPreviewTab] = useState<string>("preview");
 
+  // Template CRUD
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateFormData, setTemplateFormData] = useState({
+    name: '', description: '', logo_url: '', header_text: '', footer_text: '', signature: '', is_default: false
+  });
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   // Step 1: Template
   const [template, setTemplate] = useState<NewsletterTemplate>({
-    logo: "",
-    headerText: "",
-    footerText: "",
-    signature: ""
+    logo: "", headerText: "", footerText: "", signature: ""
   });
 
   // Step 2: Mittente + Destinatari
@@ -95,20 +100,20 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
 
-  // Automation settings
+  // AI Generation
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [generatingAi, setGeneratingAi] = useState(false);
+
+  // Automation
   const [enableAutomation, setEnableAutomation] = useState(false);
   const [automations, setAutomations] = useState<Array<{
-    name: string;
-    description: string;
-    delayDays: number;
-    subject: string;
-    message: string;
+    name: string; description: string; delayDays: number; subject: string; message: string;
   }>>([]);
 
-  const steps: WizardStep[] = [
-    { step: 1, title: "Template", description: "Scegli e personalizza il template", icon: <FileText className="h-4 w-4" /> },
-    { step: 2, title: "Mittente & Destinatari", description: "Chi invia e chi riceve", icon: <Users className="h-4 w-4" /> },
-    { step: 3, title: "Composizione", description: "Scrivi e invia la newsletter", icon: <Mail className="h-4 w-4" /> }
+  const steps = [
+    { step: 1, title: "Template", description: "Scegli e personalizza il template" },
+    { step: 2, title: "Mittente & Destinatari", description: "Chi invia e chi riceve" },
+    { step: 3, title: "Composizione", description: "Scrivi e invia la newsletter" }
   ];
 
   useEffect(() => {
@@ -123,7 +128,6 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
         .select('id, name, description, logo_url, header_text, footer_text, signature, is_default')
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setSavedTemplates(data || []);
       const defaultTemplate = data?.find(t => t.is_default);
@@ -149,11 +153,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     setLoadingSenders(true);
     try {
       const { data, error } = await supabase
-        .from('sender_emails')
-        .select('*')
-        .eq('is_verified', true)
-        .order('created_at', { ascending: false });
-
+        .from('sender_emails').select('*').eq('is_verified', true).order('created_at', { ascending: false });
       if (error) throw error;
       setSenderEmails(data || []);
       if (data && data.length > 0) {
@@ -171,10 +171,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     try {
       if (targetAudience === 'custom_list' && customListIds.length > 0) {
         const { data, error } = await supabase
-          .from('email_list_contacts')
-          .select('email')
-          .in('email_list_id', customListIds)
-          .not('email', 'is', null);
+          .from('email_list_contacts').select('email').in('email_list_id', customListIds).not('email', 'is', null);
         if (error) throw error;
         const uniqueEmails = new Set((data || []).map(c => c.email.toLowerCase()));
         setRecipientCount(uniqueEmails.size);
@@ -190,6 +187,114 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
       }
     } catch (error) {
       console.error('Error fetching recipient count:', error);
+    }
+  };
+
+  // ===== TEMPLATE CRUD =====
+  const openNewTemplateDialog = () => {
+    setEditingTemplateId(null);
+    setTemplateFormData({
+      name: '', description: '',
+      logo_url: template.logo, header_text: template.headerText,
+      footer_text: template.footerText, signature: template.signature,
+      is_default: false
+    });
+    setTemplateDialogOpen(true);
+  };
+
+  const openEditTemplateDialog = (tmpl: SavedTemplate) => {
+    setEditingTemplateId(tmpl.id);
+    setTemplateFormData({
+      name: tmpl.name, description: tmpl.description || '',
+      logo_url: tmpl.logo_url || '', header_text: tmpl.header_text,
+      footer_text: tmpl.footer_text, signature: tmpl.signature,
+      is_default: tmpl.is_default
+    });
+    setTemplateDialogOpen(true);
+  };
+
+  const saveTemplateFromWizard = async () => {
+    if (!templateFormData.name.trim()) {
+      toast({ title: "Errore", description: "Il nome del template è obbligatorio", variant: "destructive" });
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (editingTemplateId) {
+        const { error } = await supabase.from('newsletter_templates').update({
+          name: templateFormData.name, description: templateFormData.description,
+          logo_url: templateFormData.logo_url || null, header_text: templateFormData.header_text,
+          footer_text: templateFormData.footer_text, signature: templateFormData.signature,
+          is_default: templateFormData.is_default, subject: '', message: ''
+        }).eq('id', editingTemplateId);
+        if (error) throw error;
+        toast({ title: "Template aggiornato", description: "Template salvato con successo" });
+      } else {
+        const { error } = await supabase.from('newsletter_templates').insert({
+          name: templateFormData.name, description: templateFormData.description,
+          logo_url: templateFormData.logo_url || null, header_text: templateFormData.header_text,
+          footer_text: templateFormData.footer_text, signature: templateFormData.signature,
+          is_default: templateFormData.is_default, subject: '', message: '',
+          created_by: user?.id
+        });
+        if (error) throw error;
+        toast({ title: "Template creato", description: "Nuovo template salvato con successo" });
+      }
+      if (templateFormData.is_default) {
+        await supabase.from('newsletter_templates').update({ is_default: false }).neq('id', editingTemplateId || '');
+      }
+      setTemplateDialogOpen(false);
+      await fetchSavedTemplates();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast({ title: "Errore", description: "Errore nel salvataggio del template", variant: "destructive" });
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const saveCurrentAsTemplate = () => {
+    setEditingTemplateId(null);
+    setTemplateFormData({
+      name: '', description: '',
+      logo_url: template.logo, header_text: template.headerText,
+      footer_text: template.footerText, signature: template.signature,
+      is_default: false
+    });
+    setTemplateDialogOpen(true);
+  };
+
+  // ===== AI GENERATION =====
+  const generateWithAi = async () => {
+    if (!aiPrompt.trim()) {
+      toast({ title: "Attenzione", description: "Inserisci un prompt per generare il contenuto", variant: "destructive" });
+      return;
+    }
+    setGeneratingAi(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-newsletter', {
+        body: {
+          prompt: aiPrompt,
+          templateContext: { headerText: template.headerText, signature: template.signature }
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.subject) setSubject(data.subject);
+      if (data?.message) setMessage(data.message);
+
+      toast({ title: "Contenuto generato", description: "L'AI ha generato oggetto e messaggio per la tua newsletter" });
+    } catch (error: any) {
+      console.error('AI generation error:', error);
+      toast({
+        title: "Errore AI",
+        description: error.message || "Impossibile generare il contenuto",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAi(false);
     }
   };
 
@@ -209,16 +314,13 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
     if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
 
-  const handleBack = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
-  };
+  const handleBack = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
 
   const handleSend = async () => {
     if (!selectedSenderEmail) {
       toast({ title: "Errore", description: "Seleziona un mittente", variant: "destructive" });
       return;
     }
-
     try {
       if (enableAutomation && automations.length > 0) {
         const { data: userData } = await supabase.auth.getUser();
@@ -228,33 +330,18 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
             return;
           }
           await supabase.from("email_automations").insert({
-            name: automation.name,
-            description: automation.description || null,
-            template_id: selectedTemplateId || null,
-            trigger_type: "after_campaign",
-            delay_days: automation.delayDays,
-            target_audience: targetAudience,
+            name: automation.name, description: automation.description || null,
+            template_id: selectedTemplateId || null, trigger_type: "after_campaign",
+            delay_days: automation.delayDays, target_audience: targetAudience,
             email_list_id: targetAudience === 'custom_list' && customListIds.length > 0 ? customListIds[0] : null,
-            sender_email: selectedSenderEmail.email,
-            sender_name: senderName,
-            subject: automation.subject,
-            message: automation.message,
-            is_active: true,
-            created_by: userData.user?.id,
+            sender_email: selectedSenderEmail.email, sender_name: senderName,
+            subject: automation.subject, message: automation.message,
+            is_active: true, created_by: userData.user?.id,
           });
         }
         toast({ title: "Automations create", description: `${automations.length} automation configurate` });
       }
-
-      onSend({
-        template,
-        targetAudience,
-        customListIds: targetAudience === 'custom_list' ? customListIds : undefined,
-        senderEmail: selectedSenderEmail,
-        senderName,
-        subject,
-        message
-      });
+      onSend({ template, targetAudience, customListIds: targetAudience === 'custom_list' ? customListIds : undefined, senderEmail: selectedSenderEmail, senderName, subject, message });
     } catch (error) {
       console.error("Error in handleSend:", error);
       toast({ title: "Errore", description: "Si è verificato un errore durante l'invio", variant: "destructive" });
@@ -297,9 +384,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                 {currentStep > step.step ? <Check className="h-5 w-5" /> : step.step}
               </div>
               <div className="text-center mt-2">
-                <div className={`text-sm font-medium ${currentStep === step.step ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {step.title}
-                </div>
+                <div className={`text-sm font-medium ${currentStep === step.step ? 'text-primary' : 'text-muted-foreground'}`}>{step.title}</div>
                 <div className="text-xs text-muted-foreground hidden sm:block">{step.description}</div>
               </div>
             </div>
@@ -316,10 +401,16 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
           {/* Template selection */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Seleziona Template
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Seleziona Template
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={openNewTemplateDialog} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Nuovo Template
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {loadingTemplates ? (
@@ -332,7 +423,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                   {savedTemplates.map((tmpl) => (
                     <div
                       key={tmpl.id}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary/50 ${
+                      className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary/50 group ${
                         selectedTemplateId === tmpl.id ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'
                       }`}
                       onClick={() => loadTemplate(tmpl)}
@@ -342,14 +433,24 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                           <div className="font-medium text-sm">{tmpl.name}</div>
                           {tmpl.description && <div className="text-xs text-muted-foreground">{tmpl.description}</div>}
                         </div>
-                        {tmpl.is_default && <Badge variant="secondary" className="text-xs">Default</Badge>}
+                        <div className="flex items-center gap-1">
+                          {tmpl.is_default && <Badge variant="secondary" className="text-xs">Default</Badge>}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => { e.stopPropagation(); openEditTemplateDialog(tmpl); }}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                  Nessun template salvato. Crea i tuoi template nella sezione Template.
+                  Nessun template salvato. Creane uno nuovo.
                 </div>
               )}
             </CardContent>
@@ -358,46 +459,37 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
           {/* Template customization */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Personalizza Template</CardTitle>
-              <CardDescription>Modifica i dettagli del template selezionato</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Personalizza Template</CardTitle>
+                  <CardDescription>Modifica i dettagli del template selezionato</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={saveCurrentAsTemplate} className="gap-1.5">
+                  <Save className="h-3.5 w-3.5" />
+                  Salva come Template
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
                 <Label className="text-xs">Logo (URL)</Label>
-                <Input
-                  placeholder="https://example.com/logo.png (opzionale)"
-                  value={template.logo}
-                  onChange={(e) => setTemplate({ ...template, logo: e.target.value })}
-                  className="mt-1"
-                />
+                <Input placeholder="https://example.com/logo.png (opzionale)" value={template.logo}
+                  onChange={(e) => setTemplate({ ...template, logo: e.target.value })} className="mt-1" />
               </div>
               <div>
                 <Label className="text-xs">Testo Header</Label>
-                <Input
-                  placeholder="Titolo della newsletter (opzionale)"
-                  value={template.headerText}
-                  onChange={(e) => setTemplate({ ...template, headerText: e.target.value })}
-                  className="mt-1"
-                />
+                <Input placeholder="Titolo della newsletter (opzionale)" value={template.headerText}
+                  onChange={(e) => setTemplate({ ...template, headerText: e.target.value })} className="mt-1" />
               </div>
               <div>
                 <Label className="text-xs">Firma *</Label>
-                <Textarea
-                  placeholder={"Cordiali saluti,\nIl Team"}
-                  value={template.signature}
-                  onChange={(e) => setTemplate({ ...template, signature: e.target.value })}
-                  rows={3}
-                  className="mt-1"
-                />
+                <Textarea placeholder={"Cordiali saluti,\nIl Team"} value={template.signature}
+                  onChange={(e) => setTemplate({ ...template, signature: e.target.value })} rows={3} className="mt-1" />
               </div>
               <div>
                 <Label className="text-xs">Testo Footer</Label>
-                <Input
-                  placeholder="© 2025 La Tua Azienda (opzionale)"
-                  value={template.footerText}
-                  onChange={(e) => setTemplate({ ...template, footerText: e.target.value })}
-                  className="mt-1"
-                />
+                <Input placeholder="© 2025 La Tua Azienda (opzionale)" value={template.footerText}
+                  onChange={(e) => setTemplate({ ...template, footerText: e.target.value })} className="mt-1" />
               </div>
             </CardContent>
           </Card>
@@ -413,31 +505,17 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
             <CardContent>
               <Tabs value={previewTab} onValueChange={setPreviewTab}>
                 <TabsList className="h-8 mb-3">
-                  <TabsTrigger value="preview" className="text-xs h-7 px-3 gap-1">
-                    <Eye className="h-3 w-3" /> Anteprima
-                  </TabsTrigger>
-                  <TabsTrigger value="html" className="text-xs h-7 px-3 gap-1">
-                    <Code className="h-3 w-3" /> HTML
-                  </TabsTrigger>
+                  <TabsTrigger value="preview" className="text-xs h-7 px-3 gap-1"><Eye className="h-3 w-3" /> Anteprima</TabsTrigger>
+                  <TabsTrigger value="html" className="text-xs h-7 px-3 gap-1"><Code className="h-3 w-3" /> HTML</TabsTrigger>
                 </TabsList>
                 <TabsContent value="preview" className="mt-0">
                   <div className="border rounded-lg overflow-hidden bg-muted/30" style={{ maxHeight: 400 }}>
-                    <iframe
-                      srcDoc={generatePreviewHtml()}
-                      className="w-full border-0"
-                      style={{ height: 380 }}
-                      title="Template Preview"
-                      sandbox=""
-                    />
+                    <iframe srcDoc={generatePreviewHtml()} className="w-full border-0" style={{ height: 380 }} title="Template Preview" sandbox="" />
                   </div>
                 </TabsContent>
                 <TabsContent value="html" className="mt-0">
-                  <textarea
-                    value={generatePreviewHtml()}
-                    readOnly
-                    className="w-full h-[380px] font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-none focus:outline-none"
-                    spellCheck={false}
-                  />
+                  <textarea value={generatePreviewHtml()} readOnly
+                    className="w-full h-[380px] font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-none focus:outline-none" spellCheck={false} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -448,13 +526,9 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
       {/* ===== STEP 2: MITTENTE & DESTINATARI ===== */}
       {currentStep === 2 && (
         <div className="space-y-4">
-          {/* Sender */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                Mittente
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Send className="h-4 w-4" /> Mittente</CardTitle>
             </CardHeader>
             <CardContent>
               {loadingSenders ? (
@@ -470,63 +544,42 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs">Email Mittente *</Label>
-                    <Select
-                      value={selectedSenderEmail?.id || ""}
-                      onValueChange={(value) => {
-                        const sender = senderEmails.find(s => s.id === value);
-                        if (sender) {
-                          setSelectedSenderEmail(sender);
-                          setSenderName(sender.name);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Seleziona mittente" />
-                      </SelectTrigger>
+                    <Select value={selectedSenderEmail?.id || ""} onValueChange={(value) => {
+                      const sender = senderEmails.find(s => s.id === value);
+                      if (sender) { setSelectedSenderEmail(sender); setSenderName(sender.name); }
+                    }}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Seleziona mittente" /></SelectTrigger>
                       <SelectContent>
                         {senderEmails.map(sender => (
-                          <SelectItem key={sender.id} value={sender.id}>
-                            {sender.email}
-                          </SelectItem>
+                          <SelectItem key={sender.id} value={sender.id}>{sender.email}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label className="text-xs">Nome Mittente *</Label>
-                    <Input
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Nome visualizzato"
-                      className="mt-1"
-                      disabled={!selectedSenderEmail}
-                    />
+                    <Input value={senderName} onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="Nome visualizzato" className="mt-1" disabled={!selectedSenderEmail} />
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Recipients */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Destinatari
-              </CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" /> Destinatari</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* System Lists */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2">Liste Sistema</div>
                 <div className="grid gap-2">
-                  {[
+                  {([
                     { key: 'customers' as const, label: 'Clienti' },
                     { key: 'crm_contacts' as const, label: 'Contatti CRM' },
                     { key: 'partners' as const, label: 'Partner' },
-                  ].map(({ key, label }) => (
-                    <div
-                      key={key}
+                  ]).map(({ key, label }) => (
+                    <div key={key}
                       className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary/50 ${
                         targetAudience === key ? 'border-primary bg-primary/5' : 'border-border'
                       }`}
@@ -541,7 +594,6 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                 </div>
               </div>
 
-              {/* Custom Lists */}
               {emailLists.length > 0 && (
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -554,8 +606,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                     {emailLists.map((list) => {
                       const isSelected = targetAudience === 'custom_list' && customListIds.includes(list.id);
                       return (
-                        <div
-                          key={list.id}
+                        <div key={list.id}
                           className={`p-3 border rounded-lg cursor-pointer transition-all hover:border-primary/50 ${
                             isSelected ? 'border-primary bg-primary/5' : 'border-border'
                           }`}
@@ -565,9 +616,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                               const newIds = customListIds.filter(id => id !== list.id);
                               setCustomListIds(newIds);
                               if (newIds.length === 0) setTargetAudience('customers');
-                            } else {
-                              setCustomListIds(prev => [...prev, list.id]);
-                            }
+                            } else { setCustomListIds(prev => [...prev, list.id]); }
                           }}
                         >
                           <div className="flex items-center gap-3">
@@ -601,10 +650,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
         <div className="space-y-4">
           {/* Riepilogo compatto */}
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="outline" className="gap-1">
-              <Mail className="h-3 w-3" />
-              {selectedSenderEmail?.email}
-            </Badge>
+            <Badge variant="outline" className="gap-1"><Mail className="h-3 w-3" />{selectedSenderEmail?.email}</Badge>
             <Badge variant="outline" className="gap-1">
               <Users className="h-3 w-3" />
               {targetAudience === 'customers' && 'Clienti'}
@@ -615,6 +661,30 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
             </Badge>
           </div>
 
+          {/* AI Generation */}
+          <Card className="border-primary/20 bg-primary/[0.02]">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-medium">Genera con AI</Label>
+              </div>
+              <div className="flex gap-2">
+                <Textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Descrivi la newsletter che vuoi creare... es: 'Newsletter mensile per i clienti con aggiornamenti sui nuovi prodotti abbattitori di fumi'"
+                  rows={2}
+                  className="flex-1"
+                />
+                <Button onClick={generateWithAi} disabled={generatingAi || !aiPrompt.trim()} className="gap-1.5 self-end">
+                  {generatingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Genera
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">L'AI genererà oggetto e messaggio in base al tuo prompt</p>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Left: Editor */}
             <Card>
@@ -624,22 +694,13 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
               <CardContent className="space-y-3">
                 <div>
                   <Label className="text-xs">Oggetto *</Label>
-                  <Input
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Oggetto della newsletter"
-                    className="mt-1"
-                  />
+                  <Input value={subject} onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Oggetto della newsletter" className="mt-1" />
                 </div>
                 <div>
                   <Label className="text-xs">Messaggio *</Label>
-                  <Textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Scrivi il contenuto della newsletter..."
-                    rows={12}
-                    className="mt-1"
-                  />
+                  <Textarea value={message} onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Scrivi il contenuto della newsletter..." rows={12} className="mt-1" />
                 </div>
               </CardContent>
             </Card>
@@ -647,20 +708,11 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
             {/* Right: Live Preview */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Anteprima Live
-                </CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4" /> Anteprima Live</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-hidden bg-muted/30">
-                  <iframe
-                    srcDoc={generatePreviewHtml()}
-                    className="w-full border-0"
-                    style={{ height: 420 }}
-                    title="Email Preview"
-                    sandbox=""
-                  />
+                  <iframe srcDoc={generatePreviewHtml()} className="w-full border-0" style={{ height: 420 }} title="Email Preview" sandbox="" />
                 </div>
               </CardContent>
             </Card>
@@ -674,9 +726,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                   <Label htmlFor="enable-automation" className="text-sm font-medium">Follow-up Automatico</Label>
                   <p className="text-xs text-muted-foreground">Invia un follow-up automatico dopo un periodo di tempo</p>
                 </div>
-                <Switch
-                  id="enable-automation"
-                  checked={enableAutomation}
+                <Switch id="enable-automation" checked={enableAutomation}
                   onCheckedChange={(checked) => {
                     setEnableAutomation(checked);
                     if (checked && automations.length === 0) {
@@ -685,7 +735,6 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                   }}
                 />
               </div>
-
               {enableAutomation && (
                 <div className="mt-4 space-y-4">
                   {automations.map((automation, index) => (
@@ -718,18 +767,14 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                       </div>
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <Button type="button" variant="outline" size="sm"
                     onClick={() => {
                       const lastDelay = automations.length > 0 ? automations[automations.length - 1].delayDays : 0;
                       setAutomations([...automations, { name: `Follow-up dopo ${lastDelay + 7} giorni`, description: "", delayDays: lastDelay + 7, subject: "", message: "" }]);
                     }}
                     className="w-full"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Aggiungi Follow-up
+                    <Plus className="h-4 w-4 mr-2" /> Aggiungi Follow-up
                   </Button>
                 </div>
               )}
@@ -741,21 +786,74 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
       {/* Navigation */}
       <div className="flex justify-between pt-2">
         <Button variant="outline" onClick={handleBack} disabled={currentStep === 1} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Indietro
+          <ArrowLeft className="h-4 w-4" /> Indietro
         </Button>
         {currentStep < 3 ? (
           <Button onClick={handleNext} disabled={!canProceed()} className="gap-2">
-            Avanti
-            <ArrowRight className="h-4 w-4" />
+            Avanti <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
           <Button onClick={handleSend} disabled={!canProceed()} className="gap-2">
-            <Send className="h-4 w-4" />
-            Invia Newsletter
+            <Send className="h-4 w-4" /> Invia Newsletter
           </Button>
         )}
       </div>
+
+      {/* Template Save/Edit Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingTemplateId ? 'Modifica Template' : 'Salva Template'}</DialogTitle>
+            <DialogDescription>
+              {editingTemplateId ? 'Modifica i dettagli del template' : 'Salva le impostazioni correnti come nuovo template'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-xs">Nome Template *</Label>
+              <Input placeholder="Es. Newsletter Mensile" value={templateFormData.name}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, name: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Descrizione</Label>
+              <Input placeholder="Breve descrizione" value={templateFormData.description}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, description: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Logo (URL)</Label>
+              <Input placeholder="https://..." value={templateFormData.logo_url}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, logo_url: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Testo Header</Label>
+              <Input placeholder="Titolo" value={templateFormData.header_text}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, header_text: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Firma</Label>
+              <Textarea placeholder={"Cordiali saluti,\nIl Team"} value={templateFormData.signature}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, signature: e.target.value })} rows={3} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Testo Footer</Label>
+              <Input placeholder="© 2025 Azienda" value={templateFormData.footer_text}
+                onChange={(e) => setTemplateFormData({ ...templateFormData, footer_text: e.target.value })} className="mt-1" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={templateFormData.is_default}
+                onCheckedChange={(checked) => setTemplateFormData({ ...templateFormData, is_default: checked })} />
+              <Label className="text-xs">Imposta come predefinito</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>Annulla</Button>
+            <Button onClick={saveTemplateFromWizard} disabled={savingTemplate} className="gap-1.5">
+              {savingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
