@@ -92,9 +92,11 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
       header_text: '',
       footer_text: '',
       signature: '',
+      html_content: '',
       is_default: false
     });
     setEditingTemplate(null);
+    setEditTab('fields');
   };
 
   const handleOpenDialog = (template?: SavedTemplate) => {
