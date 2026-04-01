@@ -217,9 +217,10 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
             header_text: formData.header_text,
             footer_text: formData.footer_text,
             signature: formData.signature,
+            html_content: formData.html_content || null,
             is_default: formData.is_default,
             created_by: user?.id
-          });
+          } as any);
 
         if (error) throw error;
 
