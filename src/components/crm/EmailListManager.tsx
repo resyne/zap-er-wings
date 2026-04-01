@@ -20,6 +20,8 @@ interface EmailListContact {
   last_name?: string;
   company?: string;
   email: string;
+  phone?: string;
+  city?: string;
 }
 
 interface EmailList {
@@ -342,13 +344,29 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
         return '';
       };
 
-      const contacts = jsonData.map((row: any) => ({
-        email_list_id: currentListId,
-        first_name: findColumn(row, ['Nome', 'First Name', 'first_name', 'FirstName', 'nome']),
-        last_name: findColumn(row, ['Cognome', 'Last Name', 'last_name', 'LastName', 'cognome']),
-        company: findColumn(row, ['Azienda', 'Company', 'company', 'azienda']),
-        email: findColumn(row, ['Email', 'email', 'EMAIL', 'e-mail', 'E-mail', 'e_mail']),
-      })).filter(contact => contact.email.trim());
+      const contacts = jsonData.map((row: any) => {
+        // Handle "nome e cognome" in a single cell - split into first/last name
+        const fullName = findColumn(row, ['Nome e Cognome', 'Nome Cognome', 'Full Name', 'full_name', 'Name', 'name', 'nome e cognome', 'nominativo', 'Nominativo']);
+        let firstName = findColumn(row, ['Nome', 'First Name', 'first_name', 'FirstName', 'nome']);
+        let lastName = findColumn(row, ['Cognome', 'Last Name', 'last_name', 'LastName', 'cognome']);
+        
+        // If we have a full name but no separate first/last, split it
+        if (fullName && !firstName && !lastName) {
+          const parts = String(fullName).trim().split(/\s+/);
+          firstName = parts[0] || '';
+          lastName = parts.slice(1).join(' ') || '';
+        }
+
+        return {
+          email_list_id: currentListId,
+          first_name: firstName ? String(firstName) : '',
+          last_name: lastName ? String(lastName) : '',
+          company: findColumn(row, ['Azienda', 'Company', 'company', 'azienda']),
+          email: findColumn(row, ['Email', 'email', 'EMAIL', 'e-mail', 'E-mail', 'e_mail', 'Indirizzo email', 'indirizzo email', 'Email Address']),
+          phone: findColumn(row, ['Telefono', 'Phone', 'phone', 'Tel', 'tel', 'Numero di telefono', 'numero di telefono', 'Phone Number', 'Cellulare', 'cellulare', 'Mobile']),
+          city: findColumn(row, ['Città', 'City', 'city', 'città', 'Comune', 'comune', 'Address', 'address', 'Indirizzo', 'indirizzo']),
+        };
+      }).filter(contact => contact.email && String(contact.email).trim());
 
       console.log('Processed contacts:', contacts);
 
@@ -621,6 +639,8 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                     <TableHead>Nome</TableHead>
                     <TableHead>Azienda</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Telefono</TableHead>
+                    <TableHead>Città</TableHead>
                     <TableHead className="w-[60px]">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -632,6 +652,8 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                       </TableCell>
                       <TableCell>{contact.company || '-'}</TableCell>
                       <TableCell className="text-sm">{contact.email}</TableCell>
+                      <TableCell className="text-sm">{contact.phone || '-'}</TableCell>
+                      <TableCell className="text-sm">{contact.city || '-'}</TableCell>
                       <TableCell>
                         <Button
                           size="sm"
@@ -645,7 +667,7 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                   ))}
                   {selectedContacts.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nessun contatto in questa lista. Aggiungi contatti manualmente o importa da Excel.
                       </TableCell>
                     </TableRow>
