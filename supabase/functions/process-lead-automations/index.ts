@@ -110,23 +110,37 @@ Deno.serve(async (req) => {
           continue
         }
 
-        // Check if executions already exist for this lead + campaign
-        const { data: existingExecutions, error: execError } = await supabase
-          .from('lead_automation_executions')
-          .select('id')
-          .eq('lead_id', lead.id)
-          .eq('campaign_id', campaign.id)
-          .limit(1)
+        // Check if this EMAIL already has executions for this campaign (dedup by email, not lead_id)
+        let alreadyEnrolled = false
+        if (lead.email) {
+          const { data: leadsWithSameEmail } = await supabase
+            .from('leads')
+            .select('id')
+            .ilike('email', lead.email)
 
-        if (execError) {
-          console.error('Error checking existing executions:', execError)
-          continue
+          const sameEmailIds = (leadsWithSameEmail || []).map((l: { id: string }) => l.id)
+
+          if (sameEmailIds.length > 0) {
+            const { data: existingExecutions, error: execError } = await supabase
+              .from('lead_automation_executions')
+              .select('id')
+              .in('lead_id', sameEmailIds)
+              .eq('campaign_id', campaign.id)
+              .limit(1)
+
+            if (execError) {
+              console.error('Error checking existing executions:', execError)
+              continue
+            }
+
+            if (existingExecutions && existingExecutions.length > 0) {
+              console.log(`Email ${lead.email} already has executions for campaign ${campaign.id}, skipping lead ${lead.id}`)
+              alreadyEnrolled = true
+            }
+          }
         }
 
-        if (existingExecutions && existingExecutions.length > 0) {
-          console.log(`Lead ${lead.id} already has executions for campaign ${campaign.id}`)
-          continue
-        }
+        if (alreadyEnrolled) continue
 
         // Get campaign steps
         const { data: steps, error: stepsError } = await supabase

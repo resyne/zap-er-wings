@@ -59,24 +59,6 @@ Deno.serve(async (req) => {
     const now = new Date()
 
     for (const leadId of leadIds) {
-      // Check if lead already has executions for this campaign
-      const { data: existingExecutions, error: execError } = await supabase
-        .from('lead_automation_executions')
-        .select('id')
-        .eq('lead_id', leadId)
-        .eq('campaign_id', campaignId)
-        .limit(1)
-
-      if (execError) {
-        console.error(`Error checking executions for lead ${leadId}:`, execError)
-        continue
-      }
-
-      if (existingExecutions && existingExecutions.length > 0) {
-        console.log(`Lead ${leadId} already has executions for this campaign, skipping`)
-        continue
-      }
-
       // Get lead info
       const { data: lead, error: leadError } = await supabase
         .from('leads')
@@ -87,6 +69,35 @@ Deno.serve(async (req) => {
       if (leadError || !lead) {
         console.error(`Lead ${leadId} not found:`, leadError)
         continue
+      }
+
+      // Check if this EMAIL already has executions for this campaign (dedup by email, not lead_id)
+      if (lead.email) {
+        const { data: leadsWithSameEmail } = await supabase
+          .from('leads')
+          .select('id')
+          .ilike('email', lead.email)
+
+        const sameEmailIds = (leadsWithSameEmail || []).map(l => l.id)
+
+        if (sameEmailIds.length > 0) {
+          const { data: existingExecutions, error: execError } = await supabase
+            .from('lead_automation_executions')
+            .select('id')
+            .in('lead_id', sameEmailIds)
+            .eq('campaign_id', campaignId)
+            .limit(1)
+
+          if (execError) {
+            console.error(`Error checking executions for lead ${leadId}:`, execError)
+            continue
+          }
+
+          if (existingExecutions && existingExecutions.length > 0) {
+            console.log(`Email ${lead.email} already has executions for this campaign, skipping lead ${leadId}`)
+            continue
+          }
+        }
       }
 
       console.log(`Creating executions for lead ${lead.email} (${lead.country})`)
