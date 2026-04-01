@@ -75,6 +75,7 @@ export const NewsletterWizard = ({ onSend, emailLists }: NewsletterWizardProps) 
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [previewTab, setPreviewTab] = useState<string>("preview");
+  const [customHtml, setCustomHtml] = useState<string>("");
 
   // Template CRUD
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -510,12 +511,18 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
                 </TabsList>
                 <TabsContent value="preview" className="mt-0">
                   <div className="border rounded-lg overflow-hidden bg-muted/30" style={{ maxHeight: 400 }}>
-                    <iframe srcDoc={generatePreviewHtml()} className="w-full border-0" style={{ height: 380 }} title="Template Preview" sandbox="" />
+                    <iframe srcDoc={customHtml || generatePreviewHtml()} className="w-full border-0" style={{ height: 380 }} title="Template Preview" sandbox="" />
                   </div>
                 </TabsContent>
                 <TabsContent value="html" className="mt-0">
-                  <textarea value={generatePreviewHtml()} readOnly
-                    className="w-full h-[380px] font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-none focus:outline-none" spellCheck={false} />
+                  <textarea value={customHtml || generatePreviewHtml()}
+                    onChange={(e) => setCustomHtml(e.target.value)}
+                    className="w-full h-[380px] font-mono text-xs p-3 rounded-lg border bg-muted/30 resize-none focus:outline-none focus:ring-2 focus:ring-ring" spellCheck={false} />
+                  {customHtml && (
+                    <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={() => setCustomHtml("")}>
+                      <ArrowLeft className="h-3 w-3 mr-1" /> Ripristina template originale
+                    </Button>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -712,7 +719,7 @@ ${template.footerText ? `<tr><td style="padding:20px;background:#f9fafb;color:#9
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-hidden bg-muted/30">
-                  <iframe srcDoc={generatePreviewHtml()} className="w-full border-0" style={{ height: 420 }} title="Email Preview" sandbox="" />
+                  <iframe srcDoc={customHtml || generatePreviewHtml()} className="w-full border-0" style={{ height: 420 }} title="Email Preview" sandbox="" />
                 </div>
               </CardContent>
             </Card>
