@@ -693,10 +693,15 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
             </DialogDescription>
           </DialogHeader>
           {previewTemplate && (
-            <div 
-              className="border rounded-lg p-4 bg-gray-50"
-              dangerouslySetInnerHTML={{ __html: generatePreview(previewTemplate) }}
-            />
+            <div className="border rounded-lg overflow-hidden bg-muted/30" style={{ maxHeight: '70vh' }}>
+              <iframe
+                srcDoc={previewTemplate.html_content || generatePreview(previewTemplate)}
+                className="w-full border-0"
+                style={{ height: 500 }}
+                title="Template Preview"
+                sandbox=""
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
