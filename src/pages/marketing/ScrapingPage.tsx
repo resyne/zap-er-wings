@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save, Phone, MessageSquare, ThumbsUp, ThumbsDown, BarChart3 } from "lucide-react";
+import { Search, Globe, Mail, Loader2, CheckCircle2, XCircle, ExternalLink, Copy, Rocket, Bot, RefreshCw, Eye, Pause, Play, Send, Download, Pencil, Save, Phone, MessageSquare, ThumbsUp, ThumbsDown, BarChart3, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Checkbox } from "@/components/ui/checkbox";
