@@ -652,6 +652,8 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
                       </TableCell>
                       <TableCell>{contact.company || '-'}</TableCell>
                       <TableCell className="text-sm">{contact.email}</TableCell>
+                      <TableCell className="text-sm">{contact.phone || '-'}</TableCell>
+                      <TableCell className="text-sm">{contact.city || '-'}</TableCell>
                       <TableCell>
                         <Button
                           size="sm"
