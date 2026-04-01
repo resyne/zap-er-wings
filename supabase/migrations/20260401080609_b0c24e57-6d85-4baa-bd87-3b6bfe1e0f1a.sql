@@ -1,0 +1,1 @@
+DELETE FROM email_list_contacts WHERE email ILIKE '%quotalo.it%';
