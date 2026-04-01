@@ -342,42 +342,54 @@ Deno.serve(async (req) => {
         }
         
         // 2. Generate personalized email with context
-        const prompt = `Sei un esperto di business development e outreach B2B.
+        const LANGUAGE_MAP: Record<string, string> = {
+          'it': 'Italiano', 'en': 'English', 'de': 'Deutsch', 'fr': 'Français',
+          'es': 'Español', 'pt': 'Português', 'nl': 'Nederlands', 'pl': 'Polski',
+          'ro': 'Română', 'el': 'Ελληνικά', 'cs': 'Čeština', 'hu': 'Magyar',
+          'sv': 'Svenska', 'da': 'Dansk', 'fi': 'Suomi', 'hr': 'Hrvatski',
+          'bg': 'Български', 'sk': 'Slovenčina',
+        }
+        const emailLanguage = LANGUAGE_MAP[mission.language_code] || mission.language_code || 'Italiano'
 
-Devi generare un'email professionale, personalizzata e contestualizzata per contattare questa attività.
+        const prompt = `You are an expert in B2B business development and commercial outreach.
 
-INFORMAZIONI SUL DESTINATARIO:
-- Nome/Titolo dalla ricerca: ${result.title}
+You must generate a professional, personalized and contextualized email to contact this business.
+
+CRITICAL: The email MUST be written entirely in ${emailLanguage}. Every part of the email (subject, body, greeting, closing) must be in ${emailLanguage}.
+
+RECIPIENT INFORMATION:
+- Name/Title from search: ${result.title}
 - URL: ${result.url}
-- Descrizione Google: ${result.description || 'Non disponibile'}
-- Città: ${result.city || 'Non specificata'}
-${websiteContent ? `\nCONTENUTO DEL SITO WEB (analizzalo per personalizzare l'email):\n${websiteContent}` : '\n(Sito web non raggiungibile - usa le info dalla ricerca Google)'}
-${extractedEmails.length > 0 ? `\nEMAIL GIÀ TROVATE SUL SITO: ${extractedEmails.join(', ')}` : ''}
+- Google description: ${result.description || 'Not available'}
+- City: ${result.city || 'Not specified'}
+${websiteContent ? `\nWEBSITE CONTENT (analyze it to personalize the email):\n${websiteContent}` : '\n(Website not reachable - use info from Google search)'}
+${extractedEmails.length > 0 ? `\nEMAILS ALREADY FOUND ON SITE: ${extractedEmails.join(', ')}` : ''}
 
-MISSIONE/OBIETTIVO DELL'EMAIL: "${mission.mission_description}"
+EMAIL MISSION/OBJECTIVE: "${mission.mission_description}"
 
-${mission.sender_name ? `Mittente: ${mission.sender_name}` : ''}
-${mission.sender_company ? `Azienda mittente: ${mission.sender_company}` : ''}
+${mission.sender_name ? `Sender: ${mission.sender_name}` : ''}
+${mission.sender_company ? `Sender company: ${mission.sender_company}` : ''}
 
-ISTRUZIONI IMPORTANTI:
-- Analizza il sito web per capire cosa fa l'azienda, i suoi servizi, il suo target
-- Personalizza l'email facendo riferimento specifico a dettagli trovati sul loro sito
-- Spiega perché la proposta è rilevante per LORO in particolare
-- Tono professionale ma diretto, non generico
-- L'email deve sembrare scritta da un umano che ha veramente visitato il sito
+IMPORTANT INSTRUCTIONS:
+- WRITE THE ENTIRE EMAIL IN ${emailLanguage}
+- Analyze the website to understand what the company does, its services, its target
+- Personalize the email with specific references to details found on their site
+- Explain why the proposal is relevant to THEM in particular
+- Professional but direct tone, not generic
+- The email should look like it was written by a human who actually visited the site
 
-ISTRUZIONI PER L'ESTRAZIONE DEI DATI:
-- "recipientCompany": Cerca il NOME ESATTO dell'azienda dal sito (dal logo, titolo pagina, about, footer). NON usare la categoria/settore come nome azienda. Es: "Termoidraulica Rossi Srl", NON "Caldaie Industriali".
-- "recipientName": Se trovi il nome del titolare/responsabile sul sito, inseriscilo. Altrimenti null.
-- "contactEmail": Usa l'email migliore tra quelle già trovate, oppure null se nessuna disponibile.
+DATA EXTRACTION INSTRUCTIONS:
+- "recipientCompany": Look for the EXACT company name from the site (logo, page title, about, footer). DO NOT use the category/sector as company name.
+- "recipientName": If you find the name of the owner/manager on the site, include it. Otherwise null.
+- "contactEmail": Use the best email from those already found, or null if none available.
 
-Rispondi SOLO con JSON valido:
+Reply ONLY with valid JSON:
 {
-  "subject": "oggetto email personalizzato",
-  "body": "corpo email personalizzato con riferimenti al loro sito/attività",
-  "recipientName": "nome della persona di contatto se trovata, altrimenti null",
-  "recipientCompany": "nome ESATTO dell'azienda (NON il settore/categoria)",
-  "contactEmail": "email di contatto trovata sul sito oppure null"
+  "subject": "personalized email subject in ${emailLanguage}",
+  "body": "personalized email body in ${emailLanguage} with references to their site/business",
+  "recipientName": "contact person name if found, otherwise null",
+  "recipientCompany": "EXACT company name (NOT the sector/category)",
+  "contactEmail": "contact email found on site or null"
 }`
 
         const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
