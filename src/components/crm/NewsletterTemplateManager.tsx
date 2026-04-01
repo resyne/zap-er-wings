@@ -51,8 +51,10 @@ export const NewsletterTemplateManager = ({ onTemplateChange }: NewsletterTempla
     header_text: '',
     footer_text: '',
     signature: '',
+    html_content: '',
     is_default: false
   });
+  const [editTab, setEditTab] = useState('fields');
 
   useEffect(() => {
     fetchTemplates();
