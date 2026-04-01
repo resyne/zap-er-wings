@@ -344,13 +344,29 @@ export function EmailListManager({ onListSelect, selectedListId }: EmailListMana
         return '';
       };
 
-      const contacts = jsonData.map((row: any) => ({
-        email_list_id: currentListId,
-        first_name: findColumn(row, ['Nome', 'First Name', 'first_name', 'FirstName', 'nome']),
-        last_name: findColumn(row, ['Cognome', 'Last Name', 'last_name', 'LastName', 'cognome']),
-        company: findColumn(row, ['Azienda', 'Company', 'company', 'azienda']),
-        email: findColumn(row, ['Email', 'email', 'EMAIL', 'e-mail', 'E-mail', 'e_mail']),
-      })).filter(contact => contact.email.trim());
+      const contacts = jsonData.map((row: any) => {
+        // Handle "nome e cognome" in a single cell - split into first/last name
+        const fullName = findColumn(row, ['Nome e Cognome', 'Nome Cognome', 'Full Name', 'full_name', 'Name', 'name', 'nome e cognome', 'nominativo', 'Nominativo']);
+        let firstName = findColumn(row, ['Nome', 'First Name', 'first_name', 'FirstName', 'nome']);
+        let lastName = findColumn(row, ['Cognome', 'Last Name', 'last_name', 'LastName', 'cognome']);
+        
+        // If we have a full name but no separate first/last, split it
+        if (fullName && !firstName && !lastName) {
+          const parts = String(fullName).trim().split(/\s+/);
+          firstName = parts[0] || '';
+          lastName = parts.slice(1).join(' ') || '';
+        }
+
+        return {
+          email_list_id: currentListId,
+          first_name: firstName ? String(firstName) : '',
+          last_name: lastName ? String(lastName) : '',
+          company: findColumn(row, ['Azienda', 'Company', 'company', 'azienda']),
+          email: findColumn(row, ['Email', 'email', 'EMAIL', 'e-mail', 'E-mail', 'e_mail', 'Indirizzo email', 'indirizzo email', 'Email Address']),
+          phone: findColumn(row, ['Telefono', 'Phone', 'phone', 'Tel', 'tel', 'Numero di telefono', 'numero di telefono', 'Phone Number', 'Cellulare', 'cellulare', 'Mobile']),
+          city: findColumn(row, ['Città', 'City', 'city', 'città', 'Comune', 'comune', 'Address', 'address', 'Indirizzo', 'indirizzo']),
+        };
+      }).filter(contact => contact.email && String(contact.email).trim());
 
       console.log('Processed contacts:', contacts);
 
