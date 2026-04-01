@@ -20,6 +20,8 @@ interface EmailListContact {
   last_name?: string;
   company?: string;
   email: string;
+  phone?: string;
+  city?: string;
 }
 
 interface EmailList {
